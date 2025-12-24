@@ -1,0 +1,107 @@
+"""
+Modèles Menu et MenuItem - Gestion des menus quotidiens.
+
+Structure :
+- Un Menu correspond à une date + un restaurant
+- Chaque Menu contient plusieurs MenuItem (entrées, plats, desserts)
+- Statuts : brouillon (draft) ou publié (published)
+"""
+from datetime import datetime
+from ..extensions import db
+
+
+class Menu(db.Model):
+    """Menu du jour pour un restaurant."""
+    
+    __tablename__ = 'menus'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False, index=True)
+    status = db.Column(db.String(20), default='draft')  # draft, published
+    published_at = db.Column(db.DateTime, nullable=True)
+    published_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relations
+    items = db.relationship('MenuItem', backref='menu', lazy='dynamic', 
+                           cascade='all, delete-orphan', order_by='MenuItem.order')
+    published_by = db.relationship('User', backref='published_menus', foreign_keys=[published_by_id])
+    
+    # Contrainte d'unicité : un seul menu par date et par restaurant
+    __table_args__ = (db.UniqueConstraint('restaurant_id', 'date', name='uq_menu_restaurant_date'),)
+    
+    def to_dict(self, include_items=True):
+        """Sérialise le menu en dictionnaire JSON."""
+        data = {
+            'id': self.id,
+            'restaurant_id': self.restaurant_id,
+            'date': self.date.isoformat() if self.date else None,
+            'status': self.status,
+            'published_at': self.published_at.isoformat() if self.published_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+        
+        if include_items:
+            data['items'] = [item.to_dict() for item in self.items.order_by(MenuItem.category, MenuItem.order)]
+        
+        return data
+    
+    def get_items_by_category(self):
+        """Retourne les items groupés par catégorie (dynamique).
+        
+        Supporte toutes les catégories configurées, pas seulement les valeurs hardcodées.
+        """
+        categories = {}
+        for item in self.items:
+            cat = item.category
+            if cat not in categories:
+                categories[cat] = []
+            categories[cat].append(item.to_dict())
+        return categories
+    
+    def __repr__(self):
+        return f'<Menu {self.date} - {self.status}>'
+
+
+class MenuItem(db.Model):
+    """Item d'un menu (entrée, plat, dessert, etc.)."""
+    
+    __tablename__ = 'menu_items'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    menu_id = db.Column(db.Integer, db.ForeignKey('menus.id'), nullable=False)
+    category = db.Column(db.String(50), nullable=False)  # Dynamic categories from config
+    name = db.Column(db.String(200), nullable=False)
+    order = db.Column(db.Integer, default=0)
+    
+    # Tags alimentaires (legacy boolean fields for backwards compatibility)
+    is_vegetarian = db.Column(db.Boolean, default=False)
+    is_halal = db.Column(db.Boolean, default=False)
+    is_pork_free = db.Column(db.Boolean, default=False)
+    allergens = db.Column(db.Text, nullable=True)  # JSON string: ["gluten", "lactose", ...]
+    
+    # Dynamic tags and certifications (JSON arrays)
+    tags = db.Column(db.JSON, nullable=True)  # ["vegetarian", "halal", "gluten_free"]
+    certifications = db.Column(db.JSON, nullable=True)  # ["bio", "local", "french_meat"]
+    
+    def to_dict(self):
+        """Sérialise l'item en dictionnaire JSON."""
+        return {
+            'id': self.id,
+            'menu_id': self.menu_id,
+            'category': self.category,
+            'name': self.name,
+            'order': self.order,
+            'is_vegetarian': self.is_vegetarian,
+            'is_halal': self.is_halal,
+            'is_pork_free': self.is_pork_free,
+            'allergens': self.allergens,
+            'tags': self.tags or [],
+            'certifications': self.certifications or []
+        }
+    
+    def __repr__(self):
+        return f'<MenuItem {self.category}: {self.name}>'

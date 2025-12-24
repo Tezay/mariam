@@ -1,0 +1,39 @@
+# Backend Flask MARIAM - Dependencies
+# Plateforme de gestion des menus universitaires
+
+# Framework Flask
+Flask==3.0.0
+
+# ORM pour interagir avec PostgreSQL
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.23
+
+# Driver PostgreSQL pour Python
+psycopg2-binary==2.9.9
+
+# JWT pour authentification API REST
+Flask-JWT-Extended==4.6.0
+
+# CORS pour architecture headless
+Flask-CORS==4.0.0
+
+# Migrations de base de données
+Flask-Migrate==4.0.5
+
+# Hachage sécurisé des mots de passe
+Werkzeug==3.0.1
+
+# Variables d'environnement
+python-dotenv==1.0.0
+
+# ========================================
+# MARIAM - Sécurité MFA
+# ========================================
+# TOTP (Time-based One-Time Password) pour MFA
+pyotp==2.9.0
+
+# Génération de QR codes pour configuration MFA
+qrcode[pil]==7.4.2
+
+# Server WSGI pour production
+gunicorn==21.2.0

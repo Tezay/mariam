@@ -1,0 +1,71 @@
+# MARIAM - Gestion des Menus Universitaires
+# Docker Compose pour le développement
+
+services:
+  # ========================================
+  # DATABASE POSTGRESQL
+  # ========================================
+  db:
+    image: postgres:15-alpine
+    container_name: mariam_db
+    environment:
+      POSTGRES_USER: mariam
+      POSTGRES_PASSWORD: mariam_secret
+      POSTGRES_DB: mariam_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mariam -d mariam_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ========================================
+  # BACKEND FLASK (API)
+  # ========================================
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: mariam_backend
+    environment:
+      FLASK_APP: run.py
+      FLASK_ENV: development
+      FLASK_DEBUG: 1
+      DATABASE_URL: postgresql://mariam:mariam_secret@db:5432/mariam_db
+      JWT_SECRET_KEY: dev-jwt-secret-key-change-in-production
+      JWT_ACCESS_TOKEN_MINUTES: 30
+      MFA_ISSUER_NAME: MARIAM
+      FRONTEND_URL: http://localhost:5173
+    volumes:
+      - ./server:/app
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: flask run --host=0.0.0.0 --port=5000 --reload
+
+  # ========================================
+  # FRONTEND REACT (Vite + Bun)
+  # ========================================
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: mariam_frontend
+    environment:
+      VITE_API_URL: http://localhost:5000/api
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    command: bun run dev --host 0.0.0.0
+
+volumes:
+  postgres_data:

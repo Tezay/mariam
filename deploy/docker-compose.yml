@@ -1,0 +1,81 @@
+# MARIAM - Production Docker Compose
+# ========================================
+# Orchestration pour l'environnement de production
+#
+# Usage:
+#   ./scripts/run.sh          # Démarre l'application
+#   ./scripts/run.sh logs     # Voir les logs
+#   ./scripts/run.sh down     # Arrêter l'application
+#   ./scripts/init.sh         # Initialiser (premier démarrage)
+
+services:
+  # ========================================
+  # BASE DE DONNÉES
+  # ========================================
+  db:
+    image: postgres:15-alpine
+    container_name: mariam_db_prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mariam}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Définissez POSTGRES_PASSWORD dans .env}
+      POSTGRES_DB: ${POSTGRES_DB:-mariam_db}
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mariam} -d ${POSTGRES_DB:-mariam_db}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mariam_network
+
+  # ========================================
+  # BACKEND (Flask + Gunicorn)
+  # ========================================
+  backend:
+    build:
+      context: ../server
+      dockerfile: Dockerfile.prod
+    container_name: mariam_backend_prod
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mariam}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-mariam_db}
+      SECRET_KEY: ${SECRET_KEY:?Définissez SECRET_KEY dans .env}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Définissez JWT_SECRET_KEY dans .env}
+      JWT_ACCESS_TOKEN_MINUTES: ${JWT_ACCESS_TOKEN_MINUTES:-30}
+      MFA_ISSUER_NAME: ${MFA_ISSUER_NAME:-MARIAM}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - mariam_network
+
+  # ========================================
+  # FRONTEND (Nginx + React build)
+  # ========================================
+  frontend:
+    build:
+      context: ../client
+      dockerfile: Dockerfile.prod
+      args:
+        VITE_API_URL: /api
+    container_name: mariam_frontend_prod
+    restart: unless-stopped
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "${PORT:-80}:80"
+    depends_on:
+      - backend
+    networks:
+      - mariam_network
+
+volumes:
+  postgres_data_prod:
+
+
+networks:
+  mariam_network:
+    driver: bridge
