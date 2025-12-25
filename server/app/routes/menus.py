@@ -279,7 +279,9 @@ def update_menu(menu_id):
                 is_vegetarian=item_data.get('is_vegetarian', False),
                 is_halal=item_data.get('is_halal', False),
                 is_pork_free=item_data.get('is_pork_free', False),
-                allergens=item_data.get('allergens')
+                allergens=item_data.get('allergens'),
+                tags=item_data.get('tags'),
+                certifications=item_data.get('certifications')
             )
             db.session.add(item)
     

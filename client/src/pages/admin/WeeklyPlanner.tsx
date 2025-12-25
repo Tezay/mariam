@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { MenuEditor } from '@/components/MenuEditor';
 import { Icon } from '@/components/ui/icon-picker';
 import type { IconName } from '@/components/ui/icon-picker';
-import { ChevronLeft, ChevronRight, Check, FileEdit, FileX, Leaf, Send } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, FileEdit, FileX, Send } from 'lucide-react';
 
 const DAY_NAMES = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
@@ -138,11 +138,6 @@ export function WeeklyPlanner() {
         return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
     };
 
-    const formatDateLong = (dateStr: string) => {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-    };
-
     // Formater le numéro de semaine
     const getWeekNumber = () => {
         if (!weekData?.week_start) return '';
@@ -199,7 +194,7 @@ export function WeeklyPlanner() {
     };
 
     // Afficher le contenu d'une carte de jour
-    const renderDayCard = (dateStr: string, dayIndex: number, isCompact: boolean = false) => {
+    const renderDayCard = (dateStr: string, dayIndex: number) => {
         const menu = weekData?.menus[dateStr];
         const isToday = dateStr === new Date().toISOString().split('T')[0];
         const sortedCategories = [...categories].sort((a, b) => a.order - b.order);
@@ -221,7 +216,7 @@ export function WeeklyPlanner() {
                             </CardTitle>
                             <p className="text-sm text-gray-500">{formatDate(dateStr)}</p>
                         </div>
-                        {renderStatusBadge(menu)}
+                        {renderStatusBadge(menu || null)}
                     </div>
                 </CardHeader>
                 <CardContent className="flex-1 pt-2">

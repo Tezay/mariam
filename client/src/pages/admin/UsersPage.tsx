@@ -359,7 +359,7 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                         <div>
                             <Label>Rôle</Label>
                             <div className="grid grid-cols-3 gap-2 mt-2">
-                                {Object.entries(ROLE_LABELS).map(([key, { label, description, color }]) => (
+                                {Object.entries(ROLE_LABELS).map(([key, { label, description }]) => (
                                     <button
                                         key={key}
                                         type="button"

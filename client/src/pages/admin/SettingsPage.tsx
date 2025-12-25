@@ -1,8 +1,8 @@
 /**
  * MARIAM - Page Paramètres du Restaurant
  */
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { adminApi, MenuCategory, DietaryTag, Certification } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { IconPicker, Icon } from '@/components/ui/icon-picker';
 import { iconsData } from '@/components/ui/icons-data';
-import { Save, Plus, Trash2, GripVertical, Leaf, BadgeCheck, Ban, WheatOff, MilkOff, Sprout, MapPin, Flag, Fish, ArrowUp, ArrowDown } from 'lucide-react';
+import { Save, Plus, Trash2, Leaf, BadgeCheck, Ban, WheatOff, MilkOff, Sprout, MapPin, Flag, Fish, ArrowUp, ArrowDown } from 'lucide-react';
 import type { IconName } from '@/components/ui/icon-picker';
 
 const DAY_NAMES = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
@@ -57,7 +57,6 @@ function serializeState(name: string, address: string, serviceDays: number[], ca
 }
 
 export function SettingsPage() {
-    const navigate = useNavigate();
     const location = useLocation();
 
     const [isLoading, setIsLoading] = useState(true);
@@ -130,15 +129,6 @@ export function SettingsPage() {
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [hasChanges]);
-
-    // Bloque la navigation si des modifications non sauvegardées
-    const blockNavigation = useCallback((nextLocation: { pathname: string }) => {
-        if (hasChanges && nextLocation.pathname !== location.pathname) {
-            const confirmLeave = window.confirm('Vous avez des modifications non enregistrées. Voulez-vous vraiment quitter cette page ?');
-            return !confirmLeave;
-        }
-        return false;
-    }, [hasChanges, location.pathname]);
 
     // Bloque les tentatives de navigation
     useEffect(() => {
