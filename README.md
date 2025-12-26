@@ -109,9 +109,37 @@ Mariam/
         └── lib/api.ts         # Client API avec interceptors
 ```
 
-## 🔧 API Endpoints
+## 🌐 API Développeur (v1)
 
-### Publiques (sans auth)
+Une API publique est disponible pour les développeurs souhaitant intégrer les données des menus.
+
+**Documentation interactive** : `/api/v1/docs` (Swagger UI)
+
+| Route | Description |
+|-------|-------------|
+| `GET /api/v1/menus` | Menu du jour et de demain |
+| `GET /api/v1/restaurant` | Informations du restaurant |
+
+### Exemple de réponse
+
+```json
+{
+  "success": true,
+  "data": {
+    "today": { "date": "2025-12-26", "day_name": "Jeudi", "items": [...] },
+    "tomorrow": { "date": "2025-12-27", "day_name": "Vendredi", "items": [...] }
+  },
+  "meta": { "generated_at": "2025-12-26T12:00:00Z" }
+}
+```
+
+---
+
+## 🔧 API Interne (utilisée par l'interface)
+
+Ces routes sont utilisées par l'application web MARIAM.
+
+### Publiques
 | Route | Description |
 |-------|-------------|
 | `GET /api/public/menu/today` | Menu du jour |
@@ -121,8 +149,8 @@ Mariam/
 ### Authentification
 | Route | Description |
 |-------|-------------|
-| `POST /api/auth/login` | Connexion (étape 1) |
-| `POST /api/auth/verify-mfa` | Vérification MFA (étape 2) |
+| `POST /api/auth/login` | Connexion |
+| `POST /api/auth/verify-mfa` | Vérification MFA |
 | `POST /api/auth/activate` | Activation de compte |
 
 ### Administration (auth requise)

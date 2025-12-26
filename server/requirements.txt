@@ -2,7 +2,7 @@
 # Plateforme de gestion des menus universitaires
 
 # Framework Flask
-Flask==3.0.0
+Flask==3.0.2
 
 # ORM pour interagir avec PostgreSQL
 Flask-SQLAlchemy==3.1.1
@@ -37,3 +37,10 @@ qrcode[pil]==7.4.2
 
 # Server WSGI pour production
 gunicorn==21.2.0
+
+# ========================================
+# MARIAM - API Documentation (OpenAPI/Swagger)
+# ========================================
+flask-smorest==0.44.0
+marshmallow==3.21.0
+

@@ -40,6 +40,16 @@ def create_app(config_class=None):
     app.config['MFA_ISSUER_NAME'] = os.environ.get('MFA_ISSUER_NAME', 'MARIAM')
     
     # ========================================
+    # CONFIGURATION API DOCUMENTATION (OpenAPI/Swagger)
+    # ========================================
+    app.config['API_TITLE'] = 'MARIAM Developer API'
+    app.config['API_VERSION'] = 'v1'
+    app.config['OPENAPI_VERSION'] = '3.0.3'
+    app.config['OPENAPI_URL_PREFIX'] = '/api/v1'
+    app.config['OPENAPI_SWAGGER_UI_PATH'] = '/docs'
+    app.config['OPENAPI_SWAGGER_UI_URL'] = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist/'
+    
+    # ========================================
     # INITIALISATION DES EXTENSIONS
     # ========================================
     db.init_app(app)
@@ -86,7 +96,16 @@ def create_app(config_class=None):
     )
     
     # ========================================
-    # ENREGISTREMENT DES BLUEPRINTS
+    # API v1 (Public Developer API with Swagger)
+    # ========================================
+    from flask_smorest import Api
+    api = Api(app)
+    
+    from .routes.api_v1 import api_v1_bp
+    api.register_blueprint(api_v1_bp)
+    
+    # ========================================
+    # ENREGISTREMENT DES BLUEPRINTS INTERNES
     # ========================================
     from .routes.auth import auth_bp
     from .routes.admin import admin_bp
@@ -106,7 +125,8 @@ def create_app(config_class=None):
         return {
             'status': 'healthy', 
             'message': 'MARIAM API is running',
-            'version': '0.1.0'
+            'version': '0.1.0',
+            'docs': '/api/v1/docs'
         }
     
     # ========================================
