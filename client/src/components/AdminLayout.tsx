@@ -4,7 +4,17 @@
 import { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeProvider';
 import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/Logo';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     CalendarDays,
     Megaphone,
@@ -14,7 +24,11 @@ import {
     X,
     LogOut,
     ExternalLink,
-    Shield
+    Shield,
+    User,
+    Moon,
+    Sun,
+    ChevronDown
 } from 'lucide-react';
 
 interface NavItem {
@@ -26,6 +40,7 @@ interface NavItem {
 
 export function AdminLayout() {
     const { user, logout } = useAuth();
+    const { theme, setTheme } = useTheme();
     const navigate = useNavigate();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -47,22 +62,22 @@ export function AdminLayout() {
     const closeSidebar = () => setSidebarOpen(false);
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-background">
             {/* Header */}
-            <header className="bg-white border-b sticky top-0 z-40">
+            <header className="bg-card border-b border-border sticky top-0 z-40">
                 <div className="container-mariam flex items-center justify-between h-16">
                     {/* Menu hamburger (mobile) + Logo */}
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setSidebarOpen(true)}
-                            className="md:hidden p-2 -ml-2 text-gray-600 hover:text-gray-900"
+                            className="md:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground"
                             aria-label="Ouvrir le menu"
                         >
                             <MenuIcon className="w-6 h-6" />
                         </button>
                         <NavLink to="/admin" className="flex items-center gap-2">
-                            <span className="text-2xl font-bold text-mariam-blue">MARIAM</span>
-                            <span className="text-sm text-gray-400 hidden sm:inline">Admin</span>
+                            <Logo className="h-16 w-auto p-2" />
+                            <span className="text-sm text-muted-foreground hidden sm:inline">Admin</span>
                         </NavLink>
                     </div>
 
@@ -71,31 +86,50 @@ export function AdminLayout() {
                         <NavLink
                             to="/menu"
                             target="_blank"
-                            className="text-sm text-gray-500 hover:text-mariam-blue hidden sm:flex items-center gap-1"
+                            className="text-sm text-muted-foreground hover:text-mariam-blue hidden sm:flex items-center gap-1"
                         >
                             Voir le menu public
                             <ExternalLink className="w-3 h-3" />
                         </NavLink>
 
-                        <div className="flex items-center gap-3">
-                            <div className="text-right hidden sm:block">
-                                <p className="text-sm font-medium text-gray-900">
-                                    {user?.username || user?.email}
-                                </p>
-                                <p className="text-xs text-gray-500 capitalize">
-                                    {user?.role}
-                                </p>
-                            </div>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleLogout}
-                                className="gap-2"
-                            >
-                                <LogOut className="w-4 h-4" />
-                                <span className="hidden sm:inline">Déconnexion</span>
-                            </Button>
-                        </div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="gap-2">
+                                    <User className="w-4 h-4" />
+                                    <span className="hidden sm:inline max-w-32 truncate">
+                                        {user?.username || user?.email}
+                                    </span>
+                                    <ChevronDown className="w-3 h-3" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuLabel>
+                                    <div>
+                                        <p className="font-medium">{user?.username || user?.email}</p>
+                                        <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
+                                    </div>
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem asChild>
+                                    <NavLink to="/admin/account" className="cursor-pointer">
+                                        <User className="w-4 h-4 mr-2" />
+                                        Mon compte
+                                    </NavLink>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+                                    {theme === 'dark'
+                                        ? <Sun className="w-4 h-4 mr-2" />
+                                        : <Moon className="w-4 h-4 mr-2" />
+                                    }
+                                    Thème sombre
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+                                    <LogOut className="w-4 h-4 mr-2" />
+                                    Se déconnecter
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
             </header>
@@ -113,7 +147,7 @@ export function AdminLayout() {
                 {/* Sidebar */}
                 <aside className={`
                     fixed md:static inset-y-0 left-0 z-30
-                    w-64 bg-white border-r
+                    w-64 bg-card border-r border-border
                     transform transition-transform duration-200 ease-in-out
                     md:transform-none md:transition-none
                     ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
@@ -123,7 +157,7 @@ export function AdminLayout() {
                     {/* Bouton fermer (mobile) */}
                     <button
                         onClick={closeSidebar}
-                        className="md:hidden absolute top-4 right-4 p-2 text-gray-500 hover:text-gray-700"
+                        className="md:hidden absolute top-4 right-4 p-2 text-muted-foreground hover:text-foreground"
                         aria-label="Fermer le menu"
                     >
                         <X className="w-5 h-5" />
@@ -138,8 +172,8 @@ export function AdminLayout() {
                                 className={({ isActive }) => `
                                     flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
                                     ${isActive
-                                        ? 'bg-blue-50 text-mariam-blue font-medium'
-                                        : 'text-gray-600 hover:bg-gray-50'
+                                        ? 'bg-primary/10 text-primary font-medium'
+                                        : 'text-muted-foreground hover:bg-muted'
                                     }
                                 `}
                             >
@@ -157,14 +191,14 @@ export function AdminLayout() {
             </div>
 
             {/* Nav mobile (bottom) */}
-            <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t flex z-30">
+            <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex z-30">
                 {filteredNavItems.slice(0, 4).map((item) => (
                     <NavLink
                         key={item.to}
                         to={item.to}
                         className={({ isActive }) => `
                             flex-1 flex flex-col items-center py-3 text-xs
-                            ${isActive ? 'text-mariam-blue' : 'text-gray-500'}
+                            ${isActive ? 'text-primary' : 'text-muted-foreground'}
                         `}
                     >
                         {item.icon}

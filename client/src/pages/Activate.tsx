@@ -12,6 +12,7 @@ import { authApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Logo } from '@/components/Logo';
 
 type Step = 'loading' | 'invalid' | 'password' | 'mfa' | 'verify';
 
@@ -131,24 +132,24 @@ export function Activate() {
     // Rendu selon l'étape
     if (step === 'loading') {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-mariam-blue"></div>
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
         );
     }
 
     if (step === 'invalid') {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+            <div className="min-h-screen flex items-center justify-center bg-background px-4">
                 <div className="max-w-md w-full text-center">
-                    <div className="bg-white shadow-lg rounded-lg p-8">
-                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="bg-card border border-border shadow-lg rounded-lg p-8">
+                        <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-8 h-8 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </div>
-                        <h2 className="text-xl font-semibold mb-2">Lien invalide</h2>
-                        <p className="text-gray-600">
+                        <h2 className="text-xl font-semibold mb-2 text-foreground">Lien invalide</h2>
+                        <p className="text-muted-foreground">
                             Ce lien d'activation est invalide ou a expiré.
                         </p>
                     </div>
@@ -158,21 +159,19 @@ export function Activate() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
+        <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4">
             <div className="max-w-md w-full space-y-8">
                 {/* Header */}
-                <div className="text-center">
-                    <h1 className="text-4xl font-bold text-mariam-blue tracking-tight">
-                        MARIAM
-                    </h1>
-                    <p className="mt-2 text-gray-600">
+                <div className="text-center flex flex-col items-center">
+                    <Logo className="h-20 w-auto" />
+                    <p className="mt-4 text-muted-foreground">
                         {linkInfo?.link_type === 'first_admin'
                             ? 'Configuration du premier administrateur'
                             : 'Activation de votre compte'}
                     </p>
                 </div>
 
-                <div className="bg-white shadow-lg rounded-lg p-8">
+                <div className="bg-card border border-border shadow-lg rounded-lg p-8">
                     {step === 'password' && (
                         <form onSubmit={handlePasswordSubmit} className="space-y-6">
                             <div>
@@ -212,10 +211,10 @@ export function Activate() {
                                 />
                                 {password && passwordErrors.length > 0 && (
                                     <div className="mt-2 text-sm">
-                                        <p className="text-gray-600 mb-1">Le mot de passe doit contenir :</p>
+                                        <p className="text-muted-foreground mb-1">Le mot de passe doit contenir :</p>
                                         <ul className="space-y-1">
                                             {passwordErrors.map((err, i) => (
-                                                <li key={i} className="text-red-600 flex items-center gap-1">
+                                                <li key={i} className="text-destructive flex items-center gap-1">
                                                     <span>✗</span> {err}
                                                 </li>
                                             ))}
@@ -235,14 +234,14 @@ export function Activate() {
                                     className="mt-1"
                                 />
                                 {confirmPassword && !passwordsMatch && (
-                                    <p className="mt-1 text-sm text-red-600">
+                                    <p className="mt-1 text-sm text-destructive">
                                         Les mots de passe ne correspondent pas
                                     </p>
                                 )}
                             </div>
 
                             {error && (
-                                <div className="text-red-600 text-sm bg-red-50 p-3 rounded">
+                                <div className="text-destructive text-sm bg-destructive/10 p-3 rounded">
                                     {error}
                                 </div>
                             )}
@@ -260,10 +259,10 @@ export function Activate() {
                     {step === 'mfa' && (
                         <form onSubmit={handleMfaSubmit} className="space-y-6">
                             <div className="text-center">
-                                <h2 className="text-lg font-semibold mb-2">
+                                <h2 className="text-lg font-semibold mb-2 text-foreground">
                                     Configuration de l'authentification
                                 </h2>
-                                <p className="text-gray-600 text-sm">
+                                <p className="text-muted-foreground text-sm">
                                     Scannez ce QR code avec votre application d'authentification
                                     (Google Authenticator, Microsoft Authenticator, etc.)
                                 </p>
@@ -274,16 +273,16 @@ export function Activate() {
                                 <img
                                     src={qrCode}
                                     alt="QR Code MFA"
-                                    className="w-48 h-48 border rounded"
+                                    className="w-48 h-48 border border-border rounded"
                                 />
                             </div>
 
                             {/* Clé manuelle */}
                             <div className="text-center">
-                                <p className="text-xs text-gray-500 mb-1">
+                                <p className="text-xs text-muted-foreground mb-1">
                                     Ou entrez cette clé manuellement :
                                 </p>
-                                <code className="bg-gray-100 px-3 py-1 rounded text-sm font-mono">
+                                <code className="bg-muted px-3 py-1 rounded text-sm font-mono text-foreground">
                                     {mfaSecret}
                                 </code>
                             </div>
@@ -302,13 +301,13 @@ export function Activate() {
                                     className="mt-1 text-center text-2xl tracking-widest"
                                     maxLength={6}
                                 />
-                                <p className="mt-1 text-xs text-gray-500 text-center">
+                                <p className="mt-1 text-xs text-muted-foreground text-center">
                                     Entrez le code à 6 chiffres affiché dans votre application
                                 </p>
                             </div>
 
                             {error && (
-                                <div className="text-red-600 text-sm bg-red-50 p-3 rounded">
+                                <div className="text-destructive text-sm bg-destructive/10 p-3 rounded">
                                     {error}
                                 </div>
                             )}

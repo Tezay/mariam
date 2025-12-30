@@ -18,6 +18,7 @@ import { WeeklyPlanner } from './pages/admin/WeeklyPlanner';
 import { UsersPage } from './pages/admin/UsersPage';
 import { SettingsPage } from './pages/admin/SettingsPage';
 import { AuditLogsPage } from './pages/admin/AuditLogsPage';
+import { AccountPage } from './pages/admin/AccountPage';
 
 // Route protégée pour l'admin
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -100,6 +101,9 @@ function App() {
 
                 {/* Logs d'audit (admin only) */}
                 <Route path="audit-logs" element={<AuditLogsPage />} />
+
+                {/* Mon compte */}
+                <Route path="account" element={<AccountPage />} />
 
                 {/* Placeholder pour futures pages */}
                 <Route path="events" element={<PlaceholderPage title="Événements" />} />

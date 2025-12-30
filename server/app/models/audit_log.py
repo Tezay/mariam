@@ -48,6 +48,7 @@ class AuditLog(db.Model):
     ACTION_ACCOUNT_ACTIVATE = 'account_activate'
     ACTION_AUDIT_LOGS_ACCESS = 'audit_logs_access'
     ACTION_AUDIT_LOGS_EXPORT = 'audit_logs_export'
+    ACTION_PASSWORD_CHANGE = 'password_change'
     
     @classmethod
     def log(cls, action, user_id=None, target_type=None, target_id=None, 

@@ -255,7 +255,7 @@ export function SettingsPage() {
     if (isLoading) {
         return (
             <div className="container-mariam py-8 flex justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-mariam-blue"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
         );
     }
@@ -264,8 +264,8 @@ export function SettingsPage() {
         <div className="container-mariam py-8 max-w-4xl">
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Paramètres</h1>
-                    <p className="text-gray-500">Configurez votre restaurant universitaire</p>
+                    <h1 className="text-2xl font-bold text-foreground">Paramètres</h1>
+                    <p className="text-muted-foreground">Configurez votre restaurant universitaire</p>
                 </div>
                 <Button
                     onClick={handleSave}
@@ -278,13 +278,13 @@ export function SettingsPage() {
             </div>
 
             {message && (
-                <div className={`mb-6 p-4 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                <div className={`mb-6 p-4 rounded-lg ${message.type === 'success' ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-destructive/10 text-destructive'}`}>
                     {message.text}
                 </div>
             )}
 
             {hasChanges && (
-                <div className="mb-6 p-3 rounded-lg bg-amber-50 text-amber-700 text-sm">
+                <div className="mb-6 p-3 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 text-sm">
                     Vous avez des modifications non enregistrées.
                 </div>
             )}
@@ -331,15 +331,15 @@ export function SettingsPage() {
                                     key={index}
                                     onClick={() => toggleDay(index)}
                                     className={`px-4 py-2 rounded-lg border-2 transition-all ${serviceDays.includes(index)
-                                        ? 'border-mariam-blue bg-blue-50 text-mariam-blue font-medium'
-                                        : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                                        ? 'border-primary bg-primary/10 text-primary font-medium'
+                                        : 'border-border text-muted-foreground hover:border-muted-foreground'
                                         }`}
                                 >
                                     {day}
                                 </button>
                             ))}
                         </div>
-                        <p className="mt-3 text-sm text-gray-500">
+                        <p className="mt-3 text-sm text-muted-foreground">
                             {serviceDays.length} jour{serviceDays.length > 1 ? 's' : ''} de service par semaine
                         </p>
                     </CardContent>
@@ -354,13 +354,13 @@ export function SettingsPage() {
                     <CardContent>
                         <div className="space-y-3">
                             {categories.map((cat, index) => (
-                                <div key={cat.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                                <div key={cat.id} className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
                                     {/* Boutons pour réordonner les catégories */}
                                     <div className="flex flex-col gap-0.5">
                                         <button
                                             onClick={() => moveCategory(index, 'up')}
                                             disabled={index === 0}
-                                            className={`p-1 rounded hover:bg-gray-200 ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}`}
+                                            className={`p-1 rounded hover:bg-muted ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}`}
                                             title="Monter"
                                         >
                                             <ArrowUp className="w-3 h-3" />
@@ -368,7 +368,7 @@ export function SettingsPage() {
                                         <button
                                             onClick={() => moveCategory(index, 'down')}
                                             disabled={index === categories.length - 1}
-                                            className={`p-1 rounded hover:bg-gray-200 ${index === categories.length - 1 ? 'opacity-30 cursor-not-allowed' : ''}`}
+                                            className={`p-1 rounded hover:bg-muted ${index === categories.length - 1 ? 'opacity-30 cursor-not-allowed' : ''}`}
                                             title="Descendre"
                                         >
                                             <ArrowDown className="w-3 h-3" />
@@ -392,12 +392,12 @@ export function SettingsPage() {
                                         className="flex-1"
                                         placeholder="Nom de la catégorie"
                                     />
-                                    <span className="text-xs text-gray-400 w-6 text-center">#{index + 1}</span>
+                                    <span className="text-xs text-muted-foreground w-6 text-center">#{index + 1}</span>
                                     <Button
                                         variant="ghost"
                                         size="icon"
                                         onClick={() => removeCategory(cat.id)}
-                                        className="text-red-500 hover:text-red-700"
+                                        className="text-destructive hover:text-destructive"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </Button>
@@ -424,8 +424,8 @@ export function SettingsPage() {
                                     key={tag.id}
                                     onClick={() => toggleTag(tag.id)}
                                     className={`px-4 py-2 rounded-lg border-2 transition-all flex items-center gap-2 ${enabledTags.includes(tag.id)
-                                        ? 'border-green-500 bg-green-50 text-green-700'
-                                        : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                                        ? 'border-green-500 bg-green-500/10 text-green-600 dark:text-green-400'
+                                        : 'border-border text-muted-foreground hover:border-muted-foreground'
                                         }`}
                                 >
                                     {renderIcon(tag.icon, 'w-4 h-4')}
@@ -449,8 +449,8 @@ export function SettingsPage() {
                                     key={cert.id}
                                     onClick={() => toggleCert(cert.id)}
                                     className={`px-4 py-2 rounded-lg border-2 transition-all flex items-center gap-2 ${enabledCerts.includes(cert.id)
-                                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                        : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                                        ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                                        : 'border-border text-muted-foreground hover:border-muted-foreground'
                                         }`}
                                 >
                                     {renderIcon(cert.icon, 'w-4 h-4')}

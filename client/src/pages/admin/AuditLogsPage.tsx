@@ -142,20 +142,20 @@ export function AuditLogsPage() {
     if (mfaRequired) {
         return (
             <div className="container-mariam py-12 max-w-2xl">
-                <Card className="border-amber-200 bg-amber-50">
+                <Card className="border-amber-500/30 bg-amber-500/5">
                     <CardHeader>
                         <div className="flex items-center gap-3">
-                            <Shield className="w-8 h-8 text-amber-600" />
+                            <Shield className="w-8 h-8 text-amber-600 dark:text-amber-400" />
                             <div>
-                                <CardTitle className="text-amber-900">Authentification à deux facteurs requise</CardTitle>
-                                <CardDescription className="text-amber-700">
+                                <CardTitle className="text-amber-900 dark:text-amber-300">Authentification à deux facteurs requise</CardTitle>
+                                <CardDescription className="text-amber-700 dark:text-amber-400">
                                     L'accès aux logs d'audit nécessite l'activation de l'A2F pour des raisons de sécurité.
                                 </CardDescription>
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-sm text-amber-800 mb-4">
+                        <p className="text-sm text-amber-800 dark:text-amber-300 mb-4">
                             Les logs d'audit contiennent des informations sensibles (adresses IP, actions utilisateurs, etc.).
                             Pour y accéder, vous devez d'abord activer l'authentification à deux facteurs sur votre compte.
                         </p>
@@ -175,10 +175,10 @@ export function AuditLogsPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div>
                     <div className="flex items-center gap-2">
-                        <Shield className="w-6 h-6 text-mariam-blue" />
-                        <h1 className="text-2xl font-bold text-gray-900">Logs d'audit</h1>
+                        <Shield className="w-6 h-6 text-primary" />
+                        <h1 className="text-2xl font-bold text-foreground">Logs d'audit</h1>
                     </div>
-                    <p className="text-gray-600">
+                    <p className="text-muted-foreground">
                         Historique des actions sensibles et événements de sécurité
                     </p>
                 </div>
@@ -201,7 +201,7 @@ export function AuditLogsPage() {
                         <div className="flex-1">
                             <Label htmlFor="search">Rechercher</Label>
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                 <Input
                                     id="search"
                                     placeholder="Email, action, IP..."
@@ -220,7 +220,7 @@ export function AuditLogsPage() {
                                     setActionFilter(e.target.value);
                                     setPage(1);
                                 }}
-                                className="w-full h-10 px-3 rounded-md border border-gray-300 bg-white text-sm"
+                                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm text-foreground"
                             >
                                 <option value="">Toutes les actions</option>
                                 {Object.entries(ACTION_LABELS).map(([key, label]) => (
@@ -235,11 +235,11 @@ export function AuditLogsPage() {
             {/* Table */}
             {isLoading ? (
                 <div className="flex justify-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-mariam-blue"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
                 </div>
             ) : logs.length === 0 ? (
                 <Card>
-                    <CardContent className="py-12 text-center text-gray-500">
+                    <CardContent className="py-12 text-center text-muted-foreground">
                         <AlertTriangle className="w-12 h-12 mx-auto mb-4 opacity-50" />
                         <p>Aucun log trouvé</p>
                     </CardContent>
@@ -261,7 +261,7 @@ export function AuditLogsPage() {
                             <TableBody>
                                 {filteredLogs.map((log) => (
                                     <TableRow key={log.id}>
-                                        <TableCell className="text-sm text-gray-500">
+                                        <TableCell className="text-sm text-muted-foreground">
                                             {new Date(log.created_at).toLocaleString('fr-FR', {
                                                 day: '2-digit',
                                                 month: '2-digit',
@@ -271,27 +271,27 @@ export function AuditLogsPage() {
                                             })}
                                         </TableCell>
                                         <TableCell className="font-medium">
-                                            {log.user_email || <span className="text-gray-400 italic">Système</span>}
+                                            {log.user_email || <span className="text-muted-foreground italic">Système</span>}
                                         </TableCell>
                                         <TableCell>
                                             <Badge variant={getActionBadgeVariant(log.action)}>
                                                 {ACTION_LABELS[log.action] || log.action}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-sm text-gray-600">
+                                        <TableCell className="text-sm text-muted-foreground">
                                             {log.target_type ? (
                                                 <span>{log.target_type}:{log.target_id}</span>
                                             ) : (
-                                                <span className="text-gray-400">—</span>
+                                                <span className="text-muted-foreground/50">—</span>
                                             )}
                                         </TableCell>
-                                        <TableCell className="text-sm font-mono text-gray-600">
-                                            {log.ip_address || <span className="text-gray-400">—</span>}
+                                        <TableCell className="text-sm font-mono text-muted-foreground">
+                                            {log.ip_address || <span className="text-muted-foreground/50">—</span>}
                                         </TableCell>
                                         <TableCell>
                                             {log.details && (
                                                 <button
-                                                    className="text-xs text-mariam-blue hover:underline"
+                                                    className="text-xs text-primary hover:underline"
                                                     onClick={() => alert(JSON.stringify(log.details, null, 2))}
                                                 >
                                                     Voir
@@ -306,7 +306,7 @@ export function AuditLogsPage() {
 
                     {/* Pagination */}
                     <div className="flex items-center justify-between mt-6">
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-muted-foreground">
                             {total} log{total > 1 ? 's' : ''} au total
                         </p>
                         <div className="flex items-center gap-2">
@@ -319,7 +319,7 @@ export function AuditLogsPage() {
                             >
                                 <ChevronLeft className="w-4 h-4" /> Précédent
                             </Button>
-                            <span className="text-sm text-gray-600">
+                            <span className="text-sm text-muted-foreground">
                                 Page {page} / {totalPages}
                             </span>
                             <Button

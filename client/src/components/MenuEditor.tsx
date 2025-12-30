@@ -214,8 +214,8 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
         return (
             <>
                 <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
-                <div className="fixed right-0 top-0 h-full w-full max-w-lg bg-white shadow-xl z-50 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-mariam-blue"></div>
+                <div className="fixed right-0 top-0 h-full w-full max-w-lg bg-card border-l border-border shadow-xl z-50 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
                 </div>
             </>
         );
@@ -227,14 +227,14 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
             <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
 
             {/* Drawer */}
-            <div className="fixed right-0 top-0 h-full w-full max-w-lg bg-white shadow-xl z-50 overflow-y-auto">
+            <div className="fixed right-0 top-0 h-full w-full max-w-lg bg-card border-l border-border shadow-xl z-50 overflow-y-auto">
                 {/* Header */}
-                <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
+                <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between z-10">
                     <div>
-                        <h2 className="text-lg font-semibold">Menu du jour</h2>
-                        <p className="text-sm text-gray-500">{formatDate()}</p>
+                        <h2 className="text-lg font-semibold text-foreground">Menu du jour</h2>
+                        <p className="text-sm text-muted-foreground">{formatDate()}</p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
+                    <button onClick={onClose} className="p-2 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -250,7 +250,7 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                             <div key={category.id}>
                                 <div className="flex items-center justify-between mb-2">
                                     <Label className="text-base flex items-center gap-2">
-                                        {renderIcon(category.icon, 'w-5 h-5 text-gray-600')}
+                                        {renderIcon(category.icon, 'w-5 h-5 text-muted-foreground')}
                                         {category.label}
                                     </Label>
                                     {showAddButton && (
@@ -267,20 +267,20 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                                 </div>
                                 <div className="space-y-3">
                                     {items.map((item, index) => (
-                                        <div key={index} className="space-y-2 p-3 bg-gray-50 rounded-lg">
+                                        <div key={index} className="space-y-2 p-3 bg-muted/50 rounded-lg">
                                             <div className="flex gap-2">
                                                 <Input
                                                     value={item.name}
                                                     onChange={(e) => updateItem(category.id, index, 'name', e.target.value)}
                                                     placeholder={`${category.label}...`}
-                                                    className={category.id === 'vg' ? 'border-green-300 focus:ring-green-500' : ''}
+                                                    className={category.id === 'vg' ? 'border-green-500/50 focus:ring-green-500' : ''}
                                                 />
                                                 {(items.length > 1 || isOptional) && (
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
                                                         onClick={() => removeItem(category.id, index)}
-                                                        className="text-red-500 hover:text-red-700"
+                                                        className="text-destructive hover:text-destructive"
                                                     >
                                                         <Trash2 className="w-4 h-4" />
                                                     </Button>
@@ -299,8 +299,8 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                                                                 type="button"
                                                                 onClick={() => toggleTag(category.id, index, 'tags', tag.id)}
                                                                 className={`text-xs px-2 py-1 rounded-full border transition-colors flex items-center gap-1 ${isActive
-                                                                    ? 'bg-green-100 border-green-300 text-green-700'
-                                                                    : 'bg-gray-100 border-gray-200 text-gray-500'
+                                                                    ? 'bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400'
+                                                                    : 'bg-muted border-border text-muted-foreground'
                                                                     }`}
                                                             >
                                                                 {renderIcon(tag.icon, 'w-3 h-3')}
@@ -323,8 +323,8 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                                                                 type="button"
                                                                 onClick={() => toggleTag(category.id, index, 'certifications', cert.id)}
                                                                 className={`text-xs px-2 py-1 rounded-full border transition-colors flex items-center gap-1 ${isActive
-                                                                    ? 'bg-blue-100 border-blue-300 text-blue-700'
-                                                                    : 'bg-gray-100 border-gray-200 text-gray-500'
+                                                                    ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400'
+                                                                    : 'bg-muted border-border text-muted-foreground'
                                                                     }`}
                                                             >
                                                                 {renderIcon(cert.icon, 'w-3 h-3')}
@@ -338,7 +338,7 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                                     ))}
 
                                     {items.length === 0 && !isOptional && (
-                                        <p className="text-gray-400 text-sm italic">Aucun élément</p>
+                                        <p className="text-muted-foreground text-sm italic">Aucun élément</p>
                                     )}
                                 </div>
                             </div>
@@ -347,7 +347,7 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                 </div>
 
                 {/* Footer avec boutons */}
-                <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex gap-3">
+                <div className="sticky bottom-0 bg-card border-t border-border px-6 py-4 flex gap-3">
                     <Button
                         variant="outline"
                         className="flex-1"

@@ -41,10 +41,13 @@ export default {
                     DEFAULT: "hsl(var(--card))",
                     foreground: "hsl(var(--card-foreground))",
                 },
+                popover: {
+                    DEFAULT: "hsl(var(--popover))",
+                    foreground: "hsl(var(--popover-foreground))",
+                },
                 // Couleurs sémantiques MARIAM
                 mariam: {
-                    blue: '#000091',      // Bleu France
-                    red: '#E1000F',       // Rouge Marianne
+                    blue: '#001BB7',
                     white: '#FFFFFF',
                     gray: {
                         50: '#f6f6f6',

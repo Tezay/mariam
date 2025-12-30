@@ -174,20 +174,20 @@ export function WeeklyPlanner() {
     const renderStatusBadge = (menu: Menu | null) => {
         if (!menu) {
             return (
-                <Badge variant="outline" className="gap-1 text-gray-500 border-gray-300">
+                <Badge variant="outline" className="gap-1 text-muted-foreground border-border">
                     <FileX className="w-3 h-3" /> Vide
                 </Badge>
             );
         }
         if (menu.status === 'published') {
             return (
-                <Badge className="gap-1 bg-green-100 text-green-700 hover:bg-green-100">
+                <Badge className="gap-1 bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/10">
                     <Check className="w-3 h-3" /> Publié
                 </Badge>
             );
         }
         return (
-            <Badge variant="secondary" className="gap-1 bg-amber-100 text-amber-700 hover:bg-amber-100">
+            <Badge variant="secondary" className="gap-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10">
                 <FileEdit className="w-3 h-3" /> Brouillon
             </Badge>
         );
@@ -203,18 +203,18 @@ export function WeeklyPlanner() {
             <Card
                 className={`
                     h-full flex flex-col transition-all
-                    ${canEdit ? 'cursor-pointer hover:shadow-lg hover:border-mariam-blue/50' : ''}
-                    ${isToday ? 'ring-2 ring-mariam-blue ring-offset-2' : ''}
+                    ${canEdit ? 'cursor-pointer hover:shadow-lg hover:border-primary/50' : ''}
+                    ${isToday ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}
                 `}
                 onClick={() => canEdit && setSelectedDate(dateStr)}
             >
                 <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
                         <div>
-                            <CardTitle className={`text-lg ${isToday ? 'text-mariam-blue' : ''}`}>
+                            <CardTitle className={`text-lg ${isToday ? 'text-primary' : ''}`}>
                                 {DAY_NAMES[dayIndex]}
                             </CardTitle>
-                            <p className="text-sm text-gray-500">{formatDate(dateStr)}</p>
+                            <p className="text-sm text-muted-foreground">{formatDate(dateStr)}</p>
                         </div>
                         {renderStatusBadge(menu || null)}
                     </div>
@@ -230,7 +230,7 @@ export function WeeklyPlanner() {
 
                                 return (
                                     <div key={category.id}>
-                                        <div className={`text-xs font-semibold uppercase tracking-wide mb-1 flex items-center gap-1 ${isVg ? 'text-green-600' : 'text-gray-400'}`}>
+                                        <div className={`text-xs font-semibold uppercase tracking-wide mb-1 flex items-center gap-1 ${isVg ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
                                             <Icon name={category.icon as IconName} className="w-3 h-3" />
                                             {category.label}
                                         </div>
@@ -238,7 +238,7 @@ export function WeeklyPlanner() {
                                             {items.map((item, idx) => (
                                                 <li
                                                     key={idx}
-                                                    className={`text-sm ${isVg ? 'text-green-700' : category.id === 'plat' ? 'font-medium text-gray-900' : 'text-gray-700'}`}
+                                                    className={`text-sm ${isVg ? 'text-green-700 dark:text-green-400' : category.id === 'plat' ? 'font-medium text-foreground' : 'text-muted-foreground'}`}
                                                 >
                                                     {item.name}
                                                 </li>
@@ -249,7 +249,7 @@ export function WeeklyPlanner() {
                             })}
                         </div>
                     ) : (
-                        <div className="flex flex-col items-center justify-center h-full min-h-[100px] text-gray-400">
+                        <div className="flex flex-col items-center justify-center h-full min-h-[100px] text-muted-foreground">
                             <FileX className="w-8 h-8 mb-2 opacity-50" />
                             <span className="text-sm">
                                 {canEdit ? 'Cliquez pour ajouter' : 'Aucun menu'}
@@ -275,11 +275,11 @@ export function WeeklyPlanner() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">
+                    <h1 className="text-2xl font-bold text-foreground">
                         Gestion des menus
                     </h1>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                        <p className="text-gray-600">
+                        <p className="text-muted-foreground">
                             Semaine {getWeekNumber()} — {weekData?.week_start && formatDate(weekData.week_start)} au {weekData?.week_end && formatDate(weekData.week_end)}
                         </p>
                         {/* Navigation semaine (desktop only) */}
@@ -316,13 +316,13 @@ export function WeeklyPlanner() {
                 <div className="flex flex-wrap items-center gap-3">
                     {/* Statistiques */}
                     <div className="flex items-center gap-2 text-sm">
-                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
                             <Check className="w-3 h-3 mr-1" /> {statusCount.published}
                         </Badge>
-                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                        <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
                             <FileEdit className="w-3 h-3 mr-1" /> {statusCount.draft}
                         </Badge>
-                        <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200">
+                        <Badge variant="outline" className="bg-muted text-muted-foreground border-border">
                             <FileX className="w-3 h-3 mr-1" /> {statusCount.empty}
                         </Badge>
                     </div>
@@ -372,7 +372,7 @@ export function WeeklyPlanner() {
             {/* Content */}
             {isLoading ? (
                 <div className="flex justify-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-mariam-blue"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
                 </div>
             ) : (
                 <>
@@ -401,10 +401,10 @@ export function WeeklyPlanner() {
                                         className={`
                                             flex-shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition-all
                                             ${isActive
-                                                ? 'bg-mariam-blue text-white'
+                                                ? 'bg-primary text-primary-foreground'
                                                 : isToday
-                                                    ? 'bg-blue-100 text-mariam-blue'
-                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                    ? 'bg-primary/10 text-primary'
+                                                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
                                             }
                                         `}
                                     >

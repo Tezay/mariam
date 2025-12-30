@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { publicApi, MenuCategory, DietaryTag, Certification } from '@/lib/api';
 import { Icon } from '@/components/ui/icon-picker';
+import { Logo } from '@/components/Logo';
 import { Leaf, BadgeCheck, Ban, WheatOff, MilkOff, Sprout, MapPin, Flag, Fish, RefreshCw, ZoomIn, ZoomOut, CalendarClock } from 'lucide-react';
 import type { IconName } from '@/components/ui/icon-picker';
 
@@ -550,9 +551,9 @@ export function MenuDisplay() {
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Header Mobile */}
-            <header className="bg-mariam-blue text-white p-4">
-                <h1 className="text-2xl font-bold text-center">MARIAM</h1>
-                <p className="text-center text-blue-200 text-sm">
+            <header className="bg-mariam-blue text-white p-4 flex flex-col items-center">
+                <Logo className="h-10 w-auto" variant="light" />
+                <p className="text-center text-blue-200 text-sm mt-1">
                     {currentData?.restaurant?.name || 'Restaurant Universitaire'}
                 </p>
             </header>

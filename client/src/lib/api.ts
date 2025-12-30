@@ -197,6 +197,18 @@ export const authApi = {
     isAuthenticated: () => {
         return !!localStorage.getItem('access_token');
     },
+
+    /**
+     * Change le mot de passe (nécessite MFA)
+     */
+    changePassword: async (currentPassword: string, newPassword: string, mfaCode: string) => {
+        const response = await api.post('/auth/change-password', {
+            current_password: currentPassword,
+            new_password: newPassword,
+            mfa_code: mfaCode
+        });
+        return response.data;
+    },
 };
 
 // ========================================

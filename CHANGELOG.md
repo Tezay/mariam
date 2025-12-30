@@ -5,11 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2024-12-30
 
 ### Added
+
+- **User Account Page**
+    - New "Mon Compte" page accessible from the user dropdown menu.
+    - Password change with security validation.
+    - Account information display (email, role, MFA status).
+
+- **Branding & Logo**
+    - Custom logo in the admin dashboard navigation bar and on public pages.
+    - Theme-adaptive logo (light/dark mode support).
+
+- **Favicons & PWA**
+    - SVG favicons with automatic browser dark mode support (fallback .ico for legacy browser compatibility).
+    - Complete PWA configuration: installable on home screen (iOS, Android, Windows).
+
 - **Developer API (v1)**: Public API at `/api/v1/menus` and `/api/v1/restaurant` with Swagger documentation at `/api/v1/docs`.
+
 - **Deployment**: Automatic database updates to ensure reliability during upgrades.
+
+### Changed
+
+- **Dark Theme**
+    - Fixed text visibility issues in dark mode across the entire dashboard.
+    - Harmonized colors on all admin pages.
+
+### Technical
+
+- Automatic database migrations during version upgrades.
 
 ## [0.1.0] - 2024-12-24
 

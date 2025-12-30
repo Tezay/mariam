@@ -355,3 +355,78 @@ def check_activation_link(token):
         'email': link.email,
         'role': link.role
     }), 200
+
+
+@auth_bp.route('/change-password', methods=['POST'])
+@jwt_required()
+def change_password():
+    """
+    Change le mot de passe de l'utilisateur connecté.
+    Requiert le mot de passe actuel + nouveau mot de passe + code MFA.
+    """
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({'error': 'Données manquantes'}), 400
+    
+    current_password = data.get('current_password')
+    new_password = data.get('new_password')
+    mfa_code = data.get('mfa_code')
+    
+    if not current_password or not new_password or not mfa_code:
+        return jsonify({'error': 'Mot de passe actuel, nouveau mot de passe et code MFA requis'}), 400
+    
+    # Récupérer l'utilisateur
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if not user:
+        return jsonify({'error': 'Utilisateur non trouvé'}), 404
+    
+    # Vérifier le mot de passe actuel
+    if not user.check_password(current_password):
+        AuditLog.log(
+            action=AuditLog.ACTION_PASSWORD_CHANGE,
+            user_id=user.id,
+            details={'success': False, 'reason': 'wrong_current_password'},
+            ip_address=get_client_ip()
+        )
+        db.session.commit()
+        return jsonify({'error': 'Mot de passe actuel incorrect'}), 401
+    
+    # Vérifier le code MFA
+    if user.mfa_enabled and user.mfa_secret:
+        totp = pyotp.TOTP(user.mfa_secret)
+        if not totp.verify(mfa_code, valid_window=1):
+            AuditLog.log(
+                action=AuditLog.ACTION_PASSWORD_CHANGE,
+                user_id=user.id,
+                details={'success': False, 'reason': 'invalid_mfa'},
+                ip_address=get_client_ip()
+            )
+            db.session.commit()
+            return jsonify({'error': 'Code MFA invalide'}), 401
+    
+    # Valider la force du nouveau mot de passe
+    if not User.validate_password_strength(new_password):
+        return jsonify({
+            'error': 'Mot de passe trop faible',
+            'message': 'Le mot de passe doit contenir au moins 12 caractères, '
+                      'une majuscule, une minuscule, un chiffre et un caractère spécial.'
+        }), 400
+    
+    # Changer le mot de passe
+    user.set_password(new_password)
+    
+    # Logger le changement
+    AuditLog.log(
+        action=AuditLog.ACTION_PASSWORD_CHANGE,
+        user_id=user.id,
+        details={'success': True},
+        ip_address=get_client_ip()
+    )
+    
+    db.session.commit()
+    
+    return jsonify({'message': 'Mot de passe modifié avec succès'}), 200
+

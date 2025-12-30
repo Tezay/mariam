@@ -40,17 +40,17 @@ const ROLE_LABELS: Record<string, { label: string; description: string; color: s
     admin: {
         label: 'Administrateur',
         description: 'Accès complet, gestion des utilisateurs',
-        color: 'bg-red-100 text-red-700'
+        color: 'bg-red-500/10 text-red-600 dark:text-red-400'
     },
     editor: {
         label: 'Éditeur',
         description: 'Peut créer et modifier les menus',
-        color: 'bg-blue-100 text-blue-700'
+        color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
     },
     reader: {
         label: 'Lecteur',
         description: 'Consultation uniquement',
-        color: 'bg-gray-100 text-gray-700'
+        color: 'bg-muted text-muted-foreground'
     },
 };
 
@@ -123,8 +123,8 @@ export function UsersPage() {
         <div className="container-mariam py-8">
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Utilisateurs</h1>
-                    <p className="text-gray-500">Gérez les accès à l'interface d'administration</p>
+                    <h1 className="text-2xl font-bold text-foreground">Utilisateurs</h1>
+                    <p className="text-muted-foreground">Gérez les accès à l'interface d'administration</p>
                 </div>
                 <Button onClick={() => setShowInviteModal(true)} className="gap-2">
                     <UserPlus className="w-4 h-4" />
@@ -134,7 +134,7 @@ export function UsersPage() {
 
             {isLoading ? (
                 <div className="flex justify-center py-12">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-mariam-blue"></div>
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
                 </div>
             ) : (
                 <div className="space-y-6">
@@ -144,26 +144,26 @@ export function UsersPage() {
                             <CardTitle className="text-lg">Comptes actifs ({users.length})</CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
-                            <div className="divide-y">
+                            <div className="divide-y divide-border">
                                 {users.map((user) => (
-                                    <div key={user.id} className="flex items-center justify-between p-4 hover:bg-gray-50">
+                                    <div key={user.id} className="flex items-center justify-between p-4 hover:bg-muted/50">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-full bg-mariam-blue text-white flex items-center justify-center font-medium">
+                                            <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-medium">
                                                 {(user.username || user.email).charAt(0).toUpperCase()}
                                             </div>
                                             <div>
-                                                <p className="font-medium text-gray-900">
+                                                <p className="font-medium text-foreground">
                                                     {user.username || user.email}
                                                 </p>
-                                                <p className="text-sm text-gray-500">{user.email}</p>
+                                                <p className="text-sm text-muted-foreground">{user.email}</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${ROLE_LABELS[user.role]?.color || 'bg-gray-100'}`}>
+                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${ROLE_LABELS[user.role]?.color || 'bg-muted'}`}>
                                                 {ROLE_LABELS[user.role]?.label || user.role}
                                             </span>
                                             {!user.is_active && (
-                                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
                                                     Inactif
                                                 </span>
                                             )}
@@ -189,7 +189,7 @@ export function UsersPage() {
                                                     size="icon"
                                                     onClick={() => handleDeleteUser(user)}
                                                     title="Supprimer"
-                                                    className="text-red-500 hover:text-red-700"
+                                                    className="text-destructive hover:text-destructive"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
                                                 </Button>
@@ -198,7 +198,7 @@ export function UsersPage() {
                                     </div>
                                 ))}
                                 {users.length === 0 && (
-                                    <div className="p-8 text-center text-gray-500">
+                                    <div className="p-8 text-center text-muted-foreground">
                                         Aucun utilisateur
                                     </div>
                                 )}
@@ -216,17 +216,17 @@ export function UsersPage() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="p-0">
-                                <div className="divide-y">
+                                <div className="divide-y divide-border">
                                     {invitations.map((inv) => (
                                         <div key={inv.token} className="flex items-center justify-between p-4">
                                             <div>
-                                                <p className="font-medium">{inv.email}</p>
-                                                <p className="text-sm text-gray-500">
+                                                <p className="font-medium text-foreground">{inv.email}</p>
+                                                <p className="text-sm text-muted-foreground">
                                                     Expire le {new Date(inv.expires_at).toLocaleDateString('fr-FR')}
                                                 </p>
                                             </div>
                                             <div className="flex items-center gap-3">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${ROLE_LABELS[inv.role]?.color || 'bg-gray-100'}`}>
+                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${ROLE_LABELS[inv.role]?.color || 'bg-muted'}`}>
                                                     {ROLE_LABELS[inv.role]?.label || inv.role}
                                                 </span>
                                                 <Button
@@ -315,21 +315,21 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     return (
         <>
             <div className="fixed inset-0 bg-black/50 z-50" onClick={onClose} />
-            <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md bg-white rounded-lg shadow-xl p-6">
+            <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md bg-card border border-border rounded-lg shadow-xl p-6">
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-semibold">Inviter un utilisateur</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                    <h2 className="text-lg font-semibold text-foreground">Inviter un utilisateur</h2>
+                    <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 {result ? (
                     <div className="space-y-4">
-                        <div className="bg-green-50 text-green-700 p-4 rounded-lg">
+                        <div className="bg-green-500/10 text-green-600 dark:text-green-400 p-4 rounded-lg">
                             <p className="font-medium">Invitation créée avec succès !</p>
                             <p className="text-sm mt-1">Partagez ce lien avec {email}</p>
                         </div>
-                        <div className="bg-gray-100 p-3 rounded-lg break-all text-sm">
+                        <div className="bg-muted p-3 rounded-lg break-all text-sm text-foreground">
                             {window.location.origin}/activate/{result.token}
                         </div>
                         <div className="flex gap-2">
@@ -365,24 +365,24 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                                         type="button"
                                         onClick={() => setRole(key as 'admin' | 'editor' | 'reader')}
                                         className={`p-3 rounded-lg border text-left transition-all ${role === key
-                                            ? 'border-mariam-blue ring-2 ring-mariam-blue/20'
-                                            : 'border-gray-200 hover:border-gray-300'
+                                            ? 'border-primary ring-2 ring-primary/20'
+                                            : 'border-border hover:border-muted-foreground'
                                             }`}
                                     >
                                         <div className="flex items-center gap-2">
                                             {key === 'admin' && <Shield className="w-4 h-4 text-red-500" />}
                                             {key === 'editor' && <Edit3 className="w-4 h-4 text-blue-500" />}
-                                            {key === 'reader' && <Eye className="w-4 h-4 text-gray-500" />}
-                                            <span className="font-medium text-sm">{label}</span>
+                                            {key === 'reader' && <Eye className="w-4 h-4 text-muted-foreground" />}
+                                            <span className="font-medium text-sm text-foreground">{label}</span>
                                         </div>
-                                        <p className="text-xs text-gray-500 mt-1">{description}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">{description}</p>
                                     </button>
                                 ))}
                             </div>
                         </div>
 
                         {error && (
-                            <div className="text-red-500 text-sm">{error}</div>
+                            <div className="text-destructive text-sm">{error}</div>
                         )}
 
                         <div className="flex gap-2 pt-2">
@@ -425,10 +425,10 @@ function EditUserModal({ user, onClose, onSuccess }: { user: User; onClose: () =
     return (
         <>
             <div className="fixed inset-0 bg-black/50 z-50" onClick={onClose} />
-            <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md bg-white rounded-lg shadow-xl p-6">
+            <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md bg-card border border-border rounded-lg shadow-xl p-6">
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-semibold">Modifier {user.username || user.email}</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                    <h2 className="text-lg font-semibold text-foreground">Modifier {user.username || user.email}</h2>
+                    <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -443,8 +443,8 @@ function EditUserModal({ user, onClose, onSuccess }: { user: User; onClose: () =
                                     type="button"
                                     onClick={() => setRole(key as 'admin' | 'editor' | 'reader')}
                                     className={`p-3 rounded-lg border text-center transition-all ${role === key
-                                        ? 'border-mariam-blue ring-2 ring-mariam-blue/20'
-                                        : 'border-gray-200 hover:border-gray-300'
+                                        ? 'border-primary ring-2 ring-primary/20'
+                                        : 'border-border hover:border-muted-foreground'
                                         }`}
                                 >
                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${color}`}>
@@ -467,7 +467,7 @@ function EditUserModal({ user, onClose, onSuccess }: { user: User; onClose: () =
                     </div>
 
                     {error && (
-                        <div className="text-red-500 text-sm">{error}</div>
+                        <div className="text-destructive text-sm">{error}</div>
                     )}
 
                     <div className="flex gap-2 pt-2">
