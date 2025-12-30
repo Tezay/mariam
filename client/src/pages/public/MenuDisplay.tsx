@@ -6,8 +6,10 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { publicApi, MenuCategory, DietaryTag, Certification } from '@/lib/api';
+import { DEFAULT_CATEGORIES, DEFAULT_DIETARY_TAGS, DEFAULT_CERTIFICATIONS } from '@/lib/constants';
 import { Icon } from '@/components/ui/icon-picker';
 import { Logo } from '@/components/Logo';
+import { InlineError, getErrorType } from '@/components/InlineError';
 import { Leaf, BadgeCheck, Ban, WheatOff, MilkOff, Sprout, MapPin, Flag, Fish, RefreshCw, ZoomIn, ZoomOut, CalendarClock } from 'lucide-react';
 import type { IconName } from '@/components/ui/icon-picker';
 
@@ -53,25 +55,7 @@ interface EventData {
     event_date: string;
 }
 
-// Configuration par défaut
-const DEFAULT_CATEGORIES: MenuCategory[] = [
-    { id: 'entree', label: 'Entrée', icon: 'salad', order: 1 },
-    { id: 'plat', label: 'Plat principal', icon: 'utensils', order: 2 },
-    { id: 'vg', label: 'Option végétarienne', icon: 'leaf', order: 3 },
-    { id: 'dessert', label: 'Dessert', icon: 'cake-slice', order: 4 },
-];
 
-const DEFAULT_DIETARY_TAGS: DietaryTag[] = [
-    { id: 'vegetarian', label: 'Végétarien', icon: 'leaf', color: 'green' },
-    { id: 'halal', label: 'Halal', icon: 'badge-check', color: 'teal' },
-    { id: 'pork_free', label: 'Sans porc', icon: 'ban', color: 'orange' },
-];
-
-const DEFAULT_CERTIFICATIONS: Certification[] = [
-    { id: 'bio', label: 'Bio', icon: 'sprout', color: 'green' },
-    { id: 'local', label: 'Local', icon: 'map-pin', color: 'blue' },
-    { id: 'french_meat', label: 'Viande française', icon: 'flag', color: 'indigo' },
-];
 
 const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }>> = {
     'leaf': Leaf,
@@ -139,6 +123,7 @@ export function MenuDisplay() {
     const [tomorrowData, setTomorrowData] = useState<MenuData | null>(null);
     const [events, setEvents] = useState<EventData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<unknown>(null);
 
     const [categories, setCategories] = useState<MenuCategory[]>(DEFAULT_CATEGORIES);
     const [dietaryTags, setDietaryTags] = useState<DietaryTag[]>(DEFAULT_DIETARY_TAGS);
@@ -161,45 +146,49 @@ export function MenuDisplay() {
     }, [forceTvMode]);
 
     // Charger les données
-    useEffect(() => {
-        const loadData = async () => {
-            setIsLoading(true);
-            try {
-                const [today, tomorrow, eventsData] = await Promise.all([
-                    publicApi.getTodayMenu(),
-                    publicApi.getTomorrowMenu(),
-                    publicApi.getEvents(isTvMode ? 'tv' : 'mobile')
-                ]);
+    const loadData = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const [today, tomorrow, eventsData] = await Promise.all([
+                publicApi.getTodayMenu(),
+                publicApi.getTomorrowMenu(),
+                publicApi.getEvents(isTvMode ? 'tv' : 'mobile')
+            ]);
 
-                setTodayData(today);
-                setTomorrowData(tomorrow);
-                setEvents(eventsData || []);
+            setTodayData(today);
+            setTomorrowData(tomorrow);
+            setEvents(eventsData || []);
 
-                const config = today?.restaurant?.config || tomorrow?.restaurant?.config;
-                if (config) {
-                    if (config.menu_categories?.length) {
-                        setCategories(config.menu_categories);
-                    }
-                    if (config.dietary_tags?.length) {
-                        setDietaryTags(config.dietary_tags);
-                    }
-                    if (config.certifications?.length) {
-                        setCertifications(config.certifications);
-                    }
+            const config = today?.restaurant?.config || tomorrow?.restaurant?.config;
+            if (config) {
+                if (config.menu_categories?.length) {
+                    setCategories(config.menu_categories);
                 }
-            } catch (error) {
-                console.error('Erreur chargement:', error);
-            } finally {
-                setIsLoading(false);
+                if (config.dietary_tags?.length) {
+                    setDietaryTags(config.dietary_tags);
+                }
+                if (config.certifications?.length) {
+                    setCertifications(config.certifications);
+                }
             }
-        };
+        } catch (err) {
+            console.error('Erreur chargement:', err);
+            setError(err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
+    useEffect(() => {
         loadData();
 
         // Rafraîchir toutes les 5 minutes
         const interval = setInterval(loadData, 5 * 60 * 1000);
         return () => clearInterval(interval);
     }, [isTvMode]);
+
+
 
     const currentData = selectedDay === 'today' ? todayData : tomorrowData;
 
@@ -350,6 +339,19 @@ export function MenuDisplay() {
             clearTimeout(timeout);
         };
     }, []);
+
+    // Afficher l'erreur (après tous les hooks)
+    if (error && !isLoading) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <InlineError
+                    type={getErrorType(error)}
+                    onRetry={loadData}
+                    showLogo={true}
+                />
+            </div>
+        );
+    }
 
     // Mode TV
     if (isTvMode) {

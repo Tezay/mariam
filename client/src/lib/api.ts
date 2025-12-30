@@ -13,6 +13,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 // Instance Axios configurée
 const api = axios.create({
     baseURL: API_URL,
+    timeout: 10000, // 10 secondes
     headers: {
         'Content-Type': 'application/json',
     },
@@ -67,8 +68,10 @@ api.interceptors.response.use(
             return Promise.reject(error);
         }
 
+        const status = error.response?.status;
+
         // Gérer le 401 (token expiré)
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (status === 401 && !originalRequest._retry) {
             if (isRefreshing) {
                 return new Promise((resolve, reject) => {
                     failedQueue.push({ resolve, reject });

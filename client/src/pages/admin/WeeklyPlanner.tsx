@@ -10,24 +10,20 @@
  */
 import { useState, useEffect } from 'react';
 import { menusApi, Menu, adminApi, MenuCategory } from '@/lib/api';
+import { DEFAULT_CATEGORIES } from '@/lib/constants';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MenuEditor } from '@/components/MenuEditor';
 import { Icon } from '@/components/ui/icon-picker';
+import { InlineError, getErrorType } from '@/components/InlineError';
 import type { IconName } from '@/components/ui/icon-picker';
 import { ChevronLeft, ChevronRight, Check, FileEdit, FileX, Send } from 'lucide-react';
 
 const DAY_NAMES = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
-// Configuration par défaut
-const DEFAULT_CATEGORIES: MenuCategory[] = [
-    { id: 'entree', label: 'Entrée', icon: 'salad', order: 1 },
-    { id: 'plat', label: 'Plat principal', icon: 'utensils', order: 2 },
-    { id: 'vg', label: 'Option végétarienne', icon: 'leaf', order: 3 },
-    { id: 'dessert', label: 'Dessert', icon: 'cake-slice', order: 4 },
-];
+
 
 interface WeekData {
     week_start: string;
@@ -52,6 +48,7 @@ export function WeeklyPlanner() {
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [isPublishing, setIsPublishing] = useState(false);
     const [categories, setCategories] = useState<MenuCategory[]>(DEFAULT_CATEGORIES);
+    const [error, setError] = useState<unknown>(null);
 
     // Mobile : suivre l'index du jour actuel pour le carousel
     const [mobileIndex, setMobileIndex] = useState(0);
@@ -77,11 +74,13 @@ export function WeeklyPlanner() {
     // Charger les menus de la semaine
     const loadWeek = async () => {
         setIsLoading(true);
+        setError(null);
         try {
             const data = await menusApi.getWeek(weekOffset);
             setWeekData(data);
-        } catch (error) {
-            console.error('Erreur chargement semaine:', error);
+        } catch (err) {
+            console.error('Erreur chargement semaine:', err);
+            setError(err);
         } finally {
             setIsLoading(false);
         }
@@ -269,6 +268,19 @@ export function WeeklyPlanner() {
     const goToNextDay = () => {
         setMobileIndex(i => Math.min(weekDates.length - 1, i + 1));
     };
+
+    // Afficher l'erreur
+    if (error && !isLoading) {
+        return (
+            <div className="container-mariam py-6">
+                <InlineError
+                    type={getErrorType(error)}
+                    onRetry={loadWeek}
+                    showLogo={false}
+                />
+            </div>
+        );
+    }
 
     return (
         <div className="container-mariam py-6">

@@ -20,7 +20,10 @@ import { SettingsPage } from './pages/admin/SettingsPage';
 import { AuditLogsPage } from './pages/admin/AuditLogsPage';
 import { AccountPage } from './pages/admin/AccountPage';
 
-// Route protégée pour l'admin
+// Error pages
+import { NotFound, Forbidden } from './pages/errors';
+
+// Route protégée pour l'admin (authentification requise)
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, isLoading } = useAuth();
 
@@ -34,6 +37,25 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
     if (!isAuthenticated) {
         return <Navigate to="/login" replace />;
+    }
+
+    return <>{children}</>;
+}
+
+// Route admin-only (rôle admin requis)
+function AdminRoute({ children }: { children: React.ReactNode }) {
+    const { user, isLoading } = useAuth();
+
+    if (isLoading) {
+        return (
+            <div className="flex h-screen items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+        );
+    }
+
+    if (user?.role !== 'admin') {
+        return <Forbidden />;
     }
 
     return <>{children}</>;
@@ -89,25 +111,28 @@ function App() {
                     </ProtectedRoute>
                 }
             >
-                {/* Dashboard = Weekly Planner */}
+                {/* Dashboard = Weekly Planner (tous les utilisateurs authentifiés) */}
                 <Route index element={<WeeklyPlanner />} />
                 <Route path="menus" element={<WeeklyPlanner />} />
 
-                {/* Gestion des utilisateurs (admin only) */}
-                <Route path="users" element={<UsersPage />} />
-
-                {/* Paramètres du restaurant (admin only) */}
-                <Route path="settings" element={<SettingsPage />} />
-
-                {/* Logs d'audit (admin only) */}
-                <Route path="audit-logs" element={<AuditLogsPage />} />
-
-                {/* Mon compte */}
+                {/* Mon compte (tous les utilisateurs authentifiés) */}
                 <Route path="account" element={<AccountPage />} />
 
-                {/* Placeholder pour futures pages */}
+                {/* Événements (tous les utilisateurs authentifiés) */}
                 <Route path="events" element={<PlaceholderPage title="Événements" />} />
+
+                {/* Gestion des utilisateurs (admin only) */}
+                <Route path="users" element={<AdminRoute><UsersPage /></AdminRoute>} />
+
+                {/* Paramètres du restaurant (admin only) */}
+                <Route path="settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+
+                {/* Logs d'audit (admin only) */}
+                <Route path="audit-logs" element={<AdminRoute><AuditLogsPage /></AdminRoute>} />
             </Route>
+
+            {/* 404 Catch-all - Doit être en dernier */}
+            <Route path="*" element={<NotFound />} />
         </Routes>
     );
 }
@@ -116,8 +141,8 @@ function App() {
 function PlaceholderPage({ title }: { title: string }) {
     return (
         <div className="container-mariam py-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">{title}</h1>
-            <div className="bg-white rounded-lg border p-8 text-center text-gray-500">
+            <h1 className="text-2xl font-bold text-foreground mb-4">{title}</h1>
+            <div className="bg-card rounded-lg border border-border p-8 text-center text-muted-foreground">
                 <p>Cette page sera bientôt disponible.</p>
             </div>
         </div>
