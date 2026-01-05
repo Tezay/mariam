@@ -26,37 +26,12 @@ deploy/
 # 1. Installation
 ./scripts/install.sh
 
-# 2. Configuration des secrets
-vim .env
+# 2. Configuration des variables d'environnement : .env
 
 # 3. Démarrage
 ./scripts/run.sh
 
 # 4. Initialisation (premier démarrage uniquement)
-./scripts/init.sh
-```
-
-## Test en local (Mac)
-
-Pour tester la version production sur votre Mac :
-
-```bash
-cd deploy
-
-# Installation
-./scripts/install.sh
-
-# Éditer .env avec des valeurs de test
-# (utiliser openssl rand -hex 32 pour les secrets)
-vim .env
-
-# Démarrer
-./scripts/run.sh
-
-# Attendre ~30s que tout soit prêt
-./scripts/run.sh status
-
-# Initialiser le premier admin
 ./scripts/init.sh
 ```
 

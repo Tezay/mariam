@@ -5,8 +5,6 @@ Ce guide explique comment installer **MARIAM** sur un serveur ou en local.
 ## Prérequis
 
 - **Docker** et **Docker Compose V2**
-  - [Installation Docker](https://docs.docker.com/engine/install/)
-  - Sur Mac : [OrbStack](https://orbstack.dev/) (recommandé) ou Docker Desktop
 - **Git** pour cloner le projet
 
 ## Installation
@@ -14,7 +12,7 @@ Ce guide explique comment installer **MARIAM** sur un serveur ou en local.
 ### 1. Cloner le projet
 
 ```bash
-git clone https://github.com/votre-user/mariam.git
+git clone https://github.com/Tezay/mariam.git
 cd mariam
 ```
 
@@ -32,10 +30,6 @@ Ce script :
 ### 3. Configurer les secrets
 
 ⚠️ **CRITIQUE** : Éditez le fichier `.env` avec des valeurs sécurisées.
-
-```bash
-vim deploy/.env
-```
 
 Générez des clés aléatoires :
 ```bash
@@ -69,20 +63,7 @@ Ce script :
 
 Suivez les instructions affichées pour créer votre compte.
 
-## Test en local (Mac)
+### Accès à l'application
 
-Pour tester la version production localement :
-
-```bash
-# Depuis la racine du projet
-cd deploy
-./scripts/install.sh
-./scripts/run.sh
-
-# Attendre ~30s que tout démarre, puis :
-./scripts/init.sh
-```
-
-Accédez à :
 - **Application** : http://localhost
 - **Santé API** : http://localhost/api/health

@@ -44,3 +44,9 @@ gunicorn==21.2.0
 flask-smorest==0.44.0
 marshmallow==3.21.0
 
+# Parsing de fichiers Excel (.xlsx)
+openpyxl>=3.1.0
+
+# Détection d'encodage de fichiers
+chardet>=5.0.0
+

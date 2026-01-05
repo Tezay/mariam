@@ -275,6 +275,103 @@ export const menusApi = {
 };
 
 // ========================================
+// API IMPORT CSV
+// ========================================
+export interface CsvUploadResponse {
+    file_id: string;
+    filename: string;
+    columns: string[];
+    preview_rows: Record<string, string>[];
+    row_count: number;
+    detected_delimiter: string | null;
+    auto_mapping: {
+        date?: string;
+        categories?: Record<string, string>;
+    };
+    detected_date_format?: string;
+}
+
+export interface ColumnMapping {
+    csv_column: string;
+    target_field: 'date' | 'category' | 'ignore';
+    category_id?: string;
+}
+
+export interface DateConfig {
+    mode: 'from_file' | 'align_week' | 'start_date';
+    start_date?: string;
+    skip_weekends: boolean;
+    date_format?: string;
+    auto_detect_tags?: boolean;
+}
+
+export interface ImportPreviewResponse {
+    menus: {
+        date: string;
+        date_display: string;
+        items: MenuItem[];
+        has_duplicate: boolean;
+        existing_menu?: {
+            id: number;
+            status: string;
+            items: MenuItem[];
+        };
+    }[];
+    total_count: number;
+    duplicates_count: number;
+    new_count: number;
+}
+
+export interface ImportConfirmRequest {
+    file_id: string;
+    column_mapping: ColumnMapping[];
+    date_config: DateConfig;
+    duplicate_action: 'skip' | 'replace' | 'merge';
+    auto_publish: boolean;
+    restaurant_id?: number;
+}
+
+export interface ImportConfirmResponse {
+    success: boolean;
+    imported_count: number;
+    replaced_count: number;
+    skipped_count: number;
+    message: string;
+}
+
+export const csvImportApi = {
+    upload: async (file: File): Promise<CsvUploadResponse> => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await api.post('/menus/import/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 30000 // 30 secondes pour les gros fichiers
+        });
+        return response.data;
+    },
+
+    preview: async (
+        fileId: string,
+        columnMapping: ColumnMapping[],
+        dateConfig: DateConfig,
+        restaurantId?: number
+    ): Promise<ImportPreviewResponse> => {
+        const response = await api.post('/menus/import/preview', {
+            file_id: fileId,
+            column_mapping: columnMapping,
+            date_config: dateConfig,
+            restaurant_id: restaurantId
+        });
+        return response.data;
+    },
+
+    confirm: async (request: ImportConfirmRequest): Promise<ImportConfirmResponse> => {
+        const response = await api.post('/menus/import/confirm', request);
+        return response.data;
+    }
+};
+
+// ========================================
 // API ÉVÉNEMENTS
 // ========================================
 export interface Event {

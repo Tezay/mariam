@@ -7,6 +7,7 @@ from .menu import Menu, MenuItem
 from .event import Event
 from .activation_link import ActivationLink
 from .audit_log import AuditLog
+from .import_session import ImportSession
 
 __all__ = [
     'User',
@@ -15,5 +16,6 @@ __all__ = [
     'MenuItem',
     'Event',
     'ActivationLink',
-    'AuditLog'
+    'AuditLog',
+    'ImportSession'
 ]

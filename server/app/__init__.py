@@ -10,7 +10,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 
 from .extensions import db, jwt, migrate
-from .models import User, Restaurant, Menu, MenuItem, Event, ActivationLink, AuditLog
+from .models import User, Restaurant, Menu, MenuItem, Event, ActivationLink, AuditLog, ImportSession
 
 
 def create_app(config_class=None):
@@ -112,12 +112,14 @@ def create_app(config_class=None):
     from .routes.menus import menus_bp
     from .routes.events import events_bp
     from .routes.public import public_bp
+    from .routes.csv_import import csv_import_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
     app.register_blueprint(menus_bp, url_prefix='/api/menus')
     app.register_blueprint(events_bp, url_prefix='/api/events')
     app.register_blueprint(public_bp, url_prefix='/api/public')
+    app.register_blueprint(csv_import_bp, url_prefix='/api/menus/import')
     
     # Route de santé
     @app.route('/api/health')

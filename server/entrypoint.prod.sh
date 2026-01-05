@@ -15,4 +15,4 @@ flask db upgrade
 
 # 2. Démarrer Gunicorn
 echo "✅ Starting Gunicorn server..."
-exec gunicorn -w 4 -b 0.0.0.0:5000 --access-logfile - run:app
+exec gunicorn -w 2 -b 0.0.0.0:5000 --access-logfile - run:app

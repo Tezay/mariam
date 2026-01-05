@@ -16,10 +16,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MenuEditor } from '@/components/MenuEditor';
+import { CsvImportModal } from '@/components/CsvImportModal';
 import { Icon } from '@/components/ui/icon-picker';
 import { InlineError, getErrorType } from '@/components/InlineError';
 import type { IconName } from '@/components/ui/icon-picker';
-import { ChevronLeft, ChevronRight, Check, FileEdit, FileX, Send } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, FileEdit, FileX, Send, Upload } from 'lucide-react';
 
 const DAY_NAMES = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
@@ -49,6 +50,9 @@ export function WeeklyPlanner() {
     const [isPublishing, setIsPublishing] = useState(false);
     const [categories, setCategories] = useState<MenuCategory[]>(DEFAULT_CATEGORIES);
     const [error, setError] = useState<unknown>(null);
+
+    // Modal d'import CSV
+    const [showCsvImport, setShowCsvImport] = useState(false);
 
     // Mobile : suivre l'index du jour actuel pour le carousel
     const [mobileIndex, setMobileIndex] = useState(0);
@@ -339,6 +343,18 @@ export function WeeklyPlanner() {
                         </Badge>
                     </div>
 
+                    {/* Bouton importer CSV */}
+                    {canEdit && (
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowCsvImport(true)}
+                            className="gap-2 hidden md:flex"
+                        >
+                            <Upload className="w-4 h-4" />
+                            Importer
+                        </Button>
+                    )}
+
                     {/* Bouton publier */}
                     {statusCount.draft > 0 && canEdit && (
                         <Button
@@ -347,7 +363,12 @@ export function WeeklyPlanner() {
                             className="gap-2"
                         >
                             <Send className="w-4 h-4" />
-                            {isPublishing ? 'Publication...' : 'Publier la semaine'}
+                            {isPublishing ? 'Publication...' : (
+                                <>
+                                    <span className="hidden sm:inline">Publier la semaine</span>
+                                    <span className="inline sm:hidden">Publier semaine</span>
+                                </>
+                            )}
                         </Button>
                     )}
                 </div>
@@ -472,6 +493,19 @@ export function WeeklyPlanner() {
                     onSave={async () => {
                         await loadWeek();
                         setSelectedDate(null);
+                    }}
+                />
+            )}
+
+            {/* Modal d'import CSV */}
+            {showCsvImport && weekData && (
+                <CsvImportModal
+                    restaurantId={weekData.restaurant_id}
+                    weekStart={weekData.week_start}
+                    onClose={() => setShowCsvImport(false)}
+                    onImportComplete={async () => {
+                        await loadWeek();
+                        setShowCsvImport(false);
                     }}
                 />
             )}

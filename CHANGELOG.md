@@ -9,10 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CSV/Excel Menu Import**
+    - New wizard to import menus from CSV or Excel files.
+    - Automatic column mapping and diet tag detection (Vegetarian, Halal, Bio, etc.).
+    - Smart duplicate handling (Skip, Replace, Merge) and preview mode.
+
 - **Error Handling**:
     - New `InlineError` component with auto-detection of network, server, and permission errors.
     - 10-second timeout on all API requests to prevent infinite loading states.
     - New UI for 404 (Not Found) and 403 (Forbidden) pages.
+
+### Changed
+
+- **Production Entrypoint**
+    - Adjusted Gunicorn worker count (4 to 2) to match production capacity and deployment requirements.
 
 ## [0.2.0] - 2025-12-30
 
