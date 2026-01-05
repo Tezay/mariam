@@ -9,15 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CI/CD**
+    - GitHub Actions workflow for automatic Docker image builds on version tags.
+
 - **CSV/Excel Menu Import**
     - New wizard to import menus from CSV or Excel files.
     - Automatic column mapping and diet tag detection (Vegetarian, Halal, Bio, etc.).
     - Smart duplicate handling (Skip, Replace, Merge) and preview mode.
 
-- **Error Handling**:
+- **Error Handling**
     - New `InlineError` component with auto-detection of network, server, and permission errors.
     - 10-second timeout on all API requests to prevent infinite loading states.
     - New UI for 404 (Not Found) and 403 (Forbidden) pages.
+
+### Fixed
+
+- **CSV Import**: Replaced in-memory file cache with database-backed `ImportSession` model to fix 404 errors in multi-worker Gunicorn production environments.
 
 ### Changed
 
