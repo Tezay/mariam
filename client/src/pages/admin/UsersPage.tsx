@@ -92,7 +92,7 @@ export function UsersPage() {
         setTimeout(() => setCopiedToken(null), 2000);
     };
 
-    // Supprimer un utilisateur
+
     const handleDeleteUser = async (user: User) => {
         if (!confirm(`Supprimer l'utilisateur ${user.email} ?`)) return;
 

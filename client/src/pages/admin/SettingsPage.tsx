@@ -193,13 +193,13 @@ export function SettingsPage() {
         }
     };
 
-    // Ajouter une catégorie
+
     const addCategory = () => {
         const newId = `cat_${Date.now()}`;
         setCategories([...categories, { id: newId, label: 'Nouvelle catégorie', icon: 'utensils', order: categories.length + 1 }]);
     };
 
-    // Supprimer une catégorie
+
     const removeCategory = (id: string) => {
         setCategories(categories.filter(c => c.id !== id));
     };

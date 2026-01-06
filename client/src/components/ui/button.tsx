@@ -1,4 +1,3 @@
-// NOTE: Composant Button de Shadcn/ui
 // Ce composant utilise class-variance-authority pour gérer les variantes
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"

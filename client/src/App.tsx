@@ -119,7 +119,7 @@ function App() {
                 <Route path="account" element={<AccountPage />} />
 
                 {/* Événements (tous les utilisateurs authentifiés) */}
-                <Route path="events" element={<PlaceholderPage title="Événements" />} />
+                <Route path="events" element={<ComingSoonPage title="Événements" />} />
 
                 {/* Gestion des utilisateurs (admin only) */}
                 <Route path="users" element={<AdminRoute><UsersPage /></AdminRoute>} />
@@ -137,8 +137,9 @@ function App() {
     );
 }
 
-// Composant placeholder temporaire
-function PlaceholderPage({ title }: { title: string }) {
+
+// Coming soon page component
+function ComingSoonPage({ title }: { title: string }) {
     return (
         <div className="container-mariam py-8">
             <h1 className="text-2xl font-bold text-foreground mb-4">{title}</h1>
