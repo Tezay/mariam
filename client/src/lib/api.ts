@@ -7,8 +7,34 @@
 
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-// URL de l'API
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Déclaration du type pour la config runtime (injectée par docker-entrypoint.sh)
+declare global {
+    interface Window {
+        __RUNTIME_CONFIG__?: {
+            API_URL?: string;
+        };
+    }
+}
+
+// URL de l'API - Priority:
+// 1. Runtime config (docker container) - pour Scaleway
+// 2. Build-time env (VITE_API_URL) - pour docker-compose avec nginx proxy
+// 3. Default localhost - pour développement local
+const getApiUrl = (): string => {
+    // Runtime config (injected by docker-entrypoint.sh at container startup)
+    const runtimeUrl = window.__RUNTIME_CONFIG__?.API_URL;
+    if (runtimeUrl && runtimeUrl !== '__API_URL__') {
+        return runtimeUrl;
+    }
+    // Build-time env (Vite)
+    if (import.meta.env.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL;
+    }
+    // Default for local development
+    return 'http://localhost:5000/api';
+};
+
+const API_URL = getApiUrl();
 
 // Instance Axios configurée
 const api = axios.create({

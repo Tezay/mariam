@@ -94,10 +94,12 @@ def create_app(config_class=None):
     # ========================================
     # CONFIGURATION CORS
     # ========================================
-    frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+    frontend_urls = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+    origins = [url.strip() for url in frontend_urls.split(',') if url.strip()]
+    
     CORS(
         app,
-        origins=[frontend_url],
+        origins=origins,
         supports_credentials=True,
         allow_headers=['Content-Type', 'Authorization'],
         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
@@ -135,7 +137,7 @@ def create_app(config_class=None):
         return {
             'status': 'healthy', 
             'message': 'MARIAM API is running',
-            'version': '0.3.3',
+            'version': '0.3.4',
             'docs': '/api/v1/docs'
         }
     
