@@ -29,6 +29,14 @@ def create_app(config_class=None):
     )
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
+    # Configuration du pool de connexions
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_size': int(os.environ.get('DB_POOL_SIZE', 2)),
+        'max_overflow': int(os.environ.get('DB_MAX_OVERFLOW', 2)),
+        'pool_pre_ping': True,
+        'pool_recycle': int(os.environ.get('DB_POOL_RECYCLE', 1800)),
+    }
+    
     # Configuration JWT - Sessions courtes pour sécurité (postes partagés)
     app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'jwt-secret-key-change-in-production')
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(
@@ -127,7 +135,7 @@ def create_app(config_class=None):
         return {
             'status': 'healthy', 
             'message': 'MARIAM API is running',
-            'version': '0.3.1',
+            'version': '0.3.2',
             'docs': '/api/v1/docs'
         }
     
