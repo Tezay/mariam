@@ -135,7 +135,7 @@ def create_app(config_class=None):
         return {
             'status': 'healthy', 
             'message': 'MARIAM API is running',
-            'version': '0.3.2',
+            'version': '0.3.3',
             'docs': '/api/v1/docs'
         }
     
@@ -187,9 +187,5 @@ def create_app(config_class=None):
         db.session.commit()
         
         click.echo(f"✅ Restaurant créé : {restaurant.name} (ID: {restaurant.id})")
-    
-    # Créer les tables
-    with app.app_context():
-        db.create_all()
     
     return app
