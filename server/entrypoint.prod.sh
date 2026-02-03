@@ -32,7 +32,7 @@ echo "✅ Database connection established"
 # 2. Appliquer les migrations de base de données
 # ========================================
 echo "🔄 Applying database migrations..."
-flask db upgrade
+python /app/scripts/run_migrations.py
 
 # ========================================
 # 3. Initialisation des données (idempotent)
