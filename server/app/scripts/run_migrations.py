@@ -40,6 +40,12 @@ def alembic_table_exists(conn) -> bool:
     return conn.execute(text("SELECT to_regclass('public.alembic_version')")).scalar() is not None
 
 
+def alembic_revision(conn) -> str | None:
+    if not alembic_table_exists(conn):
+        return None
+    return conn.execute(text("SELECT version_num FROM alembic_version LIMIT 1")).scalar()
+
+
 def user_table_count(conn) -> int:
     return int(
         conn.execute(
@@ -86,7 +92,7 @@ def main() -> None:
 
             app = create_app()
             with app.app_context():
-                if not allow_reset and not alembic_table_exists(conn):
+                if not allow_reset and alembic_revision(conn) is None:
                     existing_tables = user_table_count(conn)
                     if existing_tables > 0:
                         if allow_stamp:
@@ -94,7 +100,7 @@ def main() -> None:
                             stamp()
                         else:
                             print(
-                                "❌ Database has tables but no alembic_version. "
+                                "❌ Database has tables but no Alembic revision. "
                                 "Set MARIAM_MIGRATION_AUTOSTAMP=1 to baseline "
                                 "or MARIAM_DB_RESET=1 to reset.",
                                 file=sys.stderr,

@@ -56,6 +56,30 @@ docker compose -f deploy/docker-compose.yml exec backend flask init-restaurant
 
 ## Base de données
 
+### Migrations (prod / serverless)
+Les migrations sont appliquées automatiquement au démarrage du backend.
+
+À chaque changement de modèle (nouvelle table/colonne/index), il faut :
+1. Générer et commit la migration en dev :
+```bash
+docker compose exec -T backend flask db migrate -m "describe change"
+docker compose exec -T backend flask db upgrade
+git add server/migrations/versions/
+git commit -m "chore: add db migration"
+```
+2. Redéployer l’image backend.
+
+### Baseline ou reset sans accès console
+Si la base existe déjà sans historique Alembic :
+```bash
+MARIAM_MIGRATION_AUTOSTAMP=1
+```
+Si tu veux repartir à zéro :
+```bash
+MARIAM_DB_RESET=1
+```
+Ces variables doivent être **temporaires** (retirées après le déploiement).
+
 ### Sauvegarde (Backup)
 ```bash
 docker exec -t mariam_db_prod pg_dump -U mariam mariam_db > backup_$(date +%Y%m%d_%H%M%S).sql
