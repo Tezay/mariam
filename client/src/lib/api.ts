@@ -35,6 +35,7 @@ const getApiUrl = (): string => {
 };
 
 const API_URL = getApiUrl();
+const PUBLIC_API_TIMEOUT_MS = 20000;
 
 // Instance Axios configurée
 const api = axios.create({
@@ -602,21 +603,21 @@ export const publicApi = {
     getTodayMenu: async (restaurantId?: number) => {
         const params: Record<string, number> = {};
         if (restaurantId) params.restaurant_id = restaurantId;
-        const response = await api.get('/public/menu/today', { params });
+        const response = await api.get('/public/menu/today', { params, timeout: PUBLIC_API_TIMEOUT_MS });
         return response.data;
     },
 
     getTomorrowMenu: async (restaurantId?: number) => {
         const params: Record<string, number> = {};
         if (restaurantId) params.restaurant_id = restaurantId;
-        const response = await api.get('/public/menu/tomorrow', { params });
+        const response = await api.get('/public/menu/tomorrow', { params, timeout: PUBLIC_API_TIMEOUT_MS });
         return response.data;
     },
 
     getWeekMenu: async (weekOffset = 0, restaurantId?: number) => {
         const params: Record<string, number> = { week_offset: weekOffset };
         if (restaurantId) params.restaurant_id = restaurantId;
-        const response = await api.get('/public/menu/week', { params });
+        const response = await api.get('/public/menu/week', { params, timeout: PUBLIC_API_TIMEOUT_MS });
         return response.data;
     },
 
@@ -624,14 +625,14 @@ export const publicApi = {
         const params: Record<string, string | number> = {};
         if (visibility) params.visibility = visibility;
         if (restaurantId) params.restaurant_id = restaurantId;
-        const response = await api.get('/public/events', { params });
+        const response = await api.get('/public/events', { params, timeout: PUBLIC_API_TIMEOUT_MS });
         return response.data.events;
     },
 
     getRestaurant: async (restaurantId?: number) => {
         const params: Record<string, number> = {};
         if (restaurantId) params.restaurant_id = restaurantId;
-        const response = await api.get('/public/restaurant', { params });
+        const response = await api.get('/public/restaurant', { params, timeout: PUBLIC_API_TIMEOUT_MS });
         return response.data.restaurant;
     },
 };

@@ -3,11 +3,12 @@
  * 
  * Mode TV (plein écran) et Mobile (compact).
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { publicApi, MenuCategory, DietaryTag, Certification } from '@/lib/api';
 import { DEFAULT_CATEGORIES, DEFAULT_DIETARY_TAGS, DEFAULT_CERTIFICATIONS } from '@/lib/constants';
 import { Icon } from '@/components/ui/icon-picker';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Logo } from '@/components/Logo';
 import { InlineError, getErrorType } from '@/components/InlineError';
 import { Leaf, BadgeCheck, Ban, WheatOff, MilkOff, Sprout, MapPin, Flag, Fish, RefreshCw, ZoomIn, ZoomOut, CalendarClock } from 'lucide-react';
@@ -69,6 +70,10 @@ const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }
     'fish': Fish,
 };
 
+const LOADING_SPINNER_DELAY_MS = 3000;
+const ERROR_GRACE_PERIOD_MS = 20000;
+const RETRY_INTERVAL_MS = 500;
+
 function getItemsByCategory(menu: MenuResponse | null, categoryId: string): MenuItemData[] {
     if (!menu) return [];
 
@@ -113,6 +118,29 @@ function ItemBadge({ icon, label, color }: { icon: string; label: string; color:
     );
 }
 
+function MobileMenuSkeleton() {
+    return (
+        <div className="space-y-4">
+            <div className="flex justify-center">
+                <Skeleton className="h-4 w-32" />
+            </div>
+            {[0, 1, 2].map((index) => (
+                <section key={index} className="rounded-lg p-4 shadow-sm bg-white">
+                    <div className="flex items-center gap-2 mb-3">
+                        <Skeleton className="h-4 w-4" />
+                        <Skeleton className="h-3 w-24" />
+                    </div>
+                    <div className="space-y-2">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-4 w-2/3" />
+                        <Skeleton className="h-4 w-1/2" />
+                    </div>
+                </section>
+            ))}
+        </div>
+    );
+}
+
 export function MenuDisplay() {
     const [searchParams] = useSearchParams();
     const forceTvMode = searchParams.get('mode') === 'tv';
@@ -124,6 +152,14 @@ export function MenuDisplay() {
     const [events, setEvents] = useState<EventData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<unknown>(null);
+    const [showError, setShowError] = useState(false);
+    const [showSkeleton, setShowSkeleton] = useState(false);
+
+    const loadStartRef = useRef<number>(0);
+    const requestIdRef = useRef(0);
+    const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const skeletonTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [categories, setCategories] = useState<MenuCategory[]>(DEFAULT_CATEGORIES);
     const [dietaryTags, setDietaryTags] = useState<DietaryTag[]>(DEFAULT_DIETARY_TAGS);
@@ -145,16 +181,33 @@ export function MenuDisplay() {
         return () => window.removeEventListener('resize', checkWidth);
     }, [forceTvMode]);
 
-    // Charger les données
-    const loadData = async () => {
+    const clearTimers = () => {
+        if (errorTimerRef.current) {
+            clearTimeout(errorTimerRef.current);
+            errorTimerRef.current = null;
+        }
+        if (skeletonTimerRef.current) {
+            clearTimeout(skeletonTimerRef.current);
+            skeletonTimerRef.current = null;
+        }
+        if (retryTimerRef.current) {
+            clearTimeout(retryTimerRef.current);
+            retryTimerRef.current = null;
+        }
+    };
+
+    const attemptLoad = async (requestId: number) => {
         setIsLoading(true);
-        setError(null);
         try {
             const [today, tomorrow, eventsData] = await Promise.all([
                 publicApi.getTodayMenu(),
                 publicApi.getTomorrowMenu(),
                 publicApi.getEvents(isTvMode ? 'tv' : 'mobile')
             ]);
+
+            if (requestId !== requestIdRef.current) {
+                return;
+            }
 
             setTodayData(today);
             setTomorrowData(tomorrow);
@@ -172,12 +225,59 @@ export function MenuDisplay() {
                     setCertifications(config.certifications);
                 }
             }
+            setError(null);
+            setShowError(false);
+            clearTimers();
         } catch (err) {
+            if (requestId !== requestIdRef.current) {
+                return;
+            }
+
             console.error('Erreur chargement:', err);
             setError(err);
+
+            const elapsed = Date.now() - loadStartRef.current;
+            const remaining = ERROR_GRACE_PERIOD_MS - elapsed;
+            if (remaining <= 0) {
+                setShowError(true);
+                return;
+            }
+
+            if (errorTimerRef.current) {
+                clearTimeout(errorTimerRef.current);
+            }
+            errorTimerRef.current = setTimeout(() => {
+                setShowError(true);
+            }, remaining);
+
+            if (retryTimerRef.current) {
+                clearTimeout(retryTimerRef.current);
+            }
+            retryTimerRef.current = setTimeout(() => {
+                attemptLoad(requestId);
+            }, Math.min(RETRY_INTERVAL_MS, remaining));
         } finally {
-            setIsLoading(false);
+            if (requestId === requestIdRef.current) {
+                setIsLoading(false);
+            }
         }
+    };
+
+    // Charger les données
+    const loadData = async () => {
+        clearTimers();
+        const requestId = ++requestIdRef.current;
+        loadStartRef.current = Date.now();
+        setIsLoading(true);
+        setError(null);
+        setShowError(false);
+        setShowSkeleton(false);
+        if (!isTvMode) {
+            skeletonTimerRef.current = setTimeout(() => {
+                setShowSkeleton(true);
+            }, LOADING_SPINNER_DELAY_MS);
+        }
+        await attemptLoad(requestId);
     };
 
     useEffect(() => {
@@ -188,9 +288,15 @@ export function MenuDisplay() {
         return () => clearInterval(interval);
     }, [isTvMode]);
 
+    useEffect(() => {
+        return () => {
+            clearTimers();
+        };
+    }, []);
 
 
     const currentData = selectedDay === 'today' ? todayData : tomorrowData;
+    const isPending = isLoading || (Boolean(error) && !showError);
 
     // Render item badges (tags + certifications)
     const renderItemBadges = (item: MenuItemData) => {
@@ -341,7 +447,7 @@ export function MenuDisplay() {
     }, []);
 
     // Afficher l'erreur (après tous les hooks)
-    if (error && !isLoading) {
+    if (error && showError) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
                 <InlineError
@@ -428,7 +534,7 @@ export function MenuDisplay() {
 
                     {/* Contenu principal TV */}
                     <main className="flex-1 p-10 overflow-hidden bg-gray-50/50">
-                        {isLoading ? (
+                        {isPending ? (
                             <div className="h-full flex items-center justify-center">
                                 <div className="animate-spin rounded-full h-32 w-32 border-b-8 border-mariam-blue"></div>
                             </div>
@@ -586,10 +692,14 @@ export function MenuDisplay() {
 
             {/* Contenu Mobile */}
             <main className="p-4">
-                {isLoading ? (
-                    <div className="flex justify-center py-12">
-                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-mariam-blue"></div>
-                    </div>
+                {isPending ? (
+                    showSkeleton ? (
+                        <MobileMenuSkeleton />
+                    ) : (
+                        <div className="flex justify-center py-12">
+                            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-mariam-blue"></div>
+                        </div>
+                    )
                 ) : currentData?.menu ? (
                     <div className="space-y-4">
                         {/* Date */}
