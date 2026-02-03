@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Initial database migration for the current schema.
+
 ### Changed
 - Improved public menu loading UX with delayed skeleton, retry window, and 20s public API timeouts.
 
