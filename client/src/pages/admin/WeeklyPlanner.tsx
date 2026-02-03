@@ -304,6 +304,7 @@ export function WeeklyPlanner() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setWeekOffset(w => w - 1)}
+                                aria-label="Semaine précédente"
                                 className="h-7 px-2"
                             >
                                 <ChevronLeft className="w-3.5 h-3.5" />
@@ -321,6 +322,7 @@ export function WeeklyPlanner() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setWeekOffset(w => w + 1)}
+                                aria-label="Semaine suivante"
                                 className="h-7 px-2"
                             >
                                 <ChevronRight className="w-3.5 h-3.5" />
