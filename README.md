@@ -7,38 +7,47 @@ MARIAM est une solution moderne pour faciliter la communication des menus de res
 ## 📋 Fonctionnalités
 
 ### Pour les gestionnaires
-- ✅ **Weekly Planner** - Vue hebdomadaire pour préparer les menus en avance
-- ✅ **Éditeur simple** - Saisie rapide par catégorie (entrées, plat, VG, desserts)
-- ✅ **Publication** - Publier un jour ou toute la semaine en un clic
-- ✅ **Événements** - Annoncer les événements spéciaux
-- ✅ **Gestion des utilisateurs** - Inviter, modifier les rôles, réinitialiser MFA
+- **Weekly Planner** - Vue hebdomadaire pour préparer les menus en avance
+- **Éditeur simple** - Saisie rapide par catégorie (entrées, plat, VG, desserts)
+- **Publication** - Publier un jour ou toute la semaine en un clic
+- **Événements** - Annoncer les événements spéciaux
+- **Gestion des utilisateurs** - Inviter, modifier les rôles, réinitialiser MFA
 
 ### Pour les étudiants
-- 📱 **Mobile-first** - Interface optimisée pour smartphone
-- 📺 **Mode TV** - Affichage plein écran pour les restaurants
-- 🌱 **Tags alimentaires** - VG, Halal, Sans porc clairement identifiés
-- ⚡ **Accès instantané** - Pas de connexion requise
+- **Mobile-first** - Interface optimisée pour smartphone
+- **Mode TV** - Affichage plein écran pour les restaurants
+- **Tags alimentaires** - VG, Halal, Sans porc clairement identifiés
+- **Accès instantané** - Pas de connexion requise
 
 ### Sécurité pour les gestionnaires
-- 🔐 **Authentification MFA** - Double authentification obligatoire
-- 🔑 **Mot de passe fort** - Validation de complexité
-- 📝 **Audit log** - Traçabilité des actions sensibles
-- ⏱️ **Sessions courtes** - Adapté aux postes partagés
+- **Authentification MFA** - Double authentification obligatoire
+- **Mot de passe fort** - Validation de complexité
+- **Audit log** - Traçabilité des actions sensibles
+- **Sessions courtes** - Adapté aux postes partagés
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────┐     HTTP + JWT      ┌─────────────────┐
-│   Frontend      │ ◄─────────────────► │    Backend      │
-│   React/Vite    │                     │    Flask API    │
-│   Port 5173     │                     │    Port 5000    │
-└─────────────────┘                     └────────┬────────┘
-                                                 │
-                                                 ▼
-                                        ┌─────────────────┐
-                                        │   PostgreSQL    │
-                                        │   Port 5432     │
-                                        └─────────────────┘
+┌──────────────────────────────┐
+│           Frontend           │
+│         React / Vite         │
+│          Port 5173           │
+└───────────────┬──────────────┘
+                │
+                │  HTTP + JWT
+                ▼
+┌──────────────────────────────┐
+│            Backend           │
+│           Flask API          │
+│           Port 5000          │
+└───────────────┬──────────────┘
+                │
+                │  SQL (TCP)
+                ▼
+┌──────────────────────────────┐
+│          PostgreSQL          │
+│           Port 5432          │
+└──────────────────────────────┘
 ```
 
 ## 🚀 Mise en Production
@@ -183,8 +192,8 @@ Ou laissez la détection automatique fonctionner (> 1920px de large).
 Ce projet est distribué sous la **MARIAM Source Available License 1.0.0** (basée sur PolyForm Noncommercial).
 
 ### Résumé des droits
-- ✅ **Usage Personnel** : Gratuit et libre pour un usage domestique ou de test.
-- ❌ **Usage Commercial & Institutionnel** : Interdit sans licence. Cela inclut l'usage en **Restaurant Universitaire**, cantine, entreprise, ou toute structure administrative.
+- **Usage Personnel** : Gratuit et libre pour un usage domestique ou de test.
+- **Usage Commercial & Institutionnel** : Interdit sans licence. Cela inclut l'usage en **Restaurant Universitaire**, cantine, entreprise, ou toute structure administrative.
 
 ### Usage Professionnel
 Pour utiliser MARIAM dans un cadre professionnel (Restaurant Universitaire, Entreprise, Administration), **vous devez acquérir une licence commerciale**.
