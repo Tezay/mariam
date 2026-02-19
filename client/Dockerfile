@@ -5,8 +5,10 @@ FROM oven/bun:latest
 
 WORKDIR /app
 
-COPY package.json bun.lockb* ./
+# Copy dependency files first
+COPY package.json bun.lock ./
 
-RUN bun install --frozen-lockfile || bun install
+# Install dependencies with frozen lockfile for consistency
+RUN bun install --frozen-lockfile
 
 EXPOSE 5173

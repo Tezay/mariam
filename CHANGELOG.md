@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-02-19
+
+### Added
+
+- **Events**
+    - Full event management system (create, edit, publish, archive).
+    - Customizable color per event with preset palette and free color picker.
+    - Upload 1 to 6 images per event with drag-to-reorder support.
+    - TV display: day-of banner with image carousel, rotating footer for upcoming events.
+    - Mobile display: event card with detail overlay.
+
+- **Image Gallery**
+    - Centralized gallery to store and reuse dish photos across menus.
+    - Search and filters (automatic tagging by dish name and category) in the admin interface.
+    - Gallery picker integrated into the menu editor to attach photos to dishes.
+
+- **Menu Photos & Chef's Note**
+    - Direct per-item photo upload in the menu editor.
+    - Configurable chef's note per menu.
+
+- **S3 Storage**
+    - S3-compatible storage service.
+    - Image upload, deletion, and validation with unique key generation.
+    - HEIC/HEIF support: automatic conversion to JPEG on the server.
+
 ## [0.3.8] - 2026-02-03
 
 ### Fixed

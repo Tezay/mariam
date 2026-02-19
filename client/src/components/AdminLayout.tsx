@@ -18,6 +18,7 @@ import {
 import {
     CalendarDays,
     Megaphone,
+    Image as ImageIcon,
     Users,
     Settings,
     Menu as MenuIcon,
@@ -52,6 +53,7 @@ export function AdminLayout() {
     const navItems: NavItem[] = [
         { to: '/admin/menus', label: 'Menus', icon: <CalendarDays className="w-5 h-5" /> },
         { to: '/admin/events', label: 'Événements', icon: <Megaphone className="w-5 h-5" /> },
+        { to: '/admin/gallery', label: 'Galerie', icon: <ImageIcon className="w-5 h-5" /> },
         { to: '/admin/users', label: 'Utilisateurs', icon: <Users className="w-5 h-5" />, adminOnly: true },
         { to: '/admin/settings', label: 'Paramètres', icon: <Settings className="w-5 h-5" />, adminOnly: true },
         { to: '/admin/audit-logs', label: 'Logs d\'audit', icon: <Shield className="w-5 h-5" />, adminOnly: true },

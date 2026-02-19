@@ -50,3 +50,15 @@ openpyxl>=3.1.0
 # Détection d'encodage de fichiers
 chardet>=5.0.0
 
+# ========================================
+# MARIAM - Stockage S3-compatible
+# ========================================
+boto3>=1.28.0
+
+# ========================================
+# MARIAM - Traitement d'images
+# ========================================
+# Support HEIC/HEIF -> conversion automatique en JPEG
+Pillow>=10.0.0
+pillow-heif>=0.16.0
+

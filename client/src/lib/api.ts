@@ -264,7 +264,29 @@ export interface Menu {
     date: string;
     status: 'draft' | 'published';
     items: MenuItem[];
+    images?: MenuImage[];
+    item_images?: MenuItemImageLink[];
+    chef_note?: string;
     published_at?: string;
+}
+
+export interface MenuImage {
+    id: number;
+    menu_id: number;
+    url: string;
+    filename?: string;
+    order: number;
+}
+
+export interface MenuItemImageLink {
+    id: number;
+    menu_id: number;
+    gallery_image_id: number;
+    category: string;
+    item_index: number;
+    display_order: number;
+    url: string;
+    filename?: string;
 }
 
 export const menusApi = {
@@ -282,8 +304,10 @@ export const menusApi = {
         return response.data;
     },
 
-    save: async (date: string, items: MenuItem[], restaurantId?: number) => {
-        const response = await api.post('/menus', { date, items, restaurant_id: restaurantId });
+    save: async (date: string, items: MenuItem[], restaurantId?: number, chefNote?: string) => {
+        const payload: Record<string, unknown> = { date, items, restaurant_id: restaurantId };
+        if (chefNote !== undefined) payload.chef_note = chefNote;
+        const response = await api.post('/menus', payload);
         return response.data.menu;
     },
 
@@ -298,6 +322,35 @@ export const menusApi = {
             restaurant_id: restaurantId
         });
         return response.data;
+    },
+
+    // Images du menu (photos du jour)
+    uploadImage: async (menuId: number, file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await api.post(`/menus/${menuId}/images`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 30000,
+        });
+        return response.data.image as MenuImage;
+    },
+
+    deleteImage: async (menuId: number, imageId: number) => {
+        await api.delete(`/menus/${menuId}/images/${imageId}`);
+    },
+
+    reorderImages: async (menuId: number, imageIds: number[]) => {
+        const response = await api.put(`/menus/${menuId}/images/reorder`, {
+            image_ids: imageIds,
+        });
+        return response.data.images as MenuImage[];
+    },
+
+    updateChefNote: async (menuId: number, chefNote: string | null) => {
+        const response = await api.put(`/menus/${menuId}/chef-note`, {
+            chef_note: chefNote,
+        });
+        return response.data.menu as Menu;
     },
 };
 
@@ -401,36 +454,207 @@ export const csvImportApi = {
 // ========================================
 // API ÉVÉNEMENTS
 // ========================================
+export interface EventImage {
+    id: number;
+    event_id: number;
+    url: string;
+    filename?: string;
+    order: number;
+}
+
 export interface Event {
     id: number;
     restaurant_id: number;
     title: string;
+    subtitle?: string;
     description?: string;
+    color?: string;
     event_date: string;
+    status: 'draft' | 'published';
     visibility: 'tv' | 'mobile' | 'all';
     is_active: boolean;
+    images?: EventImage[];
+    created_at?: string;
+    updated_at?: string;
 }
 
 export const eventsApi = {
-    list: async (upcoming = true, restaurantId?: number) => {
-        const params: Record<string, string | number | boolean> = { upcoming: String(upcoming) };
+    list: async (upcoming = true, restaurantId?: number, includeInactive = false) => {
+        const params: Record<string, string | number | boolean> = {
+            upcoming: String(upcoming),
+            include_inactive: String(includeInactive),
+        };
         if (restaurantId) params.restaurant_id = restaurantId;
         const response = await api.get('/events', { params });
-        return response.data.events;
+        return response.data.events as Event[];
     },
 
-    create: async (event: Omit<Event, 'id' | 'is_active'>) => {
+    get: async (id: number) => {
+        const response = await api.get(`/events/${id}`);
+        return response.data.event as Event;
+    },
+
+    create: async (event: Partial<Event>) => {
         const response = await api.post('/events', event);
-        return response.data.event;
+        return response.data.event as Event;
     },
 
     update: async (id: number, event: Partial<Event>) => {
         const response = await api.put(`/events/${id}`, event);
-        return response.data.event;
+        return response.data.event as Event;
     },
 
     delete: async (id: number) => {
         await api.delete(`/events/${id}`);
+    },
+
+    publish: async (id: number) => {
+        const response = await api.post(`/events/${id}/publish`);
+        return response.data.event as Event;
+    },
+
+    unpublish: async (id: number) => {
+        const response = await api.post(`/events/${id}/unpublish`);
+        return response.data.event as Event;
+    },
+
+    duplicate: async (id: number, newDate?: string) => {
+        const response = await api.post(`/events/${id}/duplicate`, {
+            event_date: newDate,
+        });
+        return response.data.event as Event;
+    },
+
+    // Images S3
+    storageStatus: async () => {
+        const response = await api.get('/events/storage-status');
+        return response.data.configured as boolean;
+    },
+
+    uploadImage: async (eventId: number, file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await api.post(`/events/${eventId}/images`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 30000,
+        });
+        return response.data.image as EventImage;
+    },
+
+    deleteImage: async (eventId: number, imageId: number) => {
+        await api.delete(`/events/${eventId}/images/${imageId}`);
+    },
+
+    reorderImages: async (eventId: number, imageIds: number[]) => {
+        const response = await api.put(`/events/${eventId}/images/reorder`, {
+            image_ids: imageIds,
+        });
+        return response.data.images as EventImage[];
+    },
+};
+
+// ========================================
+// API GALERIE DE PHOTOS
+// ========================================
+export interface GalleryImageTag {
+    id: number;
+    gallery_image_id: number;
+    name: string;
+    tag_type: 'dish' | 'category' | 'manual';
+    category_id?: string;
+}
+
+export interface GalleryImage {
+    id: number;
+    restaurant_id: number;
+    url: string;
+    filename?: string;
+    file_size?: number;
+    mime_type?: string;
+    created_at?: string;
+    tags: GalleryImageTag[];
+    usage_count?: number;
+    usages?: MenuItemImageLink[];
+}
+
+export interface GalleryListResponse {
+    images: GalleryImage[];
+    total: number;
+    page: number;
+    per_page: number;
+    pages: number;
+}
+
+export const galleryApi = {
+    list: async (params?: {
+        q?: string;
+        category?: string;
+        page?: number;
+        per_page?: number;
+        sort?: 'recent' | 'oldest' | 'usage';
+        restaurant_id?: number;
+    }): Promise<GalleryListResponse> => {
+        const response = await api.get('/gallery', { params });
+        return response.data;
+    },
+
+    get: async (id: number): Promise<GalleryImage> => {
+        const response = await api.get(`/gallery/${id}`);
+        return response.data.image;
+    },
+
+    upload: async (
+        file: File,
+        opts?: { dish_name?: string; category_id?: string; category_label?: string; restaurant_id?: number }
+    ): Promise<GalleryImage> => {
+        const formData = new FormData();
+        formData.append('file', file);
+        if (opts?.dish_name) formData.append('dish_name', opts.dish_name);
+        if (opts?.category_id) formData.append('category_id', opts.category_id);
+        if (opts?.category_label) formData.append('category_label', opts.category_label);
+        if (opts?.restaurant_id) formData.append('restaurant_id', String(opts.restaurant_id));
+        const response = await api.post('/gallery', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 30000,
+        });
+        return response.data.image;
+    },
+
+    delete: async (id: number) => {
+        await api.delete(`/gallery/${id}`);
+    },
+
+    updateTags: async (id: number, tags: Array<{ name: string; tag_type: 'dish' | 'manual' }>) => {
+        const response = await api.put(`/gallery/${id}/tags`, { tags });
+        return response.data.image as GalleryImage;
+    },
+
+    addTag: async (id: number, name: string) => {
+        const response = await api.post(`/gallery/${id}/tags`, { name });
+        return response.data.tag as GalleryImageTag;
+    },
+
+    deleteTag: async (imageId: number, tagId: number) => {
+        await api.delete(`/gallery/${imageId}/tags/${tagId}`);
+    },
+};
+
+// ========================================
+// API MENU — Item Images (galerie)
+// ========================================
+export const menuItemImagesApi = {
+    sync: async (menuId: number, itemImages: Array<{
+        gallery_image_id: number;
+        category: string;
+        item_index: number;
+        display_order: number;
+    }>) => {
+        const response = await api.post(`/menus/${menuId}/item-images`, { item_images: itemImages });
+        return response.data.item_images as MenuItemImageLink[];
+    },
+
+    remove: async (menuId: number, linkId: number) => {
+        await api.delete(`/menus/${menuId}/item-images/${linkId}`);
     },
 };
 
@@ -626,7 +850,11 @@ export const publicApi = {
         if (visibility) params.visibility = visibility;
         if (restaurantId) params.restaurant_id = restaurantId;
         const response = await api.get('/public/events', { params, timeout: PUBLIC_API_TIMEOUT_MS });
-        return response.data.events;
+        return response.data as {
+            today_event: Event | null;
+            upcoming_events: Event[];
+            events: Event[];
+        };
     },
 
     getRestaurant: async (restaurantId?: number) => {

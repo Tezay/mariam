@@ -9,6 +9,7 @@ Documentation technique de l'infrastructure.
 | **Frontend** | React 18 + Vite + Nginx | Interface utilisateur (Port 80) |
 | **Backend** | Flask + Gunicorn | API REST + Auth MFA (Port 5000 interne) |
 | **Database** | PostgreSQL 15 | Stockage persistant (Port 5432 interne) |
+| **Stockage S3** | Scaleway Object Storage / MinIO (dev) | Galerie photos, images événements |
 
 ## Schéma des Flux
 
@@ -39,9 +40,19 @@ Documentation technique de l'infrastructure.
                            ▼ TCP :5432
 ┌────────────────────────────────────────────────────────────────┐
 │                     POSTGRESQL 15                              │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌──────────┐ │
-│  │ Users   │ │ Menus   │ │ Events  │ │ Restaurants │ │ AuditLog │ │
-│  └─────────┘ └─────────┘ └─────────┘ └─────────┘ └──────────┘ │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌──────────┐ ┌─────────┐ │
+│  │ Users   │ │ Menus   │ │ Events  │ │ Restaurants │ │ AuditLog │ │ Gallery │ │
+│  └─────────┘ └─────────┘ └─────────┘ └─────────┘ └──────────┘ └─────────┘ │
+└────────────────────────────────────────────────────────────────┘
+                           │
+                           ▼ S3 API (HTTPS)
+┌────────────────────────────────────────────────────────────────┐
+│              STOCKAGE S3 (Images)                              │
+│  ┌──────────────────────┐  ┌──────────────────────────────┐   │
+│  │  Dev : MinIO (local)  │  │  Prod : Scaleway Obj Storage │   │
+│  │  :9000 API / :9001 UI │  │  s3.fr-par.scw.cloud         │   │
+│  └──────────────────────┘  └──────────────────────────────┘   │
+│  Bucket : mariam-uploads → galerie photos, événements, logos        │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -67,6 +78,12 @@ Fichier : `deploy/.env`
 | `MFA_ISSUER_NAME` | Nom dans app MFA | `MARIAM` |
 | `FRONTEND_URL` | URL du frontend | `https://mariam.univ.fr` |
 | `PORT` | Port d'écoute | `80` |
+| `S3_ENDPOINT_URL` | Endpoint S3 | `https://s3.fr-par.scw.cloud` |
+| `S3_ACCESS_KEY_ID` | Clé d'accès S3 | *(secret)* |
+| `S3_SECRET_ACCESS_KEY` | Clé secrète S3 | *(secret)* |
+| `S3_BUCKET_NAME` | Nom du bucket | `mariam-uploads` |
+| `S3_REGION` | Région S3 | `fr-par` |
+| `S3_PUBLIC_URL` | URL publique du bucket | `https://mariam-uploads.s3.fr-par.scw.cloud` |
 
 ## Sécurité
 

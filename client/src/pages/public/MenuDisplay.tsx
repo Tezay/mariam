@@ -2,16 +2,20 @@
  * MARIAM - Affichage public du menu
  * 
  * Mode TV (plein écran) et Mobile (compact).
+ * Intègre l'affichage des événements :
+ * - Jour J : bannière événement (titre, sous-titre, images, couleur)
+ * - À venir : vignette compacte du prochain événement
  */
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { publicApi, MenuCategory, DietaryTag, Certification } from '@/lib/api';
 import { DEFAULT_CATEGORIES, DEFAULT_DIETARY_TAGS, DEFAULT_CERTIFICATIONS } from '@/lib/constants';
+import { generateEventPalette } from '@/lib/color-utils';
 import { Icon } from '@/components/ui/icon-picker';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Logo } from '@/components/Logo';
 import { InlineError, getErrorType } from '@/components/InlineError';
-import { Leaf, BadgeCheck, Ban, WheatOff, MilkOff, Sprout, MapPin, Flag, Fish, RefreshCw, ZoomIn, ZoomOut, CalendarClock } from 'lucide-react';
+import { Leaf, BadgeCheck, Ban, WheatOff, MilkOff, Sprout, MapPin, Flag, Fish, RefreshCw, ZoomIn, ZoomOut, CalendarClock, ChevronLeft, ChevronRight, Megaphone, Calendar, ChefHat, X, Image as ImageIcon } from 'lucide-react';
 import type { IconName } from '@/components/ui/icon-picker';
 
 // Types pour les données de menu
@@ -33,6 +37,8 @@ interface MenuResponse {
     plat?: MenuItemData[];
     vg?: MenuItemData[];
     desserts?: MenuItemData[];
+    images?: { id: number; url: string; filename?: string; order: number }[];
+    chef_note?: string;
 }
 
 interface MenuData {
@@ -51,9 +57,13 @@ interface MenuData {
 }
 
 interface EventData {
+    id: number;
     title: string;
+    subtitle?: string;
     description?: string;
+    color?: string;
     event_date: string;
+    images?: { id: number; url: string; filename?: string; order: number }[];
 }
 
 
@@ -141,6 +151,473 @@ function MobileMenuSkeleton() {
     );
 }
 
+/* ─────────────────────────────────────────────────────────────────────
+ *  Composants Événements — TV
+ * ───────────────────────────────────────────────────────────────────── */
+
+/** Carrousel d'images auto-rotatif (TV) */
+function TvImageCarousel({ images, interval = 4000 }: { images: { id: number; url: string; order: number }[]; interval?: number }) {
+    const [currentIndex, setCurrentIndex] = useState(0);
+
+    useEffect(() => {
+        if (images.length <= 1) return;
+        const timer = setInterval(() => {
+            setCurrentIndex(prev => (prev + 1) % images.length);
+        }, interval);
+        return () => clearInterval(timer);
+    }, [images.length, interval]);
+
+    if (images.length === 0) return null;
+
+    return (
+        <div className="relative w-full h-full overflow-hidden">
+            {images.map((img, i) => (
+                <img
+                    key={img.id}
+                    src={img.url}
+                    alt=""
+                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
+                        i === currentIndex ? 'opacity-100' : 'opacity-0'
+                    }`}
+                />
+            ))}
+        </div>
+    );
+}
+
+/** Bannière événement du jour — pleine largeur sous le header TV */
+function TvTodayEventBanner({ event }: { event: EventData }) {
+    const palette = generateEventPalette(event.color || '#3498DB');
+    const hasImages = event.images && event.images.length > 0;
+
+    return (
+        <div
+            className="w-full px-10 py-8 flex items-center gap-10 border-b shadow-sm shrink-0 relative overflow-hidden"
+            style={{ backgroundColor: palette.bg, borderColor: palette.border }}
+        >
+
+            {/* Image carousel */}
+            {hasImages && (
+                <div
+                    className="w-48 h-48 rounded-2xl overflow-hidden shrink-0 shadow-lg border-2"
+                    style={{ borderColor: palette.accent }}
+                >
+                    <TvImageCarousel images={event.images!} interval={4000} />
+                </div>
+            )}
+
+            {/* Event info */}
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-4 mb-3">
+                    <span
+                        className="text-lg font-bold uppercase tracking-widest px-4 py-1.5 rounded-xl"
+                        style={{ backgroundColor: palette.button, color: palette.buttonText }}
+                    >
+                        <Megaphone className="w-5 h-5 inline mr-1" /> Aujourd'hui
+                    </span>
+                </div>
+                <h2
+                    className="text-5xl font-extrabold leading-tight mb-2 truncate"
+                    style={{ color: palette.text }}
+                >
+                    {event.title}
+                </h2>
+                {event.subtitle && (
+                    <p className="text-3xl font-light truncate" style={{ color: palette.textMuted }}>
+                        {event.subtitle}
+                    </p>
+                )}
+            </div>
+        </div>
+    );
+}
+
+/** Vignette événement à venir — pleine largeur footer TV */
+function TvUpcomingEventFooter({ event }: { event: EventData }) {
+    const palette = generateEventPalette(event.color || '#3498DB');
+    const hasImage = event.images && event.images.length > 0;
+
+    return (
+        <div
+            className="w-full px-10 py-4 flex items-center gap-8 border-t"
+            style={{ backgroundColor: palette.bg, borderColor: palette.border }}
+        >
+            {hasImage ? (
+                <div
+                    className="w-16 h-16 rounded-xl overflow-hidden shrink-0 shadow border"
+                    style={{ borderColor: palette.accent }}
+                >
+                    <img src={event.images![0].url} alt="" className="w-full h-full object-cover" />
+                </div>
+            ) : (
+                <div
+                    className="w-14 h-14 rounded-xl shrink-0 shadow border flex items-center justify-center"
+                    style={{ borderColor: palette.accent, backgroundColor: palette.card }}
+                >
+                    <Megaphone className="w-7 h-7" style={{ color: palette.accent }} />
+                </div>
+            )}
+            <div className="flex-1 min-w-0 flex items-center gap-6">
+                <span
+                    className="text-base font-bold uppercase tracking-widest px-3 py-1 rounded-xl shrink-0"
+                    style={{ backgroundColor: palette.button, color: palette.buttonText }}
+                >
+                    Prochain événement
+                </span>
+                <p className="text-3xl font-bold truncate flex-1 min-w-0" style={{ color: palette.text }}>
+                    {event.title}
+                </p>
+                <span className="text-2xl shrink-0 ml-auto flex items-center gap-2" style={{ color: palette.accent }}>
+                    <Calendar className="w-5 h-5" /> {new Date(event.event_date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </span>
+            </div>
+        </div>
+    );
+}
+
+/** Bandeau « Menu de demain » — footer TV */
+function TvTomorrowFooter({ menu, getItems }: { menu: MenuResponse; getItems: (m: MenuResponse | null, catId: string) => MenuItemData[] }) {
+    return (
+        <div className="w-full bg-gray-100/95 backdrop-blur-md text-gray-800 px-10 py-4 flex items-center gap-6 border-t border-gray-200">
+            <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                <CalendarClock className="w-8 h-8 text-mariam-blue" />
+            </div>
+            <div className="flex items-baseline gap-4">
+                <span className="text-gray-500 text-2xl uppercase tracking-wider font-bold">Demain :</span>
+                <span className="text-4xl font-bold text-mariam-blue tracking-tight">
+                    {getItems(menu, 'plat')[0]?.name || 'Menu surprise'}
+                </span>
+            </div>
+        </div>
+    );
+}
+
+/** Bandeau « Note du chef » — footer TV */
+function TvChefNoteFooter({ note }: { note: string }) {
+    return (
+        <div className="w-full bg-amber-50/95 backdrop-blur-md text-gray-800 px-10 py-4 flex items-center gap-6 border-t border-amber-200">
+            <div className="bg-white p-3 rounded-xl shadow-sm border border-amber-100">
+                <ChefHat className="w-8 h-8 text-amber-600" />
+            </div>
+            <p className="text-3xl font-bold text-amber-700">Note du chef :</p>
+            <p className="text-3xl text-gray-700 italic leading-snug truncate">
+                « {note} »
+            </p>
+        </div>
+    );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ *  Composants Événements — Mobile
+ * ───────────────────────────────────────────────────────────────────── */
+
+/** Carrousel d'images tactile avec défilement automatique (Mobile) */
+function MobileImageCarousel({ images, interval = 4000 }: { images: { id: number; url: string; order: number }[]; interval?: number }) {
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const touchStartRef = useRef<number | null>(null);
+    const touchDeltaRef = useRef(0);
+    const autoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const count = images.length;
+
+    // Défilement automatique
+    useEffect(() => {
+        if (count <= 1) return;
+        const start = () => {
+            autoTimerRef.current = setInterval(() => {
+                setCurrentIndex(prev => (prev + 1) % count);
+            }, interval);
+        };
+        start();
+        return () => { if (autoTimerRef.current) clearInterval(autoTimerRef.current); };
+    }, [count, interval]);
+
+    // Reset timer au swipe
+    const resetTimer = () => {
+        if (autoTimerRef.current) clearInterval(autoTimerRef.current);
+        if (count > 1) {
+            autoTimerRef.current = setInterval(() => {
+                setCurrentIndex(prev => (prev + 1) % count);
+            }, interval);
+        }
+    };
+
+    const onTouchStart = (e: React.TouchEvent) => {
+        touchStartRef.current = e.touches[0].clientX;
+        touchDeltaRef.current = 0;
+    };
+
+    const onTouchMove = (e: React.TouchEvent) => {
+        if (touchStartRef.current === null) return;
+        touchDeltaRef.current = e.touches[0].clientX - touchStartRef.current;
+    };
+
+    const onTouchEnd = () => {
+        const delta = touchDeltaRef.current;
+        const threshold = 50;
+        if (delta < -threshold) {
+            setCurrentIndex(prev => (prev + 1) % count);
+            resetTimer();
+        } else if (delta > threshold) {
+            setCurrentIndex(prev => (prev - 1 + count) % count);
+            resetTimer();
+        }
+        touchStartRef.current = null;
+        touchDeltaRef.current = 0;
+    };
+
+    if (count === 0) return null;
+
+    return (
+        <div
+            className="relative w-full overflow-hidden rounded-xl"
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+        >
+            <div className="aspect-[4/3] w-full bg-gray-100">
+                {images.map((img, i) => (
+                    <img
+                        key={img.id}
+                        src={img.url}
+                        alt=""
+                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
+                            i === currentIndex ? 'opacity-100' : 'opacity-0'
+                        }`}
+                    />
+                ))}
+            </div>
+
+            {/* Pagination dots */}
+            {count > 1 && (
+                <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex gap-1.5">
+                    {images.map((_, i) => (
+                        <button
+                            key={i}
+                            onClick={() => { setCurrentIndex(i); resetTimer(); }}
+                            className={`w-2 h-2 rounded-full transition-all ${
+                                i === currentIndex
+                                    ? 'bg-white scale-125 shadow'
+                                    : 'bg-white/50'
+                            }`}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+/** Bannière événement du jour — Mobile (avec overlay détail) */
+function MobileTodayEvent({ event }: { event: EventData }) {
+    const [showDetail, setShowDetail] = useState(false);
+    const [detailImgIndex, setDetailImgIndex] = useState(0);
+    const palette = generateEventPalette(event.color || '#3498DB');
+    const hasImages = event.images && event.images.length > 0;
+
+    // Formater la description : markdown basique -> HTML
+    const formatDescription = (text: string) => {
+        return text
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.+?)\*/g, '<em>$1</em>')
+            .replace(/^### (.+)$/gm, '<h3 class="text-lg font-bold mt-4 mb-1">$1</h3>')
+            .replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold mt-4 mb-2">$1</h2>')
+            .replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mt-4 mb-2">$1</h1>')
+            .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
+            .replace(/(<li.*<\/li>\n?)+/g, (m) => `<ul class="my-2 space-y-1">${m}</ul>`)
+            .replace(/\n{2,}/g, '</p><p class="mt-3">')
+            .replace(/\n/g, '<br/>');
+    };
+
+    return (
+        <>
+            <div
+                className="rounded-xl overflow-hidden shadow-md border mb-4"
+                style={{ backgroundColor: palette.bg, borderColor: palette.border }}
+            >
+                {/* Image banner */}
+                {hasImages && (
+                    <div className="w-full h-40 overflow-hidden">
+                        <TvImageCarousel images={event.images!} interval={5000} />
+                    </div>
+                )}
+
+                <div className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                            <span
+                                className="inline-block text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-lg mb-2"
+                                style={{ backgroundColor: palette.button, color: palette.buttonText }}
+                            >
+                                Aujourd'hui
+                            </span>
+                            <h3
+                                className="text-lg font-bold leading-tight"
+                                style={{ color: palette.text }}
+                            >
+                                {event.title}
+                            </h3>
+                            {event.subtitle && (
+                                <p className="text-sm mt-0.5" style={{ color: palette.textMuted }}>
+                                    {event.subtitle}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* CTA pour en savoir plus */}
+                    {event.description && (
+                        <div className="mt-3">
+                            <button
+                                onClick={() => { setDetailImgIndex(0); setShowDetail(true); }}
+                                className="flex items-center gap-1 text-sm font-medium transition-colors"
+                                style={{ color: palette.accent }}
+                            >
+                                En savoir plus
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Overlay détail événement */}
+            {showDetail && (
+                <div
+                    className="fixed inset-0 z-50 flex flex-col bg-white animate-in slide-in-from-bottom duration-300"
+                >
+                    {/* Header overlay */}
+                    <div
+                        className="shrink-0 px-4 py-3 flex items-center justify-between border-b"
+                        style={{ backgroundColor: palette.bg, borderColor: palette.border }}
+                    >
+                        <div className="flex-1 min-w-0">
+                            <h2 className="text-lg font-bold truncate" style={{ color: palette.text }}>
+                                {event.title}
+                            </h2>
+                            {event.subtitle && (
+                                <p className="text-sm truncate" style={{ color: palette.textMuted }}>{event.subtitle}</p>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => setShowDetail(false)}
+                            className="p-2 rounded-full hover:bg-black/10 transition-colors ml-2 shrink-0"
+                        >
+                            <X className="w-5 h-5" style={{ color: palette.text }} />
+                        </button>
+                    </div>
+
+                    {/* Contenu scrollable */}
+                    <div className="flex-1 overflow-y-auto">
+                        {/* Galerie images */}
+                        {hasImages && (
+                            <div className="relative">
+                                <div className="aspect-[4/3] w-full overflow-hidden bg-gray-100">
+                                    <img
+                                        src={event.images![detailImgIndex].url}
+                                        alt=""
+                                        className="w-full h-full object-cover transition-opacity duration-300"
+                                    />
+                                </div>
+                                {event.images!.length > 1 && (
+                                    <>
+                                        <button
+                                            onClick={() => setDetailImgIndex(prev => (prev - 1 + event.images!.length) % event.images!.length)}
+                                            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
+                                        >
+                                            <ChevronLeft className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            onClick={() => setDetailImgIndex(prev => (prev + 1) % event.images!.length)}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
+                                        >
+                                            <ChevronRight className="w-5 h-5" />
+                                        </button>
+                                        {/* Pagination dots */}
+                                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                                            {event.images!.map((_, i) => (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => setDetailImgIndex(i)}
+                                                    className={`w-2 h-2 rounded-full transition-all ${
+                                                        i === detailImgIndex
+                                                            ? 'bg-white scale-125 shadow'
+                                                            : 'bg-white/50'
+                                                    }`}
+                                                />
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Description formatée */}
+                        {event.description && (
+                            <div className="p-5">
+                                <div
+                                    className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
+                                    dangerouslySetInnerHTML={{ __html: `<p>${formatDescription(event.description)}</p>` }}
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Bouton fermer en bas */}
+                    <div className="shrink-0 p-4 border-t bg-white">
+                        <button
+                            onClick={() => setShowDetail(false)}
+                            className="w-full py-3 rounded-xl font-medium text-white transition-colors"
+                            style={{ backgroundColor: palette.accent }}
+                        >
+                            Fermer
+                        </button>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+}
+
+/** Vignette événement à venir — style « player musique » (Mobile) */
+function MobileUpcomingEvent({ event }: { event: EventData }) {
+    const palette = generateEventPalette(event.color || '#3498DB');
+    const hasImage = event.images && event.images.length > 0;
+
+    return (
+        <div
+            className="flex items-center gap-3 p-3 rounded-xl border shadow-sm"
+            style={{ backgroundColor: palette.bg, borderColor: palette.border }}
+        >
+            {/* Infos (titre, sous-titre, date) */}
+            <div className="flex-1 min-w-0">
+                <p className="font-bold text-base truncate" style={{ color: palette.text }}>
+                    {event.title}
+                </p>
+                {event.subtitle && (
+                    <p className="text-sm truncate" style={{ color: palette.textMuted }}>
+                        {event.subtitle}
+                    </p>
+                )}
+                <p className="text-xs mt-1 flex items-center gap-1" style={{ color: palette.accent }}>
+                    <CalendarClock className="w-3 h-3" />
+                    {new Date(event.event_date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </p>
+            </div>
+
+            {/* Cover image */}
+            {hasImage && (
+                <div
+                    className="w-16 h-16 rounded-lg overflow-hidden shrink-0 shadow border"
+                    style={{ borderColor: palette.accent }}
+                >
+                    <img src={event.images![0].url} alt="" className="w-full h-full object-cover" />
+                </div>
+            )}
+        </div>
+    );
+}
+
 export function MenuDisplay() {
     const [searchParams] = useSearchParams();
     const forceTvMode = searchParams.get('mode') === 'tv';
@@ -149,7 +626,8 @@ export function MenuDisplay() {
     const [selectedDay, setSelectedDay] = useState<'today' | 'tomorrow'>('today');
     const [todayData, setTodayData] = useState<MenuData | null>(null);
     const [tomorrowData, setTomorrowData] = useState<MenuData | null>(null);
-    const [events, setEvents] = useState<EventData[]>([]);
+    const [todayEvent, setTodayEvent] = useState<EventData | null>(null);
+    const [upcomingEvents, setUpcomingEvents] = useState<EventData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<unknown>(null);
     const [showError, setShowError] = useState(false);
@@ -164,6 +642,9 @@ export function MenuDisplay() {
     const [categories, setCategories] = useState<MenuCategory[]>(DEFAULT_CATEGORIES);
     const [dietaryTags, setDietaryTags] = useState<DietaryTag[]>(DEFAULT_DIETARY_TAGS);
     const [certifications, setCertifications] = useState<Certification[]>(DEFAULT_CERTIFICATIONS);
+
+    // Footer rotatif TV : liste dynamique de slots
+    const [footerSlot, setFooterSlot] = useState(0);
 
     // Détecter le mode TV par la largeur de l'écran
     useEffect(() => {
@@ -211,7 +692,8 @@ export function MenuDisplay() {
 
             setTodayData(today);
             setTomorrowData(tomorrow);
-            setEvents(eventsData || []);
+            setTodayEvent(eventsData?.today_event || null);
+            setUpcomingEvents(eventsData?.upcoming_events || []);
 
             const config = today?.restaurant?.config || tomorrow?.restaurant?.config;
             if (config) {
@@ -446,6 +928,23 @@ export function MenuDisplay() {
         };
     }, []);
 
+    // Construire la liste dynamique de slots footer
+    const footerSlots: ('event' | 'tomorrow' | 'chefnote')[] = [];
+    if (upcomingEvents.length > 0) footerSlots.push('event');
+    if (tomorrowData?.menu) footerSlots.push('tomorrow');
+    if (todayData?.menu?.chef_note) footerSlots.push('chefnote');
+    const footerCount = footerSlots.length;
+
+    // Rotation footer TV toutes les 8 secondes
+    useEffect(() => {
+        if (footerCount <= 1) return;
+        setFooterSlot(0);
+        const timer = setInterval(() => {
+            setFooterSlot(prev => (prev + 1) % footerCount);
+        }, 8000);
+        return () => clearInterval(timer);
+    }, [footerCount]);
+
     // Afficher l'erreur (après tous les hooks)
     if (error && showError) {
         return (
@@ -532,6 +1031,11 @@ export function MenuDisplay() {
                         )}
                     </header>
 
+                    {/* Bannière événement du jour (TV) */}
+                    {todayEvent && (
+                        <TvTodayEventBanner event={todayEvent} />
+                    )}
+
                     {/* Contenu principal TV */}
                     <main className="flex-1 p-10 overflow-hidden bg-gray-50/50">
                         {isPending ? (
@@ -592,39 +1096,14 @@ export function MenuDisplay() {
                                     </div>
                                 </div>
 
-                                {/* Événements (Sidebar droite fixe) */}
-                                {events.length > 0 && (
-                                    <aside className="w-[28rem] flex flex-col gap-6 shrink-0">
-                                        <div className="bg-white rounded-3xl p-8 flex-1 border border-gray-200 shadow-md">
-                                            <h3 className="font-bold text-3xl text-mariam-blue mb-8 flex items-center gap-3">
-                                                <span className="bg-mariam-blue/10 text-mariam-blue p-2 rounded-xl">
-                                                    <div className="w-8 h-8">📣</div>
-                                                </span>
-                                                À venir
-                                            </h3>
-                                            <ul className="space-y-8">
-                                                {events.slice(0, 3).map((event, i) => (
-                                                    <li key={i} className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                                                        <p className="font-bold text-2xl mb-3 text-gray-900">{event.title}</p>
-                                                        {event.description && (
-                                                            <p className="text-xl text-gray-600 mb-4 leading-normal">
-                                                                {event.description}
-                                                            </p>
-                                                        )}
-                                                        <div className="flex items-center gap-3 text-mariam-blue font-medium text-lg bg-blue-50/50 p-3 rounded-xl w-fit">
-                                                            <span>📅</span>
-                                                            {new Date(event.event_date).toLocaleDateString('fr-FR', {
-                                                                weekday: 'long',
-                                                                day: 'numeric',
-                                                                month: 'long'
-                                                            })}
-                                                        </div>
-                                                    </li>
-                                                ))}
-                                            </ul>
+                                {/* Sidebar droite — Photos du menu */}
+                                {todayData.menu.images && todayData.menu.images.length > 0 && (
+                                    <aside className="w-[28rem] shrink-0">
+                                        <div className="bg-white rounded-3xl overflow-hidden border border-gray-200 shadow-md">
+                                            <div className="aspect-square w-full overflow-hidden">
+                                                <TvImageCarousel images={todayData.menu.images} interval={5000} />
+                                            </div>
                                         </div>
-
-
                                     </aside>
                                 )}
                             </div>
@@ -637,17 +1116,23 @@ export function MenuDisplay() {
 
                 </div>
 
-                {/* Footer - Demain */}
-                {tomorrowData?.menu && (
-                    <footer className="fixed bottom-0 left-0 w-full bg-gray-100/95 backdrop-blur-md text-gray-800 px-10 py-6 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] z-40 flex items-center gap-6 border-t border-gray-200">
-                        <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                            <CalendarClock className="w-8 h-8 text-mariam-blue" />
-                        </div>
-                        <div className="flex items-baseline gap-4">
-                            <span className="text-gray-500 text-2xl uppercase tracking-wider font-bold">Demain :</span>
-                            <span className="text-4xl font-bold text-mariam-blue tracking-tight">
-                                {getItemsByCategory(tomorrowData.menu, 'plat')[0]?.name || 'Menu surprise'}
-                            </span>
+                {/* Footer rotatif — alterne entre les contenus disponibles */}
+                {footerCount > 0 && (
+                    <footer className="fixed bottom-0 left-0 w-full z-40 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] overflow-hidden">
+                        <div
+                            className="flex transition-transform duration-700 ease-in-out"
+                            style={{
+                                width: `${footerCount * 100}%`,
+                                transform: `translateX(-${footerSlot * (100 / footerCount)}%)`,
+                            }}
+                        >
+                            {footerSlots.map((slot, i) => (
+                                <div key={slot + i} style={{ width: `${100 / footerCount}%` }} className="shrink-0">
+                                    {slot === 'event' && <TvUpcomingEventFooter event={upcomingEvents[0]} />}
+                                    {slot === 'tomorrow' && tomorrowData?.menu && <TvTomorrowFooter menu={tomorrowData.menu} getItems={getItemsByCategory} />}
+                                    {slot === 'chefnote' && todayData?.menu?.chef_note && <TvChefNoteFooter note={todayData.menu.chef_note} />}
+                                </div>
+                            ))}
                         </div>
                     </footer>
                 )}
@@ -710,6 +1195,11 @@ export function MenuDisplay() {
                             })}
                         </div>
 
+                        {/* Événement du jour — Mobile (avant le menu) */}
+                        {todayEvent && selectedDay === 'today' && (
+                            <MobileTodayEvent event={todayEvent} />
+                        )}
+
                         {categories.sort((a, b) => a.order - b.order).map(category => {
                             const items = getItemsByCategory(currentData.menu, category.id);
                             if (items.length === 0) return null;
@@ -755,27 +1245,42 @@ export function MenuDisplay() {
                     </div>
                 )}
 
-                {/* Événements Mobile */}
-                {events.length > 0 && (
-                    <section className="mt-8">
-                        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                {/* Images du jour — Mobile */}
+                {currentData?.menu?.images && currentData.menu.images.length > 0 && (
+                    <section className="mt-6">
+                        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+                            <ImageIcon className="w-4 h-4" />
+                            {currentData.menu.images.length > 1 ? 'Images du jour' : 'Image du jour'}
+                        </h2>
+                        <MobileImageCarousel images={currentData.menu.images} interval={5000} />
+                    </section>
+                )}
+
+                {/* Note du chef — Mobile */}
+                {currentData?.menu?.chef_note && (
+                    <section className="mt-6">
+                        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+                            <ChefHat className="w-4 h-4" />
+                            Note du chef
+                        </h2>
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 shadow-sm">
+                            <p className="text-amber-800 italic leading-relaxed">
+                                « {currentData.menu.chef_note} »
+                            </p>
+                        </div>
+                    </section>
+                )}
+
+                {/* Événements à venir — Mobile */}
+                {upcomingEvents.length > 0 && (
+                    <section className="mt-6">
+                        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+                            <CalendarClock className="w-4 h-4" />
                             À venir
                         </h2>
                         <div className="space-y-3">
-                            {events.slice(0, 2).map((event, i) => (
-                                <div key={i} className="bg-blue-50 rounded-lg p-3">
-                                    <p className="font-medium text-mariam-blue">{event.title}</p>
-                                    {event.description && (
-                                        <p className="text-sm text-gray-600 mt-1">{event.description}</p>
-                                    )}
-                                    <p className="text-xs text-gray-400 mt-1">
-                                        {new Date(event.event_date).toLocaleDateString('fr-FR', {
-                                            weekday: 'long',
-                                            day: 'numeric',
-                                            month: 'long'
-                                        })}
-                                    </p>
-                                </div>
+                            {upcomingEvents.slice(0, 2).map((event) => (
+                                <MobileUpcomingEvent key={event.id} event={event} />
                             ))}
                         </div>
                     </section>

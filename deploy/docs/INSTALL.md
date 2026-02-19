@@ -42,6 +42,19 @@ Variables à modifier **obligatoirement** :
 | `POSTGRES_PASSWORD` | Mot de passe PostgreSQL |
 | `SECRET_KEY` | Clé secrète Flask |
 | `JWT_SECRET_KEY` | Clé de signature JWT |
+| `S3_ENDPOINT_URL` | Endpoint S3 (Scaleway : `https://s3.fr-par.scw.cloud`) |
+| `S3_ACCESS_KEY_ID` | Clé d'accès S3 |
+| `S3_SECRET_ACCESS_KEY` | Clé secrète S3 |
+| `S3_BUCKET_NAME` | Nom du bucket (ex : `mariam-uploads`) |
+| `S3_PUBLIC_URL` | URL publique du bucket |
+
+### Configuration Scaleway Object Storage
+
+1. Créez un bucket sur [console.scaleway.com](https://console.scaleway.com) → Object Storage
+2. Nommez-le `mariam-uploads` (ou un nom de votre choix)
+3. Réglez la **visibilité du bucket** sur « Public » (les images doivent être accessibles)
+4. Générez une paire de clés API → API Keys → Créer une clé
+5. Renseignez les variables S3 dans votre fichier `.env`
 
 ### 4. Démarrer l'application
 

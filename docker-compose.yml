@@ -23,6 +23,27 @@ services:
       retries: 5
 
   # ========================================
+  # STOCKAGE S3 (MinIO - dev uniquement)
+  # ========================================
+  minio:
+    image: minio/minio:latest
+    container_name: mariam_minio
+    environment:
+      MINIO_ROOT_USER: mariam_minio
+      MINIO_ROOT_PASSWORD: mariam_minio_secret
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"    # API S3
+      - "9001:9001"    # Console web
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ========================================
   # BACKEND FLASK (API)
   # ========================================
   backend:
@@ -39,12 +60,21 @@ services:
       JWT_ACCESS_TOKEN_MINUTES: 30
       MFA_ISSUER_NAME: MARIAM
       FRONTEND_URL: http://localhost:5173
+      # S3 / MinIO
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY_ID: mariam_minio
+      S3_SECRET_ACCESS_KEY: mariam_minio_secret
+      S3_BUCKET_NAME: mariam-uploads
+      S3_REGION: us-east-1
+      S3_PUBLIC_URL: http://localhost:9000/mariam-uploads
     volumes:
       - ./server:/app
     ports:
       - "5000:5000"
     depends_on:
       db:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     command: flask run --host=0.0.0.0 --port=5000 --reload
 
@@ -69,3 +99,4 @@ services:
 
 volumes:
   postgres_data:
+  minio_data:

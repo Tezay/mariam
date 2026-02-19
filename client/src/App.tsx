@@ -19,6 +19,8 @@ import { UsersPage } from './pages/admin/UsersPage';
 import { SettingsPage } from './pages/admin/SettingsPage';
 import { AuditLogsPage } from './pages/admin/AuditLogsPage';
 import { AccountPage } from './pages/admin/AccountPage';
+import { EventsPage } from './pages/admin/EventsPage';
+import { GalleryPage } from './pages/admin/GalleryPage';
 
 // Error pages
 import { NotFound, Forbidden } from './pages/errors';
@@ -119,7 +121,10 @@ function App() {
                 <Route path="account" element={<AccountPage />} />
 
                 {/* Événements (tous les utilisateurs authentifiés) */}
-                <Route path="events" element={<ComingSoonPage title="Événements" />} />
+                <Route path="events" element={<EventsPage />} />
+
+                {/* Galerie photos (tous les utilisateurs authentifiés) */}
+                <Route path="gallery" element={<GalleryPage />} />
 
                 {/* Gestion des utilisateurs (admin only) */}
                 <Route path="users" element={<AdminRoute><UsersPage /></AdminRoute>} />
@@ -137,17 +142,5 @@ function App() {
     );
 }
 
-
-// Coming soon page component
-function ComingSoonPage({ title }: { title: string }) {
-    return (
-        <div className="container-mariam py-8">
-            <h1 className="text-2xl font-bold text-foreground mb-4">{title}</h1>
-            <div className="bg-card rounded-lg border border-border p-8 text-center text-muted-foreground">
-                <p>Cette page sera bientôt disponible.</p>
-            </div>
-        </div>
-    );
-}
 
 export default App;

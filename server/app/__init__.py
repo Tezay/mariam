@@ -10,7 +10,8 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 
 from .extensions import db, jwt, migrate
-from .models import User, Restaurant, Menu, MenuItem, Event, ActivationLink, AuditLog, ImportSession
+from .models import User, Restaurant, Menu, MenuItem, Event, EventImage, GalleryImage, GalleryImageTag, MenuItemImage, ActivationLink, AuditLog, ImportSession
+from .services.storage import storage
 
 
 def create_app(config_class=None):
@@ -48,6 +49,19 @@ def create_app(config_class=None):
     app.config['MFA_ISSUER_NAME'] = os.environ.get('MFA_ISSUER_NAME', 'MARIAM')
     
     # ========================================
+    # CONFIGURATION S3 (MinIO en dev, Scaleway en prod)
+    # ========================================
+    app.config['S3_ENDPOINT_URL'] = os.environ.get('S3_ENDPOINT_URL')
+    app.config['S3_ACCESS_KEY_ID'] = os.environ.get('S3_ACCESS_KEY_ID')
+    app.config['S3_SECRET_ACCESS_KEY'] = os.environ.get('S3_SECRET_ACCESS_KEY')
+    app.config['S3_BUCKET_NAME'] = os.environ.get('S3_BUCKET_NAME', 'mariam-uploads')
+    app.config['S3_REGION'] = os.environ.get('S3_REGION', 'fr-par')
+    app.config['S3_PUBLIC_URL'] = os.environ.get('S3_PUBLIC_URL', '')
+    
+    # Taille maximale des uploads (32 MB pour gérer plusieurs images)
+    app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
+    
+    # ========================================
     # CONFIGURATION API DOCUMENTATION (OpenAPI/Swagger)
     # ========================================
     app.config['API_TITLE'] = 'MARIAM Developer API'
@@ -63,6 +77,7 @@ def create_app(config_class=None):
     db.init_app(app)
     jwt.init_app(app)
     migrate.init_app(app, db)
+    storage.init_app(app)
     
     # ========================================
     # JWT ERROR HANDLERS
@@ -123,11 +138,13 @@ def create_app(config_class=None):
     from .routes.events import events_bp
     from .routes.public import public_bp
     from .routes.csv_import import csv_import_bp
+    from .routes.gallery import gallery_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
     app.register_blueprint(menus_bp, url_prefix='/api/menus')
     app.register_blueprint(events_bp, url_prefix='/api/events')
+    app.register_blueprint(gallery_bp, url_prefix='/api/gallery')
     app.register_blueprint(public_bp, url_prefix='/api/public')
     app.register_blueprint(csv_import_bp, url_prefix='/api/menus/import')
     
@@ -137,7 +154,7 @@ def create_app(config_class=None):
         return {
             'status': 'healthy', 
             'message': 'MARIAM API is running',
-            'version': '0.3.8',
+            'version': '0.4.0',
             'docs': '/api/v1/docs'
         }
     
