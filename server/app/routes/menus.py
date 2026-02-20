@@ -20,6 +20,7 @@ from ..extensions import db
 from ..models import User, Restaurant, Menu, MenuItem, MenuImage, AuditLog
 from ..models import GalleryImage, GalleryImageTag, MenuItemImage
 from ..services.storage import storage
+from ..security import get_client_ip
 
 
 menus_bp = Blueprint('menus', __name__)
@@ -38,13 +39,6 @@ def editor_required(f):
         
         return f(*args, **kwargs)
     return decorated_function
-
-
-def get_client_ip():
-    """Récupère l'adresse IP du client."""
-    if request.headers.get('X-Forwarded-For'):
-        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
-    return request.remote_addr
 
 
 def get_week_dates(reference_date=None):

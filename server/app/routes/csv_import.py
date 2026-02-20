@@ -16,6 +16,7 @@ from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..extensions import db
 from ..models import User, Restaurant, Menu, MenuItem, AuditLog, ImportSession
+from ..security import get_client_ip
 
 csv_import_bp = Blueprint('csv_import', __name__)
 
@@ -33,13 +34,6 @@ def editor_required(f):
         
         return f(*args, **kwargs)
     return decorated_function
-
-
-def get_client_ip():
-    """Récupère l'adresse IP du client."""
-    if request.headers.get('X-Forwarded-For'):
-        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
-    return request.remote_addr
 
 
 def detect_encoding(file_content: bytes) -> str:

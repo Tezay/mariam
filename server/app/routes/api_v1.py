@@ -15,6 +15,7 @@ from flask import request
 from flask.views import MethodView
 from flask_smorest import Blueprint
 from marshmallow import Schema, fields
+from ..security import limiter
 
 
 # ========================================
@@ -125,7 +126,9 @@ def get_day_name(d: date) -> str:
 @api_v1_bp.route('/menus')
 class MenusResource(MethodView):
     """Public menus endpoint - Today and tomorrow only."""
-    
+
+    decorators = [limiter.limit("20 per minute")]
+
     @api_v1_bp.response(200, MenusResponseSchema)
     @api_v1_bp.alt_response(404, schema=ErrorResponseSchema, description="Restaurant not found")
     def get(self):
@@ -191,7 +194,9 @@ class MenusResource(MethodView):
 @api_v1_bp.route('/restaurant')
 class RestaurantResource(MethodView):
     """Public restaurant information endpoint."""
-    
+
+    decorators = [limiter.limit("20 per minute")]
+
     @api_v1_bp.response(200, RestaurantResponseSchema)
     @api_v1_bp.alt_response(404, schema=ErrorResponseSchema, description="Restaurant not found")
     def get(self):

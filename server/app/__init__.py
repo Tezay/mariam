@@ -12,6 +12,7 @@ from flask_cors import CORS
 from .extensions import db, jwt, migrate
 from .models import User, Restaurant, Menu, MenuItem, Event, EventImage, GalleryImage, GalleryImageTag, MenuItemImage, ActivationLink, AuditLog, ImportSession
 from .services.storage import storage
+from .security import limiter
 
 
 def create_app(config_class=None):
@@ -78,6 +79,7 @@ def create_app(config_class=None):
     jwt.init_app(app)
     migrate.init_app(app, db)
     storage.init_app(app)
+    limiter.init_app(app)
     
     # ========================================
     # JWT ERROR HANDLERS
@@ -105,6 +107,18 @@ def create_app(config_class=None):
             'error': 'Token expiré',
             'message': 'Votre session a expiré, veuillez vous reconnecter'
         }), 401
+    
+    # ========================================
+    # RATE LIMITER ERROR HANDLER
+    # ========================================
+    @app.errorhandler(429)
+    def ratelimit_handler(e):
+        """Réponse personnalisée quand la limite est atteinte."""
+        return jsonify({
+            'error': 'Trop de requêtes',
+            'message': 'Vous avez dépassé la limite autorisée. Réessayez plus tard.',
+            'retry_after': e.description
+        }), 429
     
     # ========================================
     # CONFIGURATION CORS
@@ -150,13 +164,68 @@ def create_app(config_class=None):
     
     # Route de santé
     @app.route('/api/health')
+    @limiter.exempt
     def health_check():
         return {
             'status': 'healthy', 
             'message': 'MARIAM API is running',
-            'version': '0.4.0',
+            'version': '0.4.1',
             'docs': '/api/v1/docs'
         }
+    
+    # ========================================
+    # ROBOTS.TXT — Contrôle d'accès crawlers & IA
+    # ========================================
+    @app.route('/robots.txt')
+    @limiter.exempt
+    def robots_txt():
+        """
+        Autorise le crawling des routes publiques (menus, API v1)
+        et bloque les routes internes (auth, admin, gestion).
+        """
+        content = """User-agent: *
+Allow: /api/v1/
+Allow: /api/public/
+Disallow: /api/auth/
+Disallow: /api/admin/
+Disallow: /api/menus/
+Disallow: /api/events/
+Disallow: /api/gallery/
+
+User-agent: GPTBot
+Allow: /api/v1/
+Allow: /api/public/
+Disallow: /api/auth/
+Disallow: /api/admin/
+
+User-agent: OAI-SearchBot
+Allow: /api/v1/
+Allow: /api/public/
+Disallow: /api/auth/
+Disallow: /api/admin/
+
+User-agent: ChatGPT-User
+Allow: /api/v1/
+Allow: /api/public/
+Disallow: /api/auth/
+Disallow: /api/admin/
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: anthropic-ai
+Allow: /api/v1/
+Allow: /api/public/
+Disallow: /api/auth/
+Disallow: /api/admin/
+
+User-agent: Google-Extended
+Allow: /api/v1/
+Allow: /api/public/
+Disallow: /api/auth/
+Disallow: /api/admin/
+"""
+        return app.response_class(content, mimetype='text/plain', status=200)
     
     # ========================================
     # COMMANDES CLI

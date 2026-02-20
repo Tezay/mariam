@@ -16,6 +16,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..extensions import db
 from ..models import User, Restaurant, ActivationLink, AuditLog
+from ..security import get_client_ip
 
 
 admin_bp = Blueprint('admin', __name__)
@@ -34,13 +35,6 @@ def admin_required(f):
         
         return f(*args, **kwargs)
     return decorated_function
-
-
-def get_client_ip():
-    """Récupère l'adresse IP du client."""
-    if request.headers.get('X-Forwarded-For'):
-        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
-    return request.remote_addr
 
 
 # ========================================
