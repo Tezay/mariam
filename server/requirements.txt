@@ -62,3 +62,9 @@ boto3>=1.28.0
 Pillow>=10.0.0
 pillow-heif>=0.16.0
 
+# ========================================
+# MARIAM - Sécurité : Rate Limiting (Redis)
+# ========================================
+Flask-Limiter>=3.5.0
+redis>=5.0.0
+

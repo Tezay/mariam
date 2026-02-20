@@ -23,6 +23,7 @@ from flask_jwt_extended import (
 )
 from ..extensions import db
 from ..models import User, ActivationLink, AuditLog
+from ..security import limiter
 
 
 auth_bp = Blueprint('auth', __name__)
@@ -36,6 +37,7 @@ def get_client_ip():
 
 
 @auth_bp.route('/login', methods=['POST'])
+@limiter.limit("5 per minute")
 def login():
     """
     Étape 1 de la connexion : vérification email/mot de passe.
@@ -91,6 +93,7 @@ def login():
 
 
 @auth_bp.route('/verify-mfa', methods=['POST'])
+@limiter.limit("5 per minute")
 def verify_mfa():
     """
     Étape 2 de la connexion : vérification du code MFA.
@@ -163,6 +166,7 @@ def complete_login(user):
 
 
 @auth_bp.route('/activate', methods=['POST'])
+@limiter.limit("3 per minute")
 def activate_account():
     """
     Active un compte via un lien d'activation.
@@ -358,6 +362,7 @@ def check_activation_link(token):
 
 
 @auth_bp.route('/change-password', methods=['POST'])
+@limiter.limit("3 per minute")
 @jwt_required()
 def change_password():
     """

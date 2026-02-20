@@ -12,6 +12,7 @@ from flask_cors import CORS
 from .extensions import db, jwt, migrate
 from .models import User, Restaurant, Menu, MenuItem, Event, EventImage, GalleryImage, GalleryImageTag, MenuItemImage, ActivationLink, AuditLog, ImportSession
 from .services.storage import storage
+from .security import limiter
 
 
 def create_app(config_class=None):
@@ -78,6 +79,7 @@ def create_app(config_class=None):
     jwt.init_app(app)
     migrate.init_app(app, db)
     storage.init_app(app)
+    limiter.init_app(app)
     
     # ========================================
     # JWT ERROR HANDLERS
@@ -105,6 +107,18 @@ def create_app(config_class=None):
             'error': 'Token expiré',
             'message': 'Votre session a expiré, veuillez vous reconnecter'
         }), 401
+    
+    # ========================================
+    # RATE LIMITER ERROR HANDLER
+    # ========================================
+    @app.errorhandler(429)
+    def ratelimit_handler(e):
+        """Réponse personnalisée quand la limite est atteinte."""
+        return jsonify({
+            'error': 'Trop de requêtes',
+            'message': 'Vous avez dépassé la limite autorisée. Réessayez plus tard.',
+            'retry_after': e.description
+        }), 429
     
     # ========================================
     # CONFIGURATION CORS
@@ -150,6 +164,7 @@ def create_app(config_class=None):
     
     # Route de santé
     @app.route('/api/health')
+    @limiter.exempt
     def health_check():
         return {
             'status': 'healthy', 
@@ -157,6 +172,38 @@ def create_app(config_class=None):
             'version': '0.4.0',
             'docs': '/api/v1/docs'
         }
+    
+    # ========================================
+    # ROBOTS.TXT — Bloquer les crawlers/scanners
+    # ========================================
+    @app.route('/robots.txt')
+    @limiter.exempt
+    def robots_txt():
+        """
+        Indique aux crawlers légitimes de ne pas indexer cette API.
+        """
+        content = """User-agent: *
+Disallow: /
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: OAI-SearchBot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+"""
+        return app.response_class(content, mimetype='text/plain', status=200)
     
     # ========================================
     # COMMANDES CLI

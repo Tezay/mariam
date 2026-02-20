@@ -17,6 +17,7 @@ from datetime import date, timedelta
 from flask import Blueprint, request, jsonify
 from ..models import Restaurant, Menu, Event
 from ..models.gallery import MenuItemImage
+from ..security import limiter
 
 
 public_bp = Blueprint('public', __name__)
@@ -91,6 +92,7 @@ def format_menu_for_display(menu):
 
 
 @public_bp.route('/menu/today', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_today_menu():
     """Récupère le menu du jour."""
     restaurant_id = request.args.get('restaurant_id', type=int)
@@ -120,6 +122,7 @@ def get_today_menu():
 
 
 @public_bp.route('/menu/tomorrow', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_tomorrow_menu():
     """Récupère le menu de demain."""
     restaurant_id = request.args.get('restaurant_id', type=int)
@@ -148,6 +151,7 @@ def get_tomorrow_menu():
 
 
 @public_bp.route('/menu/week', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_week_menu():
     """Récupère les menus de la semaine courante."""
     restaurant_id = request.args.get('restaurant_id', type=int)
@@ -191,6 +195,7 @@ def get_week_menu():
 
 
 @public_bp.route('/events', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_public_events():
     """Récupère les événements publiés à venir (avec images).
 
