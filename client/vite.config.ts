@@ -21,5 +21,9 @@ export default defineConfig({
                 changeOrigin: true,
             },
         },
+        watch: {
+            // Ignore config file changes in Docker to prevent Vite restart crashes
+            ignored: ['**/vite.config.ts'],
+        },
     },
 })
