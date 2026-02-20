@@ -87,7 +87,8 @@ services:
       dockerfile: Dockerfile
     container_name: mariam_frontend
     environment:
-      VITE_API_URL: http://localhost:5000/api
+      VITE_API_URL: /api
+      API_PROXY_TARGET: http://backend:5000
     volumes:
       - ./client:/app
       - /app/node_modules

@@ -38,7 +38,7 @@ class ActivationLink(db.Model):
         return secrets.token_urlsafe(64)
     
     @classmethod
-    def create_first_admin_link(cls, expires_hours=24):
+    def create_first_admin_link(cls, expires_hours=72):
         """Crée un lien d'activation pour le premier administrateur."""
         return cls(
             token=cls.generate_token(),
