@@ -209,7 +209,12 @@ def update_event(event_id):
 
     if 'event_date' in data:
         try:
-            event.event_date = datetime.strptime(data['event_date'], '%Y-%m-%d').date()
+            new_date = datetime.strptime(data['event_date'], '%Y-%m-%d').date()
+            if new_date != event.event_date:
+                event.event_date = new_date
+                # Réinitialiser les flags de notification (date changé)
+                event.notified_7d = False
+                event.notified_1d = False
         except ValueError:
             return jsonify({'error': 'Format de date invalide (YYYY-MM-DD)'}), 400
 

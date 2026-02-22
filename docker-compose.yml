@@ -67,6 +67,10 @@ services:
       S3_BUCKET_NAME: mariam-uploads
       S3_REGION: us-east-1
       S3_PUBLIC_URL: http://localhost:9000/mariam-uploads
+      # Web Push / VAPID (notifications)
+      VAPID_PUBLIC_KEY: BDorseyj6iTZyTMU1fYA-MIxVnLn1LusdZ_4ad6zxX_z1VP6LFd0WjAMcaYiNv83y1hHP429FNWsIBDayJYwFcQ
+      VAPID_PRIVATE_KEY: Ghl_r5cr9DkAvkvrMrHgrtswhmd9p0DZ661DeOjyqyQ
+      VAPID_CONTACT_EMAIL: admin@mariam.dev
     volumes:
       - ./server:/app
     ports:
@@ -93,6 +97,7 @@ services:
     volumes:
       - ./client:/app
       - /app/node_modules
+      - ./certs:/certs:ro
     ports:
       - "5173:5173"
     depends_on:

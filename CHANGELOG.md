@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-02-23
+
+### Added
+
+- **Push Notifications**: Web Push via VAPID (RFC 8030). Public `/notifications` page to subscribe, configure preferences, and send test notifications. Per-user scheduling for daily menu and event reminders (J-7 and J-1). Automatic cleanup of expired subscriptions and orphan detection.
+- **Service Worker**: Dual architecture (minimal classic JS for dev, Workbox injectManifest for prod). HTTPS dev support via mkcert auto-detection.
+- **Scheduler**: APScheduler cron (every minute) with Redis distributed lock for multi-instance safety.
+- **Database**: New `push_subscriptions` table with endpoint indexes; `notified_7d`/`notified_1d` flags on events.
+
+### Changed
+
+- Nginx caching: Service Worker JS files are no-cache; hashed assets in `assets/` remain immutable (1 year).
+
 ## [0.4.1] 2026-02-20
 
 ### Added

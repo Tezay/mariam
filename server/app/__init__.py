@@ -10,7 +10,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 
 from .extensions import db, jwt, migrate
-from .models import User, Restaurant, Menu, MenuItem, Event, EventImage, GalleryImage, GalleryImageTag, MenuItemImage, ActivationLink, AuditLog, ImportSession
+from .models import User, Restaurant, Menu, MenuItem, Event, EventImage, GalleryImage, GalleryImageTag, MenuItemImage, ActivationLink, AuditLog, ImportSession, PushSubscription
 from .services.storage import storage
 from .security import limiter
 
@@ -153,6 +153,7 @@ def create_app(config_class=None):
     from .routes.public import public_bp
     from .routes.csv_import import csv_import_bp
     from .routes.gallery import gallery_bp
+    from .routes.notifications import notifications_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
@@ -161,6 +162,7 @@ def create_app(config_class=None):
     app.register_blueprint(gallery_bp, url_prefix='/api/gallery')
     app.register_blueprint(public_bp, url_prefix='/api/public')
     app.register_blueprint(csv_import_bp, url_prefix='/api/menus/import')
+    app.register_blueprint(notifications_bp, url_prefix='/api/public/notifications')
     
     # Route de santé
     @app.route('/api/health')
@@ -169,7 +171,7 @@ def create_app(config_class=None):
         return {
             'status': 'healthy', 
             'message': 'MARIAM API is running',
-            'version': '0.4.1',
+            'version': '0.5.0',
             'docs': '/api/v1/docs'
         }
     
@@ -276,4 +278,44 @@ Disallow: /api/admin/
         
         click.echo(f"✅ Restaurant créé : {restaurant.name} (ID: {restaurant.id})")
     
+    # ========================================
+    # SCHEDULER — Notifications push planifiées
+    # ========================================
+    _start_notification_scheduler(app)
+    
     return app
+
+
+def _start_notification_scheduler(app):
+    """
+    Démarre APScheduler pour envoyer les notifications push planifiées.
+    Exécute check_and_send_notifications() toutes les minutes.
+    """
+    vapid_key = os.environ.get('VAPID_PRIVATE_KEY', '')
+    if not vapid_key:
+        app.logger.info("ℹ️  VAPID_PRIVATE_KEY non définie — scheduler de notifications désactivé")
+        return
+    
+    # Empêche le scheduler de se lancer deux fois en mode debug (reloader de Flask)
+    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true' and app.debug:
+        return
+    
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from .services.notification_service import check_and_send_notifications
+        
+        scheduler = BackgroundScheduler(daemon=True)
+        scheduler.add_job(
+            func=check_and_send_notifications,
+            trigger='cron',
+            minute='*',  # Toutes les minutes
+            args=[app],
+            id='push_notifications',
+            name='Envoi des notifications push planifiées',
+            replace_existing=True,
+        )
+        scheduler.start()
+        app.logger.info("✅ Scheduler de notifications push démarré (toutes les minutes)")
+        
+    except Exception as e:
+        app.logger.error(f"❌ Impossible de démarrer le scheduler : {e}")

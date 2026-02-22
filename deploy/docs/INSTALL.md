@@ -47,6 +47,9 @@ Variables à modifier **obligatoirement** :
 | `S3_SECRET_ACCESS_KEY` | Clé secrète S3 |
 | `S3_BUCKET_NAME` | Nom du bucket (ex : `mariam-uploads`) |
 | `S3_PUBLIC_URL` | URL publique du bucket |
+| `VAPID_PUBLIC_KEY` | Clé publique VAPID (notifications push) |
+| `VAPID_PRIVATE_KEY` | Clé privée VAPID (notifications push) |
+| `VAPID_CONTACT_EMAIL` | Email de contact pour les push services |
 
 ### Configuration Scaleway Object Storage
 
@@ -55,6 +58,24 @@ Variables à modifier **obligatoirement** :
 3. Réglez la **visibilité du bucket** sur « Public » (les images doivent être accessibles)
 4. Générez une paire de clés API → API Keys → Créer une clé
 5. Renseignez les variables S3 dans votre fichier `.env`
+
+### Configuration VAPID (Notifications Push)
+
+Les notifications push nécessitent une paire de clés VAPID. Générez-les :
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+Résultat :
+```
+Public Key:  xxxx
+Private Key: xxxx
+```
+
+Copiez les deux clés dans `.env` et renseignez `VAPID_CONTACT_EMAIL` (requis par les push services).
+
+> **Important** : la paire de clés est liée aux souscriptions navigateur. Si vous changez les clés, tous les utilisateurs devront se réabonner.
 
 ### 4. Démarrer l'application
 

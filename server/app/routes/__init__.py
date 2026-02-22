@@ -7,6 +7,7 @@ from .menus import menus_bp
 from .events import events_bp
 from .public import public_bp
 from .csv_import import csv_import_bp
+from .notifications import notifications_bp
 
 __all__ = [
     'auth_bp',
@@ -14,5 +15,6 @@ __all__ = [
     'menus_bp',
     'events_bp',
     'public_bp',
-    'csv_import_bp'
+    'csv_import_bp',
+    'notifications_bp',
 ]

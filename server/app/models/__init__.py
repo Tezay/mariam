@@ -9,6 +9,7 @@ from .gallery import GalleryImage, GalleryImageTag, MenuItemImage
 from .activation_link import ActivationLink
 from .audit_log import AuditLog
 from .import_session import ImportSession
+from .push_subscription import PushSubscription
 
 __all__ = [
     'User',
@@ -23,5 +24,6 @@ __all__ = [
     'MenuItemImage',
     'ActivationLink',
     'AuditLog',
-    'ImportSession'
+    'ImportSession',
+    'PushSubscription',
 ]

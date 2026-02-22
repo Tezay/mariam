@@ -33,6 +33,10 @@ class Event(db.Model):
     visibility = db.Column(db.String(20), default='all')  # tv, mobile, all
     is_active = db.Column(db.Boolean, default=True)
 
+    # Suivi des notifications push (J-7 / J-1)
+    notified_7d = db.Column(db.Boolean, default=False, nullable=False)
+    notified_1d = db.Column(db.Boolean, default=False, nullable=False)
+
     # Metadata
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

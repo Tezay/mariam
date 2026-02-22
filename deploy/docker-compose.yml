@@ -53,6 +53,10 @@ services:
       S3_BUCKET_NAME: ${S3_BUCKET_NAME:-mariam-uploads}
       S3_REGION: ${S3_REGION:-fr-par}
       S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
+      # Web Push / VAPID (notifications)
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:?Définissez VAPID_PUBLIC_KEY dans .env}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:?Définissez VAPID_PRIVATE_KEY dans .env}
+      VAPID_CONTACT_EMAIL: ${VAPID_CONTACT_EMAIL:-contact@mariam.app}
     depends_on:
       db:
         condition: service_healthy

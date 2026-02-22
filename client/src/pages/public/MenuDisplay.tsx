@@ -14,6 +14,7 @@ import { generateEventPalette } from '@/lib/color-utils';
 import { Icon } from '@/components/ui/icon-picker';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Logo } from '@/components/Logo';
+import { NotificationBell } from '@/components/NotificationBell';
 import { InlineError, getErrorType } from '@/components/InlineError';
 import { Leaf, BadgeCheck, Ban, WheatOff, MilkOff, Sprout, MapPin, Flag, Fish, RefreshCw, ZoomIn, ZoomOut, CalendarClock, ChevronLeft, ChevronRight, Megaphone, Calendar, ChefHat, X, Image as ImageIcon } from 'lucide-react';
 import type { IconName } from '@/components/ui/icon-picker';
@@ -1144,11 +1145,16 @@ export function MenuDisplay() {
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Header Mobile */}
-            <header className="bg-mariam-blue text-white p-4 flex flex-col items-center">
-                <Logo className="h-10 w-auto" variant="light" />
-                <p className="text-center text-blue-200 text-sm mt-1">
-                    {currentData?.restaurant?.name || 'Restaurant Universitaire'}
-                </p>
+            <header className="bg-mariam-blue text-white p-4 flex items-center relative">
+                <div className="flex-1 flex flex-col items-center">
+                    <Logo className="h-10 w-auto" variant="light" />
+                    <p className="text-center text-blue-200 text-sm mt-1">
+                        {currentData?.restaurant?.name || 'Restaurant Universitaire'}
+                    </p>
+                </div>
+                <div className="absolute right-3">
+                    <NotificationBell />
+                </div>
             </header>
 
             {/* Toggle Aujourd'hui / Demain */}

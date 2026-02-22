@@ -4,6 +4,7 @@
  * Routes :
  * - / : Redirection vers /menu (public) ou /admin (si connecté)
  * - /menu : Affichage public du menu (TV/Mobile)
+ * - /notifications : Configuration des notifications push (public)
  * - /login : Connexion admin
  * - /activate/:token : Activation de compte
  * - /admin/* : Interface d'administration (protégée)
@@ -13,6 +14,7 @@ import { useAuth } from './contexts/AuthContext';
 import { Login } from './pages/Login';
 import { Activate } from './pages/Activate';
 import { MenuDisplay } from './pages/public/MenuDisplay';
+import { NotificationsPage } from './pages/public/NotificationsPage';
 import { AdminLayout } from './components/AdminLayout';
 import { WeeklyPlanner } from './pages/admin/WeeklyPlanner';
 import { UsersPage } from './pages/admin/UsersPage';
@@ -90,6 +92,9 @@ function App() {
 
             {/* Menu public (TV/Mobile) */}
             <Route path="/menu" element={<MenuDisplay />} />
+
+            {/* Notifications push (public) */}
+            <Route path="/notifications" element={<NotificationsPage />} />
 
             {/* Authentification */}
             <Route
