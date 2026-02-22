@@ -5,11 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- NotificationsPage: removed unused imports (`detectPlatform`, `Platform` type).
+
 ## [0.5.1] - 2026-02-23
 
 ### Fixed
 
-- TypeScript compilation errors: removed invalid generic type `Uint8Array<ArrayBuffer>`.
+- Migration `downgrade()` for push notifications table: now properly drops the table on rollback.
+- PWA install button on Android/Desktop: only shows when browser provides the install prompt; properly awaits user choice.
+- TypeScript: removed invalid generic type `Uint8Array<ArrayBuffer>` and unused imports.
+
+### Added
+
+- Pre-push Git hook: TypeScript type checking before pushing to prevent broken builds reaching remote.
 
 ## [0.5.0] - 2026-02-23
 

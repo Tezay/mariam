@@ -22,7 +22,6 @@ import {
     Send, Loader2, Share, Plus
 } from 'lucide-react';
 import {
-    detectPlatform,
     isPwaInstalled,
     isPushSupported,
     requiresPwaForPush,
@@ -34,7 +33,6 @@ import {
     sendTestNotification,
     DEFAULT_PREFERENCES,
     type NotificationPreferences,
-    type Platform,
 } from '@/lib/push';
 
 
