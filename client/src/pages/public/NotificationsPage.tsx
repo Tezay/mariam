@@ -209,7 +209,6 @@ function PwaInstallSuggestion({ onInstall }: { onInstall: () => void }) {
 // ========================================
 export function NotificationsPage() {
     const navigate = useNavigate();
-    const [platform] = useState<Platform>(detectPlatform);
     const [isInstalled] = useState(isPwaInstalled);
     const [isSubscribed, setIsSubscribed] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
