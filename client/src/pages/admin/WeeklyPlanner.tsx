@@ -9,7 +9,7 @@
  * - Publication de toute la semaine
  */
 import { useState, useEffect } from 'react';
-import { menusApi, Menu, adminApi, MenuCategory } from '@/lib/api';
+import { menusApi, Menu, adminApi, MenuCategory, DietaryTag, CertificationItem } from '@/lib/api';
 import { DEFAULT_CATEGORIES } from '@/lib/constants';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -37,8 +37,8 @@ interface WeekData {
 interface MenuItem {
     name: string;
     category: string;
-    tags?: string[];
-    certifications?: string[];
+    tags?: DietaryTag[];
+    certifications?: CertificationItem[];
 }
 
 export function WeeklyPlanner() {

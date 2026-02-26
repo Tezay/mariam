@@ -16,6 +16,7 @@ from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..extensions import db
 from ..models import User, Restaurant, Menu, MenuItem, AuditLog, ImportSession
+from ..models import DietaryTag, Certification, DietaryTagKeyword, CertificationKeyword
 from ..security import get_client_ip
 
 csv_import_bp = Blueprint('csv_import', __name__)
@@ -158,69 +159,31 @@ def parse_date(date_str: str, date_format: str | None = None) -> date | None:
 
 
 def detect_tags_from_text(text: str) -> dict:
-    """Détecte les tags alimentaires à partir du texte."""
+    """Détecte les tags alimentaires et certifications à partir du texte.
+
+    Utilise les mots-clés stockés en base de données (tables
+    dietary_tag_keywords / certification_keywords) pour une détection
+    dynamique et extensible.
+    """
     text_lower = text.lower()
-    tags = []
-    certifications = []
-    
+    detected_tag_ids: set[str] = set()
+    detected_cert_ids: set[str] = set()
+
     # Tags alimentaires
-    vegetarian_keywords = [
-        'végétarien', 'vegetarien', 'vegan', 'végan', 'vg', 'veggie', 'sans viande',
-        '🌱', '🥬', '🥗', '🥦'
-    ]
-    halal_keywords = ['halal', '🕌', 'hl']
-    pork_free_keywords = ['sans porc', 'sans-porc', 'no pork', 'sp', 'volaille', 'dinde', 'poulet']
-    gluten_free_keywords = ['sans gluten', 'gluten-free', 'gluten free', 'sg', 'gf']
-    lactose_free_keywords = ['sans lactose', 'lactose-free', 'lactose free', 'sl', 'lf']
-    
-    for kw in vegetarian_keywords:
-        if kw in text_lower:
-            tags.append('vegetarian')
-            break
-    
-    for kw in halal_keywords:
-        if kw in text_lower:
-            tags.append('halal')
-            break
-    
-    for kw in pork_free_keywords:
-        if kw in text_lower:
-            tags.append('pork_free')
-            break
-    
-    for kw in gluten_free_keywords:
-        if kw in text_lower:
-            tags.append('gluten_free')
-            break
-    
-    for kw in lactose_free_keywords:
-        if kw in text_lower:
-            tags.append('lactose_free')
-            break
-    
+    tag_keywords = DietaryTagKeyword.query.all()
+    for tk in tag_keywords:
+        if tk.keyword in text_lower:
+            detected_tag_ids.add(tk.tag_id)
+
     # Certifications
-    bio_keywords = ['bio', 'biologique', 'organic', 'ab', 'agriculture biologique', '🌿']
-    local_keywords = ['local', 'locaux', 'région', 'régional', 'circuit court', 'fermier']
-    french_keywords = ['france', 'français', 'française', 'viande française', 'vf', 'volaille française', '🇫🇷', 'origine france']
-    
-    for kw in bio_keywords:
-        if kw in text_lower:
-            certifications.append('bio')
-            break
-    
-    for kw in local_keywords:
-        if kw in text_lower:
-            certifications.append('local')
-            break
-    
-    for kw in french_keywords:
-        if kw in text_lower:
-            certifications.append('french_meat')
-            break
-    
+    cert_keywords = CertificationKeyword.query.all()
+    for ck in cert_keywords:
+        if ck.keyword in text_lower:
+            detected_cert_ids.add(ck.certification_id)
+
     return {
-        'tags': list(set(tags)),
-        'certifications': list(set(certifications))
+        'tags': sorted(detected_tag_ids),
+        'certifications': sorted(detected_cert_ids),
     }
 
 
@@ -515,7 +478,6 @@ def build_menus_from_rows(rows: list[dict], column_mapping: list[dict],
                 
                 # Marquer automatiquement VG comme végétarien
                 if category_id == 'vg':
-                    item['is_vegetarian'] = True
                     item['tags'].append('vegetarian')
                 
                 # Détection automatique des tags
@@ -619,17 +581,21 @@ def confirm_import():
             
             # Ajouter les items
             for idx, item_data in enumerate(menu_data['items']):
+                tag_ids = item_data.get('tags', [])
+                cert_ids = item_data.get('certifications', [])
+
                 item = MenuItem(
                     menu_id=menu.id,
                     category=item_data['category'],
                     name=item_data['name'],
                     order=item_data.get('order', idx),
-                    is_vegetarian='vegetarian' in item_data.get('tags', []),
-                    is_halal='halal' in item_data.get('tags', []),
-                    is_pork_free='pork_free' in item_data.get('tags', []),
-                    tags=item_data.get('tags', []),
-                    certifications=item_data.get('certifications', [])
                 )
+                # Attach N:N relations
+                if tag_ids:
+                    item.tags = DietaryTag.query.filter(DietaryTag.id.in_(tag_ids)).all()
+                if cert_ids:
+                    item.certifications = Certification.query.filter(Certification.id.in_(cert_ids)).all()
+
                 db.session.add(item)
             
             # Publier si demandé

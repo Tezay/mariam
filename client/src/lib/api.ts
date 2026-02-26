@@ -250,12 +250,8 @@ export interface MenuItem {
     category: string;
     name: string;
     order?: number;
-    is_vegetarian?: boolean;
-    is_halal?: boolean;
-    is_pork_free?: boolean;
-    allergens?: string;
-    tags?: string[];
-    certifications?: string[];
+    tags?: DietaryTag[];
+    certifications?: CertificationItem[];
 }
 
 export interface Menu {
@@ -784,20 +780,48 @@ export interface DietaryTag {
     label: string;
     icon: string;
     color: string;
+    category_id: string;
+    sort_order: number;
 }
 
-export interface Certification {
+export interface DietaryTagCategory {
     id: string;
-    label: string;
-    icon: string;
+    name: string;
     color: string;
+    sort_order: number;
+    tags: DietaryTag[];
+}
+
+export interface CertificationItem {
+    id: string;
+    name: string;
+    official_name: string;
+    issuer: string;
+    scheme_type: 'public' | 'private';
+    jurisdiction: 'france' | 'eu' | 'international';
+    guarantee: string;
+    logo_filename: string;
+    category_id: string;
+    sort_order: number;
+}
+
+export interface CertificationCategory {
+    id: string;
+    name: string;
+    sort_order: number;
+    certifications: CertificationItem[];
+}
+
+export interface TaxonomyData {
+    dietary_tag_categories: DietaryTagCategory[];
+    certification_categories: CertificationCategory[];
 }
 
 export interface RestaurantConfig {
     service_days: number[];
     menu_categories: MenuCategory[];
     dietary_tags: DietaryTag[];
-    certifications: Certification[];
+    certifications: CertificationItem[];
 }
 
 export interface RestaurantSettings {
@@ -806,8 +830,8 @@ export interface RestaurantSettings {
     logo_url?: string;
     service_days?: number[];
     menu_categories?: MenuCategory[];
-    dietary_tags?: DietaryTag[];
-    certifications?: Certification[];
+    dietary_tags?: string[];       // send IDs only
+    certifications?: string[];     // send IDs only
 }
 
 export interface RestaurantWithConfig {
@@ -862,5 +886,10 @@ export const publicApi = {
         if (restaurantId) params.restaurant_id = restaurantId;
         const response = await api.get('/public/restaurant', { params, timeout: PUBLIC_API_TIMEOUT_MS });
         return response.data.restaurant;
+    },
+
+    getTaxonomy: async (): Promise<TaxonomyData> => {
+        const response = await api.get('/public/taxonomy', { timeout: PUBLIC_API_TIMEOUT_MS });
+        return response.data as TaxonomyData;
     },
 };

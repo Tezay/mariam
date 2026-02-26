@@ -19,15 +19,15 @@ from ..security import limiter
 
 
 # ========================================
-# SCHEMAS (Marshmallow for OpenAPI)
+# SCHEMAS
 # ========================================
 
 class MenuItemSchema(Schema):
     """Schema for a menu item."""
     name = fields.Str(description="Name of the dish")
     category = fields.Str(description="Category ID (e.g., 'entree', 'plat', 'dessert')")
-    tags = fields.List(fields.Str(), description="Dietary tags (e.g., 'vegetarian', 'halal')")
-    certifications = fields.List(fields.Str(), description="Certifications (e.g., 'bio', 'local')")
+    tags = fields.List(fields.Dict(), description="Dietary tags (objects with id, label, icon, color)")
+    certifications = fields.List(fields.Dict(), description="Certifications (objects with id, name, logo_filename, etc.)")
 
 
 class DayMenuSchema(Schema):
@@ -106,8 +106,8 @@ def format_menu_items(menu):
         {
             'name': item.name,
             'category': item.category,
-            'tags': item.tags or [],
-            'certifications': item.certifications or []
+            'tags': [t.to_dict() for t in item.tags],
+            'certifications': [c.to_dict() for c in item.certifications],
         }
         for item in menu.items
     ]

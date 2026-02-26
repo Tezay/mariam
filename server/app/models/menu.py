@@ -9,6 +9,10 @@ Structure :
 """
 from datetime import datetime
 from ..extensions import db
+from .taxonomy import (
+    menu_item_dietary_tags,
+    menu_item_certifications,
+)
 
 
 class Menu(db.Model):
@@ -97,15 +101,19 @@ class MenuItem(db.Model):
     name = db.Column(db.String(200), nullable=False)
     order = db.Column(db.Integer, default=0)
     
-    # Tags alimentaires (legacy boolean fields for backwards compatibility)
-    is_vegetarian = db.Column(db.Boolean, default=False)
-    is_halal = db.Column(db.Boolean, default=False)
-    is_pork_free = db.Column(db.Boolean, default=False)
-    allergens = db.Column(db.Text, nullable=True)  # JSON string: ["gluten", "lactose", ...]
-    
-    # Dynamic tags and certifications (JSON arrays)
-    tags = db.Column(db.JSON, nullable=True)  # ["vegetarian", "halal", "gluten_free"]
-    certifications = db.Column(db.JSON, nullable=True)  # ["bio", "local", "french_meat"]
+    # Relations N:N normalisées (tags & certifications)
+    tags = db.relationship(
+        'DietaryTag',
+        secondary=menu_item_dietary_tags,
+        lazy='select',
+        order_by='DietaryTag.sort_order',
+    )
+    certifications = db.relationship(
+        'Certification',
+        secondary=menu_item_certifications,
+        lazy='select',
+        order_by='Certification.sort_order',
+    )
     
     def to_dict(self):
         """Sérialise l'item en dictionnaire JSON."""
@@ -115,12 +123,8 @@ class MenuItem(db.Model):
             'category': self.category,
             'name': self.name,
             'order': self.order,
-            'is_vegetarian': self.is_vegetarian,
-            'is_halal': self.is_halal,
-            'is_pork_free': self.is_pork_free,
-            'allergens': self.allergens,
-            'tags': self.tags or [],
-            'certifications': self.certifications or []
+            'tags': [t.to_dict() for t in self.tags],
+            'certifications': [c.to_dict() for c in self.certifications],
         }
     
     def __repr__(self):

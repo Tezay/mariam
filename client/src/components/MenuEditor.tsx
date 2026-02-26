@@ -9,8 +9,9 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import {
-    menusApi, adminApi, galleryApi, menuItemImagesApi,
-    Menu, MenuItem, MenuCategory, DietaryTag, Certification,
+    menusApi, adminApi, galleryApi, menuItemImagesApi, publicApi,
+    Menu, MenuItem, MenuCategory, DietaryTag, CertificationItem,
+    DietaryTagCategory, CertificationCategory,
     GalleryImage as GalleryImageType,
 } from '@/lib/api';
 import { GalleryPicker } from '@/components/GalleryPicker';
@@ -20,8 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Icon } from '@/components/ui/icon-picker';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
-    Plus, X, Trash2, Leaf, BadgeCheck, Ban, WheatOff, MilkOff, Sprout, MapPin,
-    Flag, Fish, ChefHat, Tag, Upload, FolderOpen,
+    Plus, X, Trash2, ChefHat, Tag, Upload, FolderOpen,
 } from 'lucide-react';
 import type { IconName } from '@/components/ui/icon-picker';
 
@@ -43,40 +43,35 @@ const DEFAULT_CATEGORIES: MenuCategory[] = [
     { id: 'dessert', label: 'Dessert', icon: 'cake-slice', order: 4 },
 ];
 
-const DEFAULT_DIETARY_TAGS: DietaryTag[] = [
-    { id: 'vegetarian', label: 'Végétarien', icon: 'leaf', color: 'green' },
-    { id: 'halal', label: 'Halal', icon: 'badge-check', color: 'teal' },
-    { id: 'pork_free', label: 'Sans porc', icon: 'ban', color: 'orange' },
-    { id: 'gluten_free', label: 'Sans gluten', icon: 'wheat-off', color: 'amber' },
-];
-
-const DEFAULT_CERTIFICATIONS: Certification[] = [
-    { id: 'bio', label: 'Bio', icon: 'sprout', color: 'green' },
-    { id: 'local', label: 'Local', icon: 'map-pin', color: 'blue' },
-    { id: 'french_meat', label: 'Viande française', icon: 'flag', color: 'indigo' },
-];
-
-const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }>> = {
-    'leaf': Leaf,
-    'badge-check': BadgeCheck,
-    'ban': Ban,
-    'wheat-off': WheatOff,
-    'milk-off': MilkOff,
-    'sprout': Sprout,
-    'map-pin': MapPin,
-    'flag': Flag,
-    'fish': Fish,
-};
-
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_IMAGES_PER_ITEM = 3;
 
 interface ItemsByCategory {
-    [categoryId: string]: MenuItem[];
+    [categoryId: string]: EditorItem[];
 }
 
-/** Images liées à un item — clé : "categoryId_itemIndex" */
+// Local editor representation
+interface EditorItem {
+    category: string;
+    name: string;
+    order?: number;
+    tags: string[];
+    certifications: string[];
+}
+
+// Convert API MenuItem -> local EditorItem
+function toEditorItem(item: MenuItem): EditorItem {
+    return {
+        category: item.category,
+        name: item.name,
+        order: item.order,
+        tags: (item.tags || []).map(t => typeof t === 'string' ? t : t.id),
+        certifications: (item.certifications || []).map(c => typeof c === 'string' ? c : c.id),
+    };
+}
+
+// Images liées à un item : "categoryId_itemIndex"
 interface ItemImageState {
     gallery: GalleryImageType[];
     pending: File[];
@@ -91,8 +86,11 @@ type ItemImagesMap = Record<string, ItemImageState>;
 export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEditorProps) {
     // Configuration du restaurant
     const [categories, setCategories] = useState<MenuCategory[]>(DEFAULT_CATEGORIES);
-    const [dietaryTags, setDietaryTags] = useState<DietaryTag[]>(DEFAULT_DIETARY_TAGS);
-    const [certifications, setCertifications] = useState<Certification[]>(DEFAULT_CERTIFICATIONS);
+    const [dietaryTags, setDietaryTags] = useState<DietaryTag[]>([]);
+    const [certifications, setCertifications] = useState<CertificationItem[]>([]);
+    // Tag/cert categories loaded from taxonomy (for future grouped display)
+    const [, setTagCategories] = useState<DietaryTagCategory[]>([]);
+    const [, setCertCategories] = useState<CertificationCategory[]>([]);
     const [configLoaded, setConfigLoaded] = useState(false);
 
     // Items par catégorie
@@ -114,11 +112,22 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
     useEffect(() => {
         const loadConfig = async () => {
             try {
+                // Load restaurant config (categories, enabled tags/certs)
                 const data = await adminApi.getSettings();
                 if (data?.config) {
                     setCategories(data.config.menu_categories || DEFAULT_CATEGORIES);
-                    setDietaryTags(data.config.dietary_tags || DEFAULT_DIETARY_TAGS);
-                    setCertifications(data.config.certifications || DEFAULT_CERTIFICATIONS);
+                    // enabled tags/certs are already full objects from the API
+                    setDietaryTags(data.config.dietary_tags || []);
+                    setCertifications(data.config.certifications || []);
+                }
+
+                // Load full taxonomy (all tags/certs organized by category)
+                try {
+                    const taxonomy = await publicApi.getTaxonomy();
+                    setTagCategories(taxonomy.dietary_tag_categories || []);
+                    setCertCategories(taxonomy.certification_categories || []);
+                } catch {
+                    // Non-critical: tags still usable without categories
                 }
             } catch (error) {
                 console.error('Erreur chargement config:', error);
@@ -136,13 +145,13 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
         const initialItems: ItemsByCategory = {};
 
         categories.forEach(cat => {
-            const existing = menu?.items?.filter(i => i.category === cat.id) || [];
+            const existing = menu?.items?.filter(i => i.category === cat.id).map(toEditorItem) || [];
             if (existing.length > 0) {
                 initialItems[cat.id] = existing;
             } else if (cat.id === 'vg') {
                 initialItems[cat.id] = [];
             } else {
-                initialItems[cat.id] = [{ category: cat.id, name: '' }];
+                initialItems[cat.id] = [{ category: cat.id, name: '', tags: [], certifications: [] }];
             }
         });
 
@@ -184,10 +193,6 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
         itemImages[itemKey(categoryId, index)] || { gallery: [], pending: [] };
 
     const renderIcon = (iconName: string, className?: string) => {
-        const IconComponent = ICON_COMPONENTS[iconName];
-        if (IconComponent) {
-            return <IconComponent className={className || 'w-4 h-4'} />;
-        }
         return <Icon name={iconName as IconName} className={className || 'w-4 h-4'} />;
     };
 
@@ -195,7 +200,7 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
     // Item CRUD
     // ========================================
 
-    const updateItem = (categoryId: string, index: number, field: keyof MenuItem, value: string | boolean | string[]) => {
+    const updateItem = (categoryId: string, index: number, field: keyof EditorItem, value: string | string[]) => {
         setItemsByCategory(prev => ({
             ...prev,
             [categoryId]: prev[categoryId].map((item, i) =>
@@ -215,7 +220,7 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
     const addItem = (categoryId: string) => {
         setItemsByCategory(prev => ({
             ...prev,
-            [categoryId]: [...(prev[categoryId] || []), { category: categoryId, name: '' }],
+            [categoryId]: [...(prev[categoryId] || []), { category: categoryId, name: '', tags: [], certifications: [] }],
         }));
     };
 
@@ -328,10 +333,12 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                     .filter(item => item.name.trim())
                     .forEach((item, idx) => {
                         allItems.push({
-                            ...item,
                             category: cat.id,
+                            name: item.name,
                             order: idx,
-                            is_vegetarian: cat.id === 'vg' ? true : item.is_vegetarian,
+                            // Send tag/cert IDs — backend resolves to objects
+                            tags: item.tags as unknown as DietaryTag[],
+                            certifications: item.certifications as unknown as CertificationItem[],
                         });
                     });
             });
@@ -563,18 +570,18 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
 // ========================================
 
 interface CategoryItemEditorProps {
-    item: MenuItem;
+    item: EditorItem;
     index: number;
     categoryId: string;
     categoryLabel: string;
     isOptional: boolean;
     itemsCount: number;
     dietaryTags: DietaryTag[];
-    certifications: Certification[];
+    certifications: CertificationItem[];
     renderIcon: (name: string, className?: string) => React.ReactNode;
     imageState: ItemImageState;
     maxImages: number;
-    onUpdateItem: (catId: string, idx: number, field: keyof MenuItem, value: string | boolean | string[]) => void;
+    onUpdateItem: (catId: string, idx: number, field: keyof EditorItem, value: string | string[]) => void;
     onToggleTag: (catId: string, idx: number, field: 'tags' | 'certifications', tagId: string) => void;
     onRemoveItem: () => void;
     onFileUpload: (files: FileList | File[]) => void;
@@ -681,9 +688,14 @@ function CategoryItemEditor({
                                                             ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400'
                                                             : 'bg-muted border-border text-muted-foreground'
                                                     }`}
+                                                    title={cert.official_name}
                                                 >
-                                                    {renderIcon(cert.icon, 'w-3 h-3')}
-                                                    {cert.label}
+                                                    <img
+                                                        src={`/certifications/${cert.logo_filename}`}
+                                                        alt={cert.name}
+                                                        className="w-4 h-4 object-contain"
+                                                    />
+                                                    {cert.name}
                                                 </button>
                                             );
                                         })}
@@ -697,7 +709,8 @@ function CategoryItemEditor({
                 {(item.tags || []).map(tagId => {
                     const tag = dietaryTags.find(t => t.id === tagId);
                     return tag ? (
-                        <span key={`tag-${tagId}`} className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
+                        <span key={`tag-${tagId}`} className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20 flex items-center gap-1">
+                            {renderIcon(tag.icon, 'w-3 h-3')}
                             {tag.label}
                         </span>
                     ) : null;
@@ -705,8 +718,12 @@ function CategoryItemEditor({
                 {(item.certifications || []).map(certId => {
                     const cert = certifications.find(c => c.id === certId);
                     return cert ? (
-                        <span key={`cert-${certId}`} className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                            {cert.label}
+                        <span key={`cert-${certId}`} className="inline-flex items-center" title={cert.official_name}>
+                            <img
+                                src={`/certifications/${cert.logo_filename}`}
+                                alt={cert.name}
+                                className="w-5 h-5 object-contain"
+                            />
                         </span>
                     ) : null;
                 })}

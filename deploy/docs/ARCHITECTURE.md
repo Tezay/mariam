@@ -44,9 +44,9 @@ Documentation technique de l'infrastructure.
 │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌──────────────┐          │
 │  │ Users   │ │ Menus   │ │ Events  │ │ Restaurants  │          │
 │  └─────────┘ └─────────┘ └─────────┘ └──────────────┘          │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐                        │
-│  │ AuditLog │ │ Gallery  │ │ PushSubs │                        │
-│  └──────────┘ └──────────┘ └──────────┘                        │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐          │
+│  │ AuditLog │ │ Gallery  │ │ PushSubs │ │ Taxonomy  │          │
+│  └──────────┘ └──────────┘ └──────────┘ └───────────┘          │
 └────────────────────────────────────────────────────────────────┘
                            │
                            ▼ S3 API (HTTPS)
@@ -99,6 +99,38 @@ Fichier : `deploy/.env`
 - **Sessions courtes** : 30 min par défaut
 - **Audit log** : Traçabilité de toutes les actions sensibles
 - **HTTPS** : Obligatoire en production (requis pour Web Push)
+
+## Taxonomie (Tags & Certifications)
+
+### Architecture
+
+- **Source de vérité** : `server/app/data/taxonomy.py` (registre Python)
+- **Tables DB** : 6 tables de référence + 4 tables de jonction N:N
+- **Logos SVG** : `client/public/certifications/` (11 fichiers)
+
+```
+taxonomy.py (registre)
+    ↓ migration Alembic (seed)
+┌────────────────────────┐     ┌──────────────────────────┐
+│ dietary_tag_categories │     │ certification_categories │
+│ dietary_tags           │     │ certifications           │
+│ dietary_tag_keywords   │     │ certification_keywords   │
+└──────────┬─────────────┘     └──────────┬───────────────┘
+           │ N:N                          │ N:N
+    ┌──────┴──────┐                ┌──────┴───────┐
+    │ restaurant_ │                │ restaurant_  │
+    │ dietary_tags│                │certifications│
+    ├─────────────┤                ├──────────────┤
+    │ menu_item_  │                │ menu_item_   │
+    │ dietary_tags│                │certifications│
+    └─────────────┘                └──────────────┘
+```
+
+### Ajouter un tag ou une certification
+
+1. Modifier `server/app/data/taxonomy.py`
+2. Créer une migration Alembic (`INSERT` dans la table concernée)
+3. `flask db upgrade`
 
 ## Notifications Push
 

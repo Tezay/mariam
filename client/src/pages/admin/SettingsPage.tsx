@@ -3,14 +3,14 @@
  */
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { adminApi, MenuCategory, DietaryTag, Certification } from '@/lib/api';
+import { adminApi, publicApi, MenuCategory, DietaryTag, CertificationItem, DietaryTagCategory, CertificationCategory } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { IconPicker, Icon } from '@/components/ui/icon-picker';
 import { iconsData } from '@/components/ui/icons-data';
-import { Save, Plus, Trash2, Leaf, BadgeCheck, Ban, WheatOff, MilkOff, Sprout, MapPin, Flag, Fish, ArrowUp, ArrowDown } from 'lucide-react';
+import { Save, Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import type { IconName } from '@/components/ui/icon-picker';
 
 const DAY_NAMES = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
@@ -23,35 +23,6 @@ const DEFAULT_CATEGORIES: MenuCategory[] = [
     { id: 'dessert', label: 'Dessert', icon: 'cake-slice', order: 4 },
 ];
 
-// Tags prédéfinis
-const ALL_DIETARY_TAGS: DietaryTag[] = [
-    { id: 'vegetarian', label: 'Végétarien', icon: 'leaf', color: 'green' },
-    { id: 'halal', label: 'Halal', icon: 'badge-check', color: 'teal' },
-    { id: 'pork_free', label: 'Sans porc', icon: 'ban', color: 'orange' },
-    { id: 'gluten_free', label: 'Sans gluten', icon: 'wheat-off', color: 'amber' },
-    { id: 'lactose_free', label: 'Sans lactose', icon: 'milk-off', color: 'blue' },
-];
-
-// Certifications prédéfinies
-const ALL_CERTIFICATIONS: Certification[] = [
-    { id: 'bio', label: 'Bio', icon: 'sprout', color: 'green' },
-    { id: 'local', label: 'Local', icon: 'map-pin', color: 'blue' },
-    { id: 'french_meat', label: 'Viande française', icon: 'flag', color: 'indigo' },
-    { id: 'sustainable', label: 'Pêche durable', icon: 'fish', color: 'cyan' },
-];
-
-const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }>> = {
-    'leaf': Leaf,
-    'badge-check': BadgeCheck,
-    'ban': Ban,
-    'wheat-off': WheatOff,
-    'milk-off': MilkOff,
-    'sprout': Sprout,
-    'map-pin': MapPin,
-    'flag': Flag,
-    'fish': Fish,
-};
-
 function serializeState(name: string, address: string, serviceDays: number[], categories: MenuCategory[], enabledTags: string[], enabledCerts: string[]): string {
     return JSON.stringify({ name, address, serviceDays, categories, enabledTags, enabledCerts });
 }
@@ -62,6 +33,11 @@ export function SettingsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+    // Taxonomy loaded from API (all available tags & certifications)
+    const [tagCategories, setTagCategories] = useState<DietaryTagCategory[]>([]);
+    const [certCategories, setCertCategories] = useState<CertificationCategory[]>([]);
+
 
     // Filtre des icônes (uniquement catégorie nourriture)
     const foodBeverageIcons = useMemo(() =>
@@ -74,8 +50,8 @@ export function SettingsPage() {
     const [address, setAddress] = useState('');
     const [serviceDays, setServiceDays] = useState<number[]>([0, 1, 2, 3, 4]);
     const [categories, setCategories] = useState<MenuCategory[]>(DEFAULT_CATEGORIES);
-    const [enabledTags, setEnabledTags] = useState<string[]>(['vegetarian', 'halal', 'pork_free', 'gluten_free', 'lactose_free']);
-    const [enabledCerts, setEnabledCerts] = useState<string[]>(['bio', 'local', 'french_meat', 'sustainable']);
+    const [enabledTags, setEnabledTags] = useState<string[]>([]);
+    const [enabledCerts, setEnabledCerts] = useState<string[]>([]);
 
     // Stockage de l'état original
     const originalStateRef = useRef<string>('');
@@ -87,17 +63,27 @@ export function SettingsPage() {
         return currentState !== originalStateRef.current;
     }, [name, address, serviceDays, categories, enabledTags, enabledCerts, isLoading]);
 
-    // Charger les settings
+    // Charger les settings + taxonomy
     useEffect(() => {
         const loadSettings = async () => {
             try {
+                // Load taxonomy first (all available tags/certs)
+                try {
+                    const taxonomy = await publicApi.getTaxonomy();
+                    setTagCategories(taxonomy.dietary_tag_categories || []);
+                    setCertCategories(taxonomy.certification_categories || []);
+                } catch {
+                    console.error('Erreur chargement taxonomie');
+                }
+
+                // Load restaurant settings
                 const data = await adminApi.getSettings();
                 const loadedName = data.name || '';
                 const loadedAddress = data.address || '';
                 const loadedServiceDays = data.config?.service_days || [0, 1, 2, 3, 4];
                 const loadedCategories = data.config?.menu_categories || DEFAULT_CATEGORIES;
-                const loadedTags = data.config?.dietary_tags?.map((t: DietaryTag) => t.id) || ALL_DIETARY_TAGS.map(t => t.id);
-                const loadedCerts = data.config?.certifications?.map((c: Certification) => c.id) || ALL_CERTIFICATIONS.map(c => c.id);
+                const loadedTags = (data.config?.dietary_tags || []).map((t: DietaryTag) => t.id);
+                const loadedCerts = (data.config?.certifications || []).map((c: CertificationItem) => c.id);
 
                 setName(loadedName);
                 setAddress(loadedAddress);
@@ -156,10 +142,6 @@ export function SettingsPage() {
         setIsSaving(true);
         setMessage(null);
         try {
-            // Reconstruire les tags/certs complets depuis les IDs activés
-            const activeTags = ALL_DIETARY_TAGS.filter(t => enabledTags.includes(t.id));
-            const activeCerts = ALL_CERTIFICATIONS.filter(c => enabledCerts.includes(c.id));
-
             // Assure que catégories ont des valeurs d'ordre correctes
             const orderedCategories = categories.map((cat, idx) => ({ ...cat, order: idx + 1 }));
 
@@ -168,8 +150,8 @@ export function SettingsPage() {
                 address,
                 service_days: serviceDays,
                 menu_categories: orderedCategories,
-                dietary_tags: activeTags,
-                certifications: activeCerts,
+                dietary_tags: enabledTags,       // send IDs only
+                certifications: enabledCerts,    // send IDs only
             });
 
             // Mise à jour de l'état original après sauvegarde
@@ -244,11 +226,6 @@ export function SettingsPage() {
 
     // Affiche l'icône pour les éléments prédéfinis
     const renderIcon = (iconName: string, className?: string) => {
-        const IconComponent = ICON_COMPONENTS[iconName];
-        if (IconComponent) {
-            return <IconComponent className={className || 'w-4 h-4'} />;
-        }
-        // Fallback
         return <Icon name={iconName as IconName} className={className || 'w-4 h-4'} />;
     };
 
@@ -417,22 +394,30 @@ export function SettingsPage() {
                         <CardTitle>Tags alimentaires</CardTitle>
                         <CardDescription>Activez les régimes alimentaires que vous souhaitez pouvoir indiquer</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="flex flex-wrap gap-2">
-                            {ALL_DIETARY_TAGS.map((tag) => (
-                                <button
-                                    key={tag.id}
-                                    onClick={() => toggleTag(tag.id)}
-                                    className={`px-4 py-2 rounded-lg border-2 transition-all flex items-center gap-2 ${enabledTags.includes(tag.id)
-                                        ? 'border-green-500 bg-green-500/10 text-green-600 dark:text-green-400'
-                                        : 'border-border text-muted-foreground hover:border-muted-foreground'
-                                        }`}
-                                >
-                                    {renderIcon(tag.icon, 'w-4 h-4')}
-                                    <span>{tag.label}</span>
-                                </button>
-                            ))}
-                        </div>
+                    <CardContent className="space-y-4">
+                        {tagCategories.map(cat => (
+                            <div key={cat.id}>
+                                <p className="text-sm font-medium text-muted-foreground mb-2">{cat.name}</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {cat.tags.map(tag => (
+                                        <button
+                                            key={tag.id}
+                                            onClick={() => toggleTag(tag.id)}
+                                            className={`px-4 py-2 rounded-lg border-2 transition-all flex items-center gap-2 ${enabledTags.includes(tag.id)
+                                                ? 'border-green-500 bg-green-500/10 text-green-600 dark:text-green-400'
+                                                : 'border-border text-muted-foreground hover:border-muted-foreground'
+                                                }`}
+                                        >
+                                            {renderIcon(tag.icon, 'w-4 h-4')}
+                                            <span>{tag.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                        {tagCategories.length === 0 && (
+                            <p className="text-sm text-muted-foreground italic">Chargement des tags…</p>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -440,24 +425,49 @@ export function SettingsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Certifications et labels</CardTitle>
-                        <CardDescription>Activez les certifications que vous souhaitez pouvoir afficher</CardDescription>
+                        <CardDescription>Activez les certifications officielles que vous souhaitez pouvoir afficher</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="flex flex-wrap gap-2">
-                            {ALL_CERTIFICATIONS.map((cert) => (
-                                <button
-                                    key={cert.id}
-                                    onClick={() => toggleCert(cert.id)}
-                                    className={`px-4 py-2 rounded-lg border-2 transition-all flex items-center gap-2 ${enabledCerts.includes(cert.id)
-                                        ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                                        : 'border-border text-muted-foreground hover:border-muted-foreground'
-                                        }`}
-                                >
-                                    {renderIcon(cert.icon, 'w-4 h-4')}
-                                    <span>{cert.label}</span>
-                                </button>
-                            ))}
-                        </div>
+                    <CardContent className="space-y-6">
+                        {certCategories.map(cat => (
+                            <div key={cat.id}>
+                                <p className="text-sm font-medium text-muted-foreground mb-3">{cat.name}</p>
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                    {cat.certifications.map(cert => {
+                                        const isActive = enabledCerts.includes(cert.id);
+                                        return (
+                                            <button
+                                                key={cert.id}
+                                                onClick={() => toggleCert(cert.id)}
+                                                className={`w-full text-left px-3 py-2.5 rounded-lg border-2 transition-all flex items-start gap-3 ${isActive
+                                                    ? 'border-blue-500 bg-blue-500/10'
+                                                    : 'border-border hover:border-muted-foreground'
+                                                    }`}
+                                            >
+                                                <img
+                                                    src={`/certifications/${cert.logo_filename}`}
+                                                    alt={cert.name}
+                                                    className="w-8 h-8 object-contain shrink-0 mt-0.5"
+                                                />
+                                                <div className="min-w-0 flex-1">
+                                                    <p className={`text-sm font-medium leading-tight ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-foreground'}`}>
+                                                        {cert.official_name}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                                                        {cert.guarantee}
+                                                    </p>
+                                                    <p className="text-[11px] text-muted-foreground/70 mt-0.5 break-words">
+                                                        {cert.issuer}
+                                                    </p>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                        {certCategories.length === 0 && (
+                            <p className="text-sm text-muted-foreground italic">Chargement des certifications…</p>
+                        )}
                     </CardContent>
                 </Card>
             </div>

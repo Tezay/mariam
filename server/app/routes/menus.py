@@ -19,11 +19,38 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..extensions import db
 from ..models import User, Restaurant, Menu, MenuItem, MenuImage, AuditLog
 from ..models import GalleryImage, GalleryImageTag, MenuItemImage
+from ..models import DietaryTag, Certification
 from ..services.storage import storage
 from ..security import get_client_ip
 
 
 menus_bp = Blueprint('menus', __name__)
+
+
+def _build_menu_item(menu_id, item_data, idx):
+    """Crée un MenuItem avec ses relations N:N tags/certifications."""
+    item = MenuItem(
+        menu_id=menu_id,
+        category=item_data.get('category', 'plat'),
+        name=item_data.get('name', ''),
+        order=item_data.get('order', idx),
+    )
+    # Tags : liste d'IDs → objets DietaryTag
+    tag_ids = item_data.get('tags') or []
+    if tag_ids:
+        # Accept both list of dicts (from frontend) and list of strings
+        if tag_ids and isinstance(tag_ids[0], dict):
+            tag_ids = [t['id'] for t in tag_ids]
+        item.tags = DietaryTag.query.filter(DietaryTag.id.in_(tag_ids)).all()
+
+    # Certifications : liste d'IDs → objets Certification
+    cert_ids = item_data.get('certifications') or []
+    if cert_ids:
+        if cert_ids and isinstance(cert_ids[0], dict):
+            cert_ids = [c['id'] for c in cert_ids]
+        item.certifications = Certification.query.filter(Certification.id.in_(cert_ids)).all()
+
+    return item
 
 
 def editor_required(f):
@@ -222,18 +249,7 @@ def create_or_update_menu():
     
     # Ajouter les nouveaux items
     for idx, item_data in enumerate(items_data):
-        item = MenuItem(
-            menu_id=menu.id,
-            category=item_data.get('category', 'plat'),
-            name=item_data.get('name', ''),
-            order=item_data.get('order', idx),
-            is_vegetarian=item_data.get('is_vegetarian', False),
-            is_halal=item_data.get('is_halal', False),
-            is_pork_free=item_data.get('is_pork_free', False),
-            allergens=item_data.get('allergens'),
-            tags=item_data.get('tags'),
-            certifications=item_data.get('certifications')
-        )
+        item = _build_menu_item(menu.id, item_data, idx)
         db.session.add(item)
     
     # Logger
@@ -277,18 +293,7 @@ def update_menu(menu_id):
         
         # Ajouter les nouveaux items
         for idx, item_data in enumerate(data['items']):
-            item = MenuItem(
-                menu_id=menu.id,
-                category=item_data.get('category', 'plat'),
-                name=item_data.get('name', ''),
-                order=item_data.get('order', idx),
-                is_vegetarian=item_data.get('is_vegetarian', False),
-                is_halal=item_data.get('is_halal', False),
-                is_pork_free=item_data.get('is_pork_free', False),
-                allergens=item_data.get('allergens'),
-                tags=item_data.get('tags'),
-                certifications=item_data.get('certifications')
-            )
+            item = _build_menu_item(menu.id, item_data, idx)
             db.session.add(item)
     
     # Logger

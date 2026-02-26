@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Taxonomy**: Full database normalization of dietary tags and certifications.
+    - 17 dietary tags across 4 categories (Régime, Allergènes, Préparation, Goût) with Lucide icons.
+    - 11 official certifications across 2 categories (public labels, private labels) with SVG logos.
+    - Keyword-based auto-detection for CSV imports (DB-driven, no more hardcoded lists).
+    - Registry file (`server/app/data/taxonomy.py`) as single source of truth.
+- **Public Taxonomy API**: `GET /api/public/taxonomy` returns all tag/cert categories with nested objects.
+
+### Removed
+
+- Legacy `is_vegetarian`, `is_halal`, `is_pork_free`, `allergens` columns from `menu_items`.
+- Legacy `dietary_tags`, `certifications` JSON columns from `restaurants`.
+- Hardcoded `DEFAULT_DIETARY_TAGS`, `DEFAULT_CERTIFICATIONS` from frontend constants.
+
+### Database
+
+- Migration `a2b3c4d5e6f7`: 6 reference tables + 4 junction tables, seed data, drop legacy columns.
+- Migration `b3c4d5e6f7a9`: `tags_customized` flag on `restaurants`.
+
 ## [0.5.2] - 2026-02-23
 
 ### Fixed

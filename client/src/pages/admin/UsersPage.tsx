@@ -146,28 +146,30 @@ export function UsersPage() {
                         <CardContent className="p-0">
                             <div className="divide-y divide-border">
                                 {users.map((user) => (
-                                    <div key={user.id} className="flex items-center justify-between p-4 hover:bg-muted/50">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-medium">
+                                    <div key={user.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 hover:bg-muted/50">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-medium shrink-0">
                                                 {(user.username || user.email).charAt(0).toUpperCase()}
                                             </div>
-                                            <div>
-                                                <p className="font-medium text-foreground">
+                                            <div className="min-w-0">
+                                                <p className="font-medium text-foreground truncate">
                                                     {user.username || user.email}
                                                 </p>
-                                                <p className="text-sm text-muted-foreground">{user.email}</p>
+                                                <p className="text-sm text-muted-foreground truncate">{user.email}</p>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${ROLE_LABELS[user.role]?.color || 'bg-muted'}`}>
-                                                {ROLE_LABELS[user.role]?.label || user.role}
-                                            </span>
-                                            {!user.is_active && (
-                                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
-                                                    Inactif
+                                        <div className="flex items-center justify-between sm:justify-end gap-3 pl-13 sm:pl-0">
+                                            <div className="flex items-center gap-2">
+                                                <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${ROLE_LABELS[user.role]?.color || 'bg-muted'}`}>
+                                                    {ROLE_LABELS[user.role]?.label || user.role}
                                                 </span>
-                                            )}
-                                            <div className="flex gap-1">
+                                                {!user.is_active && (
+                                                    <span className="px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
+                                                        Inactif
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex gap-1 shrink-0">
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
@@ -218,14 +220,14 @@ export function UsersPage() {
                             <CardContent className="p-0">
                                 <div className="divide-y divide-border">
                                     {invitations.map((inv) => (
-                                        <div key={inv.token} className="flex items-center justify-between p-4">
-                                            <div>
-                                                <p className="font-medium text-foreground">{inv.email}</p>
+                                        <div key={inv.token} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4">
+                                            <div className="min-w-0">
+                                                <p className="font-medium text-foreground truncate">{inv.email}</p>
                                                 <p className="text-sm text-muted-foreground">
                                                     Expire le {new Date(inv.expires_at).toLocaleDateString('fr-FR')}
                                                 </p>
                                             </div>
-                                            <div className="flex items-center gap-3">
+                                            <div className="flex items-center gap-3 shrink-0">
                                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${ROLE_LABELS[inv.role]?.color || 'bg-muted'}`}>
                                                     {ROLE_LABELS[inv.role]?.label || inv.role}
                                                 </span>

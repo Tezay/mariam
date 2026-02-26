@@ -19,7 +19,8 @@ MARIAM est une solution moderne pour faciliter la communication des menus de res
 ### Pour les étudiants
 - **Mobile-first** - Interface optimisée pour smartphone
 - **Mode TV** - Affichage plein écran pour les restaurants
-- **Tags alimentaires** - VG, Halal, Sans porc clairement identifiés
+- **Tags alimentaires** - 17 tags (Végétarien, Sans porc, Sans gluten, Fait maison, Épicé…) avec icônes
+- **Certifications officielles** - 11 labels (AB, Label Rouge, Eurofeuille, MSC…) avec logos SVG
 - **Accès instantané** - Pas de connexion requise
 
 ### Sécurité pour les gestionnaires
@@ -113,7 +114,8 @@ Mariam/
 ├── server/                     # Backend Flask
 │   ├── app/
 │   │   ├── __init__.py        # Factory pattern
-│   │   ├── models/            # User, Restaurant, Menu, Event, GalleryImage, MenuItemImage...
+│   │   ├── data/              # taxonomy.py (registre tags & certifications)
+│   │   ├── models/            # User, Restaurant, Menu, Event, Taxonomy, Gallery...
 │   │   ├── routes/            # auth, admin, menus, events, gallery, public, csv_import
 │   │   └── services/
 │   │       └── storage.py     # Service S3 (upload, delete, gestion bucket)
@@ -169,6 +171,7 @@ Ces routes sont utilisées par l'application web MARIAM.
 | `GET /api/public/menu/today` | Menu du jour |
 | `GET /api/public/menu/tomorrow` | Menu de demain |
 | `GET /api/public/events` | Événements à venir |
+| `GET /api/public/taxonomy` | Tags et certifications disponibles |
 
 ### Authentification
 | Route | Description |

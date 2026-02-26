@@ -16,6 +16,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..extensions import db
 from ..models import User, Restaurant, ActivationLink, AuditLog
+from ..models import DietaryTag, Certification
 from ..security import get_client_ip
 
 
@@ -429,15 +430,27 @@ def update_settings():
         if isinstance(categories, list):
             restaurant.menu_categories = categories
     
+    if 'dietary_tags' in data or 'certifications' in data:
+        restaurant.tags_customized = True
+
     if 'dietary_tags' in data:
-        tags = data['dietary_tags']
-        if isinstance(tags, list):
-            restaurant.dietary_tags = tags
+        tag_ids = data['dietary_tags']
+        if isinstance(tag_ids, list):
+            # Accept list of IDs (strings) or list of dicts with 'id'
+            if tag_ids and isinstance(tag_ids[0], dict):
+                tag_ids = [t['id'] for t in tag_ids]
+            restaurant.enabled_tags = DietaryTag.query.filter(
+                DietaryTag.id.in_(tag_ids)
+            ).all()
     
     if 'certifications' in data:
-        certs = data['certifications']
-        if isinstance(certs, list):
-            restaurant.certifications = certs
+        cert_ids = data['certifications']
+        if isinstance(cert_ids, list):
+            if cert_ids and isinstance(cert_ids[0], dict):
+                cert_ids = [c['id'] for c in cert_ids]
+            restaurant.enabled_certifications = Certification.query.filter(
+                Certification.id.in_(cert_ids)
+            ).all()
     
     # Logger
     AuditLog.log(

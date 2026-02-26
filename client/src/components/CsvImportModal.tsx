@@ -758,7 +758,7 @@ export function CsvImportModal({ restaurantId, weekStart, onClose, onImportCompl
                                     {menu.items.slice(0, 4).map((item, itemIdx) => (
                                         <span key={itemIdx} className="text-xs px-2 py-1 bg-muted rounded border border-border/50">
                                             {item.name}
-                                            {item.tags?.includes('vegetarian') && ' 🌱'}
+                                            {item.tags?.some(t => t.id === 'vegetarian') && ' 🌱'}
                                         </span>
                                     ))}
                                     {menu.items.length > 4 && (

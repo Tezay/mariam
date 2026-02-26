@@ -10,6 +10,18 @@ from .activation_link import ActivationLink
 from .audit_log import AuditLog
 from .import_session import ImportSession
 from .push_subscription import PushSubscription
+from .taxonomy import (
+    DietaryTagCategory,
+    DietaryTag,
+    DietaryTagKeyword,
+    CertificationCategory,
+    Certification,
+    CertificationKeyword,
+    restaurant_dietary_tags,
+    restaurant_certifications,
+    menu_item_dietary_tags,
+    menu_item_certifications,
+)
 
 __all__ = [
     'User',
@@ -26,4 +38,14 @@ __all__ = [
     'AuditLog',
     'ImportSession',
     'PushSubscription',
+    'DietaryTagCategory',
+    'DietaryTag',
+    'DietaryTagKeyword',
+    'CertificationCategory',
+    'Certification',
+    'CertificationKeyword',
+    'restaurant_dietary_tags',
+    'restaurant_certifications',
+    'menu_item_dietary_tags',
+    'menu_item_certifications',
 ]

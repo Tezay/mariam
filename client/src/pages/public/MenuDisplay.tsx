@@ -8,26 +8,23 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { publicApi, MenuCategory, DietaryTag, Certification } from '@/lib/api';
-import { DEFAULT_CATEGORIES, DEFAULT_DIETARY_TAGS, DEFAULT_CERTIFICATIONS } from '@/lib/constants';
+import { publicApi, MenuCategory, DietaryTag, CertificationItem } from '@/lib/api';
+import { DEFAULT_CATEGORIES } from '@/lib/constants';
 import { generateEventPalette } from '@/lib/color-utils';
 import { Icon } from '@/components/ui/icon-picker';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Logo } from '@/components/Logo';
 import { NotificationBell } from '@/components/NotificationBell';
 import { InlineError, getErrorType } from '@/components/InlineError';
-import { Leaf, BadgeCheck, Ban, WheatOff, MilkOff, Sprout, MapPin, Flag, Fish, RefreshCw, ZoomIn, ZoomOut, CalendarClock, ChevronLeft, ChevronRight, Megaphone, Calendar, ChefHat, X, Image as ImageIcon } from 'lucide-react';
+import { RefreshCw, ZoomIn, ZoomOut, CalendarClock, ChevronLeft, ChevronRight, Megaphone, Calendar, ChefHat, X, Image as ImageIcon } from 'lucide-react';
 import type { IconName } from '@/components/ui/icon-picker';
 
 // Types pour les données de menu
 interface MenuItemData {
     name: string;
     category: string;
-    is_vegetarian?: boolean;
-    is_halal?: boolean;
-    is_pork_free?: boolean;
-    tags?: string[];
-    certifications?: string[];
+    tags?: DietaryTag[];
+    certifications?: CertificationItem[];
 }
 
 interface MenuResponse {
@@ -52,7 +49,7 @@ interface MenuData {
         config?: {
             menu_categories: MenuCategory[];
             dietary_tags: DietaryTag[];
-            certifications: Certification[];
+            certifications: CertificationItem[];
         };
     };
 }
@@ -68,18 +65,6 @@ interface EventData {
 }
 
 
-
-const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }>> = {
-    'leaf': Leaf,
-    'badge-check': BadgeCheck,
-    'ban': Ban,
-    'wheat-off': WheatOff,
-    'milk-off': MilkOff,
-    'sprout': Sprout,
-    'map-pin': MapPin,
-    'flag': Flag,
-    'fish': Fish,
-};
 
 const LOADING_SPINNER_DELAY_MS = 3000;
 const ERROR_GRACE_PERIOD_MS = 20000;
@@ -102,12 +87,7 @@ function getItemsByCategory(menu: MenuResponse | null, categoryId: string): Menu
     return [];
 }
 
-// Rendu icons
 function renderIcon(iconName: string, className?: string) {
-    const IconComponent = ICON_COMPONENTS[iconName];
-    if (IconComponent) {
-        return <IconComponent className={className || 'w-4 h-4'} />;
-    }
     return <Icon name={iconName as IconName} className={className || 'w-4 h-4'} />;
 }
 
@@ -124,8 +104,20 @@ function ItemBadge({ icon, label, color }: { icon: string; label: string; color:
 
     return (
         <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${colorClasses[color] || 'bg-gray-100 text-gray-700'}`}>
-            {renderIcon(icon, 'w-3 h-3')} {label}
+            <Icon name={icon as IconName} className="w-3 h-3" /> {label}
         </span>
+    );
+}
+
+function CertBadge({ logoFilename, name, size = 'sm' }: { logoFilename: string; name: string; size?: 'sm' | 'lg' }) {
+    const sizeClass = size === 'lg' ? 'h-7 w-7' : 'h-5 w-5';
+    return (
+        <img
+            src={`/certifications/${logoFilename}`}
+            alt={name}
+            title={name}
+            className={`${sizeClass} object-contain`}
+        />
     );
 }
 
@@ -641,8 +633,8 @@ export function MenuDisplay() {
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [categories, setCategories] = useState<MenuCategory[]>(DEFAULT_CATEGORIES);
-    const [dietaryTags, setDietaryTags] = useState<DietaryTag[]>(DEFAULT_DIETARY_TAGS);
-    const [certifications, setCertifications] = useState<Certification[]>(DEFAULT_CERTIFICATIONS);
+    const [, setDietaryTags] = useState<DietaryTag[]>([]);
+    const [, setCertifications] = useState<CertificationItem[]>([]);
 
     // Footer rotatif TV : liste dynamique de slots
     const [footerSlot, setFooterSlot] = useState(0);
@@ -785,79 +777,53 @@ export function MenuDisplay() {
     const renderItemBadges = (item: MenuItemData) => {
         const badges: JSX.Element[] = [];
 
-        if (item.is_halal) {
-            const tag = dietaryTags.find(t => t.id === 'halal');
-            if (tag) badges.push(<ItemBadge key="halal" {...tag} />);
-        }
-        if (item.is_pork_free) {
-            const tag = dietaryTags.find(t => t.id === 'pork_free');
-            if (tag) badges.push(<ItemBadge key="pork_free" {...tag} />);
-        }
-        if (item.is_vegetarian) {
-            const tag = dietaryTags.find(t => t.id === 'vegetarian');
-            if (tag) badges.push(<ItemBadge key="vegetarian" {...tag} />);
-        }
-
         if (item.tags && Array.isArray(item.tags)) {
-            item.tags.forEach(tagId => {
-                if (badges.find(b => b.key === tagId)) return;
-                const tag = dietaryTags.find(t => t.id === tagId);
-                if (tag) badges.push(<ItemBadge key={tagId} {...tag} />);
+            item.tags.forEach(tag => {
+                badges.push(<ItemBadge key={tag.id} icon={tag.icon} label={tag.label} color={tag.color} />);
             });
         }
 
         if (item.certifications && Array.isArray(item.certifications)) {
-            item.certifications.forEach(certId => {
-                const cert = certifications.find(c => c.id === certId);
-                if (cert) badges.push(<ItemBadge key={certId} {...cert} />);
+            item.certifications.forEach(cert => {
+                badges.push(<CertBadge key={cert.id} logoFilename={cert.logo_filename} name={cert.name} size="sm" />);
             });
         }
 
-        return badges.length > 0 ? <div className="flex flex-wrap gap-1 mt-1">{badges}</div> : null;
+        return badges.length > 0 ? <div className="flex flex-wrap items-center gap-1 mt-1">{badges}</div> : null;
     };
 
     const renderTvBadges = (item: MenuItemData) => {
         const badges: JSX.Element[] = [];
 
-        if (item.is_halal) {
-            const tag = dietaryTags.find(t => t.id === 'halal');
-            if (tag) badges.push(<div key="halal" className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-100 text-teal-800 border border-teal-200 shadow-sm">
-                {renderIcon(tag.icon, 'w-5 h-5')} <span className="text-lg font-medium">{tag.label}</span>
-            </div>);
-        }
-        if (item.is_pork_free) {
-            const tag = dietaryTags.find(t => t.id === 'pork_free');
-            if (tag) badges.push(<div key="pork_free" className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100 text-orange-800 border border-orange-200 shadow-sm">
-                {renderIcon(tag.icon, 'w-5 h-5')} <span className="text-lg font-medium">{tag.label}</span>
-            </div>);
-        }
-        if (item.is_vegetarian) {
-            const tag = dietaryTags.find(t => t.id === 'vegetarian');
-            if (tag) badges.push(<div key="vegetarian" className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-800 border border-green-200 shadow-sm">
-                {renderIcon(tag.icon, 'w-5 h-5')} <span className="text-lg font-medium">{tag.label}</span>
-            </div>);
-        }
+        const tvColorClasses: Record<string, string> = {
+            green: 'bg-green-100 text-green-800 border-green-200',
+            teal: 'bg-teal-100 text-teal-800 border-teal-200',
+            orange: 'bg-orange-100 text-orange-800 border-orange-200',
+            blue: 'bg-blue-100 text-blue-800 border-blue-200',
+            indigo: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+            amber: 'bg-amber-100 text-amber-800 border-amber-200',
+            cyan: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+        };
 
         if (item.tags && Array.isArray(item.tags)) {
-            item.tags.forEach(tagId => {
-                if (badges.find(b => b.key === tagId)) return;
-                const tag = dietaryTags.find(t => t.id === tagId);
-                if (tag) badges.push(<div key={tagId} className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-gray-800 border border-gray-200 shadow-sm">
-                    {renderIcon(tag.icon, 'w-5 h-5')} <span className="text-lg font-medium">{tag.label}</span>
-                </div>);
+            item.tags.forEach(tag => {
+                const cls = tvColorClasses[tag.color] || 'bg-gray-100 text-gray-800 border-gray-200';
+                badges.push(
+                    <div key={tag.id} className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border shadow-sm ${cls}`}>
+                        <Icon name={tag.icon as IconName} className="w-5 h-5" />
+                        <span className="text-lg font-medium">{tag.label}</span>
+                    </div>
+                );
             });
         }
 
         if (item.certifications && Array.isArray(item.certifications)) {
-            item.certifications.forEach(certId => {
-                const cert = certifications.find(c => c.id === certId);
-                if (cert) badges.push(<div key={certId} className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-blue-800 border border-blue-200 shadow-sm">
-                    {renderIcon(cert.icon, 'w-5 h-5')} <span className="text-lg font-medium">{cert.label}</span>
-                </div>);
+            item.certifications.forEach(cert => {
+                badges.push(<CertBadge key={cert.id} logoFilename={cert.logo_filename} name={cert.name} size="lg" />);
             });
         }
 
-        return badges.length > 0 ? <div className="flex flex-wrap gap-2 mt-2">{badges}</div> : null;
+        return badges.length > 0 ? <div className="flex flex-wrap items-center gap-2 mt-2">{badges}</div> : null;
     };
 
     // Etats pour la rotation, le zoom et la visibilité des contrôles

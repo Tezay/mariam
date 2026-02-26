@@ -16,6 +16,7 @@ Endpoints :
 from datetime import date, timedelta
 from flask import Blueprint, request, jsonify
 from ..models import Restaurant, Menu, Event
+from ..models import DietaryTagCategory, CertificationCategory
 from ..models.gallery import MenuItemImage
 from ..security import limiter
 
@@ -263,5 +264,28 @@ def get_restaurant_info():
     
     return jsonify({
         'restaurant': restaurant.to_dict(include_config=True)
+    }), 200
+
+
+@public_bp.route('/taxonomy', methods=['GET'])
+@limiter.limit("30 per minute")
+def get_taxonomy():
+    """Retourne le catalogue complet des tags et certifications.
+
+    Utilisé par le frontend pour :
+    - Afficher les libellés, icônes, couleurs
+    - Rendre les logos SVG des certifications
+    - Alimenter les sélecteurs dans l'admin
+    """
+    tag_categories = DietaryTagCategory.query.order_by(
+        DietaryTagCategory.sort_order
+    ).all()
+    cert_categories = CertificationCategory.query.order_by(
+        CertificationCategory.sort_order
+    ).all()
+
+    return jsonify({
+        'dietary_tag_categories': [c.to_dict() for c in tag_categories],
+        'certification_categories': [c.to_dict() for c in cert_categories],
     }), 200
 

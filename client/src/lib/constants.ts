@@ -1,4 +1,4 @@
-import { MenuCategory, DietaryTag, Certification } from './api';
+import { MenuCategory } from './api';
 
 export const DEFAULT_CATEGORIES: MenuCategory[] = [
     { id: 'entree', label: 'Entrée', icon: 'salad', order: 1 },
@@ -7,14 +7,5 @@ export const DEFAULT_CATEGORIES: MenuCategory[] = [
     { id: 'dessert', label: 'Dessert', icon: 'cake-slice', order: 4 },
 ];
 
-export const DEFAULT_DIETARY_TAGS: DietaryTag[] = [
-    { id: 'vegetarian', label: 'Végétarien', icon: 'leaf', color: 'green' },
-    { id: 'halal', label: 'Halal', icon: 'badge-check', color: 'teal' },
-    { id: 'pork_free', label: 'Sans porc', icon: 'ban', color: 'orange' },
-];
-
-export const DEFAULT_CERTIFICATIONS: Certification[] = [
-    { id: 'bio', label: 'Bio', icon: 'sprout', color: 'green' },
-    { id: 'local', label: 'Local', icon: 'map-pin', color: 'blue' },
-    { id: 'french_meat', label: 'Viande française', icon: 'flag', color: 'indigo' },
-];
+// Les tags et certifications sont désormais chargés dynamiquement
+// depuis l'API /public/taxonomy — plus de constantes locales.
