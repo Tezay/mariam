@@ -46,6 +46,14 @@ flask init-restaurant
 flask create-activation-link || echo "ℹ️  Admin already exists, skipping activation link"
 
 # ========================================
+# 3b. Réinitialisation de mot de passe (si demandé)
+# ========================================
+if [ -n "$RESET_PASSWORD_EMAIL" ]; then
+    echo "🔐 Password reset requested for: $RESET_PASSWORD_EMAIL"
+    flask create-password-reset-link
+fi
+
+# ========================================
 # 4. Démarrer Gunicorn
 # ========================================
 echo "✅ Starting Gunicorn server..."

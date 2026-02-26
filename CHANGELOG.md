@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Password Reset**: Password reset feature for production (serverless).
+
 ### Changed
 
 - **Taxonomy**: Full database normalization of dietary tags and certifications.

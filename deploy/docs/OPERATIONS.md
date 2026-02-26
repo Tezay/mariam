@@ -52,6 +52,33 @@ docker compose -f deploy/docker-compose.yml exec backend flask create-activation
 docker compose -f deploy/docker-compose.yml exec backend flask init-restaurant
 ```
 
+### Réinitialiser le mot de passe d'un utilisateur
+
+Pour les environnements serverless (sans accès terminal), ajoutez la variable d'environnement suivante puis redéployez :
+
+```bash
+RESET_PASSWORD_EMAIL=utilisateur@example.com
+```
+
+Au démarrage du container, un lien de réinitialisation est généré et affiché dans les logs :
+```
+🔐 LIEN DE RÉINITIALISATION DE MOT DE PASSE
+============================================================
+Utilisateur : utilisateur@example.com
+URL : https://domaine.com/reset-password/aBcDeFgH...
+⚠️  Ce lien expire dans 72 heures.
+⚠️  L'authentification MFA sera requise.
+============================================================
+```
+
+**Procédure :**
+1. Définir `RESET_PASSWORD_EMAIL` dans les variables d'environnement du container
+2. Redéployer -> récupérer l'URL dans les logs de démarrage
+3. Envoyer l'URL à l'utilisateur
+4. **Retirer** `RESET_PASSWORD_EMAIL` et redéployer (évite de régénérer un lien à chaque restart)
+
+> Le lien nécessite la vérification MFA (A2F) — seul le possesseur du téléphone peut réinitialiser.
+
 ---
 
 ## Base de données
@@ -74,7 +101,7 @@ Si la base existe déjà sans historique Alembic :
 ```bash
 MARIAM_MIGRATION_AUTOSTAMP=1
 ```
-Si tu veux repartir à zéro :
+Pour réinitialiser la base de données :
 ```bash
 MARIAM_DB_RESET=1
 ```

@@ -239,6 +239,26 @@ export const authApi = {
         });
         return response.data;
     },
+
+    /**
+     * Vérifie un lien de réinitialisation de mot de passe
+     */
+    checkResetLink: async (token: string) => {
+        const response = await api.get(`/auth/check-reset/${token}`);
+        return response.data;
+    },
+
+    /**
+     * Réinitialise le mot de passe via lien dédié (nécessite MFA)
+     */
+    resetPassword: async (token: string, newPassword: string, mfaCode: string) => {
+        const response = await api.post('/auth/reset-password', {
+            token,
+            new_password: newPassword,
+            mfa_code: mfaCode
+        });
+        return response.data;
+    },
 };
 
 // ========================================

@@ -13,6 +13,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { Login } from './pages/Login';
 import { Activate } from './pages/Activate';
+import { ResetPassword } from './pages/ResetPassword';
 import { MenuDisplay } from './pages/public/MenuDisplay';
 import { NotificationsPage } from './pages/public/NotificationsPage';
 import { AdminLayout } from './components/AdminLayout';
@@ -108,6 +109,9 @@ function App() {
 
             {/* Activation de compte */}
             <Route path="/activate/:token" element={<Activate />} />
+
+            {/* Réinitialisation de mot de passe */}
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
 
             {/* Interface Admin */}
             <Route

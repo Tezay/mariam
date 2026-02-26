@@ -58,6 +58,30 @@ class ActivationLink(db.Model):
             expires_at=datetime.utcnow() + timedelta(hours=expires_hours),
             created_by_id=created_by_id
         )
+
+    @classmethod
+    def create_password_reset_link(cls, email, created_by_id=None, expires_hours=72):
+        """
+        Crée un lien de réinitialisation de mot de passe.
+        Invalide automatiquement les anciens liens de reset non utilisés.
+        """
+        # Invalider les anciens liens de reset pour cet email
+        old_links = cls.query.filter_by(
+            email=email,
+            link_type='password_reset',
+            used_at=None
+        ).all()
+        for old in old_links:
+            old.mark_as_used()
+
+        return cls(
+            token=cls.generate_token(),
+            email=email,
+            link_type='password_reset',
+            role=None,  # Pas de changement de rôle
+            expires_at=datetime.utcnow() + timedelta(hours=expires_hours),
+            created_by_id=created_by_id
+        )
     
     def is_valid(self):
         """Vérifie si le lien est encore valide (non expiré et non utilisé)."""

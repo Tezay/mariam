@@ -277,6 +277,63 @@ Disallow: /api/admin/
         db.session.commit()
         
         click.echo(f"✅ Restaurant créé : {restaurant.name} (ID: {restaurant.id})")
+
+    @app.cli.command('create-password-reset-link')
+    def create_password_reset_link_cmd():
+        """
+        Crée un lien de réinitialisation de mot de passe.
+        Lit l'email depuis la variable d'environnement RESET_PASSWORD_EMAIL.
+        """
+        import click
+
+        email = os.environ.get('RESET_PASSWORD_EMAIL', '').strip()
+        if not email:
+            click.echo("❌ Variable d'environnement RESET_PASSWORD_EMAIL non définie.")
+            return
+
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            click.echo(f"❌ Aucun utilisateur trouvé avec l'email : {email}")
+            return
+
+        if not user.is_active:
+            click.echo(f"❌ Le compte {email} est désactivé.")
+            return
+
+        if not user.mfa_enabled:
+            click.echo(f"⚠️  Le compte {email} n'a pas de MFA configuré. Réinitialisation impossible.")
+            return
+
+        # Créer le lien de reset
+        link = ActivationLink.create_password_reset_link(
+            email=email,
+            expires_hours=72
+        )
+        db.session.add(link)
+
+        # Logger
+        AuditLog.log(
+            action=AuditLog.ACTION_PASSWORD_RESET_REQUEST,
+            target_type='user',
+            target_id=user.id,
+            details={'email': email, 'method': 'env_var_startup'},
+            ip_address='container-startup'
+        )
+
+        db.session.commit()
+
+        frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+        reset_url = f"{frontend_url}/reset-password/{link.token}"
+
+        click.echo("\n" + "=" * 60)
+        click.echo("🔐 LIEN DE RÉINITIALISATION DE MOT DE PASSE")
+        click.echo("=" * 60)
+        click.echo(f"\nUtilisateur : {email}")
+        click.echo(f"URL : {reset_url}")
+        click.echo(f"\n⚠️  Ce lien expire dans 72 heures.")
+        click.echo("⚠️  Ce lien ne peut être utilisé qu'une seule fois.")
+        click.echo("⚠️  L'authentification MFA sera requise.")
+        click.echo("=" * 60 + "\n")
     
     # ========================================
     # SCHEDULER — Notifications push planifiées

@@ -355,6 +355,103 @@ def check_activation_link(token):
     }), 200
 
 
+@auth_bp.route('/check-reset/<token>', methods=['GET'])
+def check_reset_link(token):
+    """Vérifie si un lien de réinitialisation de mot de passe est valide."""
+    link = ActivationLink.query.filter_by(token=token, link_type='password_reset').first()
+
+    if not link:
+        return jsonify({'valid': False, 'error': 'Lien invalide'}), 404
+
+    if not link.is_valid():
+        return jsonify({'valid': False, 'error': 'Lien expiré ou déjà utilisé'}), 400
+
+    return jsonify({
+        'valid': True,
+        'link_type': link.link_type,
+        'email': link.email
+    }), 200
+
+
+@auth_bp.route('/reset-password', methods=['POST'])
+@limiter.limit("3 per minute")
+def reset_password():
+    """
+    Réinitialise le mot de passe via un lien dédié.
+    Requiert le token de reset + nouveau mot de passe + code MFA.
+    """
+    data = request.get_json()
+
+    if not data:
+        return jsonify({'error': 'Données manquantes'}), 400
+
+    token = data.get('token')
+    new_password = data.get('new_password')
+    mfa_code = data.get('mfa_code')
+
+    if not token or not new_password or not mfa_code:
+        return jsonify({'error': 'Token, nouveau mot de passe et code MFA requis'}), 400
+
+    # Trouver le lien de reset
+    link = ActivationLink.query.filter_by(token=token, link_type='password_reset').first()
+
+    if not link:
+        return jsonify({'error': 'Lien de réinitialisation invalide'}), 404
+
+    if not link.is_valid():
+        return jsonify({'error': 'Lien de réinitialisation expiré ou déjà utilisé'}), 400
+
+    # Trouver l'utilisateur associé
+    user = User.query.filter_by(email=link.email).first()
+
+    if not user:
+        return jsonify({'error': 'Utilisateur non trouvé'}), 404
+
+    if not user.is_active:
+        return jsonify({'error': 'Ce compte est désactivé'}), 403
+
+    # Vérifier le code MFA (obligatoire)
+    if not user.mfa_enabled or not user.mfa_secret:
+        return jsonify({'error': 'MFA non configuré pour cet utilisateur'}), 400
+
+    totp = pyotp.TOTP(user.mfa_secret)
+    if not totp.verify(mfa_code, valid_window=1):
+        AuditLog.log(
+            action=AuditLog.ACTION_PASSWORD_RESET,
+            user_id=user.id,
+            details={'success': False, 'reason': 'invalid_mfa'},
+            ip_address=get_client_ip()
+        )
+        db.session.commit()
+        return jsonify({'error': 'Code MFA invalide'}), 401
+
+    # Valider la force du nouveau mot de passe
+    if not User.validate_password_strength(new_password):
+        return jsonify({
+            'error': 'Mot de passe trop faible',
+            'message': 'Le mot de passe doit contenir au moins 12 caractères, '
+                      'une majuscule, une minuscule, un chiffre et un caractère spécial.'
+        }), 400
+
+    # Changer le mot de passe
+    user.set_password(new_password)
+
+    # Marquer le lien comme utilisé
+    link.mark_as_used()
+
+    # Logger le changement
+    AuditLog.log(
+        action=AuditLog.ACTION_PASSWORD_RESET,
+        user_id=user.id,
+        details={'success': True, 'method': 'reset_link'},
+        ip_address=get_client_ip()
+    )
+
+    db.session.commit()
+
+    return jsonify({'message': 'Mot de passe réinitialisé avec succès'}), 200
+
+
 @auth_bp.route('/change-password', methods=['POST'])
 @limiter.limit("3 per minute")
 @jwt_required()

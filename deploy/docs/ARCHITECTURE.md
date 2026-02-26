@@ -98,6 +98,7 @@ Fichier : `deploy/.env`
 - **Mots de passe forts** : 12+ caractères, majuscule, minuscule, chiffre, symbole
 - **Sessions courtes** : 30 min par défaut
 - **Audit log** : Traçabilité de toutes les actions sensibles
+- **Réinitialisation de mot de passe** : Lien à usage unique (72h) avec MFA obligatoire
 - **HTTPS** : Obligatoire en production (requis pour Web Push)
 
 ## Taxonomie (Tags & Certifications)
