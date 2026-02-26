@@ -29,7 +29,8 @@ import {
     User,
     Moon,
     Sun,
-    ChevronDown
+    ChevronDown,
+    HelpCircle
 } from 'lucide-react';
 
 interface NavItem {
@@ -148,12 +149,12 @@ export function AdminLayout() {
 
                 {/* Sidebar */}
                 <aside className={`
-                    fixed md:static inset-y-0 left-0 z-30
+                    fixed inset-y-0 left-0 z-30
                     w-64 bg-card border-r border-border
                     transform transition-transform duration-200 ease-in-out
                     md:transform-none md:transition-none
                     ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-                    min-h-[calc(100vh-4rem)] md:min-h-[calc(100vh-4rem)]
+                    md:top-16
                     pt-16 md:pt-0
                 `}>
                     {/* Bouton fermer (mobile) */}
@@ -165,29 +166,44 @@ export function AdminLayout() {
                         <X className="w-5 h-5" />
                     </button>
 
-                    <nav className="p-4 space-y-1">
-                        {filteredNavItems.map((item) => (
-                            <NavLink
-                                key={item.to}
-                                to={item.to}
-                                onClick={closeSidebar}
-                                className={({ isActive }) => `
-                                    flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
-                                    ${isActive
-                                        ? 'bg-primary/10 text-primary font-medium'
-                                        : 'text-muted-foreground hover:bg-muted'
-                                    }
-                                `}
+                    <div className="flex flex-col justify-between h-[calc(100vh-4rem)] pb-16 md:pb-0">
+                        <nav className="p-4 space-y-1">
+                            {filteredNavItems.map((item) => (
+                                <NavLink
+                                    key={item.to}
+                                    to={item.to}
+                                    onClick={closeSidebar}
+                                    className={({ isActive }) => `
+                                        flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
+                                        ${isActive
+                                            ? 'bg-primary/10 text-primary font-medium'
+                                            : 'text-muted-foreground hover:bg-muted'
+                                        }
+                                    `}
+                                >
+                                    {item.icon}
+                                    <span>{item.label}</span>
+                                </NavLink>
+                            ))}
+                        </nav>
+
+                        <div className="p-4 border-t border-border">
+                            <a
+                                href="https://mariam.app/docs/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-muted transition-colors"
                             >
-                                {item.icon}
-                                <span>{item.label}</span>
-                            </NavLink>
-                        ))}
-                    </nav>
+                                <HelpCircle className="w-5 h-5" />
+                                <span>Besoin d'aide ?</span>
+                                <ExternalLink className="w-4 h-4 ml-auto" />
+                            </a>
+                        </div>
+                    </div>
                 </aside>
 
                 {/* Contenu principal */}
-                <main className="flex-1 min-w-0 overflow-x-hidden pb-20 md:pb-0">
+                <main className="flex-1 min-w-0 overflow-x-hidden pb-20 md:pb-0 md:ml-64">
                     <Outlet />
                 </main>
             </div>
