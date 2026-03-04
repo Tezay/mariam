@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-03-05
+
+### Added
+- **Menu drawer**: Unpublish and delete actions; dirty-state detection with contextual button labels; unsaved-changes close guard.
+- **Events**: Whole event card is now clickable to open the detail overlay (today + upcoming).
+- **Certifications**: Badge click on public menu : popover with details (category, guarantee, issuer, jurisdiction).
+
+### Changed
+- **MSC certification**: Updated SVG logo.
+
 ## [0.6.0] - 2026-02-26
 
 ### Added

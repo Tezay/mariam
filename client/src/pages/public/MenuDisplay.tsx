@@ -17,6 +17,7 @@ import { Logo } from '@/components/Logo';
 import { NotificationBell } from '@/components/NotificationBell';
 import { InlineError, getErrorType } from '@/components/InlineError';
 import { RefreshCw, ZoomIn, ZoomOut, CalendarClock, ChevronLeft, ChevronRight, Megaphone, Calendar, ChefHat, X, Image as ImageIcon } from 'lucide-react';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import type { IconName } from '@/components/ui/icon-picker';
 
 // Types pour les données de menu
@@ -91,33 +92,91 @@ function renderIcon(iconName: string, className?: string) {
     return <Icon name={iconName as IconName} className={className || 'w-4 h-4'} />;
 }
 
-function ItemBadge({ icon, label, color }: { icon: string; label: string; color: string }) {
-    const colorClasses: Record<string, string> = {
-        green: 'bg-green-100 text-green-700 border-green-200',
-        teal: 'bg-teal-100 text-teal-700 border-teal-200',
-        orange: 'bg-orange-100 text-orange-700 border-orange-200',
-        blue: 'bg-blue-100 text-blue-700 border-blue-200',
-        indigo: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-        amber: 'bg-amber-100 text-amber-700 border-amber-200',
-        cyan: 'bg-cyan-100 text-cyan-700 border-cyan-200',
-    };
+const TAG_COLOR_CLASSES: Record<string, string> = {
+    green: 'bg-green-100 text-green-700 border-green-200',
+    teal: 'bg-teal-100 text-teal-700 border-teal-200',
+    orange: 'bg-orange-100 text-orange-700 border-orange-200',
+    blue: 'bg-blue-100 text-blue-700 border-blue-200',
+    indigo: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+    amber: 'bg-amber-100 text-amber-700 border-amber-200',
+    cyan: 'bg-cyan-100 text-cyan-700 border-cyan-200',
+};
 
+const TAG_CATEGORY_NAMES: Record<string, string> = {
+    regime: 'Régime alimentaire',
+    allergenes: 'Allergènes',
+    preparation: 'Mode de préparation',
+    gout: 'Goût',
+};
+
+const JURISDICTION_LABELS: Record<string, string> = {
+    france: '🇫🇷 France',
+    eu: '🇪🇺 Union européenne',
+    international: '🌍 International',
+};
+
+const SCHEME_LABELS: Record<string, string> = {
+    public: 'Label officiel',
+    private: 'Label privé',
+};
+
+function ItemBadge({ tag }: { tag: DietaryTag }) {
     return (
-        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${colorClasses[color] || 'bg-gray-100 text-gray-700'}`}>
-            <Icon name={icon as IconName} className="w-3 h-3" /> {label}
-        </span>
+        <Popover>
+            <PopoverTrigger asChild>
+                <span
+                    className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border cursor-pointer select-none ${TAG_COLOR_CLASSES[tag.color] || 'bg-gray-100 text-gray-700'}`}
+                >
+                    <Icon name={tag.icon as IconName} className="w-3 h-3" /> {tag.label}
+                </span>
+            </PopoverTrigger>
+            <PopoverContent className="w-52 p-3" align="start">
+                <div className="flex items-center gap-2 mb-1">
+                    <Icon name={tag.icon as IconName} className="w-4 h-4 shrink-0" />
+                    <span className="font-semibold text-sm">{tag.label}</span>
+                </div>
+                {TAG_CATEGORY_NAMES[tag.category_id] && (
+                    <p className="text-xs text-muted-foreground">{TAG_CATEGORY_NAMES[tag.category_id]}</p>
+                )}
+            </PopoverContent>
+        </Popover>
     );
 }
 
-function CertBadge({ logoFilename, name, size = 'sm' }: { logoFilename: string; name: string; size?: 'sm' | 'lg' }) {
+function CertBadge({ cert, size = 'sm' }: { cert: CertificationItem; size?: 'sm' | 'lg' }) {
     const sizeClass = size === 'lg' ? 'h-7 w-7' : 'h-5 w-5';
     return (
-        <img
-            src={`/certifications/${logoFilename}`}
-            alt={name}
-            title={name}
-            className={`${sizeClass} object-contain`}
-        />
+        <Popover>
+            <PopoverTrigger asChild>
+                <button type="button" className="inline-flex items-center">
+                    <img
+                        src={`/certifications/${cert.logo_filename}`}
+                        alt={cert.name}
+                        title={cert.name}
+                        className={`${sizeClass} object-contain cursor-pointer`}
+                    />
+                </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-3" align="start">
+                <div className="flex items-start gap-3 mb-2">
+                    <img src={`/certifications/${cert.logo_filename}`} alt={cert.name} className="h-10 w-10 object-contain shrink-0" />
+                    <div>
+                        <p className="font-semibold text-sm leading-tight">{cert.name}</p>
+                        {cert.official_name && cert.official_name !== cert.name && (
+                            <p className="text-xs text-muted-foreground mt-0.5">{cert.official_name}</p>
+                        )}
+                    </div>
+                </div>
+                {cert.guarantee && (
+                    <p className="text-xs text-gray-600 mb-2 leading-snug">{cert.guarantee}</p>
+                )}
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground border-t pt-2 mt-1">
+                    {cert.issuer && <span>{cert.issuer}</span>}
+                    <span>{JURISDICTION_LABELS[cert.jurisdiction]}</span>
+                    <span>{SCHEME_LABELS[cert.scheme_type]}</span>
+                </div>
+            </PopoverContent>
+        </Popover>
     );
 }
 
@@ -401,32 +460,136 @@ function MobileImageCarousel({ images, interval = 4000 }: { images: { id: number
     );
 }
 
-/** Bannière événement du jour — Mobile (avec overlay détail) */
-function MobileTodayEvent({ event }: { event: EventData }) {
-    const [showDetail, setShowDetail] = useState(false);
-    const [detailImgIndex, setDetailImgIndex] = useState(0);
+/** Formater une description markdown basique → HTML */
+function formatEventDescription(text: string): string {
+    return text
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^### (.+)$/gm, '<h3 class="text-lg font-bold mt-4 mb-1">$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold mt-4 mb-2">$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mt-4 mb-2">$1</h1>')
+        .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
+        .replace(/(<li.*<\/li>\n?)+/g, (m) => `<ul class="my-2 space-y-1">${m}</ul>`)
+        .replace(/\n{2,}/g, '</p><p class="mt-3">')
+        .replace(/\n/g, '<br/>');
+}
+
+/** Overlay plein écran détail d'un événement — réutilisé par Today et Upcoming */
+function MobileEventDetailOverlay({ event, onClose }: { event: EventData; onClose: () => void }) {
+    const [imgIndex, setImgIndex] = useState(0);
     const palette = generateEventPalette(event.color || '#3498DB');
     const hasImages = event.images && event.images.length > 0;
 
-    // Formater la description : markdown basique -> HTML
-    const formatDescription = (text: string) => {
-        return text
-            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.+?)\*/g, '<em>$1</em>')
-            .replace(/^### (.+)$/gm, '<h3 class="text-lg font-bold mt-4 mb-1">$1</h3>')
-            .replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold mt-4 mb-2">$1</h2>')
-            .replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mt-4 mb-2">$1</h1>')
-            .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
-            .replace(/(<li.*<\/li>\n?)+/g, (m) => `<ul class="my-2 space-y-1">${m}</ul>`)
-            .replace(/\n{2,}/g, '</p><p class="mt-3">')
-            .replace(/\n/g, '<br/>');
-    };
+    return (
+        <div className="fixed inset-0 z-50 flex flex-col bg-white animate-in slide-in-from-bottom duration-300">
+            {/* Header */}
+            <div
+                className="shrink-0 px-4 py-3 flex items-center justify-between border-b"
+                style={{ backgroundColor: palette.bg, borderColor: palette.border }}
+            >
+                <div className="flex-1 min-w-0">
+                    <h2 className="text-lg font-bold truncate" style={{ color: palette.text }}>
+                        {event.title}
+                    </h2>
+                    {event.subtitle && (
+                        <p className="text-sm truncate" style={{ color: palette.textMuted }}>{event.subtitle}</p>
+                    )}
+                </div>
+                <button
+                    onClick={onClose}
+                    className="p-2 rounded-full hover:bg-black/10 transition-colors ml-2 shrink-0"
+                >
+                    <X className="w-5 h-5" style={{ color: palette.text }} />
+                </button>
+            </div>
+
+            {/* Contenu scrollable */}
+            <div className="flex-1 overflow-y-auto">
+                {/* Galerie images */}
+                {hasImages && (
+                    <div className="relative">
+                        <div className="aspect-[4/3] w-full overflow-hidden bg-gray-100">
+                            <img
+                                src={event.images![imgIndex].url}
+                                alt=""
+                                className="w-full h-full object-cover transition-opacity duration-300"
+                            />
+                        </div>
+                        {event.images!.length > 1 && (
+                            <>
+                                <button
+                                    onClick={() => setImgIndex(prev => (prev - 1 + event.images!.length) % event.images!.length)}
+                                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
+                                >
+                                    <ChevronLeft className="w-5 h-5" />
+                                </button>
+                                <button
+                                    onClick={() => setImgIndex(prev => (prev + 1) % event.images!.length)}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
+                                >
+                                    <ChevronRight className="w-5 h-5" />
+                                </button>
+                                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                                    {event.images!.map((_, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => setImgIndex(i)}
+                                            className={`w-2 h-2 rounded-full transition-all ${
+                                                i === imgIndex ? 'bg-white scale-125 shadow' : 'bg-white/50'
+                                            }`}
+                                        />
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {/* Date */}
+                <div className="px-5 pt-4 pb-0 flex items-center gap-2" style={{ color: palette.accent }}>
+                    <Calendar className="w-4 h-4 shrink-0" />
+                    <span className="text-sm font-medium capitalize">
+                        {new Date(event.event_date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    </span>
+                </div>
+
+                {/* Description formatée */}
+                {event.description && (
+                    <div className="p-5">
+                        <div
+                            className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
+                            dangerouslySetInnerHTML={{ __html: `<p>${formatEventDescription(event.description)}</p>` }}
+                        />
+                    </div>
+                )}
+            </div>
+
+            {/* Bouton fermer en bas */}
+            <div className="shrink-0 p-4 border-t bg-white">
+                <button
+                    onClick={onClose}
+                    className="w-full py-3 rounded-xl font-medium text-white transition-colors"
+                    style={{ backgroundColor: palette.accent }}
+                >
+                    Fermer
+                </button>
+            </div>
+        </div>
+    );
+}
+
+/** Bannière événement du jour — Mobile (avec overlay détail) */
+function MobileTodayEvent({ event }: { event: EventData }) {
+    const [showDetail, setShowDetail] = useState(false);
+    const palette = generateEventPalette(event.color || '#3498DB');
+    const hasImages = event.images && event.images.length > 0;
 
     return (
         <>
             <div
-                className="rounded-xl overflow-hidden shadow-md border mb-4"
+                className={`rounded-xl overflow-hidden shadow-md border mb-4 ${event.description ? 'cursor-pointer active:opacity-90' : ''}`}
                 style={{ backgroundColor: palette.bg, borderColor: palette.border }}
+                onClick={() => event.description && setShowDetail(true)}
             >
                 {/* Image banner */}
                 {hasImages && (
@@ -458,115 +621,23 @@ function MobileTodayEvent({ event }: { event: EventData }) {
                         </div>
                     </div>
 
-                    {/* CTA pour en savoir plus */}
+                    {/* Indicateur En savoir plus */}
                     {event.description && (
                         <div className="mt-3">
-                            <button
-                                onClick={() => { setDetailImgIndex(0); setShowDetail(true); }}
-                                className="flex items-center gap-1 text-sm font-medium transition-colors"
+                            <span
+                                className="flex items-center gap-1 text-sm font-medium"
                                 style={{ color: palette.accent }}
                             >
                                 En savoir plus
                                 <ChevronRight className="w-4 h-4" />
-                            </button>
+                            </span>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Overlay détail événement */}
             {showDetail && (
-                <div
-                    className="fixed inset-0 z-50 flex flex-col bg-white animate-in slide-in-from-bottom duration-300"
-                >
-                    {/* Header overlay */}
-                    <div
-                        className="shrink-0 px-4 py-3 flex items-center justify-between border-b"
-                        style={{ backgroundColor: palette.bg, borderColor: palette.border }}
-                    >
-                        <div className="flex-1 min-w-0">
-                            <h2 className="text-lg font-bold truncate" style={{ color: palette.text }}>
-                                {event.title}
-                            </h2>
-                            {event.subtitle && (
-                                <p className="text-sm truncate" style={{ color: palette.textMuted }}>{event.subtitle}</p>
-                            )}
-                        </div>
-                        <button
-                            onClick={() => setShowDetail(false)}
-                            className="p-2 rounded-full hover:bg-black/10 transition-colors ml-2 shrink-0"
-                        >
-                            <X className="w-5 h-5" style={{ color: palette.text }} />
-                        </button>
-                    </div>
-
-                    {/* Contenu scrollable */}
-                    <div className="flex-1 overflow-y-auto">
-                        {/* Galerie images */}
-                        {hasImages && (
-                            <div className="relative">
-                                <div className="aspect-[4/3] w-full overflow-hidden bg-gray-100">
-                                    <img
-                                        src={event.images![detailImgIndex].url}
-                                        alt=""
-                                        className="w-full h-full object-cover transition-opacity duration-300"
-                                    />
-                                </div>
-                                {event.images!.length > 1 && (
-                                    <>
-                                        <button
-                                            onClick={() => setDetailImgIndex(prev => (prev - 1 + event.images!.length) % event.images!.length)}
-                                            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
-                                        >
-                                            <ChevronLeft className="w-5 h-5" />
-                                        </button>
-                                        <button
-                                            onClick={() => setDetailImgIndex(prev => (prev + 1) % event.images!.length)}
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
-                                        >
-                                            <ChevronRight className="w-5 h-5" />
-                                        </button>
-                                        {/* Pagination dots */}
-                                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                                            {event.images!.map((_, i) => (
-                                                <button
-                                                    key={i}
-                                                    onClick={() => setDetailImgIndex(i)}
-                                                    className={`w-2 h-2 rounded-full transition-all ${
-                                                        i === detailImgIndex
-                                                            ? 'bg-white scale-125 shadow'
-                                                            : 'bg-white/50'
-                                                    }`}
-                                                />
-                                            ))}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Description formatée */}
-                        {event.description && (
-                            <div className="p-5">
-                                <div
-                                    className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
-                                    dangerouslySetInnerHTML={{ __html: `<p>${formatDescription(event.description)}</p>` }}
-                                />
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Bouton fermer en bas */}
-                    <div className="shrink-0 p-4 border-t bg-white">
-                        <button
-                            onClick={() => setShowDetail(false)}
-                            className="w-full py-3 rounded-xl font-medium text-white transition-colors"
-                            style={{ backgroundColor: palette.accent }}
-                        >
-                            Fermer
-                        </button>
-                    </div>
-                </div>
+                <MobileEventDetailOverlay event={event} onClose={() => setShowDetail(false)} />
             )}
         </>
     );
@@ -574,40 +645,58 @@ function MobileTodayEvent({ event }: { event: EventData }) {
 
 /** Vignette événement à venir — style « player musique » (Mobile) */
 function MobileUpcomingEvent({ event }: { event: EventData }) {
+    const [showDetail, setShowDetail] = useState(false);
     const palette = generateEventPalette(event.color || '#3498DB');
     const hasImage = event.images && event.images.length > 0;
 
     return (
-        <div
-            className="flex items-center gap-3 p-3 rounded-xl border shadow-sm"
-            style={{ backgroundColor: palette.bg, borderColor: palette.border }}
-        >
-            {/* Infos (titre, sous-titre, date) */}
-            <div className="flex-1 min-w-0">
-                <p className="font-bold text-base truncate" style={{ color: palette.text }}>
-                    {event.title}
-                </p>
-                {event.subtitle && (
-                    <p className="text-sm truncate" style={{ color: palette.textMuted }}>
-                        {event.subtitle}
+        <>
+            <div
+                className={`flex items-center gap-3 p-3 rounded-xl border shadow-sm ${event.description ? 'cursor-pointer active:opacity-90' : ''}`}
+                style={{ backgroundColor: palette.bg, borderColor: palette.border }}
+                onClick={() => event.description && setShowDetail(true)}
+            >
+                {/* Infos (titre, sous-titre, date) */}
+                <div className="flex-1 min-w-0">
+                    <p className="font-bold text-base truncate" style={{ color: palette.text }}>
+                        {event.title}
                     </p>
+                    {event.subtitle && (
+                        <p className="text-sm truncate" style={{ color: palette.textMuted }}>
+                            {event.subtitle}
+                        </p>
+                    )}
+                    <p className="text-xs mt-1 flex items-center gap-1" style={{ color: palette.accent }}>
+                        <CalendarClock className="w-3 h-3" />
+                        {new Date(event.event_date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    </p>
+                    {/* Indicateur En savoir plus */}
+                    {event.description && (
+                        <span
+                            className="mt-1.5 flex items-center gap-1 text-xs font-medium"
+                            style={{ color: palette.accent }}
+                        >
+                            En savoir plus
+                            <ChevronRight className="w-3.5 h-3.5" />
+                        </span>
+                    )}
+                </div>
+
+                {/* Cover image */}
+                {hasImage && (
+                    <div
+                        className="w-16 h-16 rounded-lg overflow-hidden shrink-0 shadow border"
+                        style={{ borderColor: palette.accent }}
+                    >
+                        <img src={event.images![0].url} alt="" className="w-full h-full object-cover" />
+                    </div>
                 )}
-                <p className="text-xs mt-1 flex items-center gap-1" style={{ color: palette.accent }}>
-                    <CalendarClock className="w-3 h-3" />
-                    {new Date(event.event_date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
-                </p>
             </div>
 
-            {/* Cover image */}
-            {hasImage && (
-                <div
-                    className="w-16 h-16 rounded-lg overflow-hidden shrink-0 shadow border"
-                    style={{ borderColor: palette.accent }}
-                >
-                    <img src={event.images![0].url} alt="" className="w-full h-full object-cover" />
-                </div>
+            {showDetail && (
+                <MobileEventDetailOverlay event={event} onClose={() => setShowDetail(false)} />
             )}
-        </div>
+        </>
     );
 }
 
@@ -779,13 +868,13 @@ export function MenuDisplay() {
 
         if (item.tags && Array.isArray(item.tags)) {
             item.tags.forEach(tag => {
-                badges.push(<ItemBadge key={tag.id} icon={tag.icon} label={tag.label} color={tag.color} />);
+                badges.push(<ItemBadge key={tag.id} tag={tag} />);
             });
         }
 
         if (item.certifications && Array.isArray(item.certifications)) {
             item.certifications.forEach(cert => {
-                badges.push(<CertBadge key={cert.id} logoFilename={cert.logo_filename} name={cert.name} size="sm" />);
+                badges.push(<CertBadge key={cert.id} cert={cert} size="sm" />);
             });
         }
 
@@ -809,17 +898,30 @@ export function MenuDisplay() {
             item.tags.forEach(tag => {
                 const cls = tvColorClasses[tag.color] || 'bg-gray-100 text-gray-800 border-gray-200';
                 badges.push(
-                    <div key={tag.id} className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border shadow-sm ${cls}`}>
-                        <Icon name={tag.icon as IconName} className="w-5 h-5" />
-                        <span className="text-lg font-medium">{tag.label}</span>
-                    </div>
+                    <Popover key={tag.id}>
+                        <PopoverTrigger asChild>
+                            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border shadow-sm cursor-pointer ${cls}`}>
+                                <Icon name={tag.icon as IconName} className="w-5 h-5" />
+                                <span className="text-lg font-medium">{tag.label}</span>
+                            </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-52 p-3" align="start">
+                            <div className="flex items-center gap-2 mb-1">
+                                <Icon name={tag.icon as IconName} className="w-4 h-4 shrink-0" />
+                                <span className="font-semibold text-sm">{tag.label}</span>
+                            </div>
+                            {TAG_CATEGORY_NAMES[tag.category_id] && (
+                                <p className="text-xs text-muted-foreground">{TAG_CATEGORY_NAMES[tag.category_id]}</p>
+                            )}
+                        </PopoverContent>
+                    </Popover>
                 );
             });
         }
 
         if (item.certifications && Array.isArray(item.certifications)) {
             item.certifications.forEach(cert => {
-                badges.push(<CertBadge key={cert.id} logoFilename={cert.logo_filename} name={cert.name} size="lg" />);
+                badges.push(<CertBadge key={cert.id} cert={cert} size="lg" />);
             });
         }
 

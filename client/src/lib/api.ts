@@ -332,6 +332,15 @@ export const menusApi = {
         return response.data.menu;
     },
 
+    unpublish: async (menuId: number) => {
+        const response = await api.post(`/menus/${menuId}/unpublish`);
+        return response.data.menu;
+    },
+
+    delete: async (menuId: number) => {
+        await api.delete(`/menus/${menuId}`);
+    },
+
     publishWeek: async (weekOffset = 0, restaurantId?: number) => {
         const response = await api.post('/menus/week/publish', {
             week_offset: weekOffset,

@@ -7,7 +7,7 @@
  * - Upload / sélection d'images par item (galerie partagée)
  * - Note du chef affichée en TV
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
     menusApi, adminApi, galleryApi, menuItemImagesApi, publicApi,
     Menu, MenuItem, MenuCategory, DietaryTag, CertificationItem,
@@ -22,6 +22,7 @@ import { Icon } from '@/components/ui/icon-picker';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
     Plus, X, Trash2, ChefHat, Tag, Upload, FolderOpen,
+    RotateCcw, AlertTriangle,
 } from 'lucide-react';
 import type { IconName } from '@/components/ui/icon-picker';
 
@@ -107,6 +108,11 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
 
     const [isSaving, setIsSaving] = useState(false);
     const [isPublishing, setIsPublishing] = useState(false);
+    const [isDraftingBack, setIsDraftingBack] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [showResetConfirm, setShowResetConfirm] = useState(false);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
     // Charger la configuration
     useEffect(() => {
@@ -175,7 +181,58 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
             }
         }
         setItemImages(imgMap);
+        setIsInitialized(true);
     }, [menu, categories, configLoaded]);
+
+    // Détection des modifications non enregistrées
+    const isDirty = useMemo(() => {
+        if (!isInitialized) return false;
+
+        // Note du chef modifiée
+        if (chefNote !== (menu?.chef_note || '')) return true;
+
+        // Images en attente d'upload
+        if (Object.values(itemImages).some(s => s.pending.length > 0)) return true;
+
+        // Images galerie modifiées
+        const currentGalleryIds = Object.values(itemImages).flatMap(s => s.gallery.map(g => g.id)).sort().join(',');
+        const originalGalleryIds = (menu?.item_images || []).map(l => l.gallery_image_id).sort().join(',');
+        if (currentGalleryIds !== originalGalleryIds) return true;
+
+        // Items modifiés
+        const sortKey = (cat: string, name: string) => `${cat}|${name.toLowerCase()}`;
+        const currentSigs = Object.values(itemsByCategory)
+            .flat()
+            .filter(i => i.name.trim())
+            .map(i => ({
+                k: sortKey(i.category, i.name),
+                category: i.category,
+                name: i.name,
+                tags: [...(i.tags || [])].sort().join(','),
+                certs: [...(i.certifications || [])].sort().join(','),
+            }))
+            .sort((a, b) => a.k < b.k ? -1 : 1);
+
+        const originalSigs = (menu?.items || [])
+            .filter(i => i.name.trim())
+            .map(i => ({
+                k: sortKey(i.category, i.name),
+                category: i.category,
+                name: i.name,
+                tags: [...(i.tags || []).map(t => typeof t === 'string' ? t : t.id)].sort().join(','),
+                certs: [...(i.certifications || []).map(c => typeof c === 'string' ? c : c.id)].sort().join(','),
+            }))
+            .sort((a, b) => a.k < b.k ? -1 : 1);
+
+        if (currentSigs.length !== originalSigs.length) return true;
+        for (let i = 0; i < currentSigs.length; i++) {
+            const cur = currentSigs[i];
+            const orig = originalSigs[i];
+            if (cur.name !== orig.name || cur.category !== orig.category || cur.tags !== orig.tags || cur.certs !== orig.certs) return true;
+        }
+
+        return false;
+    }, [isInitialized, itemsByCategory, chefNote, itemImages, menu]);
 
     // ========================================
     // Helpers
@@ -320,7 +377,7 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
     // Save
     // ========================================
 
-    const handleSave = async (publish = false) => {
+    const handleSave = async (publish = false, unpublishAfter = false) => {
         if (publish) setIsPublishing(true);
         else setIsSaving(true);
 
@@ -336,7 +393,7 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                             category: cat.id,
                             name: item.name,
                             order: idx,
-                            // Send tag/cert IDs — backend resolves to objects
+                            // Send tag/cert IDs (backend resolves to objects)
                             tags: item.tags as unknown as DietaryTag[],
                             certifications: item.certifications as unknown as CertificationItem[],
                         });
@@ -401,9 +458,11 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                 await menuItemImagesApi.sync(savedMenu.id, allLinks);
             }
 
-            // 5. Publish if requested
+            // 5. Publish / unpublish si demandé
             if (publish && savedMenu.id) {
                 await menusApi.publish(savedMenu.id);
+            } else if (unpublishAfter && savedMenu.id) {
+                await menusApi.unpublish(savedMenu.id);
             }
 
             onSave();
@@ -412,6 +471,41 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
         } finally {
             setIsSaving(false);
             setIsPublishing(false);
+        }
+    };
+
+    const handleUnpublish = async () => {
+        if (!menu?.id) return;
+        setIsDraftingBack(true);
+        try {
+            await menusApi.unpublish(menu.id);
+            onSave();
+        } catch (error) {
+            console.error('Erreur dépublication:', error);
+        } finally {
+            setIsDraftingBack(false);
+        }
+    };
+
+    const handleCloseAttempt = () => {
+        if (isDirty) {
+            setShowCloseConfirm(true);
+        } else {
+            onClose();
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!menu?.id) return;
+        setIsDeleting(true);
+        try {
+            await menusApi.delete(menu.id);
+            onSave();
+        } catch (error) {
+            console.error('Erreur suppression:', error);
+        } finally {
+            setIsDeleting(false);
+            setShowResetConfirm(false);
         }
     };
 
@@ -435,7 +529,7 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
     return (
         <>
             {/* Overlay */}
-            <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
+            <div className="fixed inset-0 bg-black/50 z-40" onClick={handleCloseAttempt} />
 
             {/* Drawer */}
             <div className="fixed right-0 top-0 h-full w-full max-w-lg bg-card border-l border-border shadow-xl z-50 overflow-y-auto">
@@ -445,7 +539,7 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                         <h2 className="text-lg font-semibold text-foreground">Menu du jour</h2>
                         <p className="text-sm text-muted-foreground">{formatDate()}</p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground">
+                    <button onClick={handleCloseAttempt} className="p-2 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -527,27 +621,144 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                             <p className="text-xs text-muted-foreground mt-1 text-right">{chefNote.length}/300</p>
                         )}
                     </div>
+
+                    {/* Suppression du menu (menu existant uniquement) */}
+                    {menu?.id && (
+                        
+                        <div className="pt-2">
+                            {!showResetConfirm ? (
+                                <button
+                                    onClick={() => setShowResetConfirm(true)}
+                                    disabled={isSaving || isPublishing || isDraftingBack || isDeleting}
+                                    className="flex items-center gap-1.5 text-xs text-destructive/60 hover:text-destructive disabled:opacity-50 transition-colors px-2 py-1 rounded hover:bg-destructive/5"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    Supprimer ce menu
+                                </button>
+                            ) : (
+                                <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 flex flex-col gap-3">
+                                    <div className="flex items-start gap-3">
+                                        <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-destructive leading-snug">
+                                                Supprimer définitivement ce menu ?
+                                            </p>
+                                            <p className="text-xs text-muted-foreground mt-0.5">
+                                                Tous les éléments liés à ce menu seront perdus et ne pourront pas être récupérés.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2 justify-end">
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-8 text-xs"
+                                            onClick={() => setShowResetConfirm(false)}
+                                            disabled={isDeleting}
+                                        >
+                                            Annuler
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="destructive"
+                                            className="h-8 text-xs"
+                                            onClick={handleDelete}
+                                            disabled={isDeleting}
+                                        >
+                                            {isDeleting ? 'Suppression...' : 'Supprimer'}
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer avec boutons */}
-                <div className="sticky bottom-0 bg-card border-t border-border px-6 py-4 flex gap-3">
-                    <Button
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => handleSave(false)}
-                        disabled={isSaving || isPublishing}
-                    >
-                        {isSaving ? 'Enregistrement...' : 'Enregistrer brouillon'}
-                    </Button>
-                    <Button
-                        className="flex-1"
-                        onClick={() => handleSave(true)}
-                        disabled={isSaving || isPublishing}
-                    >
-                        {isPublishing ? 'Publication...' : 'Publier'}
-                    </Button>
-                </div>
+                {(() => {
+                    const isAnyBusy = isSaving || isPublishing || isDraftingBack || isDeleting;
+                    const isPublished = menu?.status === 'published';
+
+                    // Bouton gauche
+                    let leftLabel: string;
+                    let leftOnClick: () => void;
+                    let leftDisabled: boolean;
+                    if (isDirty) {
+                        leftLabel = isSaving ? 'Enregistrement...' : (isPublished ? 'Enregistrer & brouillon' : 'Enregistrer brouillon');
+                        leftOnClick = () => handleSave(false, isPublished);
+                        leftDisabled = isAnyBusy;
+                    } else if (isPublished) {
+                        leftLabel = isDraftingBack ? 'En cours...' : 'Repasser en brouillon';
+                        leftOnClick = handleUnpublish;
+                        leftDisabled = isAnyBusy;
+                    } else {
+                        leftLabel = 'Enregistrer brouillon';
+                        leftOnClick = () => {};
+                        leftDisabled = true;
+                    }
+
+                    // Bouton droit
+                    const rightLabel = isPublishing ? 'Publication...' : (isDirty ? 'Enregistrer & publier' : 'Publier');
+                    const rightDisabled = isAnyBusy || (!isDirty && isPublished);
+
+                    return (
+                        <div className="sticky bottom-0 bg-card border-t border-border px-4 py-3 flex gap-2 z-10">
+                            <Button
+                                variant="outline"
+                                className="flex-1 min-w-0 text-sm"
+                                onClick={leftOnClick}
+                                disabled={leftDisabled}
+                            >
+                                {!isDirty && isPublished && <RotateCcw className="w-3.5 h-3.5 mr-1.5 shrink-0" />}
+                                <span className="truncate">{leftLabel}</span>
+                            </Button>
+                            <Button
+                                className="flex-1 min-w-0 text-sm"
+                                onClick={() => handleSave(true)}
+                                disabled={rightDisabled}
+                            >
+                                <span className="truncate">{rightLabel}</span>
+                            </Button>
+                        </div>
+                    );
+                })()}
             </div>
+
+            {/* Modale confirmation fermeture — modifications non enregistrées */}
+            {showCloseConfirm && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCloseConfirm(false)} />
+                    <div className="relative bg-card rounded-2xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4">
+                        <div className="flex items-start gap-3">
+                            <div className="p-2 bg-amber-100 rounded-full shrink-0">
+                                <AlertTriangle className="w-5 h-5 text-amber-600" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-foreground">Modifications non enregistrées</h3>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                    Vous avez des modifications non enregistrées. Quitter maintenant les supprimera définitivement.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex flex-col-reverse sm:flex-row gap-2">
+                            <Button
+                                variant="ghost"
+                                className="flex-1"
+                                onClick={() => setShowCloseConfirm(false)}
+                            >
+                                Continuer l'édition
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                className="flex-1"
+                                onClick={onClose}
+                            >
+                                Quitter sans enregistrer
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Gallery Picker modal */}
             {pickerOpen && pickerTarget && (

@@ -8,6 +8,8 @@ Endpoints (protégés par rôle editor+) :
 - POST /api/menus - Créer/modifier un menu
 - PUT /api/menus/:id - Modifier un menu
 - POST /api/menus/:id/publish - Publier un menu
+- POST /api/menus/:id/unpublish - Repasser un menu en brouillon
+- DELETE /api/menus/:id - Supprimer un menu
 - POST /api/menus/week/publish - Publier toute la semaine
 - POST /api/menus/:id/item-images - Lier des images galerie à un menu
 - DELETE /api/menus/:id/item-images/:id - Retirer un lien image
@@ -344,6 +346,77 @@ def publish_menu(menu_id):
         'message': 'Menu publié',
         'menu': menu.to_dict()
     }), 200
+
+
+@menus_bp.route('/<int:menu_id>/unpublish', methods=['POST'])
+@editor_required
+def unpublish_menu(menu_id):
+    """Repasse un menu publié en brouillon."""
+    current_user_id = int(get_jwt_identity())
+    menu = Menu.query.get(menu_id)
+
+    if not menu:
+        return jsonify({'error': 'Menu non trouvé'}), 404
+
+    if menu.status != 'published':
+        return jsonify({'error': 'Le menu n\'est pas publié'}), 400
+
+    menu.status = 'draft'
+
+    AuditLog.log(
+        action=AuditLog.ACTION_MENU_UPDATE,
+        user_id=current_user_id,
+        target_type='menu',
+        target_id=menu.id,
+        details={'action': 'unpublish', 'date': menu.date.isoformat()},
+        ip_address=get_client_ip()
+    )
+
+    db.session.commit()
+
+    return jsonify({
+        'message': 'Menu repassé en brouillon',
+        'menu': menu.to_dict()
+    }), 200
+
+
+@menus_bp.route('/<int:menu_id>', methods=['DELETE'])
+@editor_required
+def delete_menu(menu_id):
+    """Supprime entièrement un menu et toutes ses données associées."""
+    current_user_id = int(get_jwt_identity())
+    menu = Menu.query.get(menu_id)
+
+    if not menu:
+        return jsonify({'error': 'Menu non trouvé'}), 404
+
+    menu_date = menu.date.isoformat()
+
+    # Supprimer les images du menu depuis le stockage S3/local
+    for image in list(menu.images):
+        storage.delete_file(image.storage_key)
+
+    # Supprimer les liens item_images (ne supprime pas les photos de la galerie)
+    MenuItemImage.query.filter_by(menu_id=menu_id).delete()
+
+    # Supprimer les items du menu
+    MenuItem.query.filter_by(menu_id=menu_id).delete()
+
+    # Supprimer le menu lui-même (cascade DB supprimera les MenuImage)
+    db.session.delete(menu)
+
+    AuditLog.log(
+        action=AuditLog.ACTION_MENU_UPDATE,
+        user_id=current_user_id,
+        target_type='menu',
+        target_id=menu_id,
+        details={'action': 'delete', 'date': menu_date},
+        ip_address=get_client_ip()
+    )
+
+    db.session.commit()
+
+    return jsonify({'message': 'Menu supprimé'}), 200
 
 
 @menus_bp.route('/week/publish', methods=['POST'])
