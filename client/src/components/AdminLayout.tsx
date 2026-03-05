@@ -1,12 +1,13 @@
 /**
  * MARIAM - Layout Admin avec sidebar
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/Logo';
+import { eventsApi } from '@/lib/api';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -38,6 +39,7 @@ interface NavItem {
     label: string;
     icon: React.ReactNode;
     adminOnly?: boolean;
+    badge?: React.ReactNode;
 }
 
 export function AdminLayout() {
@@ -45,15 +47,34 @@ export function AdminLayout() {
     const { theme, setTheme } = useTheme();
     const navigate = useNavigate();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [hasTodayEvent, setHasTodayEvent] = useState(false);
+
+    useEffect(() => {
+        const today = new Date().toISOString().split('T')[0];
+        eventsApi.list(true)
+            .then(events => {
+                setHasTodayEvent(events.some(
+                    e => e.event_date === today && e.status === 'published'
+                ));
+            })
+            .catch(() => {});
+    }, []);
 
     const handleLogout = () => {
         logout();
         navigate('/login');
     };
 
+    const todayDot = hasTodayEvent ? (
+        <span className="relative flex h-2 w-2 ml-auto">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+        </span>
+    ) : undefined;
+
     const navItems: NavItem[] = [
         { to: '/admin/menus', label: 'Menus', icon: <CalendarDays className="w-5 h-5" /> },
-        { to: '/admin/events', label: 'Événements', icon: <Megaphone className="w-5 h-5" /> },
+        { to: '/admin/events', label: 'Événements', icon: <Megaphone className="w-5 h-5" />, badge: todayDot },
         { to: '/admin/gallery', label: 'Galerie', icon: <ImageIcon className="w-5 h-5" /> },
         { to: '/admin/users', label: 'Utilisateurs', icon: <Users className="w-5 h-5" />, adminOnly: true },
         { to: '/admin/settings', label: 'Paramètres', icon: <Settings className="w-5 h-5" />, adminOnly: true },
@@ -183,6 +204,7 @@ export function AdminLayout() {
                                 >
                                     {item.icon}
                                     <span>{item.label}</span>
+                                    {item.badge}
                                 </NavLink>
                             ))}
                         </nav>
@@ -219,7 +241,12 @@ export function AdminLayout() {
                             ${isActive ? 'text-primary' : 'text-muted-foreground'}
                         `}
                     >
-                        {item.icon}
+                        <span className="relative">
+                            {item.icon}
+                            {item.badge && (
+                                <span className="absolute -top-0.5 -right-0.5">{item.badge}</span>
+                            )}
+                        </span>
                         <span className="mt-1">{item.label}</span>
                     </NavLink>
                 ))}

@@ -219,7 +219,7 @@ export function EventsPage() {
                         <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-muted-foreground" />
                             <span className={`text-sm font-medium ${today ? 'text-primary' : 'text-muted-foreground'}`}>
-                                {today ? "Aujourd'hui" : formatDate(event.event_date)}
+                                {today ? "Aujourd'hui : en cours" : formatDate(event.event_date)}
                             </span>
                         </div>
                         <div className="flex items-center gap-2">
