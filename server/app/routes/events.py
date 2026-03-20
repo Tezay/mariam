@@ -1,121 +1,177 @@
 """
-Routes de gestion des événements MARIAM.
+Event routes for MARIAM — Public display and editor management.
 
-Endpoints (protégés par rôle editor+) :
-- GET    /api/events              - Liste des événements
-- GET    /api/events/:id          - Détails d'un événement
-- POST   /api/events              - Créer un événement
-- PUT    /api/events/:id          - Modifier un événement
-- DELETE /api/events/:id          - Supprimer un événement
-- POST   /api/events/:id/publish  - Publier un événement
-- POST   /api/events/:id/unpublish - Dépublier un événement
-- POST   /api/events/:id/duplicate - Dupliquer un événement
-- POST   /api/events/:id/images   - Ajouter une image
-- DELETE /api/events/:id/images/:img_id - Supprimer une image
-- PUT    /api/events/:id/images/reorder - Réordonner les images
-- GET    /api/events/storage-status - Vérifier si S3 est configuré
+Public endpoints (no authentication required):
+- GET /v1/events     Upcoming published events (TV/mobile)
+
+Editor endpoints (JWT required):
+- GET    /v1/events                        List with filters (drafts included)
+- GET    /v1/events/storage-status         S3 storage status
+- GET    /v1/events/<id>                   Event details
+- POST   /v1/events                        Create an event
+- PUT    /v1/events/<id>                   Update an event
+- DELETE /v1/events/<id>                   Delete an event
+- POST   /v1/events/<id>/publish           Publish
+- POST   /v1/events/<id>/unpublish         Revert to draft
+- POST   /v1/events/<id>/duplicate         Duplicate
+- POST   /v1/events/<id>/images            Upload image
+- DELETE /v1/events/<id>/images/<img_id>   Delete image
+- PUT    /v1/events/<id>/images/reorder    Reorder images
 """
 from datetime import date, datetime, timedelta
 from functools import wraps
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask import request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
+from flask_smorest import Blueprint
 from ..extensions import db
 from ..models import User, Restaurant, Event, EventImage, AuditLog
 from ..services.storage import storage
 from ..security import get_client_ip
+from ..schemas.events import (
+    EventSchema, EventCreateSchema, EventUpdateSchema,
+    PublicEventsResponseSchema,
+)
+from ..schemas.common import ErrorSchema, MessageSchema
 
 
-events_bp = Blueprint('events', __name__)
+events_bp = Blueprint(
+    'events', __name__,
+    description='Events — Public display and editor management'
+)
 
 
-# ========================================
-# DÉCORATEURS & UTILITAIRES
-# ========================================
+# ============================================================
+# HELPERS
+# ============================================================
 
 def editor_required(f):
-    """Décorateur pour protéger les routes editor+."""
+    """Décorateur : accès réservé aux éditeurs (role editor ou admin)."""
     @wraps(f)
     @jwt_required()
     def decorated_function(*args, **kwargs):
         current_user_id = int(get_jwt_identity())
         user = User.query.get(current_user_id)
-
         if not user or not user.is_editor():
             return jsonify({'error': 'Accès réservé aux éditeurs'}), 403
-
         return f(*args, **kwargs)
     return decorated_function
 
 
 def get_default_restaurant():
-    """Retourne le restaurant par défaut."""
+    """Retourne le premier restaurant actif."""
     return Restaurant.query.filter_by(is_active=True).first()
 
 
-# ========================================
-# ROUTES CRUD ÉVÉNEMENTS
-# ========================================
+# ============================================================
+# LISTE DES ÉVÉNEMENTS — route unifiée public/éditeur
+# (définie AVANT les routes paramétrées /<int:event_id>)
+# ============================================================
 
 @events_bp.route('', methods=['GET'])
-@jwt_required()
+@events_bp.response(200, PublicEventsResponseSchema)
 def list_events():
-    """Liste les événements avec filtres optionnels.
+    """List events.
 
-    Query params :
-    - upcoming (bool, default true) : filtrer les événements à venir
-    - include_inactive (bool, default false) : inclure les inactifs
-    - status (string) : filtrer par statut (draft/published)
-    - restaurant_id (int) : filtrer par restaurant
+    - **Without authentication**: returns published, active events from today onward,
+      in display format (TV/mobile). Separates today's event from upcoming events.
+    - **With editor authentication**: returns all events (drafts included) with advanced filters.
+
+    Public query params: `restaurant_id`, `visibility` (tv|mobile|all), `limit`
+
+    Editor query params (ignored without auth):
+    `upcoming` (bool), `include_inactive` (bool), `status`
     """
     restaurant_id = request.args.get('restaurant_id', type=int)
-    upcoming_only = request.args.get('upcoming', 'true').lower() == 'true'
-    include_inactive = request.args.get('include_inactive', 'false').lower() == 'true'
-    status_filter = request.args.get('status')
 
-    query = Event.query
+    # Déterminer si l'appelant est un éditeur authentifié
+    is_editor = False
+    try:
+        verify_jwt_in_request(optional=True)
+        identity = get_jwt_identity()
+        if identity:
+            user = User.query.get(int(identity))
+            is_editor = user is not None and user.is_editor()
+    except Exception:
+        pass
 
-    if restaurant_id:
-        query = query.filter_by(restaurant_id=restaurant_id)
+    if not restaurant_id:
+        restaurant = get_default_restaurant()
+        if restaurant:
+            restaurant_id = restaurant.id
+        else:
+            return jsonify({
+                'today_event': None,
+                'upcoming_events': [],
+                'events': [],
+            }), 200
 
-    if upcoming_only:
-        query = query.filter(Event.event_date >= date.today())
-    
-    if not include_inactive:
-        query = query.filter_by(is_active=True)
+    if is_editor:
+        # Vue gestion : tous les événements avec filtres
+        upcoming_only = request.args.get('upcoming', 'true').lower() == 'true'
+        include_inactive = request.args.get('include_inactive', 'false').lower() == 'true'
+        status_filter = request.args.get('status')
 
-    if status_filter in Event.VALID_STATUS:
-        query = query.filter_by(status=status_filter)
+        query = Event.query.filter_by(restaurant_id=restaurant_id)
 
-    events = query.order_by(Event.event_date.asc()).limit(100).all()
+        if upcoming_only:
+            query = query.filter(Event.event_date >= date.today())
 
-    return jsonify({
-        'events': [event.to_dict() for event in events]
-    }), 200
+        if not include_inactive:
+            query = query.filter_by(is_active=True)
 
+        if status_filter in Event.VALID_STATUS:
+            query = query.filter_by(status=status_filter)
 
-@events_bp.route('/<int:event_id>', methods=['GET'])
-@jwt_required()
-def get_event(event_id):
-    """Récupère un événement par ID avec ses images."""
-    event = Event.query.get(event_id)
+        events = query.order_by(Event.event_date.asc()).limit(100).all()
 
-    if not event:
-        return jsonify({'error': 'Événement non trouvé'}), 404
+        return jsonify({'events': [event.to_dict() for event in events]}), 200
 
-    return jsonify({'event': event.to_dict()}), 200
+    else:
+        # Vue publique : publiés, actifs, à partir d'aujourd'hui
+        visibility = request.args.get('visibility')
+        limit = request.args.get('limit', 5, type=int)
+
+        query = Event.query.filter(
+            Event.restaurant_id == restaurant_id,
+            Event.is_active == True,
+            Event.status == 'published',
+            Event.event_date >= date.today(),
+        )
+
+        if visibility in ['tv', 'mobile']:
+            query = query.filter(
+                (Event.visibility == visibility) | (Event.visibility == 'all')
+            )
+
+        events = query.order_by(Event.event_date.asc()).limit(limit).all()
+
+        today = date.today()
+        today_event = None
+        upcoming_events = []
+
+        for event in events:
+            if event.event_date == today:
+                today_event = event.to_dict(include_images=True)
+            else:
+                upcoming_events.append(event.to_dict(include_images=True))
+
+        return jsonify({
+            'today_event': today_event,
+            'upcoming_events': upcoming_events,
+            # Rétrocompatibilité
+            'events': [event.to_dict(include_images=True) for event in events],
+        }), 200
 
 
 @events_bp.route('', methods=['POST'])
+@events_bp.arguments(EventCreateSchema)
+@events_bp.response(201, EventSchema)
+@events_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
 @editor_required
-def create_event():
-    """Crée un nouvel événement."""
+def create_event(data):
+    """Create a new event."""
     current_user_id = int(get_jwt_identity())
-    data = request.get_json()
 
-    if not data:
-        return jsonify({'error': 'Données manquantes'}), 400
-
-    # Validation
     title = data.get('title')
     event_date_str = data.get('event_date')
 
@@ -127,7 +183,6 @@ def create_event():
     except ValueError:
         return jsonify({'error': 'Format de date invalide (YYYY-MM-DD)'}), 400
 
-    # Restaurant
     restaurant_id = data.get('restaurant_id')
     if not restaurant_id:
         restaurant = get_default_restaurant()
@@ -136,17 +191,14 @@ def create_event():
         else:
             return jsonify({'error': 'Aucun restaurant configuré'}), 400
 
-    # Validation de la visibilité
     visibility = data.get('visibility', 'all')
     if visibility not in Event.VALID_VISIBILITY:
         return jsonify({'error': f'Visibilité invalide. Valeurs: {Event.VALID_VISIBILITY}'}), 400
 
-    # Validation du statut
     status = data.get('status', 'draft')
     if status not in Event.VALID_STATUS:
         return jsonify({'error': f'Statut invalide. Valeurs: {Event.VALID_STATUS}'}), 400
 
-    # Validation de la couleur (hex)
     color = data.get('color', '#3498DB')
     if color and (not color.startswith('#') or len(color) != 7):
         color = '#3498DB'
@@ -164,7 +216,6 @@ def create_event():
     )
     db.session.add(event)
 
-    # Logger
     AuditLog.log(
         action=AuditLog.ACTION_EVENT_CREATE,
         user_id=current_user_id,
@@ -175,23 +226,49 @@ def create_event():
 
     db.session.commit()
 
-    return jsonify({
-        'message': 'Événement créé',
-        'event': event.to_dict()
-    }), 201
+    return jsonify({'message': 'Événement créé', 'event': event.to_dict()}), 201
+
+
+# ============================================================
+# ROUTE STATIQUE — doit précéder /<int:event_id>
+# ============================================================
+
+@events_bp.route('/storage-status', methods=['GET'])
+@events_bp.response(200, MessageSchema)
+@jwt_required()
+def storage_status():
+    """Check whether S3 storage is configured."""
+    return jsonify({'configured': storage.is_configured}), 200
+
+
+# ============================================================
+# ROUTES PARAMÉTRÉES — après toutes les routes statiques
+# ============================================================
+
+@events_bp.route('/<int:event_id>', methods=['GET'])
+@events_bp.response(200, EventSchema)
+@events_bp.alt_response(404, schema=ErrorSchema, description="Event not found")
+@editor_required
+def get_event(event_id):
+    """Get an event by ID with its images."""
+    event = Event.query.get(event_id)
+    if not event:
+        return jsonify({'error': 'Événement non trouvé'}), 404
+    return jsonify({'event': event.to_dict()}), 200
 
 
 @events_bp.route('/<int:event_id>', methods=['PUT'])
+@events_bp.arguments(EventUpdateSchema)
+@events_bp.response(200, EventSchema)
+@events_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
+@events_bp.alt_response(404, schema=ErrorSchema, description="Event not found")
 @editor_required
-def update_event(event_id):
-    """Modifie un événement."""
+def update_event(data, event_id):
+    """Update an existing event."""
     current_user_id = int(get_jwt_identity())
     event = Event.query.get(event_id)
-
     if not event:
         return jsonify({'error': 'Événement non trouvé'}), 404
-
-    data = request.get_json()
 
     if 'title' in data:
         event.title = data['title']
@@ -212,7 +289,6 @@ def update_event(event_id):
             new_date = datetime.strptime(data['event_date'], '%Y-%m-%d').date()
             if new_date != event.event_date:
                 event.event_date = new_date
-                # Réinitialiser les flags de notification (date changé)
                 event.notified_7d = False
                 event.notified_1d = False
         except ValueError:
@@ -224,14 +300,12 @@ def update_event(event_id):
         else:
             return jsonify({'error': f'Visibilité invalide. Valeurs: {Event.VALID_VISIBILITY}'}), 400
 
-    if 'status' in data:
-        if data['status'] in Event.VALID_STATUS:
-            event.status = data['status']
+    if 'status' in data and data['status'] in Event.VALID_STATUS:
+        event.status = data['status']
 
     if 'is_active' in data:
         event.is_active = data['is_active']
 
-    # Logger
     AuditLog.log(
         action=AuditLog.ACTION_EVENT_UPDATE,
         user_id=current_user_id,
@@ -243,28 +317,24 @@ def update_event(event_id):
 
     db.session.commit()
 
-    return jsonify({
-        'message': 'Événement mis à jour',
-        'event': event.to_dict()
-    }), 200
+    return jsonify({'message': 'Événement mis à jour', 'event': event.to_dict()}), 200
 
 
 @events_bp.route('/<int:event_id>', methods=['DELETE'])
+@events_bp.response(200, MessageSchema)
+@events_bp.alt_response(404, schema=ErrorSchema, description="Event not found")
 @editor_required
 def delete_event(event_id):
-    """Supprime un événement et ses images S3."""
+    """Delete an event and its S3 images."""
     current_user_id = int(get_jwt_identity())
     event = Event.query.get(event_id)
-
     if not event:
         return jsonify({'error': 'Événement non trouvé'}), 404
 
-    # Supprimer les images de S3
     image_keys = [img.storage_key for img in event.images if img.storage_key]
     if image_keys:
         storage.delete_files(image_keys)
 
-    # Logger avant suppression
     AuditLog.log(
         action=AuditLog.ACTION_EVENT_DELETE,
         user_id=current_user_id,
@@ -280,17 +350,14 @@ def delete_event(event_id):
     return jsonify({'message': 'Événement supprimé'}), 200
 
 
-# ========================================
-# PUBLICATION
-# ========================================
-
 @events_bp.route('/<int:event_id>/publish', methods=['POST'])
+@events_bp.response(200, EventSchema)
+@events_bp.alt_response(404, schema=ErrorSchema, description="Event not found")
 @editor_required
 def publish_event(event_id):
-    """Publie un événement (draft -> published)."""
+    """Publish an event (draft to published)."""
     current_user_id = int(get_jwt_identity())
     event = Event.query.get(event_id)
-
     if not event:
         return jsonify({'error': 'Événement non trouvé'}), 404
 
@@ -307,42 +374,37 @@ def publish_event(event_id):
 
     db.session.commit()
 
-    return jsonify({
-        'message': 'Événement publié',
-        'event': event.to_dict()
-    }), 200
+    return jsonify({'message': 'Événement publié', 'event': event.to_dict()}), 200
 
 
 @events_bp.route('/<int:event_id>/unpublish', methods=['POST'])
+@events_bp.response(200, EventSchema)
+@events_bp.alt_response(404, schema=ErrorSchema, description="Event not found")
 @editor_required
 def unpublish_event(event_id):
-    """Dépublie un événement (published -> draft)."""
-    current_user_id = int(get_jwt_identity())
+    """Revert a published event to draft."""
     event = Event.query.get(event_id)
-
     if not event:
         return jsonify({'error': 'Événement non trouvé'}), 404
 
     event.status = 'draft'
     db.session.commit()
 
-    return jsonify({
-        'message': 'Événement dépublié',
-        'event': event.to_dict()
-    }), 200
+    return jsonify({'message': 'Événement dépublié', 'event': event.to_dict()}), 200
 
-
-# ========================================
-# DUPLICATION
-# ========================================
 
 @events_bp.route('/<int:event_id>/duplicate', methods=['POST'])
+@events_bp.response(201, EventSchema)
+@events_bp.alt_response(404, schema=ErrorSchema, description="Event not found")
 @editor_required
 def duplicate_event(event_id):
-    """Duplique un événement (sans images, statut draft)."""
+    """Duplicate an event (no images, draft status).
+
+    Optional JSON body: `{ "event_date": "YYYY-MM-DD" }`
+    If omitted, the date is shifted 7 days from the original.
+    """
     current_user_id = int(get_jwt_identity())
     event = Event.query.get(event_id)
-
     if not event:
         return jsonify({'error': 'Événement non trouvé'}), 404
 
@@ -355,7 +417,11 @@ def duplicate_event(event_id):
         subtitle=event.subtitle,
         description=event.description,
         color=event.color,
-        event_date=datetime.strptime(new_date_str, '%Y-%m-%d').date() if new_date_str else event.event_date + timedelta(days=7),
+        event_date=(
+            datetime.strptime(new_date_str, '%Y-%m-%d').date()
+            if new_date_str
+            else event.event_date + timedelta(days=7)
+        ),
         status='draft',
         visibility=event.visibility,
         created_by_id=current_user_id,
@@ -372,30 +438,25 @@ def duplicate_event(event_id):
 
     db.session.commit()
 
-    return jsonify({
-        'message': 'Événement dupliqué',
-        'event': new_event.to_dict()
-    }), 201
+    return jsonify({'message': 'Événement dupliqué', 'event': new_event.to_dict()}), 201
 
 
-# ========================================
-# GESTION DES IMAGES S3
-# ========================================
-
-@events_bp.route('/storage-status', methods=['GET'])
-@jwt_required()
-def storage_status():
-    """Vérifie si le stockage S3 est configuré."""
-    return jsonify({'configured': storage.is_configured}), 200
-
+# ============================================================
+# IMAGES D'ÉVÉNEMENTS
+# ============================================================
 
 @events_bp.route('/<int:event_id>/images', methods=['POST'])
+@events_bp.response(201, EventSchema)
+@events_bp.alt_response(400, schema=ErrorSchema, description="Invalid file or quota exceeded")
+@events_bp.alt_response(404, schema=ErrorSchema, description="Event not found")
+@events_bp.alt_response(503, schema=ErrorSchema, description="S3 storage not configured")
 @editor_required
 def upload_event_image(event_id):
-    """Upload une image pour un événement.
+    """Upload an image for an event.
 
-    Envoyer en multipart/form-data avec champ 'file'.
-    Limite : 6 images par événement, 5 MB par image.
+    Multipart/form-data request with `file` field.
+    Limit: 6 images per event, 5 MB per image.
+    Accepted formats: JPEG, PNG, WebP, HEIC (converted to JPEG).
     """
     event = Event.query.get(event_id)
     if not event:
@@ -404,7 +465,6 @@ def upload_event_image(event_id):
     if not storage.is_configured:
         return jsonify({'error': 'Stockage S3 non configuré'}), 503
 
-    # Vérifier la limite d'images
     current_count = EventImage.query.filter_by(event_id=event_id).count()
     if current_count >= 6:
         return jsonify({'error': 'Maximum 6 images par événement'}), 400
@@ -413,22 +473,18 @@ def upload_event_image(event_id):
     if not file:
         return jsonify({'error': 'Aucun fichier envoyé'}), 400
 
-    # Validation
     is_valid, error_msg = storage.validate_image(file.filename, file.content_length)
     if not is_valid:
         return jsonify({'error': error_msg}), 400
 
-    # Lire le contenu
     file_data = file.read()
     if len(file_data) > storage.MAX_FILE_SIZE:
         return jsonify({'error': 'Fichier trop volumineux (max 5 MB)'}), 400
 
-    # Conversion HEIC/HEIF -> JPEG si nécessaire
     file_data, filename, content_type = storage.process_image(
         file_data, file.filename, file.content_type
     )
 
-    # Upload vers S3
     result = storage.upload_file(
         file_data=file_data,
         filename=filename,
@@ -439,35 +495,30 @@ def upload_event_image(event_id):
     if not result:
         return jsonify({'error': "Erreur lors de l'upload"}), 500
 
-    # Créer l'entrée en base
     image = EventImage(
         event_id=event_id,
         storage_key=result['key'],
         url=result['url'],
         filename=filename,
-        order=current_count,  # Ajouté en dernier
+        order=current_count,
     )
     db.session.add(image)
     db.session.commit()
 
-    return jsonify({
-        'message': 'Image uploadée',
-        'image': image.to_dict()
-    }), 201
+    return jsonify({'message': 'Image uploadée', 'image': image.to_dict()}), 201
 
 
 @events_bp.route('/<int:event_id>/images/<int:image_id>', methods=['DELETE'])
+@events_bp.response(200, MessageSchema)
+@events_bp.alt_response(404, schema=ErrorSchema, description="Image not found")
 @editor_required
 def delete_event_image(event_id, image_id):
-    """Supprime une image d'un événement."""
+    """Delete an event image from S3 storage and database."""
     image = EventImage.query.filter_by(id=image_id, event_id=event_id).first()
-
     if not image:
         return jsonify({'error': 'Image non trouvée'}), 404
 
-    # Supprimer de S3
     storage.delete_file(image.storage_key)
-
     db.session.delete(image)
     db.session.commit()
 
@@ -475,12 +526,15 @@ def delete_event_image(event_id, image_id):
 
 
 @events_bp.route('/<int:event_id>/images/reorder', methods=['PUT'])
+@events_bp.response(200, EventSchema)
+@events_bp.alt_response(400, schema=ErrorSchema, description="image_ids list required")
+@events_bp.alt_response(404, schema=ErrorSchema, description="Event not found")
 @editor_required
 def reorder_event_images(event_id):
-    """Réordonne les images d'un événement.
+    """Reorder event images.
 
-    Body JSON : { "image_ids": [3, 1, 2] }
-    L'ordre du tableau définit le nouvel ordre d'affichage.
+    JSON body: `{ "image_ids": [3, 1, 2] }`
+    Array order defines the new display order.
     """
     event = Event.query.get(event_id)
     if not event:
@@ -488,7 +542,6 @@ def reorder_event_images(event_id):
 
     data = request.get_json()
     image_ids = data.get('image_ids', [])
-
     if not image_ids:
         return jsonify({'error': 'Liste image_ids requise'}), 400
 
@@ -501,5 +554,5 @@ def reorder_event_images(event_id):
 
     return jsonify({
         'message': 'Images réordonnées',
-        'images': [img.to_dict() for img in event.images.order_by(EventImage.order)]
+        'images': [img.to_dict() for img in event.images.order_by(EventImage.order)],
     }), 200

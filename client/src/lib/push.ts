@@ -183,7 +183,7 @@ let vapidPublicKeyCache: string | null = null;
 // Récupère la clé VAPID publique depuis le serveur (avec cache)
 export async function getVapidPublicKey(): Promise<string> {
     if (vapidPublicKeyCache) return vapidPublicKeyCache;
-    const response = await api.get('/public/notifications/vapid-public-key');
+    const response = await api.get('/notifications/vapid-public-key');
     vapidPublicKeyCache = response.data.public_key;
     return vapidPublicKeyCache!;
 }
@@ -280,7 +280,7 @@ export async function subscribeToPush(
 
         // 6. Envoyer au serveur
         const subscriptionJSON = subscription.toJSON();
-        await api.post('/public/notifications/subscribe', {
+        await api.post('/notifications/subscribe', {
             endpoint: subscriptionJSON.endpoint,
             keys: subscriptionJSON.keys,
             preferences,
@@ -305,7 +305,7 @@ export async function unsubscribeFromPush(): Promise<{ success: boolean; error?:
         }
 
         // Supprimer côté serveur
-        await api.delete('/public/notifications/unsubscribe', {
+        await api.delete('/notifications/unsubscribe', {
             data: { endpoint: subscription.endpoint },
         });
 
@@ -330,7 +330,7 @@ export async function updatePreferences(
             return { success: false, error: 'Aucune souscription active.' };
         }
 
-        await api.put('/public/notifications/preferences', {
+        await api.put('/notifications/preferences', {
             endpoint: subscription.endpoint,
             preferences,
         });
@@ -349,7 +349,7 @@ export async function getServerPreferences(): Promise<ServerSubscription | null>
         const subscription = await getExistingSubscription();
         if (!subscription) return null;
 
-        const response = await api.get('/public/notifications/preferences', {
+        const response = await api.get('/notifications/preferences', {
             params: { endpoint: subscription.endpoint },
         });
         return response.data.subscription;
@@ -367,7 +367,7 @@ export async function sendTestNotification(): Promise<{ success: boolean; error?
         }
 
         const subscriptionJSON = subscription.toJSON();
-        await api.post('/public/notifications/test', {
+        await api.post('/notifications/test', {
             endpoint: subscriptionJSON.endpoint,
             keys: subscriptionJSON.keys,
         });

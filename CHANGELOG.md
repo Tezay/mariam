@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Sidebar**: Pulsing dot on "Événements" nav item when a published event is scheduled for today.
 
+### Changed
+
+- **API routes**: Refactored server routes into dedicated modules — `audit.py`, `imports.py`, `restaurant.py`, `taxonomy.py`, `users.py` — replacing the monolithic route files for improved maintainability and separation of concerns.
+
+### Fixed
+
+- **API robustness**: Added null-guard (`or {}`) after all `request.get_json()` calls in reorder-images, chef-note, sync-item-images (menus), and tag endpoints (gallery) — a missing or malformed JSON body now returns 400 instead of crashing with 500.
+- **Audit**: `start_date`/`end_date` filter parameters now silently ignore invalid ISO format values instead of raising an unhandled `ValueError` (500).
+
 ## [0.6.1] - 2026-03-05
 
 ### Added

@@ -65,10 +65,10 @@ def create_app(config_class=None):
     # ========================================
     # CONFIGURATION API DOCUMENTATION (OpenAPI/Swagger)
     # ========================================
-    app.config['API_TITLE'] = 'MARIAM Developer API'
+    app.config['API_TITLE'] = 'MARIAM API'
     app.config['API_VERSION'] = 'v1'
     app.config['OPENAPI_VERSION'] = '3.0.3'
-    app.config['OPENAPI_URL_PREFIX'] = '/api/v1'
+    app.config['OPENAPI_URL_PREFIX'] = '/'
     app.config['OPENAPI_SWAGGER_UI_PATH'] = '/docs'
     app.config['OPENAPI_SWAGGER_UI_URL'] = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist/'
     
@@ -135,97 +135,100 @@ def create_app(config_class=None):
     )
     
     # ========================================
-    # API v1 (Public Developer API with Swagger)
+    # API v1 — Flask-Smorest (OpenAPI / Swagger)
     # ========================================
     from flask_smorest import Api
     api = Api(app)
-    
-    from .routes.api_v1 import api_v1_bp
-    api.register_blueprint(api_v1_bp)
-    
-    # ========================================
-    # ENREGISTREMENT DES BLUEPRINTS INTERNES
-    # ========================================
+
     from .routes.auth import auth_bp
-    from .routes.admin import admin_bp
     from .routes.menus import menus_bp
     from .routes.events import events_bp
-    from .routes.public import public_bp
-    from .routes.csv_import import csv_import_bp
     from .routes.gallery import gallery_bp
+    from .routes.restaurant import restaurant_bp
+    from .routes.taxonomy import taxonomy_bp
+    from .routes.users import users_bp
+    from .routes.audit import audit_bp
+    from .routes.imports import imports_bp
     from .routes.notifications import notifications_bp
-    
-    app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    app.register_blueprint(admin_bp, url_prefix='/api/admin')
-    app.register_blueprint(menus_bp, url_prefix='/api/menus')
-    app.register_blueprint(events_bp, url_prefix='/api/events')
-    app.register_blueprint(gallery_bp, url_prefix='/api/gallery')
-    app.register_blueprint(public_bp, url_prefix='/api/public')
-    app.register_blueprint(csv_import_bp, url_prefix='/api/menus/import')
-    app.register_blueprint(notifications_bp, url_prefix='/api/public/notifications')
-    
-    # Route de santé
-    @app.route('/api/health')
+
+    api.register_blueprint(auth_bp,          url_prefix='/v1/auth')
+    api.register_blueprint(menus_bp,         url_prefix='/v1/menus')
+    api.register_blueprint(events_bp,        url_prefix='/v1/events')
+    api.register_blueprint(gallery_bp,       url_prefix='/v1/gallery')
+    api.register_blueprint(restaurant_bp,    url_prefix='/v1')
+    api.register_blueprint(taxonomy_bp,      url_prefix='/v1/taxonomy')
+    api.register_blueprint(users_bp,         url_prefix='/v1/users')
+    api.register_blueprint(audit_bp,         url_prefix='/v1/audit-logs')
+    api.register_blueprint(imports_bp,       url_prefix='/v1/imports/menus')
+    api.register_blueprint(notifications_bp, url_prefix='/v1/notifications')
+
+    # Route de santé (non versionnée, non documentée)
+    @app.route('/health')
     @limiter.exempt
     def health_check():
         return {
-            'status': 'healthy', 
+            'status': 'healthy',
             'message': 'MARIAM API is running',
-            'version': '0.6.1',
-            'docs': '/api/v1/docs'
+            'version': '0.7.0',
+            'docs': '/docs'
         }
-    
+
     # ========================================
     # ROBOTS.TXT — Contrôle d'accès crawlers & IA
     # ========================================
     @app.route('/robots.txt')
     @limiter.exempt
     def robots_txt():
-        """
-        Autorise le crawling des routes publiques (menus, API v1)
-        et bloque les routes internes (auth, admin, gestion).
-        """
+        """Autorise le crawling des routes publiques (/v1/) et bloque les routes sensibles."""
         content = """User-agent: *
-Allow: /api/v1/
-Allow: /api/public/
-Disallow: /api/auth/
-Disallow: /api/admin/
-Disallow: /api/menus/
-Disallow: /api/events/
-Disallow: /api/gallery/
+Allow: /v1/menus/
+Allow: /v1/events
+Allow: /v1/restaurant
+Allow: /v1/taxonomy
+Disallow: /v1/auth/
+Disallow: /v1/users/
+Disallow: /v1/audit-logs/
+Disallow: /v1/imports/
+Disallow: /v1/gallery/
 
 User-agent: GPTBot
-Allow: /api/v1/
-Allow: /api/public/
-Disallow: /api/auth/
-Disallow: /api/admin/
+Allow: /v1/menus/
+Allow: /v1/events
+Allow: /v1/restaurant
+Allow: /v1/taxonomy
+Disallow: /v1/auth/
+Disallow: /v1/users/
+Disallow: /v1/audit-logs/
 
 User-agent: OAI-SearchBot
-Allow: /api/v1/
-Allow: /api/public/
-Disallow: /api/auth/
-Disallow: /api/admin/
+Allow: /v1/menus/
+Allow: /v1/events
+Disallow: /v1/auth/
+Disallow: /v1/users/
 
 User-agent: ChatGPT-User
-Allow: /api/v1/
-Allow: /api/public/
-Disallow: /api/auth/
-Disallow: /api/admin/
+Allow: /v1/menus/
+Allow: /v1/events
+Disallow: /v1/auth/
+Disallow: /v1/users/
 
 User-agent: CCBot
 Disallow: /
 
 User-agent: anthropic-ai
-Allow: /api/v1/
-Allow: /api/public/
-Disallow: /api/auth/
-Disallow: /api/admin/
+Allow: /v1/menus/
+Allow: /v1/events
+Allow: /v1/restaurant
+Allow: /v1/taxonomy
+Disallow: /v1/auth/
+Disallow: /v1/users/
 
 User-agent: Google-Extended
-Allow: /api/v1/
-Allow: /api/public/
-Disallow: /api/auth/
-Disallow: /api/admin/
+Allow: /v1/menus/
+Allow: /v1/events
+Allow: /v1/restaurant
+Disallow: /v1/auth/
+Disallow: /v1/users/
 """
         return app.response_class(content, mimetype='text/plain', status=200)
     

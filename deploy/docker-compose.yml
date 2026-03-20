@@ -71,7 +71,7 @@ services:
       context: ../client
       dockerfile: Dockerfile.prod
       args:
-        VITE_API_URL: /api
+        VITE_API_URL: /v1
     container_name: mariam_frontend_prod
     restart: unless-stopped
     volumes:

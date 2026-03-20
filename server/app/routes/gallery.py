@@ -1,33 +1,42 @@
 """
-Routes de la galerie de photos MARIAM.
+Gallery routes for MARIAM — Shared dish photo library.
 
-Galerie centralisée de photos de plats, partagée entre menus.
-Les images sont taguées automatiquement (nom du plat, catégorie)
-et peuvent être recherchées et réutilisées.
+Centralized gallery of dish photos, shared across menus.
+Images are tagged and can be searched and reused.
 
-Endpoints (protégés par rôle editor+) :
-- GET  /api/gallery             - Lister les images (pagination, recherche)
-- GET  /api/gallery/:id         - Détails d'une image
-- POST /api/gallery             - Uploader une nouvelle image
-- DELETE /api/gallery/:id       - Supprimer une image
-- PUT  /api/gallery/:id/tags    - Mettre à jour les tags d'une image
-- POST /api/gallery/:id/tags    - Ajouter un tag manuel
-- DELETE /api/gallery/:id/tags/:tag_id - Supprimer un tag
+Endpoints (editor role required):
+- GET    /v1/gallery                        List with pagination and search
+- GET    /v1/gallery/<id>                   Details and usages
+- POST   /v1/gallery                        Upload an image
+- DELETE /v1/gallery/<id>                   Delete an image
+- PUT    /v1/gallery/<id>/tags              Replace tags (dish + manual)
+- POST   /v1/gallery/<id>/tags              Add a manual tag
+- DELETE /v1/gallery/<id>/tags/<tag_id>     Remove a tag
 """
 from functools import wraps
-from flask import Blueprint, request, jsonify
+from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_smorest import Blueprint
 from sqlalchemy import or_
 from ..extensions import db
 from ..models import User, Restaurant, GalleryImage, GalleryImageTag, MenuItemImage
 from ..services.storage import storage
+from ..schemas.gallery import GalleryImageSchema, GalleryListSchema
+from ..schemas.common import ErrorSchema, MessageSchema
 
 
-gallery_bp = Blueprint('gallery', __name__)
+gallery_bp = Blueprint(
+    'gallery', __name__,
+    description='Gallery — Shared dish photos across menus'
+)
 
+
+# ============================================================
+# HELPERS
+# ============================================================
 
 def editor_required(f):
-    """Décorateur pour protéger les routes editor+."""
+    """Décorateur : accès réservé aux éditeurs (role editor ou admin)."""
     @wraps(f)
     @jwt_required()
     def decorated_function(*args, **kwargs):
@@ -39,8 +48,8 @@ def editor_required(f):
     return decorated_function
 
 
-def _get_restaurant_id():
-    """Résout le restaurant_id (paramètre ou défaut)."""
+def _resolve_restaurant_id():
+    """Résout le restaurant_id depuis le query param ou le restaurant par défaut."""
     rid = request.args.get('restaurant_id', type=int)
     if not rid:
         r = Restaurant.query.filter_by(is_active=True).first()
@@ -48,23 +57,26 @@ def _get_restaurant_id():
     return rid
 
 
-# ========================================
+# ============================================================
 # LISTING & RECHERCHE
-# ========================================
+# ============================================================
 
 @gallery_bp.route('', methods=['GET'])
+@gallery_bp.response(200, GalleryListSchema)
+@gallery_bp.alt_response(400, schema=ErrorSchema, description="No restaurant configured")
 @editor_required
 def list_images():
-    """Liste les images de la galerie avec pagination et recherche.
+    """List gallery images with pagination and search.
 
-    Query params :
-        q           - Recherche par mot-clé (tags)
-        category    - Filtrer par category_id
-        page        - Page (défaut 1)
-        per_page    - Images par page (défaut 30, max 100)
-        sort        - Tri: 'recent' (défaut), 'oldest', 'usage'
+    Query params:
+    - `q` — Keyword search in tags
+    - `category` — Filter by category_id
+    - `page` — Page number (default 1)
+    - `per_page` — Images per page (default 30, max 100)
+    - `sort` — Sort order: `recent` (default), `oldest`, `usage`
+    - `restaurant_id` — Filter by restaurant (default: first active)
     """
-    restaurant_id = _get_restaurant_id()
+    restaurant_id = _resolve_restaurant_id()
     if not restaurant_id:
         return jsonify({'error': 'Aucun restaurant configuré'}), 400
 
@@ -76,14 +88,12 @@ def list_images():
 
     query = GalleryImage.query.filter_by(restaurant_id=restaurant_id)
 
-    # Recherche par mot-clé dans les tags
     if q:
         tag_subquery = db.session.query(GalleryImageTag.gallery_image_id).filter(
             GalleryImageTag.name.ilike(f'%{q}%')
         ).subquery()
         query = query.filter(GalleryImage.id.in_(tag_subquery))
 
-    # Filtre par catégorie
     if category:
         cat_subquery = db.session.query(GalleryImageTag.gallery_image_id).filter(
             GalleryImageTag.tag_type == 'category',
@@ -91,11 +101,9 @@ def list_images():
         ).subquery()
         query = query.filter(GalleryImage.id.in_(cat_subquery))
 
-    # Tri
     if sort == 'oldest':
         query = query.order_by(GalleryImage.created_at.asc())
     elif sort == 'usage':
-        # Trier par nombre d'utilisations décroissant
         usage_count = db.func.count(MenuItemImage.id).label('usage_count')
         query = (
             query
@@ -103,7 +111,7 @@ def list_images():
             .group_by(GalleryImage.id)
             .order_by(usage_count.desc(), GalleryImage.created_at.desc())
         )
-    else:  # 'recent'
+    else:
         query = query.order_by(GalleryImage.created_at.desc())
 
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
@@ -117,47 +125,20 @@ def list_images():
     }), 200
 
 
-# ========================================
-# DÉTAIL
-# ========================================
-
-@gallery_bp.route('/<int:image_id>', methods=['GET'])
-@editor_required
-def get_image(image_id):
-    """Détails d'une image avec ses tags et usages."""
-    image = GalleryImage.query.get(image_id)
-    if not image:
-        return jsonify({'error': 'Image non trouvée'}), 404
-
-    data = image.to_dict(include_tags=True, include_usage_count=True)
-
-    # Usages récents (menus liés)
-    usages = (
-        MenuItemImage.query
-        .filter_by(gallery_image_id=image_id)
-        .order_by(MenuItemImage.created_at.desc())
-        .limit(20)
-        .all()
-    )
-    data['usages'] = [u.to_dict() for u in usages]
-
-    return jsonify({'image': data}), 200
-
-
-# ========================================
-# UPLOAD
-# ========================================
-
 @gallery_bp.route('', methods=['POST'])
+@gallery_bp.response(201, GalleryImageSchema)
+@gallery_bp.alt_response(400, schema=ErrorSchema, description="Invalid file or missing restaurant")
+@gallery_bp.alt_response(503, schema=ErrorSchema, description="S3 storage not configured")
 @editor_required
 def upload_image():
-    """Upload une image vers la galerie.
+    """Upload an image to the gallery.
 
-    Form data :
-        file         - Fichier image (requis)
-        dish_name    - Nom du plat pour le tag automatique (optionnel)
-        category_id  - ID de catégorie pour le tag automatique (optionnel)
-        category_label - Libellé de catégorie (optionnel, pour le tag)
+    Multipart/form-data request:
+    - `file` — Image file (required)
+    - `dish_name` — Dish name for automatic tag (optional)
+    - `category_id` — Category ID for automatic tag (optional)
+    - `category_label` — Category label (optional, used for tag)
+    - `restaurant_id` — Restaurant ID (optional, default: first active)
     """
     current_user_id = int(get_jwt_identity())
 
@@ -183,12 +164,10 @@ def upload_image():
     if len(file_data) > storage.MAX_FILE_SIZE:
         return jsonify({'error': 'Fichier trop volumineux (max 5 MB)'}), 400
 
-    # Conversion HEIC/HEIF -> JPEG si nécessaire
     file_data, filename, content_type = storage.process_image(
         file_data, file.filename, file.content_type
     )
 
-    # Upload vers S3 avec préfixe galerie
     result = storage.upload_file(
         file_data=file_data,
         filename=filename,
@@ -198,7 +177,6 @@ def upload_image():
     if not result:
         return jsonify({'error': "Erreur lors de l'upload"}), 500
 
-    # Créer l'enregistrement
     image = GalleryImage(
         restaurant_id=restaurant_id,
         storage_key=result['key'],
@@ -209,9 +187,8 @@ def upload_image():
         uploaded_by_id=current_user_id,
     )
     db.session.add(image)
-    db.session.flush()  # Obtenir l'ID pour les tags
+    db.session.flush()
 
-    # Tags automatiques
     dish_name = request.form.get('dish_name', '').strip()
     category_id = request.form.get('category_id', '').strip()
     category_label = request.form.get('category_label', '').strip()
@@ -239,59 +216,85 @@ def upload_image():
     }), 201
 
 
-# ========================================
-# SUPPRESSION
-# ========================================
+# ============================================================
+# ROUTES PARAMÉTRÉES — après les routes statiques ('' GET/POST)
+# ============================================================
+
+@gallery_bp.route('/<int:image_id>', methods=['GET'])
+@gallery_bp.response(200, GalleryImageSchema)
+@gallery_bp.alt_response(404, schema=ErrorSchema, description="Image not found")
+@editor_required
+def get_image(image_id):
+    """Get image details including tags and recent usages."""
+    image = GalleryImage.query.get(image_id)
+    if not image:
+        return jsonify({'error': 'Image non trouvée'}), 404
+
+    data = image.to_dict(include_tags=True, include_usage_count=True)
+
+    usages = (
+        MenuItemImage.query
+        .filter_by(gallery_image_id=image_id)
+        .order_by(MenuItemImage.created_at.desc())
+        .limit(20)
+        .all()
+    )
+    data['usages'] = [u.to_dict() for u in usages]
+
+    return jsonify({'image': data}), 200
+
 
 @gallery_bp.route('/<int:image_id>', methods=['DELETE'])
+@gallery_bp.response(200, MessageSchema)
+@gallery_bp.alt_response(404, schema=ErrorSchema, description="Image not found")
 @editor_required
 def delete_image(image_id):
-    """Supprime une image de la galerie et de S3.
+    """Delete an image from the gallery (S3 and database).
 
-    Supprime aussi toutes les associations MenuItemImage.
+    Also removes all associated MenuItemImage links.
     """
     image = GalleryImage.query.get(image_id)
     if not image:
         return jsonify({'error': 'Image non trouvée'}), 404
 
-    # Supprimer de S3
     storage.delete_file(image.storage_key)
-
-    # Cascade supprime tags + menu_usages
     db.session.delete(image)
     db.session.commit()
 
     return jsonify({'message': 'Image supprimée'}), 200
 
 
-# ========================================
-# GESTION DES TAGS
-# ========================================
-
 @gallery_bp.route('/<int:image_id>/tags', methods=['PUT'])
+@gallery_bp.response(200, GalleryImageSchema)
+@gallery_bp.alt_response(404, schema=ErrorSchema, description="Image not found")
 @editor_required
 def update_tags(image_id):
-    """Met à jour les tags manuels et dish d'une image.
+    """Replace editable tags (dish + manual) on an image.
 
-    Body JSON :
-        tags: [{ name: str, tag_type: 'dish'|'manual', id?: int }]
+    Tags of type `category` cannot be modified through this endpoint.
 
-    Les tags de type 'category' ne sont pas modifiables ici.
+    JSON body:
+    ```json
+    {
+      "tags": [
+        { "name": "Ratatouille", "tag_type": "dish" },
+        { "name": "spicy", "tag_type": "manual" }
+      ]
+    }
+    ```
     """
     image = GalleryImage.query.get(image_id)
     if not image:
         return jsonify({'error': 'Image non trouvée'}), 404
 
-    data = request.get_json()
+    data = request.get_json() or {}
     new_tags = data.get('tags', [])
 
-    # Supprimer les tags modifiables existants (dish + manual, pas category)
     GalleryImageTag.query.filter(
         GalleryImageTag.gallery_image_id == image_id,
         GalleryImageTag.tag_type.in_(['dish', 'manual']),
     ).delete(synchronize_session='fetch')
 
-    # Recréer
     for tag_data in new_tags:
         tag_type = tag_data.get('tag_type', 'manual')
         if tag_type not in ('dish', 'manual'):
@@ -307,24 +310,24 @@ def update_tags(image_id):
 
     db.session.commit()
 
-    return jsonify({
-        'message': 'Tags mis à jour',
-        'image': image.to_dict(include_tags=True),
-    }), 200
+    return jsonify({'message': 'Tags mis à jour', 'image': image.to_dict(include_tags=True)}), 200
 
 
 @gallery_bp.route('/<int:image_id>/tags', methods=['POST'])
+@gallery_bp.response(201, GalleryImageSchema)
+@gallery_bp.alt_response(400, schema=ErrorSchema, description="Tag name required")
+@gallery_bp.alt_response(404, schema=ErrorSchema, description="Image not found")
 @editor_required
 def add_tag(image_id):
-    """Ajoute un tag manuel à une image.
+    """Add a manual tag to an image.
 
-    Body JSON : { name: str }
+    JSON body: `{ "name": "spicy" }`
     """
     image = GalleryImage.query.get(image_id)
     if not image:
         return jsonify({'error': 'Image non trouvée'}), 404
 
-    data = request.get_json()
+    data = request.get_json() or {}
     name = data.get('name', '').strip()
     if not name:
         return jsonify({'error': 'Nom de tag requis'}), 400
@@ -337,16 +340,16 @@ def add_tag(image_id):
     db.session.add(tag)
     db.session.commit()
 
-    return jsonify({
-        'message': 'Tag ajouté',
-        'tag': tag.to_dict(),
-    }), 201
+    return jsonify({'message': 'Tag ajouté', 'tag': tag.to_dict()}), 201
 
 
 @gallery_bp.route('/<int:image_id>/tags/<int:tag_id>', methods=['DELETE'])
+@gallery_bp.response(200, MessageSchema)
+@gallery_bp.alt_response(400, schema=ErrorSchema, description="Category tags cannot be deleted")
+@gallery_bp.alt_response(404, schema=ErrorSchema, description="Tag not found")
 @editor_required
 def delete_tag(image_id, tag_id):
-    """Supprime un tag (dish ou manual uniquement)."""
+    """Delete a tag (dish or manual only — category tags cannot be removed)."""
     tag = GalleryImageTag.query.filter_by(id=tag_id, gallery_image_id=image_id).first()
     if not tag:
         return jsonify({'error': 'Tag non trouvé'}), 404

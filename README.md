@@ -116,12 +116,12 @@ Mariam/
 │   │   ├── __init__.py        # Factory pattern
 │   │   ├── data/              # taxonomy.py (registre tags & certifications)
 │   │   ├── models/            # User, Restaurant, Menu, Event, Taxonomy, Gallery...
-│   │   ├── routes/            # auth, admin, menus, events, gallery, public, csv_import
+│   │   ├── routes/            # auth, menus, events, gallery, restaurant, users, audit, imports...
 │   │   └── services/
 │   │       └── storage.py     # Service S3 (upload, delete, gestion bucket)
 │   ├── migrations/            # Alembic (schéma BDD)
 │   └── requirements.txt
-└── client/                     # Frontend React
+└── client/                    # Frontend React
     └── src/
         ├── pages/
         │   ├── Login.tsx
@@ -132,83 +132,15 @@ Mariam/
         ├── components/
         │   ├── MenuEditor.tsx    # Éditeur avec images par item
         │   └── GalleryPicker.tsx # Sélecteur galerie partagée
-        └── lib/api.ts         # Client API avec interceptors
+        └── lib/api.ts            # Client API avec interceptors
 ```
 
-## 🌐 API Développeur (v1)
+## 🔌 API
 
-Une API publique est disponible pour les développeurs souhaitant intégrer les données des menus.
+L'API REST de MARIAM expose toutes ses ressources sous le préfixe `/v1`. Elle est destinée aux développeurs souhaitant intégrer les données de menu dans une application tierce (affichage dynamique, appli étudiante, etc.).
 
-**Documentation interactive** : `/api/v1/docs` (Swagger UI)
-
-| Route | Description |
-|-------|-------------|
-| `GET /api/v1/menus` | Menu du jour et de demain |
-| `GET /api/v1/restaurant` | Informations du restaurant |
-
-### Exemple de réponse
-
-```json
-{
-  "success": true,
-  "data": {
-    "today": { "date": "2025-12-26", "day_name": "Jeudi", "items": [...] },
-    "tomorrow": { "date": "2025-12-27", "day_name": "Vendredi", "items": [...] }
-  },
-  "meta": { "generated_at": "2025-12-26T12:00:00Z" }
-}
-```
-
----
-
-## 🔧 API Interne (utilisée par l'interface)
-
-Ces routes sont utilisées par l'application web MARIAM.
-
-### Publiques
-| Route | Description |
-|-------|-------------|
-| `GET /api/public/menu/today` | Menu du jour |
-| `GET /api/public/menu/tomorrow` | Menu de demain |
-| `GET /api/public/events` | Événements à venir |
-| `GET /api/public/taxonomy` | Tags et certifications disponibles |
-
-### Authentification
-| Route | Description |
-|-------|-------------|
-| `POST /api/auth/login` | Connexion |
-| `POST /api/auth/verify-mfa` | Vérification MFA |
-| `POST /api/auth/activate` | Activation de compte |
-
-### Administration (auth requise)
-| Route | Description |
-|-------|-------------|
-| `GET /api/menus/week` | Menus de la semaine |
-| `POST /api/menus` | Créer/modifier un menu |
-| `POST /api/menus/:id/publish` | Publier un menu |
-| `POST /api/menus/:id/images` | Ajouter une photo au menu (max 6) |
-| `DELETE /api/menus/:id/images/:imgId` | Supprimer une photo du menu |
-| `PUT /api/menus/:id/images/reorder` | Réordonner les photos du menu |
-| `POST /api/menus/:id/item-images` | Synchroniser les images par item (galerie) |
-| `DELETE /api/menus/:id/item-images/:linkId` | Dissocier une image d'un item |
-| `PUT /api/menus/:id/chef-note` | Mettre à jour le mot du chef |
-| `GET /api/gallery` | Liste des photos (pagination, recherche, tri) |
-| `GET /api/gallery/:id` | Détail d'une photo (tags, usages) |
-| `POST /api/gallery` | Uploader une photo (auto-tags) |
-| `DELETE /api/gallery/:id` | Supprimer une photo |
-| `PUT /api/gallery/:id/tags` | Remplacer les tags dish/manual |
-| `POST /api/gallery/:id/tags` | Ajouter un tag manuel |
-| `DELETE /api/gallery/:id/tags/:tagId` | Supprimer un tag |
-| `GET /api/events` | Liste des événements |
-| `POST /api/events` | Créer un événement |
-| `PUT /api/events/:id` | Modifier un événement |
-| `DELETE /api/events/:id` | Supprimer un événement |
-| `POST /api/events/:id/publish` | Publier un événement |
-| `POST /api/events/:id/images` | Ajouter une image (max 10) |
-| `DELETE /api/events/:id/images/:imgId` | Supprimer une image |
-| `PUT /api/events/:id/images/reorder` | Réordonner les images |
-| `GET /api/events/storage-status` | État du stockage S3 |
-| `GET /api/admin/users` | Liste des utilisateurs (admin) |
+- **Documentation interactive (Swagger UI)** : `https://<your-ru>.mariam.app/docs`
+- **Référence complète** : [docs/API.md](./docs/API.md)
 
 ## 🖥️ Mode TV
 

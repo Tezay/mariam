@@ -1,32 +1,32 @@
 """
-Routes de notifications push MARIAM — Endpoints publics.
+Push notification routes for MARIAM.
 
-Ces routes permettent aux utilisateurs de :
-- Récupérer la clé VAPID publique
-- S'abonner aux notifications push
-- Mettre à jour leurs préférences
-- Se désabonner
-- Récupérer leurs préférences existantes (identifié par endpoint)
-- Envoyer une notification de test
+No authentication required (Web Push from the browser).
 
-Endpoints :
-- GET  /api/public/notifications/vapid-public-key
-- POST /api/public/notifications/subscribe
-- PUT  /api/public/notifications/preferences
-- GET  /api/public/notifications/preferences?endpoint=...
-- DELETE /api/public/notifications/unsubscribe
-- POST /api/public/notifications/test
+Endpoints:
+- GET    /v1/notifications/vapid-public-key  VAPID public key
+- POST   /v1/notifications/subscribe         Subscribe or update subscription
+- GET    /v1/notifications/preferences       Get notification preferences
+- PUT    /v1/notifications/preferences       Update notification preferences
+- DELETE /v1/notifications/unsubscribe       Unsubscribe
+- POST   /v1/notifications/test              Send a test notification
 """
 from datetime import time
-from flask import Blueprint, request, jsonify
+from flask import request, jsonify
+from flask_smorest import Blueprint
 from ..extensions import db
 from ..models.push_subscription import PushSubscription
 from ..models.restaurant import Restaurant
 from ..services.notification_service import get_vapid_public_key, send_push_notification
 from ..security import limiter
+from ..schemas.notifications import SubscribeSchema, PreferencesUpdateSchema
+from ..schemas.common import ErrorSchema, MessageSchema
 
 
-notifications_bp = Blueprint('notifications', __name__)
+notifications_bp = Blueprint(
+    'notifications', __name__,
+    description='Push notifications — Web Push subscriptions (VAPID)'
+)
 
 
 # ========================================
@@ -47,14 +47,16 @@ def _get_default_restaurant_id() -> int | None:
     return restaurant.id if restaurant else None
 
 
-# ========================================
-# Routes
-# ========================================
+# ============================================================
+# ENDPOINTS
+# ============================================================
 
 @notifications_bp.route('/vapid-public-key', methods=['GET'])
 @limiter.limit("30 per minute")
+@notifications_bp.response(200, MessageSchema)
+@notifications_bp.alt_response(503, schema=ErrorSchema, description="VAPID non configuré")
 def vapid_public_key():
-    """Retourne la clé publique VAPID pour le client Web Push."""
+    """Return the VAPID public key for initializing Web Push in the browser."""
     key = get_vapid_public_key()
     if not key:
         return jsonify({'error': 'Notifications push non configurées'}), 503
@@ -63,29 +65,30 @@ def vapid_public_key():
 
 @notifications_bp.route('/subscribe', methods=['POST'])
 @limiter.limit("10 per minute")
-def subscribe():
-    """
-    Enregistre ou met à jour une souscription push.
+@notifications_bp.arguments(SubscribeSchema)
+@notifications_bp.response(201, MessageSchema)
+@notifications_bp.alt_response(200, schema=MessageSchema, description="Subscription updated")
+@notifications_bp.alt_response(400, schema=ErrorSchema, description="Incomplete data")
+def subscribe(data):
+    """Register or update a push subscription.
 
-    Body JSON attendu :
+    Expected body:
+    ```json
     {
-        "endpoint": "https://fcm.googleapis.com/...",
-        "keys": { "p256dh": "...", "auth": "..." },
-        "preferences": {
-            "notify_today_menu": true,
-            "notify_today_menu_time": "11:00",
-            "notify_tomorrow_menu": false,
-            "notify_tomorrow_menu_time": "19:00",
-            "notify_events": true
-        },
-        "platform": "android",
-        "restaurant_id": 1
+      "endpoint": "https://fcm.googleapis.com/...",
+      "keys": { "p256dh": "...", "auth": "..." },
+      "preferences": {
+        "notify_today_menu": true,
+        "notify_today_menu_time": "11:00",
+        "notify_tomorrow_menu": false,
+        "notify_tomorrow_menu_time": "19:00",
+        "notify_events": true
+      },
+      "platform": "android",
+      "restaurant_id": 1
     }
+    ```
     """
-    data = request.get_json()
-    if not data:
-        return jsonify({'error': 'Corps de requête manquant'}), 400
-
     endpoint = data.get('endpoint')
     keys = data.get('keys', {})
     p256dh = keys.get('p256dh')
@@ -94,34 +97,24 @@ def subscribe():
     if not endpoint or not p256dh or not auth:
         return jsonify({'error': 'Données de souscription incomplètes (endpoint, keys.p256dh, keys.auth requis)'}), 400
 
-    # Restaurant ID (défaut si non fourni)
     restaurant_id = data.get('restaurant_id') or _get_default_restaurant_id()
     if not restaurant_id:
         return jsonify({'error': 'Aucun restaurant configuré'}), 400
 
-    # Préférences
     prefs = data.get('preferences', {})
     platform = data.get('platform')
 
-    # Upsert : chercher par endpoint, créer ou mettre à jour
     sub = PushSubscription.query.filter_by(endpoint=endpoint).first()
     is_new = sub is None
 
     if is_new:
-        sub = PushSubscription(
-            restaurant_id=restaurant_id,
-            endpoint=endpoint,
-            p256dh=p256dh,
-            auth=auth,
-        )
+        sub = PushSubscription(restaurant_id=restaurant_id, endpoint=endpoint, p256dh=p256dh, auth=auth)
         db.session.add(sub)
     else:
-        # Mettre à jour les clés (elles peuvent changer lors d'un re-subscribe)
         sub.p256dh = p256dh
         sub.auth = auth
         sub.restaurant_id = restaurant_id
 
-    # Appliquer les préférences
     sub.notify_today_menu = prefs.get('notify_today_menu', True)
     sub.notify_today_menu_time = _parse_time(prefs.get('notify_today_menu_time', '11:00'))
     sub.notify_tomorrow_menu = prefs.get('notify_tomorrow_menu', False)
@@ -135,32 +128,39 @@ def subscribe():
 
     return jsonify({
         'message': 'Souscription enregistrée' if is_new else 'Souscription mise à jour',
-        'subscription': sub.to_dict()
+        'subscription': sub.to_dict(),
     }), 201 if is_new else 200
+
+
+@notifications_bp.route('/preferences', methods=['GET'])
+@limiter.limit("30 per minute")
+@notifications_bp.response(200, MessageSchema)
+@notifications_bp.alt_response(400, schema=ErrorSchema, description="Missing endpoint parameter")
+@notifications_bp.alt_response(404, schema=ErrorSchema, description="Subscription not found")
+def get_preferences():
+    """Get the notification preferences for a subscription by endpoint.
+
+    Query param: `endpoint` (full push subscription URL)
+    """
+    endpoint = request.args.get('endpoint')
+    if not endpoint:
+        return jsonify({'error': 'Paramètre endpoint manquant'}), 400
+
+    sub = PushSubscription.query.filter_by(endpoint=endpoint).first()
+    if not sub:
+        return jsonify({'error': 'Souscription introuvable'}), 404
+
+    return jsonify({'subscription': sub.to_dict()}), 200
 
 
 @notifications_bp.route('/preferences', methods=['PUT'])
 @limiter.limit("20 per minute")
-def update_preferences():
-    """
-    Met à jour les préférences de notification d'une souscription existante.
-
-    Body JSON attendu :
-    {
-        "endpoint": "https://fcm.googleapis.com/...",
-        "preferences": {
-            "notify_today_menu": true,
-            "notify_today_menu_time": "11:30",
-            "notify_tomorrow_menu": true,
-            "notify_tomorrow_menu_time": "18:00",
-            "notify_events": false
-        }
-    }
-    """
-    data = request.get_json()
-    if not data:
-        return jsonify({'error': 'Corps de requête manquant'}), 400
-
+@notifications_bp.arguments(PreferencesUpdateSchema)
+@notifications_bp.response(200, MessageSchema)
+@notifications_bp.alt_response(400, schema=ErrorSchema, description="Missing endpoint")
+@notifications_bp.alt_response(404, schema=ErrorSchema, description="Subscription not found")
+def update_preferences(data):
+    """Update the notification preferences for an existing subscription."""
     endpoint = data.get('endpoint')
     if not endpoint:
         return jsonify({'error': 'Endpoint manquant'}), 400
@@ -184,31 +184,19 @@ def update_preferences():
 
     db.session.commit()
 
-    return jsonify({
-        'message': 'Préférences mises à jour',
-        'subscription': sub.to_dict()
-    }), 200
-
-
-@notifications_bp.route('/preferences', methods=['GET'])
-@limiter.limit("30 per minute")
-def get_preferences():
-    """Récupère les préférences d'une souscription existante via son endpoint."""
-    endpoint = request.args.get('endpoint')
-    if not endpoint:
-        return jsonify({'error': 'Paramètre endpoint manquant'}), 400
-
-    sub = PushSubscription.query.filter_by(endpoint=endpoint).first()
-    if not sub:
-        return jsonify({'error': 'Souscription introuvable'}), 404
-
-    return jsonify({'subscription': sub.to_dict()}), 200
+    return jsonify({'message': 'Préférences mises à jour', 'subscription': sub.to_dict()}), 200
 
 
 @notifications_bp.route('/unsubscribe', methods=['DELETE'])
 @limiter.limit("10 per minute")
+@notifications_bp.response(200, MessageSchema)
+@notifications_bp.alt_response(400, schema=ErrorSchema, description="Missing endpoint")
+@notifications_bp.alt_response(404, schema=ErrorSchema, description="Subscription not found")
 def unsubscribe():
-    """Supprime une souscription push."""
+    """Remove a push subscription.
+
+    JSON body: `{ "endpoint": "https://..." }`
+    """
     data = request.get_json()
     if not data:
         return jsonify({'error': 'Corps de requête manquant'}), 400
@@ -229,15 +217,19 @@ def unsubscribe():
 
 @notifications_bp.route('/test', methods=['POST'])
 @limiter.limit("5 per minute")
+@notifications_bp.response(200, MessageSchema)
+@notifications_bp.alt_response(400, schema=ErrorSchema, description="Incomplete data")
+@notifications_bp.alt_response(500, schema=ErrorSchema, description="VAPID send failure")
 def send_test():
-    """
-    Envoie une notification de test à l'abonné.
+    """Send a test push notification to the subscriber.
 
-    Body JSON attendu :
+    JSON body:
+    ```json
     {
-        "endpoint": "https://fcm.googleapis.com/...",
-        "keys": { "p256dh": "...", "auth": "..." }
+      "endpoint": "https://fcm.googleapis.com/...",
+      "keys": { "p256dh": "...", "auth": "..." }
     }
+    ```
     """
     data = request.get_json()
     if not data:
@@ -249,11 +241,7 @@ def send_test():
     if not endpoint or not keys.get('p256dh') or not keys.get('auth'):
         return jsonify({'error': 'Données de souscription incomplètes'}), 400
 
-    subscription_info = {
-        'endpoint': endpoint,
-        'keys': keys,
-    }
-
+    subscription_info = {'endpoint': endpoint, 'keys': keys}
     payload = {
         'title': 'Mariam — Test',
         'body': '✅ Les notifications fonctionnent !',
@@ -268,4 +256,4 @@ def send_test():
     if success:
         return jsonify({'message': 'Notification de test envoyée'}), 200
     else:
-        return jsonify({'error': 'Échec de l\'envoi. Vérifiez la configuration VAPID.'}), 500
+        return jsonify({'error': "Échec de l'envoi. Vérifiez la configuration VAPID."}), 500

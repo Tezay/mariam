@@ -92,7 +92,7 @@ services:
     container_name: mariam_frontend
     restart: unless-stopped
     environment:
-      VITE_API_URL: /api
+      VITE_API_URL: /v1
       API_PROXY_TARGET: http://backend:5000
     volumes:
       - ./client:/app

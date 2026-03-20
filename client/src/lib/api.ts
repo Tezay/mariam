@@ -31,7 +31,7 @@ const getApiUrl = (): string => {
         return import.meta.env.VITE_API_URL;
     }
     // Default for local development
-    return 'http://localhost:5000/api';
+    return 'http://localhost:5000/v1';
 };
 
 const API_URL = getApiUrl();
@@ -89,7 +89,7 @@ api.interceptors.response.use(
         // Ignorer les endpoints d'authentification
         const isAuthEndpoint = originalRequest.url?.includes('/auth/login') ||
             originalRequest.url?.includes('/auth/activate') ||
-            originalRequest.url?.includes('/auth/verify-mfa');
+            originalRequest.url?.includes('/auth/mfa/verify');
 
         if (isAuthEndpoint) {
             return Promise.reject(error);
@@ -123,7 +123,7 @@ api.interceptors.response.use(
             }
 
             try {
-                const response = await axios.post(`${API_URL}/auth/refresh`, {}, {
+                const response = await axios.post(`${API_URL}/auth/refresh`, null, {
                     headers: {
                         Authorization: `Bearer ${refreshToken}`,
                     },
@@ -180,7 +180,7 @@ export const authApi = {
      * Étape 2 de la connexion - Vérification MFA
      */
     verifyMfa: async (mfaToken: string, code: string) => {
-        const response = await api.post('/auth/verify-mfa', { mfa_token: mfaToken, code });
+        const response = await api.post('/auth/mfa/verify', { mfa_token: mfaToken, code });
         const { access_token, refresh_token, user } = response.data;
         localStorage.setItem('access_token', access_token);
         localStorage.setItem('refresh_token', refresh_token);
@@ -191,7 +191,7 @@ export const authApi = {
      * Vérifie un lien d'activation
      */
     checkActivationLink: async (token: string) => {
-        const response = await api.get(`/auth/check-activation/${token}`);
+        const response = await api.get(`/auth/activation/${token}`);
         return response.data;
     },
 
@@ -244,7 +244,7 @@ export const authApi = {
      * Vérifie un lien de réinitialisation de mot de passe
      */
     checkResetLink: async (token: string) => {
-        const response = await api.get(`/auth/check-reset/${token}`);
+        const response = await api.get(`/auth/reset/${token}`);
         return response.data;
     },
 
@@ -448,7 +448,7 @@ export const csvImportApi = {
     upload: async (file: File): Promise<CsvUploadResponse> => {
         const formData = new FormData();
         formData.append('file', file);
-        const response = await api.post('/menus/import/upload', formData, {
+        const response = await api.post('/imports/menus/upload', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
             timeout: 30000 // 30 secondes pour les gros fichiers
         });
@@ -461,7 +461,7 @@ export const csvImportApi = {
         dateConfig: DateConfig,
         restaurantId?: number
     ): Promise<ImportPreviewResponse> => {
-        const response = await api.post('/menus/import/preview', {
+        const response = await api.post('/imports/menus/preview', {
             file_id: fileId,
             column_mapping: columnMapping,
             date_config: dateConfig,
@@ -471,7 +471,7 @@ export const csvImportApi = {
     },
 
     confirm: async (request: ImportConfirmRequest): Promise<ImportConfirmResponse> => {
-        const response = await api.post('/menus/import/confirm', request);
+        const response = await api.post('/imports/menus/confirm', request);
         return response.data;
     }
 };
@@ -701,32 +701,32 @@ export interface User {
 export const adminApi = {
     // Utilisateurs
     listUsers: async () => {
-        const response = await api.get('/admin/users');
+        const response = await api.get('/users');
         return response.data.users;
     },
 
     updateUser: async (id: number, data: Partial<User>) => {
-        const response = await api.put(`/admin/users/${id}`, data);
+        const response = await api.put(`/users/${id}`, data);
         return response.data.user;
     },
 
     deleteUser: async (id: number) => {
-        await api.delete(`/admin/users/${id}`);
+        await api.delete(`/users/${id}`);
     },
 
     resetUserMfa: async (id: number) => {
-        const response = await api.post(`/admin/users/${id}/reset-mfa`);
+        const response = await api.post(`/users/${id}/reset-mfa`);
         return response.data;
     },
 
     // Invitations
     createInvitation: async (email: string, role: 'admin' | 'editor' | 'reader') => {
-        const response = await api.post('/admin/invite', { email, role });
+        const response = await api.post('/users/invite', { email, role });
         return response.data.invitation;
     },
 
     listInvitations: async () => {
-        const response = await api.get('/admin/invitations');
+        const response = await api.get('/users/invitations');
         return response.data.invitations;
     },
 
@@ -739,7 +739,7 @@ export const adminApi = {
         start_date?: string;
         end_date?: string;
     }) => {
-        const response = await api.get('/admin/audit-logs', { params });
+        const response = await api.get('/audit-logs', { params });
         return response.data;
     },
 
@@ -749,7 +749,7 @@ export const adminApi = {
         start_date?: string;
         end_date?: string;
     }) => {
-        const response = await api.get('/admin/audit-logs/export', {
+        const response = await api.get('/audit-logs/export', {
             params,
             responseType: 'blob'
         });
@@ -768,28 +768,28 @@ export const adminApi = {
 
     // Restaurants
     listRestaurants: async () => {
-        const response = await api.get('/admin/restaurants');
+        const response = await api.get('/restaurants');
         return response.data.restaurants;
     },
 
     createRestaurant: async (data: { name: string; code: string; address?: string }) => {
-        const response = await api.post('/admin/restaurants', data);
+        const response = await api.post('/restaurants', data);
         return response.data.restaurant;
     },
 
     updateRestaurant: async (id: number, data: Partial<{ name: string; address: string; is_active: boolean }>) => {
-        const response = await api.put(`/admin/restaurants/${id}`, data);
+        const response = await api.put(`/restaurants/${id}`, data);
         return response.data.restaurant;
     },
 
     // Settings
     getSettings: async () => {
-        const response = await api.get('/admin/settings');
+        const response = await api.get('/settings');
         return response.data.restaurant;
     },
 
     updateSettings: async (data: RestaurantSettings) => {
-        const response = await api.put('/admin/settings', data);
+        const response = await api.put('/settings', data);
         return response.data.restaurant;
     },
 };
@@ -880,21 +880,21 @@ export const publicApi = {
     getTodayMenu: async (restaurantId?: number) => {
         const params: Record<string, number> = {};
         if (restaurantId) params.restaurant_id = restaurantId;
-        const response = await api.get('/public/menu/today', { params, timeout: PUBLIC_API_TIMEOUT_MS });
+        const response = await api.get('/menus/today', { params, timeout: PUBLIC_API_TIMEOUT_MS });
         return response.data;
     },
 
     getTomorrowMenu: async (restaurantId?: number) => {
         const params: Record<string, number> = {};
         if (restaurantId) params.restaurant_id = restaurantId;
-        const response = await api.get('/public/menu/tomorrow', { params, timeout: PUBLIC_API_TIMEOUT_MS });
+        const response = await api.get('/menus/tomorrow', { params, timeout: PUBLIC_API_TIMEOUT_MS });
         return response.data;
     },
 
     getWeekMenu: async (weekOffset = 0, restaurantId?: number) => {
         const params: Record<string, number> = { week_offset: weekOffset };
         if (restaurantId) params.restaurant_id = restaurantId;
-        const response = await api.get('/public/menu/week', { params, timeout: PUBLIC_API_TIMEOUT_MS });
+        const response = await api.get('/menus/week', { params, timeout: PUBLIC_API_TIMEOUT_MS });
         return response.data;
     },
 
@@ -902,7 +902,7 @@ export const publicApi = {
         const params: Record<string, string | number> = {};
         if (visibility) params.visibility = visibility;
         if (restaurantId) params.restaurant_id = restaurantId;
-        const response = await api.get('/public/events', { params, timeout: PUBLIC_API_TIMEOUT_MS });
+        const response = await api.get('/events', { params, timeout: PUBLIC_API_TIMEOUT_MS });
         return response.data as {
             today_event: Event | null;
             upcoming_events: Event[];
@@ -913,12 +913,12 @@ export const publicApi = {
     getRestaurant: async (restaurantId?: number) => {
         const params: Record<string, number> = {};
         if (restaurantId) params.restaurant_id = restaurantId;
-        const response = await api.get('/public/restaurant', { params, timeout: PUBLIC_API_TIMEOUT_MS });
+        const response = await api.get('/restaurant', { params, timeout: PUBLIC_API_TIMEOUT_MS });
         return response.data.restaurant;
     },
 
     getTaxonomy: async (): Promise<TaxonomyData> => {
-        const response = await api.get('/public/taxonomy', { timeout: PUBLIC_API_TIMEOUT_MS });
+        const response = await api.get('/taxonomy', { timeout: PUBLIC_API_TIMEOUT_MS });
         return response.data as TaxonomyData;
     },
 };
