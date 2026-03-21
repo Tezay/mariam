@@ -10,12 +10,20 @@ import App from './App.tsx'
 import { AuthProvider } from './contexts/AuthContext.tsx'
 import { ThemeProvider } from './contexts/ThemeProvider.tsx'
 
-// Enregistrement du Service Worker (PWA + notifications push)
+// Rechargement automatique lors d'une mise à jour du SW
 registerSW({
+    onNeedRefresh() {
+        window.location.reload()
+    },
     onRegisterError(error) {
         console.error('[MARIAM] Échec enregistrement SW :', error)
     },
 })
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'SW_UPDATED') window.location.reload()
+    })
+}
 
 createRoot(document.getElementById('root')!).render(
     <StrictMode>

@@ -8,12 +8,23 @@
  */
 import { precacheAndRoute } from 'workbox-precaching';
 
-// ========================================
-// Activation immédiate
-// ========================================
-// Permet au SW de prendre le contrôle dès l'installation sans rester bloqué en état "waiting"
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+// Active immédiatement et diffuse SW_UPDATED aux pages ouvertes lors d'une mise à jour,
+// afin de forcer le rechargement du nouveau bundle JS même sur des clients sans handler dédié.
+let isUpdate = false;
+self.addEventListener('install', () => {
+    if (self.registration.active) isUpdate = true;
+    self.skipWaiting();
+});
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        self.clients.claim().then(() => {
+            if (!isUpdate) return;
+            return self.clients
+                .matchAll({ type: 'window' })
+                .then((clients) => clients.forEach((c) => c.postMessage({ type: 'SW_UPDATED' })));
+        })
+    );
+});
 
 // ========================================
 // Précache des assets statiques (injecté par Workbox au build)
