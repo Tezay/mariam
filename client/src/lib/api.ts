@@ -86,10 +86,13 @@ api.interceptors.response.use(
     async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-        // Ignorer les endpoints d'authentification
+        // Ignorer les endpoints d'authentification (pas de refresh automatique)
         const isAuthEndpoint = originalRequest.url?.includes('/auth/login') ||
             originalRequest.url?.includes('/auth/activate') ||
-            originalRequest.url?.includes('/auth/mfa/verify');
+            originalRequest.url?.includes('/auth/mfa/verify') ||
+            originalRequest.url?.includes('/auth/passkey/login') ||
+            originalRequest.url?.includes('/auth/passkey/setup') ||
+            originalRequest.url?.includes('/auth/passkey/reset-password');
 
         if (isAuthEndpoint) {
             return Promise.reject(error);
@@ -191,7 +194,7 @@ export const authApi = {
      * Vérifie un lien d'activation
      */
     checkActivationLink: async (token: string) => {
-        const response = await api.get(`/auth/activation/${token}`);
+        const response = await api.get(`/auth/check-activation/${token}`);
         return response.data;
     },
 
@@ -244,7 +247,7 @@ export const authApi = {
      * Vérifie un lien de réinitialisation de mot de passe
      */
     checkResetLink: async (token: string) => {
-        const response = await api.get(`/auth/reset/${token}`);
+        const response = await api.get(`/auth/check-reset/${token}`);
         return response.data;
     },
 
@@ -258,6 +261,157 @@ export const authApi = {
             mfa_code: mfaCode
         });
         return response.data;
+    },
+
+    // ---- Passkeys (WebAuthn) ----
+
+    /** Démarre l'enregistrement d'une passkey (utilisateur connecté) */
+    passkeyRegisterBegin: async () => {
+        const response = await api.post('/auth/passkey/register/begin');
+        return response.data as { options: Record<string, unknown>; challenge_token: string };
+    },
+
+    /** Finalise l'enregistrement d'une passkey */
+    passkeyRegisterComplete: async (
+        challengeToken: string,
+        credential: unknown,
+        deviceName?: string
+    ) => {
+        const response = await api.post('/auth/passkey/register/complete', {
+            challenge_token: challengeToken,
+            credential,
+            device_name: deviceName,
+        });
+        return response.data;
+    },
+
+
+    /** Liste les passkeys de l'utilisateur connecté */
+    listPasskeys: async (): Promise<PasskeyInfo[]> => {
+        const response = await api.get('/auth/passkey');
+        return response.data.passkeys as PasskeyInfo[];
+    },
+
+    /** Supprime une passkey */
+    deletePasskey: async (id: number) => {
+        await api.delete(`/auth/passkey/${id}`);
+    },
+
+    // ---- TOTP (compte settings) ----
+
+    /** Génère un nouveau secret TOTP et retourne le QR code (ne l'active pas encore) */
+    mfaSetupBegin: async (): Promise<{ qr_code: string; secret: string }> => {
+        const response = await api.post('/auth/mfa/setup');
+        return response.data;
+    },
+
+    /** Vérifie le code TOTP et active l'authentification par code */
+    mfaSetupConfirm: async (code: string): Promise<User> => {
+        const response = await api.post('/auth/mfa/setup/confirm', { code });
+        return response.data.user as User;
+    },
+
+    /** Désactive l'authentification TOTP (nécessite au moins une passkey) */
+    disableMfa: async (): Promise<User> => {
+        const response = await api.delete('/auth/mfa');
+        return response.data.user as User;
+    },
+
+    // ---- Changement de mot de passe via passkey ----
+
+    /** Valide le mot de passe actuel et génère un challenge passkey */
+    passkeyChangePasswordBegin: async (currentPassword: string) => {
+        const response = await api.post('/auth/passkey/change-password/begin', {
+            current_password: currentPassword,
+        });
+        return response.data as { options: Record<string, unknown>; challenge_token: string };
+    },
+
+    /** Vérifie la passkey et applique le nouveau mot de passe */
+    passkeyChangePasswordComplete: async (
+        newPassword: string,
+        challengeToken: string,
+        credential: unknown
+    ) => {
+        const response = await api.post('/auth/passkey/change-password/complete', {
+            new_password: newPassword,
+            challenge_token: challengeToken,
+            credential,
+        });
+        return response.data;
+    },
+
+    /** Démarre une connexion standalone par passkey (découvrable, sans email/password) */
+    passkeyLoginBegin: async () => {
+        const response = await api.post('/auth/passkey/login/begin');
+        return response.data as { options: Record<string, unknown>; challenge_token: string };
+    },
+
+    /** Finalise une connexion standalone par passkey */
+    passkeyLoginComplete: async (challengeToken: string, credential: unknown) => {
+        const response = await api.post('/auth/passkey/login/complete', {
+            challenge_token: challengeToken,
+            credential,
+        });
+        const { access_token, refresh_token, user } = response.data;
+        localStorage.setItem('access_token', access_token);
+        localStorage.setItem('refresh_token', refresh_token);
+        return user;
+    },
+
+    /** Renomme une passkey enregistrée */
+    renamePasskey: async (id: number, deviceName: string) => {
+        const response = await api.patch(`/auth/passkey/${id}`, { device_name: deviceName });
+        return response.data as { message: string; device_name: string };
+    },
+
+    /** Valide le lien de réinitialisation et génère un challenge passkey */
+    passkeyResetPasswordBegin: async (resetToken: string) => {
+        const response = await api.post('/auth/passkey/reset-password/begin', {
+            reset_token: resetToken,
+        });
+        return response.data as { options: Record<string, unknown>; challenge_token: string };
+    },
+
+    /** Vérifie la passkey et applique le nouveau mot de passe (reset via lien) */
+    passkeyResetPasswordComplete: async (
+        newPassword: string,
+        challengeToken: string,
+        credential: unknown,
+        resetToken: string
+    ) => {
+        const response = await api.post('/auth/passkey/reset-password/complete', {
+            new_password: newPassword,
+            challenge_token: challengeToken,
+            credential,
+            reset_token: resetToken,
+        });
+        return response.data;
+    },
+
+    /** Démarre l'enregistrement d'une passkey lors de l'activation du compte */
+    passkeySetupBegin: async (userId: number) => {
+        const response = await api.post('/auth/passkey/setup/begin', { user_id: userId });
+        return response.data as { options: Record<string, unknown>; challenge_token: string };
+    },
+
+    /** Finalise l'enregistrement d'une passkey lors de l'activation du compte */
+    passkeySetupComplete: async (
+        userId: number,
+        challengeToken: string,
+        credential: unknown,
+        deviceName?: string
+    ) => {
+        const response = await api.post('/auth/passkey/setup/complete', {
+            user_id: userId,
+            challenge_token: challengeToken,
+            credential,
+            device_name: deviceName,
+        });
+        const { access_token, refresh_token, user } = response.data;
+        localStorage.setItem('access_token', access_token);
+        localStorage.setItem('refresh_token', refresh_token);
+        return user;
     },
 };
 
@@ -696,6 +850,15 @@ export interface User {
     restaurant_id?: number;
     created_at: string;
     last_login?: string;
+    passkeys_count?: number;
+}
+
+export interface PasskeyInfo {
+    id: number;
+    device_name: string;
+    transports: string[];
+    created_at: string | null;
+    last_used_at: string | null;
 }
 
 export const adminApi = {

@@ -51,6 +51,11 @@ class AuditLog(db.Model):
     ACTION_PASSWORD_CHANGE = 'password_change'
     ACTION_PASSWORD_RESET_REQUEST = 'password_reset_request'
     ACTION_PASSWORD_RESET = 'password_reset'
+    ACTION_MFA_DISABLED = 'mfa_disabled'
+    ACTION_PASSKEY_REGISTERED = 'passkey_registered'
+    ACTION_PASSKEY_SETUP = 'passkey_setup'
+    ACTION_PASSKEY_RENAMED = 'passkey_renamed'
+    ACTION_PASSKEY_DELETED = 'passkey_deleted'
     
     @classmethod
     def log(cls, action, user_id=None, target_type=None, target_id=None, 

@@ -40,6 +40,9 @@ class User(db.Model):
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)
+
+    # Passkeys WebAuthn
+    passkeys = db.relationship('Passkey', back_populates='user', lazy='dynamic', cascade='all, delete-orphan')
     
     # Rôles valides
     ROLE_ADMIN = 'admin'
@@ -126,7 +129,8 @@ class User(db.Model):
             'is_active': self.is_active,
             'restaurant_id': self.restaurant_id,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None
+            'last_login': self.last_login.isoformat() if self.last_login else None,
+            'passkeys_count': self.passkeys.count(),
         }
         
         if include_sensitive:

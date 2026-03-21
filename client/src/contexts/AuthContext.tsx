@@ -12,6 +12,9 @@ interface AuthContextType {
     isAuthenticated: boolean;
     login: (email: string, password: string) => Promise<{ mfaRequired: boolean; mfaToken?: string }>;
     verifyMfa: (mfaToken: string, code: string) => Promise<void>;
+    loginWithPasskey: (challengeToken: string, credential: unknown) => Promise<void>;
+    activateComplete: (user: User) => void;
+    refreshUser: () => Promise<void>;
     logout: () => void;
 }
 
@@ -62,6 +65,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(loggedUser);
     };
 
+    const loginWithPasskey = async (challengeToken: string, credential: unknown) => {
+        const loggedUser = await authApi.passkeyLoginComplete(challengeToken, credential);
+        setUser(loggedUser);
+    };
+
+    const activateComplete = (user: User) => {
+        setUser(user);
+    };
+
+    const refreshUser = async () => {
+        const currentUser = await authApi.getCurrentUser();
+        setUser(currentUser);
+    };
+
     const logout = () => {
         authApi.logout();
         setUser(null);
@@ -73,6 +90,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!user,
         login,
         verifyMfa,
+        loginWithPasskey,
+        activateComplete,
+        refreshUser,
         logout,
     };
 

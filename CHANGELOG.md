@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-03-21
+
+### Added
+
+- **Passkeys (WebAuthn / FIDO2)**
+    - Full passkey support as an alternative to TOTP — no dependency on an authenticator app.
+    - Account activation via passkey: register a passkey and receive a JWT in one step.
+    - Standalone passkey login: discoverable-credential challenge, no email/password required.
+    - 2FA invariant enforced server-side and client-side: TOTP cannot be disabled while no passkey is registered, and the last passkey cannot be deleted while TOTP is disabled.
+    - New `passkeys` table; new `py_webauthn` backend dependency; new `@simplewebauthn/browser` frontend dependency.
+
 ## [0.7.2] - 2026-03-21
 
 ### Fixed

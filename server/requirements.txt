@@ -32,6 +32,9 @@ python-dotenv==1.0.0
 # TOTP (Time-based One-Time Password) pour MFA
 pyotp==2.9.0
 
+# WebAuthn / Passkeys (FIDO2)
+webauthn>=2.0.0
+
 # Génération de QR codes pour configuration MFA
 qrcode[pil]==7.4.2
 

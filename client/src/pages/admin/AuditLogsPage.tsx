@@ -41,6 +41,7 @@ const ACTION_LABELS: Record<string, string> = {
     'login_failed': 'Échec connexion',
     'logout': 'Déconnexion',
     'mfa_setup': 'Config. A2F',
+    'mfa_disabled': 'Désactivation A2F',
     'user_create': 'Création utilisateur',
     'user_update': 'Modif. utilisateur',
     'user_delete': 'Suppr. utilisateur',
@@ -55,6 +56,13 @@ const ACTION_LABELS: Record<string, string> = {
     'audit_logs_access': 'Accès logs',
     'audit_logs_export': 'Export logs',
     'settings_update': 'Modif. paramètres',
+    'password_change': 'Changement mot de passe',
+    'password_reset_request': 'Demande réinit. mot de passe',
+    'password_reset': 'Réinit. mot de passe',
+    'passkey_registered': 'Enregistrement passkey',
+    'passkey_setup': 'Activation passkey (compte)',
+    'passkey_renamed': 'Renommage passkey',
+    'passkey_deleted': 'Suppr. passkey',
 };
 
 // Couleurs des badges par catégorie d'action

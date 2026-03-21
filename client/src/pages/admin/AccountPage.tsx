@@ -1,7 +1,10 @@
 /**
  * MARIAM - Page Mon Compte
- * 
- * Affiche les informations du compte et permet de changer le mot de passe.
+ *
+ * Affiche les informations du compte et permet de gérer la sécurité :
+ * - TOTP (application d'authentification)
+ * - Passkeys (Touch ID, Face ID, Windows Hello)
+ * - Changement de mot de passe (TOTP ou passkey selon ce qui est disponible)
  */
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,67 +19,118 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
-} from "@/components/ui/dialog";
-import { Mail, Shield, Calendar, Clock, Key, AlertCircle, Check, Info } from 'lucide-react';
+} from '@/components/ui/dialog';
+import { Mail, Shield, Calendar, Clock, Key, AlertCircle, Check, Fingerprint } from 'lucide-react';
+import { PasskeyManager } from '@/components/PasskeyManager';
+import { TotpManager } from '@/components/TotpManager';
+import { startAuthentication, type PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser';
 
 const ROLE_LABELS: Record<string, string> = {
     admin: 'Administrateur',
     editor: 'Éditeur',
-    reader: 'Lecteur'
+    reader: 'Lecteur',
 };
+
+type VerificationMethod = 'totp' | 'passkey';
 
 export function AccountPage() {
     const { user } = useAuth();
 
-    // États pour le changement de mot de passe
+    const hasMfa = user?.mfa_enabled ?? false;
+    const hasPasskeys = (user?.passkeys_count ?? 0) > 0;
+    const passkeySupported = typeof window !== 'undefined' && !!window.PublicKeyCredential;
+
+    // Méthode de vérification disponible : TOTP en priorité si actif
+    const defaultMethod: VerificationMethod = hasMfa ? 'totp' : 'passkey';
+    const canUseBoth = hasMfa && hasPasskeys && passkeySupported;
+
+    // États du formulaire de changement de mot de passe
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [mfaCode, setMfaCode] = useState('');
+    const [verificationMethod, setVerificationMethod] = useState<VerificationMethod>(defaultMethod);
+
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-    const handleChangePassword = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const resetForm = () => {
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setMfaCode('');
+        setVerificationMethod(hasMfa ? 'totp' : 'passkey');
         setMessage(null);
+    };
 
-        // Validation
-        if (newPassword !== confirmPassword) {
-            setMessage({ type: 'error', text: 'Les mots de passe ne correspondent pas' });
-            return;
-        }
+    const validatePasswords = (): string | null => {
+        if (newPassword !== confirmPassword) return 'Les mots de passe ne correspondent pas';
+        if (newPassword.length < 12) return 'Le mot de passe doit contenir au moins 12 caractères';
+        return null;
+    };
 
-        if (newPassword.length < 12) {
-            setMessage({ type: 'error', text: 'Le mot de passe doit contenir au moins 12 caractères' });
-            return;
-        }
-
-        if (mfaCode.length !== 6) {
-            setMessage({ type: 'error', text: 'Le code MFA doit contenir 6 chiffres' });
-            return;
-        }
+    // Changement de mot de passe via TOTP
+    const handleChangeWithTotp = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const validationError = validatePasswords();
+        if (validationError) { setMessage({ type: 'error', text: validationError }); return; }
+        if (mfaCode.length !== 6) { setMessage({ type: 'error', text: 'Le code doit contenir 6 chiffres' }); return; }
 
         setIsSubmitting(true);
-
+        setMessage(null);
         try {
             await authApi.changePassword(currentPassword, newPassword, mfaCode);
             setMessage({ type: 'success', text: 'Mot de passe modifié avec succès' });
-            // Reset form
-            setCurrentPassword('');
-            setNewPassword('');
-            setConfirmPassword('');
-            setMfaCode('');
-            setTimeout(() => {
-                setIsDialogOpen(false);
-                setMessage(null);
-            }, 2000);
-        } catch (error: unknown) {
-            const err = error as { response?: { data?: { error?: string; message?: string } } };
+            resetForm();
+            setTimeout(() => { setIsDialogOpen(false); setMessage(null); }, 2000);
+        } catch (err: unknown) {
+            const error = err as { response?: { data?: { error?: string; message?: string } } };
             setMessage({
                 type: 'error',
-                text: err.response?.data?.message || err.response?.data?.error || 'Erreur lors du changement de mot de passe'
+                text: error.response?.data?.message || error.response?.data?.error || 'Erreur lors du changement',
             });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    // Changement de mot de passe via passkey (2 étapes intégrées dans le dialog)
+    const handleChangeWithPasskey = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const validationError = validatePasswords();
+        if (validationError) { setMessage({ type: 'error', text: validationError }); return; }
+
+        setIsSubmitting(true);
+        setMessage(null);
+        try {
+            // Étape 1 : valider le mot de passe actuel côté serveur + obtenir le challenge
+            const { options, challenge_token } = await authApi.passkeyChangePasswordBegin(currentPassword);
+
+            // Étape 2 : vérification biométrique
+            const credential = await startAuthentication({
+                optionsJSON: options as unknown as PublicKeyCredentialRequestOptionsJSON,
+            });
+
+            // Étape 3 : appliquer le nouveau mot de passe
+            await authApi.passkeyChangePasswordComplete(newPassword, challenge_token, credential);
+
+            setMessage({ type: 'success', text: 'Mot de passe modifié avec succès' });
+            resetForm();
+            setTimeout(() => { setIsDialogOpen(false); setMessage(null); }, 2000);
+        } catch (err: unknown) {
+            const error = err as {
+                name?: string;
+                response?: { data?: { error?: string; message?: string } };
+            };
+            if (error.name === 'NotAllowedError') {
+                setMessage({ type: 'error', text: 'Authentification annulée. Réessayez.' });
+            } else {
+                setMessage({
+                    type: 'error',
+                    text: error.response?.data?.message || error.response?.data?.error || 'Erreur lors du changement',
+                });
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -84,13 +138,12 @@ export function AccountPage() {
 
     const formatDate = (dateStr: string | null) => {
         if (!dateStr) return 'Non disponible';
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('fr-FR', {
+        return new Date(dateStr).toLocaleDateString('fr-FR', {
             day: 'numeric',
             month: 'long',
             year: 'numeric',
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
         });
     };
 
@@ -98,7 +151,7 @@ export function AccountPage() {
         <div className="container-mariam py-8">
             <div className="max-w-3xl mx-auto space-y-8">
 
-                {/* En-tête personnalisé */}
+                {/* En-tête */}
                 <div>
                     <h1 className="text-3xl font-bold text-foreground">
                         {user?.username || user?.email || 'Mon Compte'}
@@ -108,7 +161,7 @@ export function AccountPage() {
                     </p>
                 </div>
 
-                {/* Informations du compte - grille simple */}
+                {/* Informations du compte */}
                 <section className="space-y-4">
                     <h2 className="text-lg font-semibold text-foreground border-b border-border pb-2">
                         Informations du compte
@@ -135,7 +188,7 @@ export function AccountPage() {
                         <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
                             <Calendar className="w-5 h-5 text-primary mt-0.5" />
                             <div>
-                                <p className="text-sm text-muted-foreground">Membre depuis</p>
+                                <p className="text-sm text-muted-foreground">Activation du compte</p>
                                 <p className="font-medium text-foreground">
                                     {formatDate(user?.created_at || null)}
                                 </p>
@@ -154,26 +207,27 @@ export function AccountPage() {
                     </div>
                 </section>
 
-                {/* Section Sécurité */}
+                {/* Sécurité */}
                 <section className="space-y-4">
                     <h2 className="text-lg font-semibold text-foreground border-b border-border pb-2">
                         Sécurité
                     </h2>
 
-                    {/* MFA Status */}
-                    <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-card">
-                        <div>
-                            <p className="font-medium text-foreground">Authentification multifacteur (MFA)</p>
-                            <p className="text-sm text-muted-foreground mt-1">
-                                Protège votre compte avec un code temporaire lors de la connexion.
-                            </p>
+                    {/* TOTP */}
+                    <TotpManager />
+
+                    {/* Passkeys */}
+                    <div className="p-4 rounded-lg border border-border bg-card space-y-3">
+                        <div className="flex items-center gap-2">
+                            <Fingerprint className="w-5 h-5 text-primary shrink-0" />
+                            <div>
+                                <p className="font-medium text-foreground">Passkeys (Touch ID, Face ID…)</p>
+                                <p className="text-sm text-muted-foreground mt-0.5">
+                                    Connectez-vous sans code, avec votre empreinte digitale ou visage.
+                                </p>
+                            </div>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium shrink-0 ${user?.mfa_enabled
-                                ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                                : 'bg-destructive/10 text-destructive'
-                            }`}>
-                            {user?.mfa_enabled ? 'Activé' : 'Désactivé'}
-                        </span>
+                        <PasskeyManager />
                     </div>
 
                     {/* Mot de passe */}
@@ -185,7 +239,13 @@ export function AccountPage() {
                             </p>
                         </div>
 
-                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                        <Dialog
+                            open={isDialogOpen}
+                            onOpenChange={(open) => {
+                                setIsDialogOpen(open);
+                                if (!open) resetForm();
+                            }}
+                        >
                             <DialogTrigger asChild>
                                 <Button variant="outline" className="gap-2 shrink-0">
                                     <Key className="w-4 h-4" />
@@ -196,32 +256,30 @@ export function AccountPage() {
                                 <DialogHeader>
                                     <DialogTitle>Modifier le mot de passe</DialogTitle>
                                     <DialogDescription>
-                                        Entrez votre mot de passe actuel, le nouveau, et un code MFA.
+                                        {canUseBoth
+                                            ? 'Entrez vos mots de passe, puis choisissez comment vérifier votre identité.'
+                                            : hasMfa
+                                                ? 'Entrez votre mot de passe actuel, le nouveau, et le code de votre application.'
+                                                : 'Entrez votre mot de passe actuel et le nouveau, puis confirmez avec votre appareil.'}
                                     </DialogDescription>
                                 </DialogHeader>
 
-                                <div className="bg-primary/5 border border-primary/20 p-3 rounded-md flex items-start gap-3 text-sm">
-                                    <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                                    <p className="text-muted-foreground">
-                                        <span className="font-medium text-foreground">MFA requis : </span>
-                                        Entrez le code à 6 chiffres de votre application d'authentification.
-                                    </p>
-                                </div>
+                                {message && (
+                                    <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${
+                                        message.type === 'success'
+                                            ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                                            : 'bg-destructive/10 text-destructive'
+                                    }`}>
+                                        {message.type === 'success'
+                                            ? <Check className="w-4 h-4 shrink-0" />
+                                            : <AlertCircle className="w-4 h-4 shrink-0" />
+                                        }
+                                        {message.text}
+                                    </div>
+                                )}
 
-                                <form onSubmit={handleChangePassword} className="space-y-4 mt-2">
-                                    {message && (
-                                        <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${message.type === 'success'
-                                                ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                                                : 'bg-destructive/10 text-destructive'
-                                            }`}>
-                                            {message.type === 'success'
-                                                ? <Check className="w-4 h-4" />
-                                                : <AlertCircle className="w-4 h-4" />
-                                            }
-                                            {message.text}
-                                        </div>
-                                    )}
-
+                                {/* Champs communs aux deux méthodes */}
+                                <div className="space-y-3">
                                     <div className="space-y-2">
                                         <Label htmlFor="currentPassword">Mot de passe actuel</Label>
                                         <Input
@@ -232,7 +290,6 @@ export function AccountPage() {
                                             required
                                         />
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="newPassword">Nouveau mot de passe</Label>
                                         <Input
@@ -247,7 +304,6 @@ export function AccountPage() {
                                             Min. 12 caractères, majuscule, minuscule, chiffre, symbole.
                                         </p>
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="confirmPassword">Confirmer</Label>
                                         <Input
@@ -258,29 +314,85 @@ export function AccountPage() {
                                             required
                                         />
                                     </div>
+                                </div>
 
-                                    <div className="space-y-2">
-                                        <Label htmlFor="mfaCode">Code MFA</Label>
-                                        <Input
-                                            id="mfaCode"
-                                            value={mfaCode}
-                                            onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
-                                            placeholder="000000"
-                                            maxLength={6}
-                                            className="font-mono tracking-widest text-center text-lg"
-                                            required
-                                        />
+                                {/* Sélecteur de méthode de vérification (si les deux sont disponibles) */}
+                                {canUseBoth && (
+                                    <div className="flex rounded-lg border border-border overflow-hidden text-sm">
+                                        <button
+                                            type="button"
+                                            onClick={() => setVerificationMethod('totp')}
+                                            className={`flex-1 px-3 py-2 transition-colors ${
+                                                verificationMethod === 'totp'
+                                                    ? 'bg-primary text-primary-foreground font-medium'
+                                                    : 'bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                                            }`}
+                                        >
+                                            Code application
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setVerificationMethod('passkey')}
+                                            className={`flex-1 px-3 py-2 transition-colors border-l border-border ${
+                                                verificationMethod === 'passkey'
+                                                    ? 'bg-primary text-primary-foreground font-medium'
+                                                    : 'bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                                            }`}
+                                        >
+                                            Cet appareil
+                                        </button>
                                     </div>
+                                )}
 
-                                    <div className="flex justify-end gap-2 pt-2">
-                                        <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>
-                                            Annuler
-                                        </Button>
-                                        <Button type="submit" disabled={isSubmitting}>
-                                            {isSubmitting ? 'Enregistrement...' : 'Enregistrer'}
-                                        </Button>
-                                    </div>
-                                </form>
+                                {/* Vérification TOTP */}
+                                {(hasMfa && (!canUseBoth || verificationMethod === 'totp')) && (
+                                    <form onSubmit={handleChangeWithTotp} className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="mfaCode">Code à 6 chiffres</Label>
+                                            <Input
+                                                id="mfaCode"
+                                                value={mfaCode}
+                                                onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                                placeholder="000000"
+                                                maxLength={6}
+                                                inputMode="numeric"
+                                                className="font-mono tracking-widest text-center text-lg"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="flex justify-end gap-2">
+                                            <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>
+                                                Annuler
+                                            </Button>
+                                            <Button type="submit" disabled={isSubmitting || mfaCode.length !== 6}>
+                                                {isSubmitting ? 'Enregistrement…' : 'Enregistrer'}
+                                            </Button>
+                                        </div>
+                                    </form>
+                                )}
+
+                                {/* Vérification passkey */}
+                                {(hasPasskeys && passkeySupported && (!hasMfa || verificationMethod === 'passkey')) && (
+                                    <form onSubmit={handleChangeWithPasskey} className="space-y-4">
+                                        <p className="text-sm text-muted-foreground flex items-center gap-2">
+                                            <Fingerprint className="w-4 h-4 text-primary shrink-0" />
+                                            Votre appareil vous demandera de confirmer votre identité.
+                                        </p>
+                                        <div className="flex justify-end gap-2">
+                                            <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>
+                                                Annuler
+                                            </Button>
+                                            <Button
+                                                type="submit"
+                                                disabled={isSubmitting || !currentPassword || !newPassword || !confirmPassword}
+                                                className="gap-2"
+                                            >
+                                                <Fingerprint className="w-4 h-4" />
+                                                {isSubmitting ? 'Vérification…' : 'Confirmer avec cet appareil'}
+                                            </Button>
+                                        </div>
+                                    </form>
+                                )}
                             </DialogContent>
                         </Dialog>
                     </div>

@@ -48,6 +48,11 @@ def create_app(config_class=None):
     
     # Configuration MFA
     app.config['MFA_ISSUER_NAME'] = os.environ.get('MFA_ISSUER_NAME', 'MARIAM')
+
+    # Configuration WebAuthn / Passkeys
+    app.config['WEBAUTHN_RP_ID'] = os.environ.get('WEBAUTHN_RP_ID', 'localhost')
+    app.config['WEBAUTHN_RP_NAME'] = os.environ.get('WEBAUTHN_RP_NAME', 'MARIAM')
+    app.config['WEBAUTHN_ORIGIN'] = os.environ.get('WEBAUTHN_ORIGIN', 'http://localhost:5173')
     
     # ========================================
     # CONFIGURATION S3 (MinIO en dev, Scaleway en prod)
@@ -169,7 +174,7 @@ def create_app(config_class=None):
         return {
             'status': 'healthy',
             'message': 'MARIAM API is running',
-            'version': '0.7.2',
+            'version': '0.8.0',
             'docs': '/docs'
         }
 

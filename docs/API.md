@@ -6,7 +6,9 @@ The MARIAM API follows REST conventions. All endpoints are prefixed with `/v1`. 
 
 ## Authentication
 
-MARIAM uses a two-step login flow with mandatory TOTP MFA for admin accounts. Authenticated requests must include the access token as a Bearer token in the `Authorization` header.
+MARIAM supports two login methods: **passkey** (biometric / FIDO2, passwordless) and **email + password + TOTP**. Every account must have at least one active 2FA method (TOTP or at least one passkey) at all times.
+
+Authenticated requests must include the access token as a Bearer token in the `Authorization` header.
 
 ```
 Authorization: Bearer <access_token>
@@ -17,23 +19,75 @@ Authorization: Bearer <access_token>
 | Access token | 30 minutes |
 | Refresh token | 7 days |
 
-**Login flow:**
+### Login flows
 
-1. `POST /v1/auth/login` — submit email and password
-2. `POST /v1/auth/mfa/verify` — submit TOTP code, receive JWT
+**Flow A — Standalone passkey (no email/password required)**
 
-| Method | Route | Description |
-|--------|-------|-------------|
-| `POST` | `/v1/auth/login` | Step 1: email and password |
-| `POST` | `/v1/auth/mfa/verify` | Step 2: TOTP code (returns JWT) |
-| `POST` | `/v1/auth/mfa/verify-setup` | Confirm MFA setup |
-| `POST` | `/v1/auth/activate` | Activate account via invitation link |
-| `GET` | `/v1/auth/check-activation/<token>` | Validate an activation link |
-| `GET` | `/v1/auth/check-reset/<token>` | Validate a password reset link |
-| `POST` | `/v1/auth/reset-password` | Reset password (requires TOTP) |
-| `POST` | `/v1/auth/change-password` | Change password (requires TOTP) |
-| `POST` | `/v1/auth/refresh` | Refresh access token |
-| `GET` | `/v1/auth/me` | Current user profile |
+1. `POST /v1/auth/passkey/login/begin` — generate a discoverable WebAuthn challenge
+2. `POST /v1/auth/passkey/login/complete` — verify assertion, receive JWT
+
+**Flow B — Email + password + TOTP**
+
+1. `POST /v1/auth/login` — submit email and password; returns `mfa_token` if MFA is required
+2. `POST /v1/auth/mfa/verify` — submit TOTP code with `mfa_token`, receive JWT
+
+### Account activation
+
+Invitation links support two activation paths depending on the user's choice of 2FA method.
+
+**Path A — Passkey**
+
+1. `GET /v1/auth/check-activation/<token>` — validate the link, retrieve user info
+2. `POST /v1/auth/passkey/setup/begin` — generate a WebAuthn registration challenge
+3. `POST /v1/auth/passkey/setup/complete` — store passkey, receive JWT (immediate login)
+
+**Path B — TOTP**
+
+1. `GET /v1/auth/check-activation/<token>` — validate the link
+2. `POST /v1/auth/activate` — set password and verify TOTP code, receive JWT
+
+### Token management
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| `POST` | `/v1/auth/refresh` | refresh token | Issue a new access token |
+| `GET` | `/v1/auth/me` | bearer | Current user profile |
+
+### TOTP (authenticator app)
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| `POST` | `/v1/auth/mfa/setup` | bearer | Generate a new TOTP secret; returns QR code and raw secret |
+| `POST` | `/v1/auth/mfa/setup/confirm` | bearer | Verify code and activate TOTP |
+| `POST` | `/v1/auth/mfa/verify-setup` | bearer | Verify code during initial account activation |
+| `POST` | `/v1/auth/mfa/verify` | mfa token | Verify TOTP code at login (step 2 of Flow B) |
+| `DELETE` | `/v1/auth/mfa` | bearer | Disable TOTP — rejected if no passkey is registered |
+
+### Passkeys (WebAuthn / FIDO2)
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| `GET` | `/v1/auth/passkey` | bearer | List the user's registered passkeys |
+| `POST` | `/v1/auth/passkey/register/begin` | bearer | Start passkey registration (account settings) |
+| `POST` | `/v1/auth/passkey/register/complete` | bearer | Finish passkey registration; device name auto-detected from User-Agent if omitted |
+| `PATCH` | `/v1/auth/passkey/<id>` | bearer | Rename a passkey |
+| `DELETE` | `/v1/auth/passkey/<id>` | bearer | Delete a passkey — rejected if it is the last one and TOTP is disabled |
+| `POST` | `/v1/auth/passkey/login/begin` | none | Start discoverable passkey login (Flow A, step 1) |
+| `POST` | `/v1/auth/passkey/login/complete` | none | Finish passkey login, receive JWT (Flow A, step 2) |
+| `POST` | `/v1/auth/passkey/setup/begin` | none | Start passkey registration during activation (Path A, step 2) |
+| `POST` | `/v1/auth/passkey/setup/complete` | none | Finish passkey registration during activation, receive JWT (Path A, step 3) |
+
+### Password management
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| `POST` | `/v1/auth/change-password` | bearer | Change password — requires current password + TOTP code |
+| `POST` | `/v1/auth/passkey/change-password/begin` | bearer | Change password via passkey (step 1) — validate current password, generate challenge |
+| `POST` | `/v1/auth/passkey/change-password/complete` | bearer | Change password via passkey (step 2) — verify assertion, apply new password |
+| `GET` | `/v1/auth/check-reset/<token>` | none | Validate a password reset link; returns `mfa_enabled` and `has_passkeys` |
+| `POST` | `/v1/auth/reset-password` | none | Reset password via reset link — requires TOTP code |
+| `POST` | `/v1/auth/passkey/reset-password/begin` | none | Reset password via passkey (step 1) — validate reset token, generate challenge |
+| `POST` | `/v1/auth/passkey/reset-password/complete` | none | Reset password via passkey (step 2) — verify assertion, apply password, consume link |
 
 ---
 
