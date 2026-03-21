@@ -756,10 +756,8 @@ def passkey_register_begin():
     from webauthn import generate_registration_options, options_to_json
     from webauthn.helpers.structs import (
         AuthenticatorSelectionCriteria,
-        AuthenticatorAttachment,
         UserVerificationRequirement,
         ResidentKeyRequirement,
-        PublicKeyCredentialDescriptor,
     )
     from webauthn.helpers.cose import COSEAlgorithmIdentifier
 
@@ -770,20 +768,14 @@ def passkey_register_begin():
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
 
-    existing = [
-        PublicKeyCredentialDescriptor(id=p.credential_id)
-        for p in user.passkeys
-    ]
-
     options = generate_registration_options(
         rp_id=rp_id,
         rp_name=rp_name,
         user_id=str(user.id).encode(),
         user_name=user.email,
         user_display_name=user.username or user.email,
-        exclude_credentials=existing,
+        exclude_credentials=[],
         authenticator_selection=AuthenticatorSelectionCriteria(
-            authenticator_attachment=AuthenticatorAttachment.PLATFORM,
             resident_key=ResidentKeyRequirement.PREFERRED,
             user_verification=UserVerificationRequirement.PREFERRED,
         ),
@@ -1117,7 +1109,6 @@ def passkey_setup_begin():
     from webauthn import generate_registration_options, options_to_json
     from webauthn.helpers.structs import (
         AuthenticatorSelectionCriteria,
-        AuthenticatorAttachment,
         UserVerificationRequirement,
         ResidentKeyRequirement,
     )
@@ -1148,7 +1139,6 @@ def passkey_setup_begin():
         user_display_name=user.username or user.email,
         exclude_credentials=[],
         authenticator_selection=AuthenticatorSelectionCriteria(
-            authenticator_attachment=AuthenticatorAttachment.PLATFORM,
             resident_key=ResidentKeyRequirement.REQUIRED,  # obligatoire pour le login discoverable
             user_verification=UserVerificationRequirement.REQUIRED,
         ),
