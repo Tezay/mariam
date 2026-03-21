@@ -10,7 +10,7 @@ CONFIG_FILE="/usr/share/nginx/html/config.js"
 
 # Replace placeholders with environment variables
 # Default to /api if API_URL is not set (for docker-compose with nginx proxy)
-API_URL="${API_URL:-/api}"
+API_URL="${API_URL:-/v1}"
 
 echo "🔧 Injecting runtime configuration..."
 echo "   API_URL: $API_URL"
