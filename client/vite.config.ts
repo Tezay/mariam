@@ -44,7 +44,9 @@ export default defineConfig({
                 // Fichiers à mettre en cache (minimal, pas de mode offline complet)
                 globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
                 // config.js est généré au runtime par docker-entrypoint.sh
-                globIgnores: ['config.js'],
+                // Les manifests PWA sont exclus : le SW les sert dynamiquement
+                // via son propre fetch handler (resolveDynamicManifest).
+                globIgnores: ['config.js', '**/*.webmanifest'],
             },
             // Le manifest est géré ici (remplace site.webmanifest statique)
             manifest: {

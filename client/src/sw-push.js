@@ -27,17 +27,12 @@ self.addEventListener('activate', (event) => {
 });
 
 // ========================================
-// Précache des assets statiques (injecté par Workbox au build)
-// ========================================
-precacheAndRoute(self.__WB_MANIFEST);
-
-// ========================================
 // Manifest dynamique selon le rôle utilisateur
 // ========================================
-// Intercepte les requêtes vers le manifest PWA et retourne le manifest admin
-// (manifest-admin.webmanifest) pour les utilisateurs admin/éditeur, ou le
-// manifest public par défaut. Le rôle est persisté dans CacheStorage par le
-// client React après chaque authentification.
+// Doit être enregistré AVANT precacheAndRoute : Workbox enregistre son propre
+// listener fetch lors de l'appel à precacheAndRoute et servirait /site.webmanifest
+// depuis son précache si ce handler était déclaré après.
+// Le rôle est persisté dans CacheStorage par le client React après chaque auth.
 self.addEventListener('fetch', (event) => {
     const { pathname } = new URL(event.request.url);
     if (pathname === '/manifest.webmanifest' || pathname === '/site.webmanifest') {
@@ -58,6 +53,11 @@ async function resolveDynamicManifest() {
     } catch (_) {}
     return fetch('/manifest.webmanifest');
 }
+
+// ========================================
+// Précache des assets statiques (injecté par Workbox au build)
+// ========================================
+precacheAndRoute(self.__WB_MANIFEST);
 
 // ========================================
 // Réception des notifications push
