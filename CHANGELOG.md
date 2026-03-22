@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] - 2026-03-22
+
+### Added
+
+- **PWA (admin)**: Separate `"Mariam — Gestion"` manifest (`start_url: /admin/menus`) dynamically.
+- **Install onboarding**: Full-screen `/admin/install` page shown on first login for admin/editor users, with platform-specific instructions — iOS/Safari steps, native Android prompt, and a desktop QR code with a 5-minute session transfer token for cross-device authentication.
+- **Auth**: Server-side logout (`POST /auth/logout`) blacklists both the refresh token and the access token in Redis, preventing any reuse after sign-out.
+
+### Fixed
+
+- **Security**: MFA intermediate tokens (`mfa_pending`) are now explicitly rejected on all protected API endpoints.
+- **Security**: Session transfer tokens are now single-use — a second scan within the 5-minute window is rejected.
+- **Auth**: MFA intermediate token now has an explicit 10-minute TTL (previously `expires_delta=False`).
+- **Auth**: `POST /auth/refresh` now has a dedicated rate limit (10/min).
+
 ## [0.8.1] - 2026-03-22
 
 ### Fixed

@@ -18,6 +18,14 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Mariam" />
+  <script>
+    try {
+      if (localStorage.getItem('mariam_is_admin') === '1') {
+        document.querySelector('link[rel="manifest"]').href = '/manifest-admin.webmanifest';
+        document.querySelector('meta[name="apple-mobile-web-app-title"]').content = 'Gestion';
+      }
+    } catch(e) {}
+  </script>
 
   <!-- Windows Tiles -->
   <meta name="msapplication-TileColor" content="#001BB7" />

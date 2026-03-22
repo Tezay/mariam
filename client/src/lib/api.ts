@@ -92,7 +92,8 @@ api.interceptors.response.use(
             originalRequest.url?.includes('/auth/mfa/verify') ||
             originalRequest.url?.includes('/auth/passkey/login') ||
             originalRequest.url?.includes('/auth/passkey/setup') ||
-            originalRequest.url?.includes('/auth/passkey/reset-password');
+            originalRequest.url?.includes('/auth/passkey/reset-password') ||
+            originalRequest.url?.includes('/auth/session-transfer/validate');
 
         if (isAuthEndpoint) {
             return Promise.reject(error);
@@ -176,6 +177,8 @@ export const authApi = {
         const { access_token, refresh_token, user } = response.data;
         localStorage.setItem('access_token', access_token);
         localStorage.setItem('refresh_token', refresh_token);
+        if (user.role === 'admin' || user.role === 'editor') localStorage.setItem('mariam_is_admin', '1');
+        else localStorage.removeItem('mariam_is_admin');
         return { user, mfaRequired: false };
     },
 
@@ -187,6 +190,8 @@ export const authApi = {
         const { access_token, refresh_token, user } = response.data;
         localStorage.setItem('access_token', access_token);
         localStorage.setItem('refresh_token', refresh_token);
+        if (user.role === 'admin' || user.role === 'editor') localStorage.setItem('mariam_is_admin', '1');
+        else localStorage.removeItem('mariam_is_admin');
         return user;
     },
 
@@ -214,12 +219,24 @@ export const authApi = {
         const { access_token, refresh_token, user } = response.data;
         localStorage.setItem('access_token', access_token);
         localStorage.setItem('refresh_token', refresh_token);
+        if (user.role === 'admin' || user.role === 'editor') localStorage.setItem('mariam_is_admin', '1');
+        else localStorage.removeItem('mariam_is_admin');
         return user;
     },
 
     logout: () => {
+        const refreshToken = localStorage.getItem('refresh_token');
+        const accessToken = localStorage.getItem('access_token');
+        // Clear session immediately (client-side)
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
+        localStorage.removeItem('mariam_is_admin');
+        // Revoke both tokens server-side (fire-and-forget)
+        if (refreshToken) {
+            axios.post(`${API_URL}/auth/logout`, { access_token: accessToken }, {
+                headers: { Authorization: `Bearer ${refreshToken}` },
+            }).catch(() => {});
+        }
     },
 
     getCurrentUser: async () => {
@@ -356,6 +373,8 @@ export const authApi = {
         const { access_token, refresh_token, user } = response.data;
         localStorage.setItem('access_token', access_token);
         localStorage.setItem('refresh_token', refresh_token);
+        if (user.role === 'admin' || user.role === 'editor') localStorage.setItem('mariam_is_admin', '1');
+        else localStorage.removeItem('mariam_is_admin');
         return user;
     },
 
@@ -411,6 +430,27 @@ export const authApi = {
         const { access_token, refresh_token, user } = response.data;
         localStorage.setItem('access_token', access_token);
         localStorage.setItem('refresh_token', refresh_token);
+        if (user.role === 'admin' || user.role === 'editor') localStorage.setItem('mariam_is_admin', '1');
+        else localStorage.removeItem('mariam_is_admin');
+        return user;
+    },
+
+    /** Génère un jeton de transfert de session (5 min) pour l'onboarding PWA cross-device */
+    generateSessionTransfer: async () => {
+        const response = await api.post('/auth/session-transfer/generate');
+        return response.data as { transfer_token: string; expires_in: number };
+    },
+
+    /** Valide un jeton de transfert de session et émet une paire de JWT */
+    validateSessionTransfer: async (transferToken: string) => {
+        const response = await api.post('/auth/session-transfer/validate', {
+            transfer_token: transferToken,
+        });
+        const { access_token, refresh_token, user } = response.data;
+        localStorage.setItem('access_token', access_token);
+        localStorage.setItem('refresh_token', refresh_token);
+        if (user.role === 'admin' || user.role === 'editor') localStorage.setItem('mariam_is_admin', '1');
+        else localStorage.removeItem('mariam_is_admin');
         return user;
     },
 };

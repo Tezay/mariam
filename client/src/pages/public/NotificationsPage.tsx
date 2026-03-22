@@ -15,6 +15,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { usePwaInstall } from '@/contexts/PwaInstallContext';
 import { Logo } from '@/components/Logo';
 import {
     Bell, BellOff, ArrowLeft, ChevronRight, Clock,
@@ -22,7 +23,6 @@ import {
     Send, Loader2, Share, Plus
 } from 'lucide-react';
 import {
-    isPwaInstalled,
     isPushSupported,
     requiresPwaForPush,
     getExistingSubscription,
@@ -207,7 +207,6 @@ function PwaInstallSuggestion({ onInstall }: { onInstall: () => void }) {
 // ========================================
 export function NotificationsPage() {
     const navigate = useNavigate();
-    const [isInstalled] = useState(isPwaInstalled);
     const [isSubscribed, setIsSubscribed] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -219,18 +218,8 @@ export function NotificationsPage() {
     // Préférences
     const [prefs, setPrefs] = useState<NotificationPreferences>(DEFAULT_PREFERENCES);
 
-    // PWA install prompt (Android/Desktop)
-    const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-
-    // Capturer l'événement beforeinstallprompt
-    useEffect(() => {
-        const handler = (e: Event) => {
-            e.preventDefault();
-            setInstallPrompt(e as BeforeInstallPromptEvent);
-        };
-        window.addEventListener('beforeinstallprompt', handler);
-        return () => window.removeEventListener('beforeinstallprompt', handler);
-    }, []);
+    // PWA install prompt (Android/Desktop) — via contexte global
+    const { installPrompt, isInstalled, triggerInstall: triggerPwaInstall } = usePwaInstall();
 
     // Charger l'état de souscription + préférences
     // Si le navigateur a une souscription mais que le serveur ne la connaît pas
@@ -330,20 +319,11 @@ export function NotificationsPage() {
     }, []);
 
     const handleInstallPwa = useCallback(async () => {
-        if (!installPrompt) return;
-
-        try {
-            installPrompt.prompt();
-            const { outcome } = await installPrompt.userChoice;
-            if (outcome === 'accepted') {
-                setSuccessMessage('Mariam a été ajouté à votre écran d\'accueil');
-            }
-        } catch (err) {
-            console.error('PWA install error:', err);
-        } finally {
-            setInstallPrompt(null);
+        const outcome = await triggerPwaInstall();
+        if (outcome === 'accepted') {
+            setSuccessMessage('Mariam a été ajouté à votre écran d\'accueil');
         }
-    }, [installPrompt]);
+    }, [triggerPwaInstall]);
 
     // ========================================
     // Conditions de blocage
@@ -606,10 +586,3 @@ export function NotificationsPage() {
     );
 }
 
-// ========================================
-// Type pour l'événement beforeinstallprompt
-// ========================================
-interface BeforeInstallPromptEvent extends Event {
-    prompt(): Promise<void>;
-    userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}

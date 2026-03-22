@@ -11,6 +11,7 @@
  */
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
+import { PwaInstallProvider } from './contexts/PwaInstallContext';
 import { Login } from './pages/Login';
 import { Activate } from './pages/Activate';
 import { ResetPassword } from './pages/ResetPassword';
@@ -24,6 +25,8 @@ import { AuditLogsPage } from './pages/admin/AuditLogsPage';
 import { AccountPage } from './pages/admin/AccountPage';
 import { EventsPage } from './pages/admin/EventsPage';
 import { GalleryPage } from './pages/admin/GalleryPage';
+import { InstallPage } from './pages/admin/InstallPage';
+import { SetupTransferPage } from './pages/admin/SetupTransferPage';
 
 // Error pages
 import { NotFound, Forbidden } from './pages/errors';
@@ -87,67 +90,82 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
     return (
-        <Routes>
-            {/* Page d'accueil - Affiche le menu public */}
-            <Route path="/" element={<Navigate to="/menu" replace />} />
+        <PwaInstallProvider>
+            <Routes>
+                {/* Page d'accueil - Affiche le menu public */}
+                <Route path="/" element={<Navigate to="/menu" replace />} />
 
-            {/* Menu public (TV/Mobile) */}
-            <Route path="/menu" element={<MenuDisplay />} />
+                {/* Menu public (TV/Mobile) */}
+                <Route path="/menu" element={<MenuDisplay />} />
 
-            {/* Notifications push (public) */}
-            <Route path="/notifications" element={<NotificationsPage />} />
+                {/* Notifications push (public) */}
+                <Route path="/notifications" element={<NotificationsPage />} />
 
-            {/* Authentification */}
-            <Route
-                path="/login"
-                element={
-                    <PublicRoute>
-                        <Login />
-                    </PublicRoute>
-                }
-            />
+                {/* Authentification */}
+                <Route
+                    path="/login"
+                    element={
+                        <PublicRoute>
+                            <Login />
+                        </PublicRoute>
+                    }
+                />
 
-            {/* Activation de compte */}
-            <Route path="/activate/:token" element={<Activate />} />
+                {/* Activation de compte */}
+                <Route path="/activate/:token" element={<Activate />} />
 
-            {/* Réinitialisation de mot de passe */}
-            <Route path="/reset-password/:token" element={<ResetPassword />} />
+                {/* Réinitialisation de mot de passe */}
+                <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-            {/* Interface Admin */}
-            <Route
-                path="/admin"
-                element={
-                    <ProtectedRoute>
-                        <AdminLayout />
-                    </ProtectedRoute>
-                }
-            >
-                {/* Dashboard = Weekly Planner (tous les utilisateurs authentifiés) */}
-                <Route index element={<WeeklyPlanner />} />
-                <Route path="menus" element={<WeeklyPlanner />} />
+                {/* Onboarding installation PWA (admin/editor, affiché une seule fois) */}
+                <Route
+                    path="/admin/install"
+                    element={
+                        <ProtectedRoute>
+                            <InstallPage />
+                        </ProtectedRoute>
+                    }
+                />
 
-                {/* Mon compte (tous les utilisateurs authentifiés) */}
-                <Route path="account" element={<AccountPage />} />
+                {/* Réception du transfert de session cross-device */}
+                <Route path="/admin/setup" element={<SetupTransferPage />} />
 
-                {/* Événements (tous les utilisateurs authentifiés) */}
-                <Route path="events" element={<EventsPage />} />
+                {/* Interface Admin */}
+                <Route
+                    path="/admin"
+                    element={
+                        <ProtectedRoute>
+                            <AdminLayout />
+                        </ProtectedRoute>
+                    }
+                >
+                    {/* Dashboard = Weekly Planner (tous les utilisateurs authentifiés) */}
+                    <Route index element={<WeeklyPlanner />} />
+                    <Route path="menus" element={<WeeklyPlanner />} />
 
-                {/* Galerie photos (tous les utilisateurs authentifiés) */}
-                <Route path="gallery" element={<GalleryPage />} />
+                    {/* Mon compte (tous les utilisateurs authentifiés) */}
+                    <Route path="account" element={<AccountPage />} />
 
-                {/* Gestion des utilisateurs (admin only) */}
-                <Route path="users" element={<AdminRoute><UsersPage /></AdminRoute>} />
+                    {/* Événements (tous les utilisateurs authentifiés) */}
+                    <Route path="events" element={<EventsPage />} />
 
-                {/* Paramètres du restaurant (admin only) */}
-                <Route path="settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+                    {/* Galerie photos (tous les utilisateurs authentifiés) */}
+                    <Route path="gallery" element={<GalleryPage />} />
 
-                {/* Logs d'audit (admin only) */}
-                <Route path="audit-logs" element={<AdminRoute><AuditLogsPage /></AdminRoute>} />
-            </Route>
+                    {/* Gestion des utilisateurs (admin only) */}
+                    <Route path="users" element={<AdminRoute><UsersPage /></AdminRoute>} />
 
-            {/* 404 Catch-all - Doit être en dernier */}
-            <Route path="*" element={<NotFound />} />
-        </Routes>
+                    {/* Paramètres du restaurant (admin only) */}
+                    <Route path="settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+
+                    {/* Logs d'audit (admin only) */}
+                    <Route path="audit-logs" element={<AdminRoute><AuditLogsPage /></AdminRoute>} />
+                </Route>
+
+                {/* 404 Catch-all - Doit être en dernier */}
+                <Route path="*" element={<NotFound />} />
+            </Routes>
+        </PwaInstallProvider>
     );
 }
 

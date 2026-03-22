@@ -12,7 +12,7 @@ from flask_cors import CORS
 from .extensions import db, jwt, migrate
 from .models import User, Restaurant, Menu, MenuItem, Event, EventImage, GalleryImage, GalleryImageTag, MenuItemImage, ActivationLink, AuditLog, ImportSession, PushSubscription
 from .services.storage import storage
-from .security import limiter
+from .security import limiter, is_token_blacklisted
 
 
 def create_app(config_class=None):
@@ -112,6 +112,35 @@ def create_app(config_class=None):
             'error': 'Token expiré',
             'message': 'Votre session a expiré, veuillez vous reconnecter'
         }), 401
+
+    @jwt.token_in_blocklist_loader
+    def check_if_token_revoked(jwt_header, jwt_payload):
+        """
+        Bloque deux catégories de tokens :
+        1. Tokens MFA intermédiaires (mfa_pending=True) — ne doivent jamais
+           être acceptés sur des endpoints @jwt_required() ordinaires.
+        2. Tokens révoqués explicitement (logout, usage unique) — vérifiés
+           en Redis via leur JTI.
+        """
+        if jwt_payload.get('mfa_pending'):
+            return True
+        jti = jwt_payload.get('jti')
+        if not jti:
+            return False
+        return is_token_blacklisted(jti)
+
+    @jwt.revoked_token_loader
+    def revoked_token_callback(jwt_header, jwt_payload):
+        """Réponse adaptée selon la raison du rejet."""
+        if jwt_payload.get('mfa_pending'):
+            return jsonify({
+                'error': 'Authentification incomplète',
+                'message': 'Veuillez compléter la vérification MFA'
+            }), 401
+        return jsonify({
+            'error': 'Token révoqué',
+            'message': 'Votre session a été invalidée, veuillez vous reconnecter'
+        }), 401
     
     # ========================================
     # RATE LIMITER ERROR HANDLER
@@ -145,19 +174,19 @@ def create_app(config_class=None):
     from flask_smorest import Api
     api = Api(app)
 
-    from .routes.auth import auth_bp
     from .routes.menus import menus_bp
     from .routes.events import events_bp
     from .routes.gallery import gallery_bp
     from .routes.restaurant import restaurant_bp
     from .routes.taxonomy import taxonomy_bp
+    from .routes.auth import auth_bp
     from .routes.users import users_bp
     from .routes.audit import audit_bp
     from .routes.imports import imports_bp
     from .routes.notifications import notifications_bp
 
-    api.register_blueprint(auth_bp,          url_prefix='/v1/auth')
     api.register_blueprint(menus_bp,         url_prefix='/v1/menus')
+    api.register_blueprint(auth_bp,          url_prefix='/v1/auth')
     api.register_blueprint(events_bp,        url_prefix='/v1/events')
     api.register_blueprint(gallery_bp,       url_prefix='/v1/gallery')
     api.register_blueprint(restaurant_bp,    url_prefix='/v1')
@@ -174,7 +203,7 @@ def create_app(config_class=None):
         return {
             'status': 'healthy',
             'message': 'MARIAM API is running',
-            'version': '0.8.1',
+            'version': '0.8.2',
             'docs': '/docs'
         }
 

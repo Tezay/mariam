@@ -2,7 +2,7 @@
  * MARIAM - Layout Admin avec sidebar
  */
 import { useState, useEffect } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { Button } from '@/components/ui/button';
@@ -46,8 +46,23 @@ export function AdminLayout() {
     const { user, logout } = useAuth();
     const { theme, setTheme } = useTheme();
     const navigate = useNavigate();
+    const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [hasTodayEvent, setHasTodayEvent] = useState(false);
+
+    // Redirect admin/editor to the PWA install onboarding on first login
+    useEffect(() => {
+        const isAdminOrEditor = user?.role === 'admin' || user?.role === 'editor';
+        const alreadyShown = !!localStorage.getItem('mariam_pwa_install_done');
+        const isPwa = window.matchMedia('(display-mode: standalone)').matches ||
+            (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+
+        if (isAdminOrEditor && !alreadyShown && !isPwa &&
+            location.pathname !== '/admin/install' &&
+            location.pathname !== '/admin/setup') {
+            navigate('/admin/install', { replace: true });
+        }
+    }, [user, location.pathname, navigate]);
 
     useEffect(() => {
         const today = new Date().toISOString().split('T')[0];

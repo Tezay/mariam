@@ -7,8 +7,10 @@
  * - Changement de mot de passe (TOTP ou passkey selon ce qui est disponible)
  */
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { authApi } from '@/lib/api';
+import { usePwaInstall } from '@/contexts/PwaInstallContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,10 +22,50 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { Mail, Shield, Calendar, Clock, Key, AlertCircle, Check, Fingerprint } from 'lucide-react';
+import { Mail, Shield, Calendar, Clock, Key, AlertCircle, Check, Fingerprint, Smartphone } from 'lucide-react';
 import { PasskeyManager } from '@/components/PasskeyManager';
 import { TotpManager } from '@/components/TotpManager';
 import { startAuthentication, type PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser';
+
+// ─── PWA Install Section ──────────────────────────────────────────────────────
+
+function AppInstallSection() {
+    const { isInstalled } = usePwaInstall();
+    const navigate = useNavigate();
+
+    return (
+        <section className="space-y-4">
+            <h2 className="text-lg font-semibold text-foreground border-b border-border pb-2">
+                Application
+            </h2>
+
+            {isInstalled ? (
+                <div className="flex items-center gap-3 p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                    <Check className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" />
+                    <div>
+                        <p className="font-medium text-green-800 dark:text-green-300">Application installée</p>
+                        <p className="text-xs text-green-700 dark:text-green-400">
+                            Mariam — Gestion est installée sur cet appareil.
+                        </p>
+                    </div>
+                </div>
+            ) : (
+                <div className="p-4 rounded-lg border bg-muted/30 space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                        Installez Mariam sur votre appareil pour un accès rapide sans passer par le navigateur.
+                    </p>
+                    <Button
+                        onClick={() => navigate('/admin/install', { state: { from: '/admin/account' } })}
+                        className="gap-2"
+                    >
+                        <Smartphone className="w-4 h-4" />
+                        Installer l'application
+                    </Button>
+                </div>
+            )}
+        </section>
+    );
+}
 
 const ROLE_LABELS: Record<string, string> = {
     admin: 'Administrateur',
@@ -397,6 +439,11 @@ export function AccountPage() {
                         </Dialog>
                     </div>
                 </section>
+
+                {/* Application — installation PWA (admin/editor uniquement) */}
+                {(user?.role === 'admin' || user?.role === 'editor') && (
+                    <AppInstallSection />
+                )}
             </div>
         </div>
     );
