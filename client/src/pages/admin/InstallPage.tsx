@@ -6,7 +6,7 @@
  * sur son appareil, avec des instructions adaptées à chaque plateforme.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { authApi } from '@/lib/api';
 import { detectPlatform } from '@/lib/push';
@@ -290,15 +290,13 @@ function Step({ number, text }: { number: number; text: React.ReactNode }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 export function InstallPage() {
     const navigate = useNavigate();
-    const location = useLocation();
     const platform = detectPlatform();
     const ua = navigator.userAgent;
-    const isIosSafari = platform === 'ios' && /Safari/.test(ua) && !/CriOS|FxiOS|OPiOS/.test(ua);
+    const isIosSafari = platform === 'ios' && /Safari/.test(ua) && !/CriOS|FxiOS|OPiOS|EdgiOS|Chrome/.test(ua);
 
     const handleDone = () => {
         markDone();
-        const from = (location.state as { from?: string } | null)?.from ?? '/admin/menus';
-        navigate(from, { replace: true });
+        navigate('/admin/menus', { replace: true });
     };
 
     return (

@@ -37,6 +37,27 @@ const getApiUrl = (): string => {
 const API_URL = getApiUrl();
 const PUBLIC_API_TIMEOUT_MS = 20000;
 
+// ========================================
+// CACHE DU RÔLE UTILISATEUR (pour le manifest PWA dynamique)
+// ========================================
+// Persiste le rôle dans CacheStorage afin que le Service Worker puisse
+// servir le bon manifest PWA (manifest-admin.webmanifest pour admin/éditeur).
+// Fire-and-forget : les erreurs (SW inactif, contexte non sécurisé) sont silencieuses.
+function setManifestRole(role: string | null): void {
+    if (!('caches' in window)) return;
+    if (role === 'admin' || role === 'editor') {
+        caches.open('mariam-config')
+            .then(cache => cache.put('/user-role', new Response(role, {
+                headers: { 'Content-Type': 'text/plain' },
+            })))
+            .catch(() => {});
+    } else {
+        caches.open('mariam-config')
+            .then(cache => cache.delete('/user-role'))
+            .catch(() => {});
+    }
+}
+
 // Instance Axios configurée
 const api = axios.create({
     baseURL: API_URL,
@@ -177,8 +198,7 @@ export const authApi = {
         const { access_token, refresh_token, user } = response.data;
         localStorage.setItem('access_token', access_token);
         localStorage.setItem('refresh_token', refresh_token);
-        if (user.role === 'admin' || user.role === 'editor') localStorage.setItem('mariam_is_admin', '1');
-        else localStorage.removeItem('mariam_is_admin');
+        setManifestRole(user.role);
         return { user, mfaRequired: false };
     },
 
@@ -190,8 +210,7 @@ export const authApi = {
         const { access_token, refresh_token, user } = response.data;
         localStorage.setItem('access_token', access_token);
         localStorage.setItem('refresh_token', refresh_token);
-        if (user.role === 'admin' || user.role === 'editor') localStorage.setItem('mariam_is_admin', '1');
-        else localStorage.removeItem('mariam_is_admin');
+        setManifestRole(user.role);
         return user;
     },
 
@@ -219,8 +238,7 @@ export const authApi = {
         const { access_token, refresh_token, user } = response.data;
         localStorage.setItem('access_token', access_token);
         localStorage.setItem('refresh_token', refresh_token);
-        if (user.role === 'admin' || user.role === 'editor') localStorage.setItem('mariam_is_admin', '1');
-        else localStorage.removeItem('mariam_is_admin');
+        setManifestRole(user.role);
         return user;
     },
 
@@ -230,7 +248,7 @@ export const authApi = {
         // Clear session immediately (client-side)
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
-        localStorage.removeItem('mariam_is_admin');
+        setManifestRole(null);
         // Revoke both tokens server-side (fire-and-forget)
         if (refreshToken) {
             axios.post(`${API_URL}/auth/logout`, { access_token: accessToken }, {
@@ -373,8 +391,7 @@ export const authApi = {
         const { access_token, refresh_token, user } = response.data;
         localStorage.setItem('access_token', access_token);
         localStorage.setItem('refresh_token', refresh_token);
-        if (user.role === 'admin' || user.role === 'editor') localStorage.setItem('mariam_is_admin', '1');
-        else localStorage.removeItem('mariam_is_admin');
+        setManifestRole(user.role);
         return user;
     },
 
@@ -430,8 +447,7 @@ export const authApi = {
         const { access_token, refresh_token, user } = response.data;
         localStorage.setItem('access_token', access_token);
         localStorage.setItem('refresh_token', refresh_token);
-        if (user.role === 'admin' || user.role === 'editor') localStorage.setItem('mariam_is_admin', '1');
-        else localStorage.removeItem('mariam_is_admin');
+        setManifestRole(user.role);
         return user;
     },
 
@@ -449,8 +465,7 @@ export const authApi = {
         const { access_token, refresh_token, user } = response.data;
         localStorage.setItem('access_token', access_token);
         localStorage.setItem('refresh_token', refresh_token);
-        if (user.role === 'admin' || user.role === 'editor') localStorage.setItem('mariam_is_admin', '1');
-        else localStorage.removeItem('mariam_is_admin');
+        setManifestRole(user.role);
         return user;
     },
 };

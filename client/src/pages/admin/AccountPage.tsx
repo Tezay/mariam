@@ -7,7 +7,6 @@
  * - Changement de mot de passe (TOTP ou passkey selon ce qui est disponible)
  */
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { authApi } from '@/lib/api';
 import { usePwaInstall } from '@/contexts/PwaInstallContext';
@@ -31,7 +30,6 @@ import { startAuthentication, type PublicKeyCredentialRequestOptionsJSON } from 
 
 function AppInstallSection() {
     const { isInstalled } = usePwaInstall();
-    const navigate = useNavigate();
 
     return (
         <section className="space-y-4">
@@ -55,7 +53,7 @@ function AppInstallSection() {
                         Installez Mariam sur votre appareil pour un accès rapide sans passer par le navigateur.
                     </p>
                     <Button
-                        onClick={() => navigate('/admin/install', { state: { from: '/admin/account' } })}
+                        onClick={() => { window.location.href = '/admin/install'; }}
                         className="gap-2"
                     >
                         <Smartphone className="w-4 h-4" />

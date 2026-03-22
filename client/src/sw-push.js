@@ -32,6 +32,34 @@ self.addEventListener('activate', (event) => {
 precacheAndRoute(self.__WB_MANIFEST);
 
 // ========================================
+// Manifest dynamique selon le rôle utilisateur
+// ========================================
+// Intercepte les requêtes vers le manifest PWA et retourne le manifest admin
+// (manifest-admin.webmanifest) pour les utilisateurs admin/éditeur, ou le
+// manifest public par défaut. Le rôle est persisté dans CacheStorage par le
+// client React après chaque authentification.
+self.addEventListener('fetch', (event) => {
+    const { pathname } = new URL(event.request.url);
+    if (pathname === '/manifest.webmanifest' || pathname === '/site.webmanifest') {
+        event.respondWith(resolveDynamicManifest());
+    }
+});
+
+async function resolveDynamicManifest() {
+    try {
+        const cache = await caches.open('mariam-config');
+        const roleRes = await cache.match('/user-role');
+        if (roleRes) {
+            const role = await roleRes.text();
+            if (role === 'admin' || role === 'editor') {
+                return fetch('/manifest-admin.webmanifest');
+            }
+        }
+    } catch (_) {}
+    return fetch('/manifest.webmanifest');
+}
+
+// ========================================
 // Réception des notifications push
 // ========================================
 self.addEventListener('push', (event) => {

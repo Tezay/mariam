@@ -60,7 +60,7 @@ export function AdminLayout() {
         if (isAdminOrEditor && !alreadyShown && !isPwa &&
             location.pathname !== '/admin/install' &&
             location.pathname !== '/admin/setup') {
-            navigate('/admin/install', { replace: true });
+            window.location.replace('/admin/install');
         }
     }, [user, location.pathname, navigate]);
 
@@ -116,7 +116,7 @@ export function AdminLayout() {
                         </button>
                         <NavLink to="/admin" className="flex items-center gap-2">
                             <Logo className="h-16 w-auto p-2" />
-                            <span className="text-sm text-muted-foreground hidden sm:inline">Admin</span>
+                            <span className="text-sm text-muted-foreground hidden sm:inline">Gestion</span>
                         </NavLink>
                     </div>
 
