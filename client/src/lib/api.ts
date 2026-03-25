@@ -179,6 +179,15 @@ api.interceptors.response.use(
 export default api;
 
 // ========================================
+// AXIOS PUBLIC (sans authentification)
+// ========================================
+// Instance séparée sans intercepteur JWT ni refresh automatique.
+const publicAxios = axios.create({
+    baseURL: API_URL,
+    headers: { 'Content-Type': 'application/json' },
+});
+
+// ========================================
 // API AUTHENTIFICATION
 // ========================================
 export const authApi = {
@@ -586,6 +595,22 @@ export const menusApi = {
         });
         return response.data.menu as Menu;
     },
+
+    // ——— Affichage public (sans auth) ———
+
+    getToday: async (restaurantId?: number) => {
+        const params: Record<string, number> = {};
+        if (restaurantId) params.restaurant_id = restaurantId;
+        const response = await publicAxios.get('/menus/today', { params, timeout: PUBLIC_API_TIMEOUT_MS });
+        return response.data;
+    },
+
+    getTomorrow: async (restaurantId?: number) => {
+        const params: Record<string, number> = {};
+        if (restaurantId) params.restaurant_id = restaurantId;
+        const response = await publicAxios.get('/menus/tomorrow', { params, timeout: PUBLIC_API_TIMEOUT_MS });
+        return response.data;
+    },
 };
 
 // ========================================
@@ -784,6 +809,20 @@ export const eventsApi = {
             image_ids: imageIds,
         });
         return response.data.images as EventImage[];
+    },
+
+    // ——— Affichage public (sans auth) ———
+
+    getPublic: async (visibility?: 'tv' | 'mobile', restaurantId?: number) => {
+        const params: Record<string, string | number> = {};
+        if (visibility) params.visibility = visibility;
+        if (restaurantId) params.restaurant_id = restaurantId;
+        const response = await publicAxios.get('/events', { params, timeout: PUBLIC_API_TIMEOUT_MS });
+        return response.data as {
+            today_event: Event | null;
+            upcoming_events: Event[];
+            events: Event[];
+        };
     },
 };
 
@@ -1095,48 +1134,22 @@ export interface RestaurantWithConfig {
 // API PUBLIQUE (sans auth)
 // ========================================
 export const publicApi = {
-    getTodayMenu: async (restaurantId?: number) => {
-        const params: Record<string, number> = {};
-        if (restaurantId) params.restaurant_id = restaurantId;
-        const response = await api.get('/menus/today', { params, timeout: PUBLIC_API_TIMEOUT_MS });
-        return response.data;
-    },
-
-    getTomorrowMenu: async (restaurantId?: number) => {
-        const params: Record<string, number> = {};
-        if (restaurantId) params.restaurant_id = restaurantId;
-        const response = await api.get('/menus/tomorrow', { params, timeout: PUBLIC_API_TIMEOUT_MS });
-        return response.data;
-    },
-
     getWeekMenu: async (weekOffset = 0, restaurantId?: number) => {
         const params: Record<string, number> = { week_offset: weekOffset };
         if (restaurantId) params.restaurant_id = restaurantId;
-        const response = await api.get('/menus/week', { params, timeout: PUBLIC_API_TIMEOUT_MS });
+        const response = await publicAxios.get('/menus/week', { params, timeout: PUBLIC_API_TIMEOUT_MS });
         return response.data;
-    },
-
-    getEvents: async (visibility?: 'tv' | 'mobile', restaurantId?: number) => {
-        const params: Record<string, string | number> = {};
-        if (visibility) params.visibility = visibility;
-        if (restaurantId) params.restaurant_id = restaurantId;
-        const response = await api.get('/events', { params, timeout: PUBLIC_API_TIMEOUT_MS });
-        return response.data as {
-            today_event: Event | null;
-            upcoming_events: Event[];
-            events: Event[];
-        };
     },
 
     getRestaurant: async (restaurantId?: number) => {
         const params: Record<string, number> = {};
         if (restaurantId) params.restaurant_id = restaurantId;
-        const response = await api.get('/restaurant', { params, timeout: PUBLIC_API_TIMEOUT_MS });
+        const response = await publicAxios.get('/restaurant', { params, timeout: PUBLIC_API_TIMEOUT_MS });
         return response.data.restaurant;
     },
 
     getTaxonomy: async (): Promise<TaxonomyData> => {
-        const response = await api.get('/taxonomy', { timeout: PUBLIC_API_TIMEOUT_MS });
+        const response = await publicAxios.get('/taxonomy', { timeout: PUBLIC_API_TIMEOUT_MS });
         return response.data as TaxonomyData;
     },
 };

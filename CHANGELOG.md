@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.5] - 2026-03-25
+
+### Changed
+
+- **Public API (frontend)**: Added a dedicated `publicAxios` client (no JWT interceptor) and moved public menu/event fetches into feature APIs: `menusApi.getToday()`, `menusApi.getTomorrow()`, `eventsApi.getPublic(...)`.
+
+### Fixed
+
+- **Public menu display**: `/menu` now calls `menusApi`/`eventsApi` public endpoints without `Authorization` header, even for logged-in editor/admin sessions, so published events render correctly.
+
 ## [0.8.4] - 2026-03-22
 
 ### Fixed

@@ -8,7 +8,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { publicApi, MenuCategory, DietaryTag, CertificationItem } from '@/lib/api';
+import { menusApi, eventsApi, MenuCategory, DietaryTag, CertificationItem } from '@/lib/api';
 import { DEFAULT_CATEGORIES } from '@/lib/constants';
 import { generateEventPalette } from '@/lib/color-utils';
 import { Icon } from '@/components/ui/icon-picker';
@@ -763,9 +763,9 @@ export function MenuDisplay() {
         setIsLoading(true);
         try {
             const [today, tomorrow, eventsData] = await Promise.all([
-                publicApi.getTodayMenu(),
-                publicApi.getTomorrowMenu(),
-                publicApi.getEvents(isTvMode ? 'tv' : 'mobile')
+                menusApi.getToday(),
+                menusApi.getTomorrow(),
+                eventsApi.getPublic(isTvMode ? 'tv' : 'mobile')
             ]);
 
             if (requestId !== requestIdRef.current) {
@@ -1251,6 +1251,11 @@ export function MenuDisplay() {
 
             {/* Contenu Mobile */}
             <main className="p-4">
+                {/* Événement du jour — Mobile */}
+                {!isPending && todayEvent && selectedDay === 'today' && (
+                    <MobileTodayEvent event={todayEvent} />
+                )}
+
                 {isPending ? (
                     showSkeleton ? (
                         <MobileMenuSkeleton />
@@ -1268,11 +1273,6 @@ export function MenuDisplay() {
                                 month: 'long'
                             })}
                         </div>
-
-                        {/* Événement du jour — Mobile (avant le menu) */}
-                        {todayEvent && selectedDay === 'today' && (
-                            <MobileTodayEvent event={todayEvent} />
-                        )}
 
                         {categories.sort((a, b) => a.order - b.order).map(category => {
                             const items = getItemsByCategory(currentData.menu, category.id);
