@@ -10,6 +10,16 @@ import App from './App.tsx'
 import { AuthProvider } from './contexts/AuthContext.tsx'
 import { ThemeProvider } from './contexts/ThemeProvider.tsx'
 
+// Umami analytics (injecté dynamiquement depuis la config runtime)
+const umamiId = window.__RUNTIME_CONFIG__?.UMAMI_WEBSITE_ID
+if (umamiId && umamiId !== '__UMAMI_WEBSITE_ID__') {
+    const script = document.createElement('script')
+    script.defer = true
+    script.src = 'https://analytics.mariam.app/script.js'
+    script.dataset.websiteId = umamiId
+    document.head.appendChild(script)
+}
+
 // Rechargement automatique lors d'une mise à jour du SW
 registerSW({
     onNeedRefresh() {
