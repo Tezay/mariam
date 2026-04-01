@@ -103,6 +103,7 @@ export function WeeklyPlanner() {
         try {
             await menusApi.publishWeek(weekOffset, weekData.restaurant_id);
             await loadWeek();
+            window.umami?.track('menu-week-publish');
         } catch (error) {
             console.error('Erreur publication:', error);
         } finally {

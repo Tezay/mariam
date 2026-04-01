@@ -1238,7 +1238,7 @@ export function MenuDisplay() {
                     Aujourd'hui
                 </button>
                 <button
-                    onClick={() => setSelectedDay('tomorrow')}
+                    onClick={() => { setSelectedDay('tomorrow'); window.umami?.track('menu-tomorrow-view'); }}
                     className={`flex-1 py-3 text-center font-medium transition-colors
                         ${selectedDay === 'tomorrow'
                             ? 'text-mariam-blue border-b-2 border-mariam-blue bg-white'

@@ -272,6 +272,7 @@ export function NotificationsPage() {
         if (result.success) {
             setIsSubscribed(true);
             setSuccessMessage('Notifications activées !');
+            window.umami?.track('notifications-subscribe');
         } else {
             setError(result.error || 'Erreur inconnue');
         }
@@ -286,6 +287,7 @@ export function NotificationsPage() {
             setIsSubscribed(false);
             setPrefs(DEFAULT_PREFERENCES);
             setSuccessMessage('Notifications désactivées.');
+            window.umami?.track('notifications-unsubscribe');
         } else {
             setError(result.error || 'Erreur inconnue');
         }

@@ -54,12 +54,14 @@ export function Login() {
                 optionsJSON: options as unknown as PublicKeyCredentialRequestOptionsJSON,
             });
             await loginWithPasskey(challenge_token, credential);
+            window.umami?.track('login-success', { method: 'passkey' });
             navigate('/admin');
         } catch (err: unknown) {
             const error = err as {
                 name?: string;
                 response?: { status?: number; data?: { error?: string } };
             };
+            window.umami?.track('login-failure', { method: 'passkey' });
             if (error.name === 'NotAllowedError') {
                 setError('Authentification annulée ou expirée. Réessayez.');
             } else if (error.response?.status === 404) {
@@ -85,12 +87,14 @@ export function Login() {
                 setMfaToken(result.mfaToken);
                 setMode('mfa');
             } else {
+                window.umami?.track('login-success', { method: 'password' });
                 navigate('/admin');
             }
         } catch (err: unknown) {
             const error = err as {
                 response?: { data?: { error?: string; passkey_only?: boolean } };
             };
+            window.umami?.track('login-failure', { method: 'password' });
             if (error.response?.data?.passkey_only) {
                 setError(
                     'Ce compte utilise la connexion par passkey. ' +
@@ -112,9 +116,11 @@ export function Login() {
 
         try {
             await verifyMfa(mfaToken, mfaCode);
+            window.umami?.track('login-success', { method: 'password+mfa' });
             navigate('/admin');
         } catch (err: unknown) {
             const error = err as { response?: { data?: { error?: string } } };
+            window.umami?.track('login-failure', { method: 'mfa' });
             setError(error.response?.data?.error || 'Code invalide. Réessayez.');
         } finally {
             setIsLoading(false);

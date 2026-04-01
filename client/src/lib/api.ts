@@ -14,6 +14,10 @@ declare global {
             API_URL?: string;
             UMAMI_WEBSITE_ID?: string;
         };
+        umami?: {
+            track: (event: string, data?: Record<string, unknown>) => void;
+            identify: (data: Record<string, unknown>) => void;
+        };
     }
 }
 

@@ -50,6 +50,11 @@ export function AdminLayout() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [hasTodayEvent, setHasTodayEvent] = useState(false);
 
+    // Identify authenticated user in Umami by role
+    useEffect(() => {
+        if (user?.role) window.umami?.identify({ role: user.role });
+    }, [user?.id]);
+
     // Redirect admin/editor to the PWA install onboarding on first login
     useEffect(() => {
         const isAdminOrEditor = user?.role === 'admin' || user?.role === 'editor';

@@ -129,6 +129,7 @@ export function EventsPage() {
                 await eventsApi.unpublish(event.id);
             } else {
                 await eventsApi.publish(event.id);
+                window.umami?.track('event-publish');
             }
             await loadEvents();
         } catch (err) {
