@@ -6,7 +6,7 @@ class ColumnMappingSchema(Schema):
         unknown = EXCLUDE
     csv_column = fields.Str(required=True)
     target_field = fields.Str(required=True, description="'date', 'category', or 'ignore'")
-    category_id = fields.Str(allow_none=True)
+    category_id = fields.Int(allow_none=True, description="MenuCategory.id (integer)")
 
 
 class DateConfigSchema(Schema):

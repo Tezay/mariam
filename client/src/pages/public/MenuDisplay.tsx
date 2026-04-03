@@ -8,8 +8,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { menusApi, eventsApi, MenuCategory, DietaryTag, CertificationItem } from '@/lib/api';
-import { DEFAULT_CATEGORIES } from '@/lib/constants';
+import { menusApi, eventsApi, DietaryTag, CertificationItem } from '@/lib/api';
 import { generateEventPalette } from '@/lib/color-utils';
 import { Icon } from '@/components/ui/icon-picker';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,22 +19,33 @@ import { RefreshCw, ZoomIn, ZoomOut, CalendarClock, ChevronLeft, ChevronRight, M
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import type { IconName } from '@/components/ui/icon-picker';
 
-// Types pour les données de menu
+// Types pour les données de menu (correspondant à la réponse publique de l'API)
 interface MenuItemData {
+    id?: number;
     name: string;
-    category: string;
+    category_id?: number;
+    is_out_of_stock?: boolean;
+    replacement_label?: string | null;
     tags?: DietaryTag[];
     certifications?: CertificationItem[];
+    images?: { id: number; menu_item_id: number; gallery_image_id: number; url: string; display_order: number }[];
+}
+
+interface DisplayCategory {
+    id: number;
+    label: string;
+    icon: string;
+    is_highlighted: boolean;
+    is_protected: boolean;
+    order: number;
+    items?: MenuItemData[];
+    subcategories?: DisplayCategory[];
 }
 
 interface MenuResponse {
     date: string;
     items: MenuItemData[];
-    by_category: Record<string, MenuItemData[]>;
-    entrees?: MenuItemData[];
-    plat?: MenuItemData[];
-    vg?: MenuItemData[];
-    desserts?: MenuItemData[];
+    by_category: DisplayCategory[];
     images?: { id: number; url: string; filename?: string; order: number }[];
     chef_note?: string;
 }
@@ -48,7 +58,6 @@ interface MenuData {
         name: string;
         logo_url?: string;
         config?: {
-            menu_categories: MenuCategory[];
             dietary_tags: DietaryTag[];
             certifications: CertificationItem[];
         };
@@ -71,22 +80,6 @@ const LOADING_SPINNER_DELAY_MS = 3000;
 const ERROR_GRACE_PERIOD_MS = 20000;
 const RETRY_INTERVAL_MS = 500;
 
-function getItemsByCategory(menu: MenuResponse | null, categoryId: string): MenuItemData[] {
-    if (!menu) return [];
-
-    if (menu.by_category && menu.by_category[categoryId]) {
-        return menu.by_category[categoryId];
-    }
-
-    // Fallback
-    const legacyKey = categoryId === 'entree' ? 'entrees' :
-        categoryId === 'dessert' ? 'desserts' : categoryId;
-    if (menu[legacyKey as keyof MenuResponse]) {
-        return menu[legacyKey as keyof MenuResponse] as MenuItemData[];
-    }
-
-    return [];
-}
 
 function renderIcon(iconName: string, className?: string) {
     return <Icon name={iconName as IconName} className={className || 'w-4 h-4'} />;
@@ -328,7 +321,14 @@ function TvUpcomingEventFooter({ event }: { event: EventData }) {
 }
 
 /** Bandeau « Menu de demain » — footer TV */
-function TvTomorrowFooter({ menu, getItems }: { menu: MenuResponse; getItems: (m: MenuResponse | null, catId: string) => MenuItemData[] }) {
+function TvTomorrowFooter({ menu }: { menu: MenuResponse }) {
+    // Find first item across all categories (prioritize non-subcategory items)
+    const firstItem = menu.by_category?.flatMap(cat =>
+        cat.subcategories
+            ? cat.subcategories.flatMap(sub => sub.items || [])
+            : (cat.items || [])
+    )[0];
+
     return (
         <div className="w-full bg-gray-100/95 backdrop-blur-md text-gray-800 px-10 py-4 flex items-center gap-6 border-t border-gray-200">
             <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
@@ -337,7 +337,7 @@ function TvTomorrowFooter({ menu, getItems }: { menu: MenuResponse; getItems: (m
             <div className="flex items-baseline gap-4">
                 <span className="text-gray-500 text-2xl uppercase tracking-wider font-bold">Demain :</span>
                 <span className="text-4xl font-bold text-mariam-blue tracking-tight">
-                    {getItems(menu, 'plat')[0]?.name || 'Menu surprise'}
+                    {firstItem?.name || 'Menu surprise'}
                 </span>
             </div>
         </div>
@@ -700,6 +700,96 @@ function MobileUpcomingEvent({ event }: { event: EventData }) {
     );
 }
 
+// ─── Shared sub-components for category rendering ──────────────────────────
+
+function TvCategoryCard({
+    category,
+    items,
+    renderBadges,
+}: {
+    category: DisplayCategory;
+    items: MenuItemData[];
+    renderBadges: (item: MenuItemData) => React.ReactNode;
+}) {
+    const isHighlighted = category.is_highlighted;
+    return (
+        <section className={`rounded-3xl p-8 shadow-md border flex flex-col gap-6 h-full transition-all duration-300 ${
+            isHighlighted ? 'ring-2 ring-mariam-blue/30 shadow-lg bg-white border-gray-100' : 'bg-white border-gray-100'
+        }`}>
+            <h2 className="flex items-center gap-4 border-b border-gray-50 pb-4">
+                <div className="p-3 rounded-2xl shadow-sm bg-gray-100 text-gray-600">
+                    {renderIcon(category.icon, 'w-10 h-10')}
+                </div>
+                <span className="text-3xl font-bold uppercase tracking-wide text-gray-700">
+                    {category.label}
+                </span>
+            </h2>
+            <ul className="space-y-6 flex-1">
+                {items.map((item, i) => (
+                    <li key={i} className="flex flex-col gap-2 text-gray-900">
+                        <span className={`leading-tight font-medium ${isHighlighted ? 'text-5xl tracking-tight' : 'text-4xl'} ${item.is_out_of_stock ? 'line-through text-gray-400' : ''}`}>
+                            {item.name}
+                        </span>
+                        {item.is_out_of_stock && item.replacement_label && (
+                            <span className="text-2xl text-amber-600 font-medium">
+                                → {item.replacement_label}
+                            </span>
+                        )}
+                        {item.is_out_of_stock && !item.replacement_label && (
+                            <span className="text-xl text-amber-500 font-normal">Rupture de service</span>
+                        )}
+                        {!item.is_out_of_stock && isHighlighted && item.images && item.images.length > 0 && (
+                            <img src={item.images[0].url} alt={item.name} className="w-full h-48 object-cover rounded-2xl mt-2" />
+                        )}
+                        <div className="origin-left">{renderBadges(item)}</div>
+                    </li>
+                ))}
+            </ul>
+        </section>
+    );
+}
+
+function MobileCategorySection({
+    category,
+    items,
+    renderBadges,
+}: {
+    category: DisplayCategory;
+    items: MenuItemData[];
+    renderBadges: (item: MenuItemData) => React.ReactNode;
+}) {
+    const isHighlighted = category.is_highlighted;
+    return (
+        <section className={`rounded-lg p-4 shadow-sm ${isHighlighted ? 'bg-white border-l-4 border-mariam-blue' : 'bg-white'}`}>
+            <h2 className="text-xs font-semibold uppercase tracking-wide mb-2 flex items-center gap-1 text-gray-400">
+                {renderIcon(category.icon, 'w-4 h-4')}
+                {category.label}
+            </h2>
+            <ul className="space-y-2">
+                {items.map((item, i) => (
+                    <li key={i} className={`${isHighlighted ? 'text-lg font-medium text-gray-900' : 'text-gray-700'}`}>
+                        <span className={item.is_out_of_stock ? 'line-through text-gray-400' : ''}>
+                            {item.name}
+                        </span>
+                        {item.is_out_of_stock && item.replacement_label && (
+                            <span className="block text-sm text-amber-600 font-medium mt-0.5">
+                                → {item.replacement_label}
+                            </span>
+                        )}
+                        {item.is_out_of_stock && !item.replacement_label && (
+                            <span className="block text-xs text-amber-500 mt-0.5">Rupture</span>
+                        )}
+                        {!item.is_out_of_stock && isHighlighted && item.images && item.images.length > 0 && (
+                            <img src={item.images[0].url} alt={item.name} className="w-full h-40 object-cover rounded-lg mt-2" />
+                        )}
+                        {renderBadges(item)}
+                    </li>
+                ))}
+            </ul>
+        </section>
+    );
+}
+
 export function MenuDisplay() {
     const [searchParams] = useSearchParams();
     const forceTvMode = searchParams.get('mode') === 'tv';
@@ -721,7 +811,6 @@ export function MenuDisplay() {
     const skeletonTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const [categories, setCategories] = useState<MenuCategory[]>(DEFAULT_CATEGORIES);
     const [, setDietaryTags] = useState<DietaryTag[]>([]);
     const [, setCertifications] = useState<CertificationItem[]>([]);
 
@@ -779,9 +868,6 @@ export function MenuDisplay() {
 
             const config = today?.restaurant?.config || tomorrow?.restaurant?.config;
             if (config) {
-                if (config.menu_categories?.length) {
-                    setCategories(config.menu_categories);
-                }
                 if (config.dietary_tags?.length) {
                     setDietaryTags(config.dietary_tags);
                 }
@@ -1116,50 +1202,31 @@ export function MenuDisplay() {
                                 {/* Menu principal - Grille horizontale */}
                                 <div className="flex-1 overflow-y-auto pr-6 custom-scrollbar">
                                     <div className="grid grid-cols-[repeat(auto-fit,minmax(450px,1fr))] gap-8 content-start pb-20">
-                                        {categories.sort((a, b) => a.order - b.order).map(category => {
-                                            const items = getItemsByCategory(todayData.menu, category.id);
+                                        {(todayData.menu.by_category || []).map(category => {
+                                            // If category has subcategories, render each sub as its own card
+                                            if (category.subcategories && category.subcategories.length > 0) {
+                                                return category.subcategories.map(sub => {
+                                                    const items = sub.items || [];
+                                                    if (items.length === 0) return null;
+                                                    return (
+                                                        <TvCategoryCard
+                                                            key={sub.id}
+                                                            category={sub}
+                                                            items={items}
+                                                            renderBadges={renderTvBadges}
+                                                        />
+                                                    );
+                                                });
+                                            }
+                                            const items = category.items || [];
                                             if (items.length === 0) return null;
-
-                                            const isVg = category.id === 'vg';
-                                            const isPlat = category.id === 'plat';
-
                                             return (
-                                                <section
+                                                <TvCategoryCard
                                                     key={category.id}
-                                                    className={`
-                                                    rounded-3xl p-8 shadow-md border 
-                                                    flex flex-col gap-6 h-full
-                                                    transition-all duration-300
-                                                    ${isVg
-                                                            ? 'bg-gradient-to-br from-green-50 to-white border-green-200'
-                                                            : 'bg-white border-gray-100'}
-                                                    ${isPlat ? 'ring-1 ring-mariam-blue/20 shadow-lg' : ''}
-                                                `}
-                                                >
-                                                    {/* Category Header */}
-                                                    <h2 className={`flex items-center gap-4 border-b pb-4 ${isVg ? 'border-green-100' : 'border-gray-50'}`}>
-                                                        <div className={`p-3 rounded-2xl shadow-sm ${isVg ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                            {renderIcon(category.icon, 'w-10 h-10')}
-                                                        </div>
-                                                        <span className={`text-3xl font-bold uppercase tracking-wide ${isVg ? 'text-green-800' : 'text-gray-700'}`}>
-                                                            {category.label}
-                                                        </span>
-                                                    </h2>
-
-                                                    {/* Category Items */}
-                                                    <ul className="space-y-6 flex-1">
-                                                        {items.map((item, i) => (
-                                                            <li key={i} className={`flex flex-col gap-2 ${isVg ? 'text-green-900' : 'text-gray-900'}`}>
-                                                                <span className={`leading-tight font-medium ${isPlat ? 'text-5xl tracking-tight' : 'text-4xl'}`}>
-                                                                    {item.name}
-                                                                </span>
-                                                                <div className="origin-left transform scale-100">
-                                                                    {renderTvBadges(item)}
-                                                                </div>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </section>
+                                                    category={category}
+                                                    items={items}
+                                                    renderBadges={renderTvBadges}
+                                                />
                                             );
                                         })}
                                     </div>
@@ -1198,7 +1265,7 @@ export function MenuDisplay() {
                             {footerSlots.map((slot, i) => (
                                 <div key={slot + i} style={{ width: `${100 / footerCount}%` }} className="shrink-0">
                                     {slot === 'event' && <TvUpcomingEventFooter event={upcomingEvents[0]} />}
-                                    {slot === 'tomorrow' && tomorrowData?.menu && <TvTomorrowFooter menu={tomorrowData.menu} getItems={getItemsByCategory} />}
+                                    {slot === 'tomorrow' && tomorrowData?.menu && <TvTomorrowFooter menu={tomorrowData.menu} />}
                                     {slot === 'chefnote' && todayData?.menu?.chef_note && <TvChefNoteFooter note={todayData.menu.chef_note} />}
                                 </div>
                             ))}
@@ -1274,42 +1341,40 @@ export function MenuDisplay() {
                             })}
                         </div>
 
-                        {categories.sort((a, b) => a.order - b.order).map(category => {
-                            const items = getItemsByCategory(currentData.menu, category.id);
+                        {(currentData.menu.by_category || []).map(category => {
+                            if (category.subcategories && category.subcategories.length > 0) {
+                                return (
+                                    <div key={category.id} className="space-y-3">
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 flex items-center gap-1">
+                                            {renderIcon(category.icon, 'w-4 h-4')}
+                                            {category.label}
+                                        </p>
+                                        <div className="pl-3 border-l-2 border-gray-100 space-y-3">
+                                            {category.subcategories.map(sub => {
+                                                const items = sub.items || [];
+                                                if (items.length === 0) return null;
+                                                return (
+                                                    <MobileCategorySection
+                                                        key={sub.id}
+                                                        category={sub}
+                                                        items={items}
+                                                        renderBadges={renderItemBadges}
+                                                    />
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            }
+                            const items = category.items || [];
                             if (items.length === 0) return null;
-
-                            const isVg = category.id === 'vg';
-                            const isPlat = category.id === 'plat';
-
                             return (
-                                <section
+                                <MobileCategorySection
                                     key={category.id}
-                                    className={`rounded-lg p-4 shadow-sm ${isVg
-                                        ? 'bg-green-50 border-l-4 border-green-500'
-                                        : isPlat
-                                            ? 'bg-white border-l-4 border-mariam-blue'
-                                            : 'bg-white'
-                                        }`}
-                                >
-                                    <h2 className={`text-xs font-semibold uppercase tracking-wide mb-2 flex items-center gap-1 ${isVg ? 'text-green-600' : 'text-gray-400'
-                                        }`}>
-                                        {renderIcon(category.icon, 'w-4 h-4')}
-                                        {category.label}
-                                    </h2>
-                                    <ul className="space-y-2">
-                                        {items.map((item, i) => (
-                                            <li key={i} className={`${isVg
-                                                ? 'text-lg font-medium text-green-800'
-                                                : isPlat
-                                                    ? 'text-lg font-medium text-gray-900'
-                                                    : 'text-gray-700'
-                                                }`}>
-                                                {item.name}
-                                                {renderItemBadges(item)}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </section>
+                                    category={category}
+                                    items={items}
+                                    renderBadges={renderItemBadges}
+                                />
                             );
                         })}
                     </div>

@@ -7,7 +7,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/Logo';
-import { eventsApi } from '@/lib/api';
+import { eventsApi, publicApi, ServiceHours } from '@/lib/api';
+import { isInServiceHours } from '@/lib/utils';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -18,6 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
     CalendarDays,
+    ChefHat,
     Megaphone,
     Image as ImageIcon,
     Users,
@@ -37,9 +39,11 @@ import {
 interface NavItem {
     to: string;
     label: string;
+    mobileLabel?: string;
     icon: React.ReactNode;
     adminOnly?: boolean;
     badge?: React.ReactNode;
+    highlight?: 'amber';
 }
 
 export function AdminLayout() {
@@ -49,6 +53,8 @@ export function AdminLayout() {
     const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [hasTodayEvent, setHasTodayEvent] = useState(false);
+    const [serviceHours, setServiceHours] = useState<ServiceHours>({});
+    const [duringService, setDuringService] = useState(false);
 
     // Identify authenticated user in Umami by role
     useEffect(() => {
@@ -80,6 +86,19 @@ export function AdminLayout() {
             .catch(() => {});
     }, []);
 
+    useEffect(() => {
+        publicApi.getRestaurant()
+            .then(r => setServiceHours(r?.config?.service_hours ?? {}))
+            .catch(() => {});
+    }, []);
+
+    useEffect(() => {
+        const check = () => setDuringService(isInServiceHours(serviceHours));
+        check();
+        const id = setInterval(check, 60_000);
+        return () => clearInterval(id);
+    }, [serviceHours]);
+
     const handleLogout = () => {
         logout();
         navigate('/login');
@@ -92,8 +111,16 @@ export function AdminLayout() {
         </span>
     ) : undefined;
 
+    const servicePulse = duringService ? (
+        <span className="relative flex h-2 w-2 ml-auto">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+        </span>
+    ) : undefined;
+
     const navItems: NavItem[] = [
         { to: '/admin/menus', label: 'Menus', icon: <CalendarDays className="w-5 h-5" /> },
+        { to: '/admin/service', label: 'Service en cours', mobileLabel: 'Service', icon: <ChefHat className="w-5 h-5" />, badge: servicePulse, highlight: 'amber' },
         { to: '/admin/events', label: 'Événements', icon: <Megaphone className="w-5 h-5" />, badge: todayDot },
         { to: '/admin/gallery', label: 'Galerie', icon: <ImageIcon className="w-5 h-5" /> },
         { to: '/admin/users', label: 'Utilisateurs', icon: <Users className="w-5 h-5" />, adminOnly: true },
@@ -214,13 +241,11 @@ export function AdminLayout() {
                                     key={item.to}
                                     to={item.to}
                                     onClick={closeSidebar}
-                                    className={({ isActive }) => `
-                                        flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
-                                        ${isActive
-                                            ? 'bg-primary/10 text-primary font-medium'
-                                            : 'text-muted-foreground hover:bg-muted'
-                                        }
-                                    `}
+                                    className={({ isActive }) => {
+                                        if (!isActive) return 'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-muted-foreground hover:bg-muted';
+                                        if (item.highlight === 'amber' && duringService) return 'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium';
+                                        return 'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors bg-primary/10 text-primary font-medium';
+                                    }}
                                 >
                                     {item.icon}
                                     <span>{item.label}</span>
@@ -256,10 +281,11 @@ export function AdminLayout() {
                     <NavLink
                         key={item.to}
                         to={item.to}
-                        className={({ isActive }) => `
-                            flex-1 flex flex-col items-center py-3 text-xs
-                            ${isActive ? 'text-primary' : 'text-muted-foreground'}
-                        `}
+                        className={({ isActive }) => {
+                            if (!isActive) return 'flex-1 flex flex-col items-center py-3 text-xs text-muted-foreground';
+                            if (item.highlight === 'amber' && duringService) return 'flex-1 flex flex-col items-center py-3 text-xs text-amber-600 dark:text-amber-400';
+                            return 'flex-1 flex flex-col items-center py-3 text-xs text-primary';
+                        }}
                     >
                         <span className="relative">
                             {item.icon}
@@ -267,7 +293,7 @@ export function AdminLayout() {
                                 <span className="absolute -top-0.5 -right-0.5">{item.badge}</span>
                             )}
                         </span>
-                        <span className="mt-1">{item.label}</span>
+                        <span className="mt-1">{item.mobileLabel ?? item.label}</span>
                     </NavLink>
                 ))}
             </nav>

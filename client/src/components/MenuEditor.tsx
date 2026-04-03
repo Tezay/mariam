@@ -2,16 +2,18 @@
  * MARIAM - Éditeur de menu (Drawer latéral)
  *
  * Fonctionnalités :
- * - Saisie d'items par catégorie dynamique
+ * - Saisie d'items par catégorie dynamique (category_id: number)
+ * - Sous-catégories imbriquées (ex: Plat principal → Protéines / Accompagnements)
+ * - Champ replacement_label par item
  * - Tags alimentaires & certifications dans un dropdown Popover
- * - Upload / sélection d'images par item (galerie partagée)
+ * - Upload / sélection d'images par item (galerie partagée, lié via menu_item_id)
+ * - Max 10 items par catégorie/sous-catégorie
  * - Note du chef affichée en TV
  */
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
-    menusApi, adminApi, galleryApi, menuItemImagesApi, publicApi,
-    Menu, MenuItem, MenuCategory, DietaryTag, CertificationItem,
-    DietaryTagCategory, CertificationCategory,
+    menusApi, adminApi, galleryApi, menuItemImagesApi, categoriesApi,
+    Menu, MenuItem, MenuItemImageLink, MenuCategory, DietaryTag, CertificationItem,
     GalleryImage as GalleryImageType,
 } from '@/lib/api';
 import { GalleryPicker } from '@/components/GalleryPicker';
@@ -36,75 +38,82 @@ interface MenuEditorProps {
 
 const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
-// Configuration par défaut (fallback)
-const DEFAULT_CATEGORIES: MenuCategory[] = [
-    { id: 'entree', label: 'Entrée', icon: 'salad', order: 1 },
-    { id: 'plat', label: 'Plat principal', icon: 'utensils', order: 2 },
-    { id: 'vg', label: 'Option végétarienne', icon: 'leaf', order: 3 },
-    { id: 'dessert', label: 'Dessert', icon: 'cake-slice', order: 4 },
-];
-
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_IMAGES_PER_ITEM = 3;
+const MAX_ITEMS_PER_CATEGORY = 10;
 
-interface ItemsByCategory {
-    [categoryId: string]: EditorItem[];
-}
-
-// Local editor representation
+// Local editor representation of a menu item
 interface EditorItem {
-    category: string;
+    id?: number;            // existing item ID (undefined for new items)
+    category_id: number;
     name: string;
     order?: number;
+    replacement_label?: string;
     tags: string[];
     certifications: string[];
 }
 
-// Convert API MenuItem -> local EditorItem
+// Image state for a single item slot (keyed by `${catId}_${localIndex}`)
+interface ItemImageState {
+    linked: MenuItemImageLink[];        // currently linked images (loaded from item.images)
+    removedLinkIds: number[];           // IDs of links to delete on save
+    pendingGallery: GalleryImageType[]; // gallery images to link (not yet saved)
+    pendingFiles: File[];               // files to upload then link
+}
+
+type ItemsByCategory = Record<number, EditorItem[]>;
+type ItemImagesMap = Record<string, ItemImageState>;
+
+// Convert API MenuItem → local EditorItem
 function toEditorItem(item: MenuItem): EditorItem {
     return {
-        category: item.category,
+        id: item.id,
+        category_id: item.category_id,
         name: item.name,
         order: item.order,
+        replacement_label: item.replacement_label ?? undefined,
         tags: (item.tags || []).map(t => typeof t === 'string' ? t : t.id),
         certifications: (item.certifications || []).map(c => typeof c === 'string' ? c : c.id),
     };
 }
 
-// Images liées à un item : "categoryId_itemIndex"
-interface ItemImageState {
-    gallery: GalleryImageType[];
-    pending: File[];
+// Flatten all leaf categories (no subcategories) from a tree
+function flattenLeafCategories(cats: MenuCategory[]): MenuCategory[] {
+    const result: MenuCategory[] = [];
+    for (const cat of cats) {
+        if (cat.subcategories && cat.subcategories.length > 0) {
+            result.push(...flattenLeafCategories(cat.subcategories));
+        } else {
+            result.push(cat);
+        }
+    }
+    return result;
 }
-
-type ItemImagesMap = Record<string, ItemImageState>;
 
 // ========================================
 // Composant principal
 // ========================================
 
 export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEditorProps) {
-    // Configuration du restaurant
-    const [categories, setCategories] = useState<MenuCategory[]>(DEFAULT_CATEGORIES);
+    // Categories (top-level with nested subcategories)
+    const [categories, setCategories] = useState<MenuCategory[]>([]);
     const [dietaryTags, setDietaryTags] = useState<DietaryTag[]>([]);
     const [certifications, setCertifications] = useState<CertificationItem[]>([]);
-    // Tag/cert categories loaded from taxonomy (for future grouped display)
-    const [, setTagCategories] = useState<DietaryTagCategory[]>([]);
-    const [, setCertCategories] = useState<CertificationCategory[]>([]);
     const [configLoaded, setConfigLoaded] = useState(false);
 
-    // Items par catégorie
+    // Items grouped by category_id (leaf categories only)
     const [itemsByCategory, setItemsByCategory] = useState<ItemsByCategory>({});
 
     // Note du chef
     const [chefNote, setChefNote] = useState(menu?.chef_note || '');
 
-    // Images par item
+    // Image state per item slot
     const [itemImages, setItemImages] = useState<ItemImagesMap>({});
-    // Gallery picker
+
+    // Gallery picker state
     const [pickerOpen, setPickerOpen] = useState(false);
-    const [pickerTarget, setPickerTarget] = useState<{ categoryId: string; itemIndex: number } | null>(null);
+    const [pickerTarget, setPickerTarget] = useState<{ categoryId: number; itemIndex: number } | null>(null);
 
     const [isSaving, setIsSaving] = useState(false);
     const [isPublishing, setIsPublishing] = useState(false);
@@ -114,26 +123,21 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
     const [isInitialized, setIsInitialized] = useState(false);
     const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
-    // Charger la configuration
+    // Leaf categories derived from the tree
+    const leafCategories = useMemo(() => flattenLeafCategories(categories), [categories]);
+
+    // Load restaurant config + taxonomy
     useEffect(() => {
         const loadConfig = async () => {
             try {
-                // Load restaurant config (categories, enabled tags/certs)
-                const data = await adminApi.getSettings();
-                if (data?.config) {
-                    setCategories(data.config.menu_categories || DEFAULT_CATEGORIES);
-                    // enabled tags/certs are already full objects from the API
-                    setDietaryTags(data.config.dietary_tags || []);
-                    setCertifications(data.config.certifications || []);
-                }
-
-                // Load full taxonomy (all tags/certs organized by category)
-                try {
-                    const taxonomy = await publicApi.getTaxonomy();
-                    setTagCategories(taxonomy.dietary_tag_categories || []);
-                    setCertCategories(taxonomy.certification_categories || []);
-                } catch {
-                    // Non-critical: tags still usable without categories
+                const [catData, settings] = await Promise.all([
+                    categoriesApi.list(),
+                    adminApi.getSettings(),
+                ]);
+                setCategories(catData.categories || []);
+                if (settings?.config) {
+                    setDietaryTags(settings.config.dietary_tags || []);
+                    setCertifications(settings.config.certifications || []);
                 }
             } catch (error) {
                 console.error('Erreur chargement config:', error);
@@ -144,95 +148,97 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
         loadConfig();
     }, []);
 
-    // Charger les données existantes
+    // Initialize items from existing menu once config is loaded
     useEffect(() => {
-        if (!configLoaded) return;
+        if (!configLoaded || leafCategories.length === 0) return;
 
         const initialItems: ItemsByCategory = {};
+        const imgMap: ItemImagesMap = {};
 
-        categories.forEach(cat => {
-            const existing = menu?.items?.filter(i => i.category === cat.id).map(toEditorItem) || [];
-            if (existing.length > 0) {
-                initialItems[cat.id] = existing;
-            } else if (cat.id === 'vg') {
-                initialItems[cat.id] = [];
-            } else {
-                initialItems[cat.id] = [{ category: cat.id, name: '', tags: [], certifications: [] }];
-            }
-        });
+        for (const cat of leafCategories) {
+            const existing = (menu?.items || [])
+                .filter(i => i.category_id === cat.id)
+                .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                .map(toEditorItem);
+
+            // Always start with at least one empty slot (except optional-style: handled by user adding)
+            initialItems[cat.id] = existing.length > 0
+                ? existing
+                : [{ category_id: cat.id, name: '', tags: [], certifications: [] }];
+
+            // Load image state for each existing item
+            existing.forEach((item, idx) => {
+                const key = `${cat.id}_${idx}`;
+                imgMap[key] = {
+                    linked: item.id
+                        ? ((menu?.items || []).find(i => i.id === item.id)?.images || [])
+                        : [],
+                    removedLinkIds: [],
+                    pendingGallery: [],
+                    pendingFiles: [],
+                };
+            });
+        }
 
         setItemsByCategory(initialItems);
-
-        // Charger les images par item depuis les item_images du menu
-        const imgMap: ItemImagesMap = {};
-        if (menu?.item_images) {
-            for (const link of menu.item_images) {
-                const key = `${link.category}_${link.item_index}`;
-                if (!imgMap[key]) {
-                    imgMap[key] = { gallery: [], pending: [] };
-                }
-                imgMap[key].gallery.push({
-                    id: link.gallery_image_id,
-                    restaurant_id: menu.restaurant_id,
-                    url: link.url,
-                    filename: link.filename || undefined,
-                    tags: [],
-                });
-            }
-        }
         setItemImages(imgMap);
         setIsInitialized(true);
-    }, [menu, categories, configLoaded]);
+    }, [menu, leafCategories, configLoaded]);
 
-    // Détection des modifications non enregistrées
+    // ========================================
+    // Dirty detection
+    // ========================================
+
     const isDirty = useMemo(() => {
         if (!isInitialized) return false;
-
-        // Note du chef modifiée
         if (chefNote !== (menu?.chef_note || '')) return true;
 
-        // Images en attente d'upload
-        if (Object.values(itemImages).some(s => s.pending.length > 0)) return true;
+        // Pending / removed images
+        for (const state of Object.values(itemImages)) {
+            if (state.pendingFiles.length > 0) return true;
+            if (state.pendingGallery.length > 0) return true;
+            if (state.removedLinkIds.length > 0) return true;
+        }
 
-        // Images galerie modifiées
-        const currentGalleryIds = Object.values(itemImages).flatMap(s => s.gallery.map(g => g.id)).sort().join(',');
-        const originalGalleryIds = (menu?.item_images || []).map(l => l.gallery_image_id).sort().join(',');
-        if (currentGalleryIds !== originalGalleryIds) return true;
+        // Item changes
+        const currentItems = leafCategories.flatMap(cat =>
+            (itemsByCategory[cat.id] || [])
+                .filter(i => i.name.trim())
+                .map(i => ({
+                    category_id: i.category_id,
+                    name: i.name,
+                    replacement_label: i.replacement_label || '',
+                    tags: [...(i.tags || [])].sort().join(','),
+                    certs: [...(i.certifications || [])].sort().join(','),
+                }))
+        ).sort((a, b) => a.category_id - b.category_id || a.name.localeCompare(b.name));
 
-        // Items modifiés
-        const sortKey = (cat: string, name: string) => `${cat}|${name.toLowerCase()}`;
-        const currentSigs = Object.values(itemsByCategory)
-            .flat()
+        const originalItems = (menu?.items || [])
             .filter(i => i.name.trim())
             .map(i => ({
-                k: sortKey(i.category, i.name),
-                category: i.category,
+                category_id: i.category_id,
                 name: i.name,
-                tags: [...(i.tags || [])].sort().join(','),
-                certs: [...(i.certifications || [])].sort().join(','),
-            }))
-            .sort((a, b) => a.k < b.k ? -1 : 1);
-
-        const originalSigs = (menu?.items || [])
-            .filter(i => i.name.trim())
-            .map(i => ({
-                k: sortKey(i.category, i.name),
-                category: i.category,
-                name: i.name,
+                replacement_label: i.replacement_label || '',
                 tags: [...(i.tags || []).map(t => typeof t === 'string' ? t : t.id)].sort().join(','),
                 certs: [...(i.certifications || []).map(c => typeof c === 'string' ? c : c.id)].sort().join(','),
             }))
-            .sort((a, b) => a.k < b.k ? -1 : 1);
+            .sort((a, b) => a.category_id - b.category_id || a.name.localeCompare(b.name));
 
-        if (currentSigs.length !== originalSigs.length) return true;
-        for (let i = 0; i < currentSigs.length; i++) {
-            const cur = currentSigs[i];
-            const orig = originalSigs[i];
-            if (cur.name !== orig.name || cur.category !== orig.category || cur.tags !== orig.tags || cur.certs !== orig.certs) return true;
+        if (currentItems.length !== originalItems.length) return true;
+        for (let i = 0; i < currentItems.length; i++) {
+            const cur = currentItems[i];
+            const orig = originalItems[i];
+            if (
+                cur.name !== orig.name ||
+                cur.category_id !== orig.category_id ||
+                cur.replacement_label !== orig.replacement_label ||
+                cur.tags !== orig.tags ||
+                cur.certs !== orig.certs
+            ) return true;
         }
 
         return false;
-    }, [isInitialized, itemsByCategory, chefNote, itemImages, menu]);
+    }, [isInitialized, itemsByCategory, chefNote, itemImages, menu, leafCategories]);
 
     // ========================================
     // Helpers
@@ -240,33 +246,36 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
 
     const formatDate = () => {
         const d = new Date(date);
-        const dayName = DAY_NAMES[d.getDay()];
-        return `${dayName} ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+        return `${DAY_NAMES[d.getDay()]} ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
     };
 
-    const itemKey = (categoryId: string, index: number) => `${categoryId}_${index}`;
+    const itemKey = (categoryId: number, index: number) => `${categoryId}_${index}`;
 
-    const getItemImages = (categoryId: string, index: number): ItemImageState =>
-        itemImages[itemKey(categoryId, index)] || { gallery: [], pending: [] };
+    const getItemImages = (categoryId: number, index: number): ItemImageState =>
+        itemImages[itemKey(categoryId, index)] || { linked: [], removedLinkIds: [], pendingGallery: [], pendingFiles: [] };
 
-    const renderIcon = (iconName: string, className?: string) => {
-        return <Icon name={iconName as IconName} className={className || 'w-4 h-4'} />;
-    };
+    const renderIcon = (iconName: string, className?: string) =>
+        <Icon name={iconName as IconName} className={className || 'w-4 h-4'} />;
 
     // ========================================
     // Item CRUD
     // ========================================
 
-    const updateItem = (categoryId: string, index: number, field: keyof EditorItem, value: string | string[]) => {
+    const updateItem = (
+        categoryId: number,
+        index: number,
+        field: keyof EditorItem,
+        value: string | string[] | number | undefined
+    ) => {
         setItemsByCategory(prev => ({
             ...prev,
-            [categoryId]: prev[categoryId].map((item, i) =>
+            [categoryId]: (prev[categoryId] || []).map((item, i) =>
                 i === index ? { ...item, [field]: value } : item
             ),
         }));
     };
 
-    const toggleTag = (categoryId: string, index: number, tagField: 'tags' | 'certifications', tagId: string) => {
+    const toggleTag = (categoryId: number, index: number, tagField: 'tags' | 'certifications', tagId: string) => {
         const item = itemsByCategory[categoryId]?.[index];
         if (!item) return;
         const current = item[tagField] || [];
@@ -274,18 +283,20 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
         updateItem(categoryId, index, tagField, updated);
     };
 
-    const addItem = (categoryId: string) => {
+    const addItem = (categoryId: number) => {
+        const current = itemsByCategory[categoryId] || [];
+        if (current.length >= MAX_ITEMS_PER_CATEGORY) return;
         setItemsByCategory(prev => ({
             ...prev,
-            [categoryId]: [...(prev[categoryId] || []), { category: categoryId, name: '', tags: [], certifications: [] }],
+            [categoryId]: [...(prev[categoryId] || []), { category_id: categoryId, name: '', tags: [], certifications: [] }],
         }));
     };
 
-    const removeItem = (categoryId: string, index: number) => {
-        const key = itemKey(categoryId, index);
+    const removeItem = (categoryId: number, index: number) => {
+        // Shift image state keys after removed index
         setItemImages(prev => {
             const next = { ...prev };
-            delete next[key];
+            delete next[itemKey(categoryId, index)];
             const items = itemsByCategory[categoryId] || [];
             for (let i = index + 1; i < items.length; i++) {
                 const oldK = itemKey(categoryId, i);
@@ -297,21 +308,21 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
             }
             return next;
         });
-
         setItemsByCategory(prev => ({
             ...prev,
-            [categoryId]: prev[categoryId].filter((_, i) => i !== index),
+            [categoryId]: (prev[categoryId] || []).filter((_, i) => i !== index),
         }));
     };
 
     // ========================================
-    // Image handlers per item
+    // Image handlers
     // ========================================
 
-    const handleItemFileUpload = (categoryId: string, index: number, files: FileList | File[]) => {
+    const handleItemFileUpload = (categoryId: number, index: number, files: FileList | File[]) => {
         const key = itemKey(categoryId, index);
         const current = getItemImages(categoryId, index);
-        const remaining = MAX_IMAGES_PER_ITEM - current.gallery.length - current.pending.length;
+        const used = current.linked.length - current.removedLinkIds.length + current.pendingGallery.length + current.pendingFiles.length;
+        const remaining = MAX_IMAGES_PER_ITEM - used;
         if (remaining <= 0) return;
 
         const valid: File[] = [];
@@ -326,35 +337,50 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
         setItemImages(prev => ({
             ...prev,
             [key]: {
-                ...(prev[key] || { gallery: [], pending: [] }),
-                pending: [...(prev[key]?.pending || []), ...valid],
+                ...(prev[key] || { linked: [], removedLinkIds: [], pendingGallery: [], pendingFiles: [] }),
+                pendingFiles: [...(prev[key]?.pendingFiles || []), ...valid],
             },
         }));
     };
 
-    const handleRemovePendingImage = (categoryId: string, index: number, fileIdx: number) => {
+    const handleRemovePendingFile = (categoryId: number, index: number, fileIdx: number) => {
         const key = itemKey(categoryId, index);
         setItemImages(prev => ({
             ...prev,
             [key]: {
-                ...(prev[key] || { gallery: [], pending: [] }),
-                pending: (prev[key]?.pending || []).filter((_, i) => i !== fileIdx),
+                ...(prev[key] || { linked: [], removedLinkIds: [], pendingGallery: [], pendingFiles: [] }),
+                pendingFiles: (prev[key]?.pendingFiles || []).filter((_, i) => i !== fileIdx),
             },
         }));
     };
 
-    const handleRemoveGalleryImage = (categoryId: string, index: number, galleryId: number) => {
+    const handleRemovePendingGallery = (categoryId: number, index: number, galleryId: number) => {
         const key = itemKey(categoryId, index);
         setItemImages(prev => ({
             ...prev,
             [key]: {
-                ...(prev[key] || { gallery: [], pending: [] }),
-                gallery: (prev[key]?.gallery || []).filter(g => g.id !== galleryId),
+                ...(prev[key] || { linked: [], removedLinkIds: [], pendingGallery: [], pendingFiles: [] }),
+                pendingGallery: (prev[key]?.pendingGallery || []).filter(g => g.id !== galleryId),
             },
         }));
     };
 
-    const openGalleryPicker = (categoryId: string, index: number) => {
+    const handleRemoveLinkedImage = (categoryId: number, index: number, linkId: number) => {
+        const key = itemKey(categoryId, index);
+        setItemImages(prev => {
+            const state = prev[key] || { linked: [], removedLinkIds: [], pendingGallery: [], pendingFiles: [] };
+            return {
+                ...prev,
+                [key]: {
+                    ...state,
+                    linked: state.linked.filter(l => l.id !== linkId),
+                    removedLinkIds: [...state.removedLinkIds, linkId],
+                },
+            };
+        });
+    };
+
+    const openGalleryPicker = (categoryId: number, index: number) => {
         setPickerTarget({ categoryId, itemIndex: index });
         setPickerOpen(true);
     };
@@ -365,8 +391,8 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
         setItemImages(prev => ({
             ...prev,
             [key]: {
-                ...(prev[key] || { gallery: [], pending: [] }),
-                gallery: [...(prev[key]?.gallery || []), image],
+                ...(prev[key] || { linked: [], removedLinkIds: [], pendingGallery: [], pendingFiles: [] }),
+                pendingGallery: [...(prev[key]?.pendingGallery || []), image],
             },
         }));
         setPickerOpen(false);
@@ -382,83 +408,86 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
         else setIsSaving(true);
 
         try {
-            // 1. Combine valid items
+            // 1. Build items payload (non-empty items only), tracking submitted indices
             const allItems: MenuItem[] = [];
-            categories.forEach(cat => {
-                const catItems = itemsByCategory[cat.id] || [];
-                catItems
-                    .filter(item => item.name.trim())
-                    .forEach((item, idx) => {
-                        allItems.push({
-                            category: cat.id,
-                            name: item.name,
-                            order: idx,
-                            // Send tag/cert IDs (backend resolves to objects)
-                            tags: item.tags as unknown as DietaryTag[],
-                            certifications: item.certifications as unknown as CertificationItem[],
-                        });
-                    });
-            });
+            // catId → list of local indices that were submitted (in order)
+            const submittedIndices: Record<number, number[]> = {};
 
-            // 2. Save menu
+            for (const cat of leafCategories) {
+                submittedIndices[cat.id] = [];
+                const localItems = itemsByCategory[cat.id] || [];
+                localItems.forEach((item, idx) => {
+                    if (!item.name.trim()) return;
+                    submittedIndices[cat.id].push(idx);
+                    allItems.push({
+                        ...(item.id ? { id: item.id } : {}),
+                        category_id: cat.id,
+                        name: item.name,
+                        order: submittedIndices[cat.id].length - 1,
+                        replacement_label: item.replacement_label?.trim() || null,
+                        tags: item.tags as unknown as DietaryTag[],
+                        certifications: item.certifications as unknown as CertificationItem[],
+                    });
+                });
+            }
+
+            // 2. Save menu (diff-based on backend)
             const savedMenu = await menusApi.save(date, allItems, restaurantId, chefNote.trim() || undefined);
 
-            // 3. Upload pending images to gallery & collect links
-            const allLinks: Array<{
-                gallery_image_id: number;
-                category: string;
-                item_index: number;
-                display_order: number;
-            }> = [];
+            // 3. Reconcile images for each saved item
+            if (savedMenu.id) {
+                for (const cat of leafCategories) {
+                    const savedItems = ((savedMenu.items || []) as MenuItem[])
+                        .filter((i: MenuItem) => i.category_id === cat.id)
+                        .sort((a: MenuItem, b: MenuItem) => (a.order ?? 0) - (b.order ?? 0));
 
-            for (const cat of categories) {
-                const catItems = itemsByCategory[cat.id] || [];
-                for (let idx = 0; idx < catItems.length; idx++) {
-                    const item = catItems[idx];
-                    if (!item.name.trim()) continue;
+                    const localIndices = submittedIndices[cat.id] || [];
 
-                    const key = itemKey(cat.id, idx);
-                    const state = itemImages[key];
-                    if (!state) continue;
+                    for (let pos = 0; pos < savedItems.length && pos < localIndices.length; pos++) {
+                        const savedItem = savedItems[pos];
+                        const localIdx = localIndices[pos];
+                        const key = itemKey(cat.id, localIdx);
+                        const imgState = itemImages[key];
+                        if (!imgState || !savedItem.id) continue;
 
-                    let order = 0;
+                        // Remove deselected linked images
+                        for (const linkId of imgState.removedLinkIds) {
+                            try {
+                                await menuItemImagesApi.remove(savedMenu.id, savedItem.id, linkId);
+                            } catch { /* already removed */ }
+                        }
 
-                    for (const gimg of state.gallery) {
-                        allLinks.push({
-                            gallery_image_id: gimg.id,
-                            category: cat.id,
-                            item_index: idx,
-                            display_order: order++,
-                        });
-                    }
+                        // Calculate starting display_order
+                        let displayOrder = imgState.linked.length - imgState.removedLinkIds.length;
 
-                    for (const file of state.pending) {
-                        try {
-                            const uploaded = await galleryApi.upload(file, {
-                                dish_name: item.name.trim(),
-                                category_id: cat.id,
-                                category_label: cat.label,
-                                restaurant_id: restaurantId,
-                            });
-                            allLinks.push({
-                                gallery_image_id: uploaded.id,
-                                category: cat.id,
-                                item_index: idx,
-                                display_order: order++,
-                            });
-                        } catch (err) {
-                            console.error('Erreur upload image galerie:', err);
+                        // Add pending gallery selections
+                        for (const gimg of imgState.pendingGallery) {
+                            try {
+                                await menuItemImagesApi.add(savedMenu.id, savedItem.id, gimg.id, displayOrder++);
+                            } catch (err) {
+                                console.error('Erreur liaison image galerie:', err);
+                            }
+                        }
+
+                        // Upload pending files then link
+                        for (const file of imgState.pendingFiles) {
+                            try {
+                                const uploaded = await galleryApi.upload(file, {
+                                    dish_name: savedItem.name,
+                                    category_id: cat.id,
+                                    category_label: cat.label,
+                                    restaurant_id: restaurantId,
+                                });
+                                await menuItemImagesApi.add(savedMenu.id, savedItem.id, uploaded.id, displayOrder++);
+                            } catch (err) {
+                                console.error('Erreur upload image:', err);
+                            }
                         }
                     }
                 }
             }
 
-            // 4. Sync item images
-            if (savedMenu.id) {
-                await menuItemImagesApi.sync(savedMenu.id, allLinks);
-            }
-
-            // 5. Publish / unpublish si demandé
+            // 4. Publish / unpublish
             if (publish && savedMenu.id) {
                 await menusApi.publish(savedMenu.id);
             } else if (unpublishAfter && savedMenu.id) {
@@ -488,11 +517,8 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
     };
 
     const handleCloseAttempt = () => {
-        if (isDirty) {
-            setShowCloseConfirm(true);
-        } else {
-            onClose();
-        }
+        if (isDirty) setShowCloseConfirm(true);
+        else onClose();
     };
 
     const handleDelete = async () => {
@@ -518,13 +544,19 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
             <>
                 <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
                 <div className="fixed right-0 top-0 h-full w-full max-w-lg bg-card border-l border-border shadow-xl z-50 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
                 </div>
             </>
         );
     }
 
-    const allUsedGalleryIds = Object.values(itemImages).flatMap(s => s.gallery.map(g => g.id));
+    const isAnyBusy = isSaving || isPublishing || isDraftingBack || isDeleting;
+    const isPublished = menu?.status === 'published';
+
+    const allExcludedGalleryIds = Object.values(itemImages).flatMap(s => [
+        ...s.linked.map(l => l.gallery_image_id),
+        ...s.pendingGallery.map(g => g.id),
+    ]);
 
     return (
         <>
@@ -533,6 +565,7 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
 
             {/* Drawer */}
             <div className="fixed right-0 top-0 h-full w-full max-w-lg bg-card border-l border-border shadow-xl z-50 overflow-y-auto">
+
                 {/* Header */}
                 <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between z-10">
                     <div>
@@ -544,62 +577,30 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                     </button>
                 </div>
 
-                {/* Contenu — Catégories dynamiques */}
+                {/* Contenu */}
                 <div className="p-6 space-y-6">
-                    {categories.sort((a, b) => a.order - b.order).map(category => {
-                        const items = itemsByCategory[category.id] || [];
-                        const isOptional = category.id === 'vg';
-                        const showAddButton = isOptional ? items.length === 0 : true;
+                    {categories.sort((a, b) => a.order - b.order).map(cat => (
+                        <CategorySection
+                            key={cat.id}
+                            category={cat}
+                            itemsByCategory={itemsByCategory}
+                            dietaryTags={dietaryTags}
+                            certifications={certifications}
+                            itemImages={itemImages}
+                            renderIcon={renderIcon}
+                            disabled={isAnyBusy}
+                            onUpdateItem={updateItem}
+                            onToggleTag={toggleTag}
+                            onAddItem={addItem}
+                            onRemoveItem={removeItem}
+                            onFileUpload={handleItemFileUpload}
+                            onRemovePendingFile={handleRemovePendingFile}
+                            onRemovePendingGallery={handleRemovePendingGallery}
+                            onRemoveLinkedImage={handleRemoveLinkedImage}
+                            onOpenGalleryPicker={openGalleryPicker}
+                        />
+                    ))}
 
-                        return (
-                            <div key={category.id}>
-                                <div className="flex items-center justify-between mb-2">
-                                    <Label className="text-base flex items-center gap-2">
-                                        {renderIcon(category.icon, 'w-5 h-5 text-muted-foreground')}
-                                        {category.label}
-                                    </Label>
-                                    {showAddButton && (
-                                        <Button variant="ghost" size="sm" onClick={() => addItem(category.id)} className="gap-1">
-                                            <Plus className="w-3 h-3" />
-                                            Ajouter
-                                        </Button>
-                                    )}
-                                </div>
-                                <div className="space-y-3">
-                                    {items.map((item, index) => (
-                                        <CategoryItemEditor
-                                            key={index}
-                                            item={item}
-                                            index={index}
-                                            categoryId={category.id}
-                                            categoryLabel={category.label}
-                                            isOptional={isOptional}
-                                            itemsCount={items.length}
-                                            dietaryTags={dietaryTags}
-                                            certifications={certifications}
-                                            renderIcon={renderIcon}
-                                            imageState={getItemImages(category.id, index)}
-                                            maxImages={MAX_IMAGES_PER_ITEM}
-                                            onUpdateItem={updateItem}
-                                            onToggleTag={toggleTag}
-                                            onRemoveItem={() => removeItem(category.id, index)}
-                                            onFileUpload={(files) => handleItemFileUpload(category.id, index, files)}
-                                            onRemovePendingImage={(fi) => handleRemovePendingImage(category.id, index, fi)}
-                                            onRemoveGalleryImage={(gid) => handleRemoveGalleryImage(category.id, index, gid)}
-                                            onOpenGalleryPicker={() => openGalleryPicker(category.id, index)}
-                                            disabled={isSaving || isPublishing}
-                                        />
-                                    ))}
-
-                                    {items.length === 0 && !isOptional && (
-                                        <p className="text-muted-foreground text-sm italic">Aucun élément</p>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    })}
-
-                    {/* Séparateur */}
                     <hr className="border-border" />
 
                     {/* Note du chef */}
@@ -609,7 +610,7 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                             Note du chef
                         </Label>
                         <p className="text-xs text-muted-foreground mb-2">
-                            Citation ou message du chef affiché sur l'écran TV (max 300 caractères)
+                            Citation ou message affiché sur l'écran TV (max 300 caractères)
                         </p>
                         <Input
                             value={chefNote}
@@ -622,14 +623,13 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                         )}
                     </div>
 
-                    {/* Suppression du menu (menu existant uniquement) */}
+                    {/* Suppression du menu */}
                     {menu?.id && (
-                        
                         <div className="pt-2">
                             {!showResetConfirm ? (
                                 <button
                                     onClick={() => setShowResetConfirm(true)}
-                                    disabled={isSaving || isPublishing || isDraftingBack || isDeleting}
+                                    disabled={isAnyBusy}
                                     className="flex items-center gap-1.5 text-xs text-destructive/60 hover:text-destructive disabled:opacity-50 transition-colors px-2 py-1 rounded hover:bg-destructive/5"
                                 >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -644,27 +644,15 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                                                 Supprimer définitivement ce menu ?
                                             </p>
                                             <p className="text-xs text-muted-foreground mt-0.5">
-                                                Tous les éléments liés à ce menu seront perdus et ne pourront pas être récupérés.
+                                                Tous les éléments liés à ce menu seront perdus.
                                             </p>
                                         </div>
                                     </div>
                                     <div className="flex gap-2 justify-end">
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-8 text-xs"
-                                            onClick={() => setShowResetConfirm(false)}
-                                            disabled={isDeleting}
-                                        >
+                                        <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setShowResetConfirm(false)} disabled={isDeleting}>
                                             Annuler
                                         </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="destructive"
-                                            className="h-8 text-xs"
-                                            onClick={handleDelete}
-                                            disabled={isDeleting}
-                                        >
+                                        <Button size="sm" variant="destructive" className="h-8 text-xs" onClick={handleDelete} disabled={isDeleting}>
                                             {isDeleting ? 'Suppression...' : 'Supprimer'}
                                         </Button>
                                     </div>
@@ -674,12 +662,8 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                     )}
                 </div>
 
-                {/* Footer avec boutons */}
+                {/* Footer */}
                 {(() => {
-                    const isAnyBusy = isSaving || isPublishing || isDraftingBack || isDeleting;
-                    const isPublished = menu?.status === 'published';
-
-                    // Bouton gauche
                     let leftLabel: string;
                     let leftOnClick: () => void;
                     let leftDisabled: boolean;
@@ -696,27 +680,16 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                         leftOnClick = () => {};
                         leftDisabled = true;
                     }
-
-                    // Bouton droit
                     const rightLabel = isPublishing ? 'Publication...' : (isDirty ? 'Enregistrer & publier' : 'Publier');
                     const rightDisabled = isAnyBusy || (!isDirty && isPublished);
 
                     return (
                         <div className="sticky bottom-0 bg-card border-t border-border px-4 py-3 flex gap-2 z-10">
-                            <Button
-                                variant="outline"
-                                className="flex-1 min-w-0 text-sm"
-                                onClick={leftOnClick}
-                                disabled={leftDisabled}
-                            >
+                            <Button variant="outline" className="flex-1 min-w-0 text-sm" onClick={leftOnClick} disabled={leftDisabled}>
                                 {!isDirty && isPublished && <RotateCcw className="w-3.5 h-3.5 mr-1.5 shrink-0" />}
                                 <span className="truncate">{leftLabel}</span>
                             </Button>
-                            <Button
-                                className="flex-1 min-w-0 text-sm"
-                                onClick={() => handleSave(true)}
-                                disabled={rightDisabled}
-                            >
+                            <Button className="flex-1 min-w-0 text-sm" onClick={() => handleSave(true)} disabled={rightDisabled}>
                                 <span className="truncate">{rightLabel}</span>
                             </Button>
                         </div>
@@ -724,7 +697,7 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                 })()}
             </div>
 
-            {/* Modale confirmation fermeture — modifications non enregistrées */}
+            {/* Modale confirmation fermeture */}
             {showCloseConfirm && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCloseConfirm(false)} />
@@ -736,23 +709,15 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                             <div>
                                 <h3 className="font-semibold text-foreground">Modifications non enregistrées</h3>
                                 <p className="text-sm text-muted-foreground mt-1">
-                                    Vous avez des modifications non enregistrées. Quitter maintenant les supprimera définitivement.
+                                    Quitter maintenant supprimera définitivement vos modifications.
                                 </p>
                             </div>
                         </div>
                         <div className="flex flex-col-reverse sm:flex-row gap-2">
-                            <Button
-                                variant="ghost"
-                                className="flex-1"
-                                onClick={() => setShowCloseConfirm(false)}
-                            >
+                            <Button variant="ghost" className="flex-1" onClick={() => setShowCloseConfirm(false)}>
                                 Continuer l'édition
                             </Button>
-                            <Button
-                                variant="destructive"
-                                className="flex-1"
-                                onClick={onClose}
-                            >
+                            <Button variant="destructive" className="flex-1" onClick={onClose}>
                                 Quitter sans enregistrer
                             </Button>
                         </div>
@@ -760,14 +725,12 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
                 </div>
             )}
 
-            {/* Gallery Picker modal */}
+            {/* Gallery Picker */}
             {pickerOpen && pickerTarget && (
                 <GalleryPicker
                     onClose={() => { setPickerOpen(false); setPickerTarget(null); }}
                     onSelect={handleGallerySelect}
-                    excludeIds={allUsedGalleryIds}
-                    defaultCategory={pickerTarget.categoryId}
-                    categories={categories}
+                    excludeIds={allExcludedGalleryIds}
                     restaurantId={restaurantId}
                 />
             )}
@@ -777,68 +740,191 @@ export function MenuEditor({ date, restaurantId, menu, onClose, onSave }: MenuEd
 
 
 // ========================================
-// Sous-composant : éditeur d'item de catégorie
+// CategorySection — Render top-level or leaf category
+// ========================================
+
+interface CategorySectionProps {
+    category: MenuCategory;
+    itemsByCategory: ItemsByCategory;
+    dietaryTags: DietaryTag[];
+    certifications: CertificationItem[];
+    itemImages: ItemImagesMap;
+    renderIcon: (name: string, className?: string) => React.ReactNode;
+    disabled: boolean;
+    onUpdateItem: (catId: number, idx: number, field: keyof EditorItem, value: string | string[] | number | undefined) => void;
+    onToggleTag: (catId: number, idx: number, field: 'tags' | 'certifications', tagId: string) => void;
+    onAddItem: (catId: number) => void;
+    onRemoveItem: (catId: number, idx: number) => void;
+    onFileUpload: (catId: number, idx: number, files: FileList | File[]) => void;
+    onRemovePendingFile: (catId: number, idx: number, fileIdx: number) => void;
+    onRemovePendingGallery: (catId: number, idx: number, galleryId: number) => void;
+    onRemoveLinkedImage: (catId: number, idx: number, linkId: number) => void;
+    onOpenGalleryPicker: (catId: number, idx: number) => void;
+}
+
+function CategorySection({ category, ...props }: CategorySectionProps) {
+    const hasSubcategories = category.subcategories && category.subcategories.length > 0;
+
+    if (hasSubcategories) {
+        return (
+            <div>
+                <Label className="text-base flex items-center gap-2 mb-3">
+                    {props.renderIcon(category.icon, 'w-5 h-5 text-muted-foreground')}
+                    {category.label}
+                </Label>
+                <div className="space-y-4 pl-4 border-l-2 border-border">
+                    {category.subcategories!.sort((a, b) => a.order - b.order).map(sub => (
+                        <LeafCategorySection key={sub.id} category={sub} {...props} />
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    return <LeafCategorySection category={category} {...props} />;
+}
+
+
+// ========================================
+// LeafCategorySection — Items list for a leaf category
+// ========================================
+
+function LeafCategorySection({
+    category, itemsByCategory, dietaryTags, certifications, itemImages,
+    renderIcon, disabled, onUpdateItem, onToggleTag, onAddItem, onRemoveItem,
+    onFileUpload, onRemovePendingFile, onRemovePendingGallery, onRemoveLinkedImage,
+    onOpenGalleryPicker,
+}: CategorySectionProps & { category: MenuCategory }) {
+    const items = itemsByCategory[category.id] || [];
+    const canAddMore = items.length < MAX_ITEMS_PER_CATEGORY;
+
+    const getImgState = (idx: number): ItemImageState =>
+        itemImages[`${category.id}_${idx}`] || { linked: [], removedLinkIds: [], pendingGallery: [], pendingFiles: [] };
+
+    return (
+        <div>
+            <div className="flex items-center justify-between mb-2">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                    {renderIcon(category.icon, 'w-4 h-4 text-muted-foreground')}
+                    {category.label}
+                    {items.length >= MAX_ITEMS_PER_CATEGORY && (
+                        <span className="text-[10px] text-muted-foreground/60 font-normal">(max {MAX_ITEMS_PER_CATEGORY})</span>
+                    )}
+                </Label>
+                {canAddMore && (
+                    <Button variant="ghost" size="sm" onClick={() => onAddItem(category.id)} className="gap-1 h-7 text-xs" disabled={disabled}>
+                        <Plus className="w-3 h-3" />
+                        Ajouter
+                    </Button>
+                )}
+            </div>
+
+            <div className="space-y-3">
+                {items.map((item, index) => (
+                    <CategoryItemEditor
+                        key={index}
+                        item={item}
+                        index={index}
+                        category={category}
+                        itemsCount={items.length}
+                        dietaryTags={dietaryTags}
+                        certifications={certifications}
+                        renderIcon={renderIcon}
+                        imageState={getImgState(index)}
+                        disabled={disabled}
+                        onUpdateItem={onUpdateItem}
+                        onToggleTag={onToggleTag}
+                        onRemoveItem={() => onRemoveItem(category.id, index)}
+                        onFileUpload={(files) => onFileUpload(category.id, index, files)}
+                        onRemovePendingFile={(fi) => onRemovePendingFile(category.id, index, fi)}
+                        onRemovePendingGallery={(gid) => onRemovePendingGallery(category.id, index, gid)}
+                        onRemoveLinkedImage={(lid) => onRemoveLinkedImage(category.id, index, lid)}
+                        onOpenGalleryPicker={() => onOpenGalleryPicker(category.id, index)}
+                    />
+                ))}
+
+                {items.length === 0 && (
+                    <p className="text-muted-foreground text-xs italic">Aucun élément</p>
+                )}
+            </div>
+        </div>
+    );
+}
+
+
+// ========================================
+// CategoryItemEditor — Single item row
 // ========================================
 
 interface CategoryItemEditorProps {
     item: EditorItem;
     index: number;
-    categoryId: string;
-    categoryLabel: string;
-    isOptional: boolean;
+    category: MenuCategory;
     itemsCount: number;
     dietaryTags: DietaryTag[];
     certifications: CertificationItem[];
     renderIcon: (name: string, className?: string) => React.ReactNode;
     imageState: ItemImageState;
-    maxImages: number;
-    onUpdateItem: (catId: string, idx: number, field: keyof EditorItem, value: string | string[]) => void;
-    onToggleTag: (catId: string, idx: number, field: 'tags' | 'certifications', tagId: string) => void;
+    disabled: boolean;
+    onUpdateItem: (catId: number, idx: number, field: keyof EditorItem, value: string | string[] | number | undefined) => void;
+    onToggleTag: (catId: number, idx: number, field: 'tags' | 'certifications', tagId: string) => void;
     onRemoveItem: () => void;
     onFileUpload: (files: FileList | File[]) => void;
-    onRemovePendingImage: (fileIdx: number) => void;
-    onRemoveGalleryImage: (galleryId: number) => void;
+    onRemovePendingFile: (fileIdx: number) => void;
+    onRemovePendingGallery: (galleryId: number) => void;
+    onRemoveLinkedImage: (linkId: number) => void;
     onOpenGalleryPicker: () => void;
-    disabled: boolean;
 }
 
 function CategoryItemEditor({
-    item, index, categoryId, categoryLabel, isOptional, itemsCount,
-    dietaryTags, certifications, renderIcon, imageState, maxImages,
+    item, index, category, itemsCount,
+    dietaryTags, certifications, renderIcon, imageState, disabled,
     onUpdateItem, onToggleTag, onRemoveItem,
-    onFileUpload, onRemovePendingImage, onRemoveGalleryImage, onOpenGalleryPicker,
-    disabled,
+    onFileUpload, onRemovePendingFile, onRemovePendingGallery, onRemoveLinkedImage, onOpenGalleryPicker,
 }: CategoryItemEditorProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const dishNameFilled = item.name.trim().length > 0;
-    const totalImages = imageState.gallery.length + imageState.pending.length;
-    const slotsLeft = maxImages - totalImages;
 
+    const activeImages = imageState.linked.length - imageState.removedLinkIds.length;
+    const totalImages = activeImages + imageState.pendingGallery.length + imageState.pendingFiles.length;
+    const slotsLeft = MAX_IMAGES_PER_ITEM - totalImages;
     const activeTagCount = (item.tags?.length || 0) + (item.certifications?.length || 0);
 
     return (
         <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
-            {/* Nom du plat + actions */}
+            {/* Nom du plat */}
             <div className="flex gap-2">
                 <Input
                     value={item.name}
-                    onChange={(e) => onUpdateItem(categoryId, index, 'name', e.target.value)}
-                    placeholder={`${categoryLabel}...`}
-                    className={categoryId === 'vg' ? 'border-green-500/50 focus:ring-green-500' : ''}
+                    onChange={(e) => onUpdateItem(category.id, index, 'name', e.target.value)}
+                    placeholder={`${category.label}...`}
+                    disabled={disabled}
                 />
-                {(itemsCount > 1 || isOptional) && (
+                {itemsCount > 1 && (
                     <Button
                         variant="ghost"
                         size="icon"
                         onClick={onRemoveItem}
                         className="text-destructive hover:text-destructive shrink-0"
+                        disabled={disabled}
                     >
                         <Trash2 className="w-4 h-4" />
                     </Button>
                 )}
             </div>
 
-            {/* Tags dropdown + active tags badges */}
+            {/* Replacement label (shown when item has a name) */}
+            {dishNameFilled && (
+                <Input
+                    value={item.replacement_label || ''}
+                    onChange={(e) => onUpdateItem(category.id, index, 'replacement_label', e.target.value || undefined)}
+                    placeholder="Remplacement en cas de rupture (facultatif)"
+                    className="text-xs h-8 text-muted-foreground"
+                    disabled={disabled}
+                />
+            )}
+
+            {/* Tags / certifications */}
             <div className="flex items-center gap-2 flex-wrap">
                 {(dietaryTags.length > 0 || certifications.length > 0) && (
                     <Popover>
@@ -868,7 +954,7 @@ function CategoryItemEditor({
                                                 <button
                                                     key={tag.id}
                                                     type="button"
-                                                    onClick={() => onToggleTag(categoryId, index, 'tags', tag.id)}
+                                                    onClick={() => onToggleTag(category.id, index, 'tags', tag.id)}
                                                     className={`text-xs px-2 py-1 rounded-full border transition-colors flex items-center gap-1 ${
                                                         isActive
                                                             ? 'bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400'
@@ -893,7 +979,7 @@ function CategoryItemEditor({
                                                 <button
                                                     key={cert.id}
                                                     type="button"
-                                                    onClick={() => onToggleTag(categoryId, index, 'certifications', cert.id)}
+                                                    onClick={() => onToggleTag(category.id, index, 'certifications', cert.id)}
                                                     className={`text-xs px-2 py-1 rounded-full border transition-colors flex items-center gap-1 ${
                                                         isActive
                                                             ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400'
@@ -901,11 +987,7 @@ function CategoryItemEditor({
                                                     }`}
                                                     title={cert.official_name}
                                                 >
-                                                    <img
-                                                        src={`/certifications/${cert.logo_filename}`}
-                                                        alt={cert.name}
-                                                        className="w-4 h-4 object-contain"
-                                                    />
+                                                    <img src={`/certifications/${cert.logo_filename}`} alt={cert.name} className="w-4 h-4 object-contain" />
                                                     {cert.name}
                                                 </button>
                                             );
@@ -930,58 +1012,61 @@ function CategoryItemEditor({
                     const cert = certifications.find(c => c.id === certId);
                     return cert ? (
                         <span key={`cert-${certId}`} className="inline-flex items-center" title={cert.official_name}>
-                            <img
-                                src={`/certifications/${cert.logo_filename}`}
-                                alt={cert.name}
-                                className="w-5 h-5 object-contain"
-                            />
+                            <img src={`/certifications/${cert.logo_filename}`} alt={cert.name} className="w-5 h-5 object-contain" />
                         </span>
                     ) : null;
                 })}
             </div>
 
-            {/* Images section — per item */}
+            {/* Images */}
             <div>
-                {/* Existing image thumbnails */}
                 {totalImages > 0 && (
                     <div className="flex items-center gap-2 flex-wrap mb-2">
-                        {imageState.gallery.map((gimg) => (
-                            <div key={`g-${gimg.id}`} className="relative group w-14 h-14 rounded-md overflow-hidden border border-border">
-                                <img src={gimg.url} alt="" className="w-full h-full object-cover" />
+                        {imageState.linked.map(link => (
+                            <div key={`l-${link.id}`} className="relative group w-14 h-14 rounded-md overflow-hidden border border-border">
+                                <img src={link.url} alt="" className="w-full h-full object-cover" />
                                 {!disabled && (
                                     <button
                                         type="button"
-                                        onClick={() => onRemoveGalleryImage(gimg.id)}
+                                        onClick={() => onRemoveLinkedImage(link.id)}
                                         className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                        title="Retirer"
                                     >
                                         <X className="w-3 h-3 text-white" />
                                     </button>
                                 )}
                             </div>
                         ))}
-
-                        {imageState.pending.map((file, fi) => (
-                            <PendingThumb key={`p-${fi}`} file={file} onRemove={() => onRemovePendingImage(fi)} disabled={disabled} />
+                        {imageState.pendingGallery.map(gimg => (
+                            <div key={`g-${gimg.id}`} className="relative group w-14 h-14 rounded-md overflow-hidden border border-primary/30">
+                                <img src={gimg.url} alt="" className="w-full h-full object-cover" />
+                                {!disabled && (
+                                    <button
+                                        type="button"
+                                        onClick={() => onRemovePendingGallery(gimg.id)}
+                                        className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        <X className="w-3 h-3 text-white" />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                        {imageState.pendingFiles.map((file, fi) => (
+                            <PendingThumb key={`p-${fi}`} file={file} onRemove={() => onRemovePendingFile(fi)} disabled={disabled} />
                         ))}
                     </div>
                 )}
 
-                {/* Add image actions */}
                 {slotsLeft > 0 && !disabled && (
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
                             disabled={!dishNameFilled}
                             onClick={() => fileInputRef.current?.click()}
-                            className={`
-                                flex items-center gap-1.5 text-xs px-3 py-2 rounded-md border transition-colors
-                                ${dishNameFilled
+                            className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-md border transition-colors ${
+                                dishNameFilled
                                     ? 'border-border hover:border-primary/40 text-muted-foreground hover:text-primary hover:bg-primary/5 cursor-pointer'
                                     : 'border-border/40 text-muted-foreground/30 cursor-not-allowed'
-                                }
-                            `}
-                            title={dishNameFilled ? 'Uploader une photo' : 'Renseignez le nom du plat d\'abord'}
+                            }`}
                         >
                             <Upload className="w-3.5 h-3.5" />
                             <span>Ajouter une photo</span>
@@ -990,20 +1075,17 @@ function CategoryItemEditor({
                             type="button"
                             disabled={!dishNameFilled}
                             onClick={onOpenGalleryPicker}
-                            className={`
-                                flex items-center gap-1.5 text-xs px-3 py-2 rounded-md border transition-colors
-                                ${dishNameFilled
+                            className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-md border transition-colors ${
+                                dishNameFilled
                                     ? 'border-border hover:border-primary/40 text-muted-foreground hover:text-primary hover:bg-primary/5 cursor-pointer'
                                     : 'border-border/40 text-muted-foreground/30 cursor-not-allowed'
-                                }
-                            `}
-                            title={dishNameFilled ? 'Choisir depuis la galerie' : 'Renseignez le nom du plat d\'abord'}
+                            }`}
                         >
                             <FolderOpen className="w-3.5 h-3.5" />
                             <span>Galerie</span>
                         </button>
                         {!dishNameFilled && (
-                            <span className="text-[10px] text-muted-foreground/50 italic">Saisissez un nom de plat pour ajouter des photos</span>
+                            <span className="text-[10px] text-muted-foreground/50 italic">Saisissez un nom pour ajouter des photos</span>
                         )}
                         <input
                             ref={fileInputRef}
@@ -1019,10 +1101,9 @@ function CategoryItemEditor({
                     </div>
                 )}
 
-                {/* Counter info */}
                 {totalImages > 0 && (
                     <p className="text-[10px] text-muted-foreground mt-1.5">
-                        {totalImages}/{maxImages} photo{totalImages > 1 ? 's' : ''}
+                        {totalImages}/{MAX_IMAGES_PER_ITEM} photo{totalImages > 1 ? 's' : ''}
                     </p>
                 )}
             </div>
@@ -1032,7 +1113,7 @@ function CategoryItemEditor({
 
 
 // ========================================
-// Thumbnail d'un fichier en attente
+// PendingThumb — Preview for a file pending upload
 // ========================================
 
 function PendingThumb({ file, onRemove, disabled }: { file: File; onRemove: () => void; disabled: boolean }) {
@@ -1055,7 +1136,6 @@ function PendingThumb({ file, onRemove, disabled }: { file: File; onRemove: () =
                     type="button"
                     onClick={onRemove}
                     className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Retirer"
                 >
                     <X className="w-3 h-3 text-white" />
                 </button>

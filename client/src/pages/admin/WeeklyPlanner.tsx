@@ -9,8 +9,7 @@
  * - Publication de toute la semaine
  */
 import { useState, useEffect } from 'react';
-import { menusApi, Menu, adminApi, MenuCategory, DietaryTag, CertificationItem } from '@/lib/api';
-import { DEFAULT_CATEGORIES } from '@/lib/constants';
+import { menusApi, categoriesApi, Menu, MenuItem, MenuCategory } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,13 +33,6 @@ interface WeekData {
     menus: Record<string, Menu | null>;
 }
 
-interface MenuItem {
-    name: string;
-    category: string;
-    tags?: DietaryTag[];
-    certifications?: CertificationItem[];
-}
-
 export function WeeklyPlanner() {
     const { user } = useAuth();
     const [weekOffset, setWeekOffset] = useState(0);
@@ -48,7 +40,7 @@ export function WeeklyPlanner() {
     const [isLoading, setIsLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [isPublishing, setIsPublishing] = useState(false);
-    const [categories, setCategories] = useState<MenuCategory[]>(DEFAULT_CATEGORIES);
+    const [categories, setCategories] = useState<MenuCategory[]>([]);
     const [error, setError] = useState<unknown>(null);
 
     // Modal d'import CSV
@@ -60,19 +52,11 @@ export function WeeklyPlanner() {
     // Vérifier si l'utilisateur peut éditer (admin ou editor)
     const canEdit = user?.role === 'admin' || user?.role === 'editor';
 
-    // Charger la configuration du restaurant pour les catégories
+    // Charger les catégories depuis la DB
     useEffect(() => {
-        const loadConfig = async () => {
-            try {
-                const settings = await adminApi.getSettings();
-                if (settings.config?.menu_categories?.length) {
-                    setCategories(settings.config.menu_categories);
-                }
-            } catch (error) {
-                console.error('Erreur chargement config:', error);
-            }
-        };
-        loadConfig();
+        categoriesApi.list()
+            .then(data => setCategories(data.categories || []))
+            .catch(err => console.error('Erreur chargement catégories:', err));
     }, []);
 
     // Charger les menus de la semaine
@@ -169,9 +153,9 @@ export function WeeklyPlanner() {
     const statusCount = countByStatus();
 
     // Récupérer les items pour une catégorie depuis le menu
-    const getItemsByCategory = (menu: Menu | null, categoryId: string): MenuItem[] => {
+    const getItemsByCategory = (menu: Menu | null, categoryId: number): MenuItem[] => {
         if (!menu?.items) return [];
-        return menu.items.filter((item: MenuItem) => item.category === categoryId);
+        return menu.items.filter(item => item.category_id === categoryId);
     };
 
     // Afficher le badge de statut
@@ -197,11 +181,23 @@ export function WeeklyPlanner() {
         );
     };
 
+    // Helper: flatten leaf categories (no subcategories) for item lookup
+    const flattenLeaves = (cats: MenuCategory[]): MenuCategory[] => {
+        const result: MenuCategory[] = [];
+        for (const cat of cats) {
+            if (cat.subcategories && cat.subcategories.length > 0) {
+                result.push(...flattenLeaves(cat.subcategories));
+            } else {
+                result.push(cat);
+            }
+        }
+        return result;
+    };
+
     // Afficher le contenu d'une carte de jour
     const renderDayCard = (dateStr: string, dayIndex: number) => {
         const menu = weekData?.menus[dateStr];
         const isToday = dateStr === new Date().toISOString().split('T')[0];
-        const sortedCategories = [...categories].sort((a, b) => a.order - b.order);
 
         return (
             <Card
@@ -220,30 +216,29 @@ export function WeeklyPlanner() {
                             </CardTitle>
                             <p className="text-sm text-muted-foreground">{formatDate(dateStr)}</p>
                         </div>
-                        {renderStatusBadge(menu || null)}
+                        <div className="flex items-center gap-2">
+                            {renderStatusBadge(menu || null)}
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent className="flex-1 pt-2">
                     {menu && menu.items && menu.items.length > 0 ? (
                         <div className="space-y-3">
-                            {sortedCategories.map(category => {
-                                const items = getItemsByCategory(menu, category.id);
-                                if (items.length === 0) return null;
-
-                                const isVg = category.id === 'vg';
+                            {[...categories].sort((a, b) => a.order - b.order).map(category => {
+                                // For top-level categories with subcategories, show all leaf items
+                                const leafCats = flattenLeaves([category]);
+                                const allItems = leafCats.flatMap(lc => getItemsByCategory(menu, lc.id));
+                                if (allItems.length === 0) return null;
 
                                 return (
                                     <div key={category.id}>
-                                        <div className={`text-xs font-semibold uppercase tracking-wide mb-1 flex items-center gap-1 ${isVg ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
+                                        <div className="text-xs font-semibold uppercase tracking-wide mb-1 flex items-center gap-1 text-muted-foreground">
                                             <Icon name={category.icon as IconName} className="w-3 h-3" />
                                             {category.label}
                                         </div>
                                         <ul className="space-y-0.5">
-                                            {items.map((item, idx) => (
-                                                <li
-                                                    key={idx}
-                                                    className={`text-sm ${isVg ? 'text-green-700 dark:text-green-400' : category.id === 'plat' ? 'font-medium text-foreground' : 'text-muted-foreground'}`}
-                                                >
+                                            {allItems.map((item, idx) => (
+                                                <li key={idx} className={`text-sm ${item.is_out_of_stock ? 'line-through text-muted-foreground/50' : 'text-muted-foreground'}`}>
                                                     {item.name}
                                                 </li>
                                             ))}
@@ -499,6 +494,7 @@ export function WeeklyPlanner() {
                     }}
                 />
             )}
+
 
             {/* Modal d'import CSV */}
             {showCsvImport && weekData && (

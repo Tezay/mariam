@@ -32,7 +32,7 @@ interface GalleryPickerProps {
     /** IDs déjà sélectionnées (afficher un check) */
     excludeIds?: number[];
     /** Catégorie par défaut (pré-sélectionnée mais modifiable) */
-    defaultCategory?: string;
+    defaultCategory?: number;
     /** Catégories disponibles pour le filtre */
     categories?: MenuCategory[];
     /** ID du restaurant */
@@ -54,7 +54,7 @@ export function GalleryPicker({
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [sort, setSort] = useState<SortOption>('recent');
-    const [categoryFilter, setCategoryFilter] = useState<string>(defaultCategory || '');
+    const [categoryFilter, setCategoryFilter] = useState<number | undefined>(defaultCategory);
     const [loading, setLoading] = useState(true);
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [filterOpen, setFilterOpen] = useState(false);
@@ -194,7 +194,7 @@ export function GalleryPicker({
                                         <div className="space-y-1">
                                             <button
                                                 type="button"
-                                                onClick={() => { setCategoryFilter(''); setPage(1); }}
+                                                onClick={() => { setCategoryFilter(undefined); setPage(1); }}
                                                 className={`w-full text-left text-sm px-3 py-2 rounded-md flex items-center justify-between transition-colors ${
                                                     !categoryFilter
                                                         ? 'bg-primary/10 text-primary font-medium'
@@ -232,7 +232,7 @@ export function GalleryPicker({
                                             className="w-full text-muted-foreground"
                                             onClick={() => {
                                                 setSort('recent');
-                                                setCategoryFilter('');
+                                                setCategoryFilter(undefined);
                                                 setPage(1);
                                             }}
                                         >
@@ -254,7 +254,7 @@ export function GalleryPicker({
                                 </Badge>
                             )}
                             {categoryFilter && (
-                                <Badge variant="secondary" className="gap-1 text-xs cursor-pointer" onClick={() => { setCategoryFilter(''); setPage(1); }}>
+                                <Badge variant="secondary" className="gap-1 text-xs cursor-pointer" onClick={() => { setCategoryFilter(undefined); setPage(1); }}>
                                     {activeCategoryLabel}
                                     <X className="w-3 h-3" />
                                 </Badge>

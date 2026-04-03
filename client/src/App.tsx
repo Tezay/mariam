@@ -24,6 +24,7 @@ import { SettingsPage } from './pages/admin/SettingsPage';
 import { AuditLogsPage } from './pages/admin/AuditLogsPage';
 import { AccountPage } from './pages/admin/AccountPage';
 import { EventsPage } from './pages/admin/EventsPage';
+import { ServicePage } from './pages/admin/ServicePage';
 import { GalleryPage } from './pages/admin/GalleryPage';
 import { InstallPage } from './pages/admin/InstallPage';
 import { SetupTransferPage } from './pages/admin/SetupTransferPage';
@@ -145,6 +146,9 @@ function App() {
 
                     {/* Mon compte (tous les utilisateurs authentifiés) */}
                     <Route path="account" element={<AccountPage />} />
+
+                    {/* Service en cours (tous les utilisateurs authentifiés) */}
+                    <Route path="service" element={<ServicePage />} />
 
                     {/* Événements (tous les utilisateurs authentifiés) */}
                     <Route path="events" element={<EventsPage />} />

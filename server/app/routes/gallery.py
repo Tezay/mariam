@@ -190,7 +190,7 @@ def upload_image():
     db.session.flush()
 
     dish_name = request.form.get('dish_name', '').strip()
-    category_id = request.form.get('category_id', '').strip()
+    category_id = request.form.get('category_id', type=int)
     category_label = request.form.get('category_label', '').strip()
 
     if dish_name:

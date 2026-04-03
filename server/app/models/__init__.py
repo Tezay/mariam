@@ -3,7 +3,8 @@ Modèles MARIAM - Exports centralisés.
 """
 from .user import User
 from .passkey import Passkey
-from .restaurant import Restaurant
+from .restaurant import Restaurant, RestaurantServiceHours
+from .category import MenuCategory
 from .menu import Menu, MenuItem, MenuImage
 from .event import Event, EventImage
 from .gallery import GalleryImage, GalleryImageTag, MenuItemImage
@@ -28,6 +29,8 @@ __all__ = [
     'User',
     'Passkey',
     'Restaurant',
+    'RestaurantServiceHours',
+    'MenuCategory',
     'Menu',
     'MenuItem',
     'MenuImage',

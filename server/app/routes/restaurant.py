@@ -18,7 +18,7 @@ from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_smorest import Blueprint
 from ..extensions import db
-from ..models import User, Restaurant, AuditLog, DietaryTag, Certification
+from ..models import User, Restaurant, RestaurantServiceHours, AuditLog, DietaryTag, Certification
 from ..security import get_client_ip, limiter
 from ..schemas.restaurant import RestaurantSchema, RestaurantUpdateSchema
 from ..schemas.common import ErrorSchema, MessageSchema
@@ -121,20 +121,59 @@ def update_settings(data):
 
     if 'name' in data:
         restaurant.name = data['name']
-    if 'address' in data:
-        restaurant.address = data['address']
     if 'logo_url' in data:
         restaurant.logo_url = data['logo_url']
+
+    # Address (BAN-verified)
+    if 'address_label' in data:
+        restaurant.address_label = data['address_label']
+    if 'address_lat' in data:
+        restaurant.address_lat = data['address_lat']
+    if 'address_lon' in data:
+        restaurant.address_lon = data['address_lon']
+
+    # Contact
+    if 'email' in data:
+        restaurant.email = data['email']
+    if 'phone' in data:
+        restaurant.phone = data['phone']
+    if 'capacity' in data:
+        restaurant.capacity = data['capacity']
+
+    # Payment methods & accessibility
+    if 'payment_methods' in data:
+        restaurant.payment_methods = data['payment_methods']
+    if 'pmr_access' in data:
+        restaurant.pmr_access = data['pmr_access']
+
+    # Service hours — upsert one row per day
+    if 'service_hours' in data and isinstance(data['service_hours'], dict):
+        incoming = data['service_hours']  # {"0": {"open": "11:30", "close": "14:00"}, ...}
+        existing = {str(h.day_of_week): h for h in restaurant.service_hours}
+        for day_str, times in incoming.items():
+            try:
+                day = int(day_str)
+            except ValueError:
+                continue
+            if day_str in existing:
+                existing[day_str].open_time = times['open']
+                existing[day_str].close_time = times['close']
+            else:
+                db.session.add(RestaurantServiceHours(
+                    restaurant_id=restaurant.id,
+                    day_of_week=day,
+                    open_time=times['open'],
+                    close_time=times['close'],
+                ))
+        # Remove rows for days no longer present
+        for day_str, row in existing.items():
+            if day_str not in incoming:
+                db.session.delete(row)
 
     if 'service_days' in data:
         days = data['service_days']
         if isinstance(days, list) and all(isinstance(d, int) and 0 <= d <= 6 for d in days):
             restaurant.service_days = sorted(days)
-
-    if 'menu_categories' in data:
-        categories = data['menu_categories']
-        if isinstance(categories, list):
-            restaurant.menu_categories = categories
 
     if 'dietary_tags' in data or 'certifications' in data:
         restaurant.tags_customized = True

@@ -487,14 +487,26 @@ export const authApi = {
 // ========================================
 // API MENUS
 // ========================================
+export interface MenuItemImageLink {
+    id: number;
+    menu_item_id: number;
+    gallery_image_id: number;
+    display_order: number;
+    url: string;
+    filename?: string;
+}
+
 export interface MenuItem {
     id?: number;
     menu_id?: number;
-    category: string;
+    category_id: number;
     name: string;
     order?: number;
+    replacement_label?: string | null;
+    is_out_of_stock?: boolean;
     tags?: DietaryTag[];
     certifications?: CertificationItem[];
+    images?: MenuItemImageLink[];
 }
 
 export interface Menu {
@@ -504,7 +516,6 @@ export interface Menu {
     status: 'draft' | 'published';
     items: MenuItem[];
     images?: MenuImage[];
-    item_images?: MenuItemImageLink[];
     chef_note?: string;
     published_at?: string;
 }
@@ -515,17 +526,6 @@ export interface MenuImage {
     url: string;
     filename?: string;
     order: number;
-}
-
-export interface MenuItemImageLink {
-    id: number;
-    menu_id: number;
-    gallery_image_id: number;
-    category: string;
-    item_index: number;
-    display_order: number;
-    url: string;
-    filename?: string;
 }
 
 export const menusApi = {
@@ -601,6 +601,13 @@ export const menusApi = {
         return response.data.menu as Menu;
     },
 
+    updateItemStock: async (menuId: number, itemId: number, isOutOfStock: boolean) => {
+        const response = await api.patch(`/menus/${menuId}/items/${itemId}/stock`, {
+            is_out_of_stock: isOutOfStock,
+        });
+        return response.data.item as MenuItem;
+    },
+
     // ——— Affichage public (sans auth) ———
 
     getToday: async (restaurantId?: number) => {
@@ -630,7 +637,7 @@ export interface CsvUploadResponse {
     detected_delimiter: string | null;
     auto_mapping: {
         date?: string;
-        categories?: Record<string, string>;
+        categories?: Record<string, number>;  // csv_column → category_id (int)
     };
     detected_date_format?: string;
 }
@@ -638,7 +645,7 @@ export interface CsvUploadResponse {
 export interface ColumnMapping {
     csv_column: string;
     target_field: 'date' | 'category' | 'ignore';
-    category_id?: string;
+    category_id?: number;  // MenuCategory.id (integer)
 }
 
 export interface DateConfig {
@@ -839,7 +846,7 @@ export interface GalleryImageTag {
     gallery_image_id: number;
     name: string;
     tag_type: 'dish' | 'category' | 'manual';
-    category_id?: string;
+    category_id?: number;  // MenuCategory.id (integer)
 }
 
 export interface GalleryImage {
@@ -866,7 +873,7 @@ export interface GalleryListResponse {
 export const galleryApi = {
     list: async (params?: {
         q?: string;
-        category?: string;
+        category?: number;     // MenuCategory.id (integer)
         page?: number;
         per_page?: number;
         sort?: 'recent' | 'oldest' | 'usage';
@@ -883,12 +890,12 @@ export const galleryApi = {
 
     upload: async (
         file: File,
-        opts?: { dish_name?: string; category_id?: string; category_label?: string; restaurant_id?: number }
+        opts?: { dish_name?: string; category_id?: number; category_label?: string; restaurant_id?: number }
     ): Promise<GalleryImage> => {
         const formData = new FormData();
         formData.append('file', file);
         if (opts?.dish_name) formData.append('dish_name', opts.dish_name);
-        if (opts?.category_id) formData.append('category_id', opts.category_id);
+        if (opts?.category_id) formData.append('category_id', String(opts.category_id));
         if (opts?.category_label) formData.append('category_label', opts.category_label);
         if (opts?.restaurant_id) formData.append('restaurant_id', String(opts.restaurant_id));
         const response = await api.post('/gallery', formData, {
@@ -918,21 +925,47 @@ export const galleryApi = {
 };
 
 // ========================================
+// API CATÉGORIES DE MENU
+// ========================================
+export const categoriesApi = {
+    list: async (): Promise<{ categories: MenuCategory[] }> => {
+        const response = await api.get('/settings/categories');
+        return response.data;
+    },
+
+    create: async (data: { label: string; icon?: string; order?: number; parent_id?: number | null }) => {
+        const response = await api.post('/settings/categories', data);
+        return response.data.category as MenuCategory;
+    },
+
+    update: async (id: number, data: Partial<{ label: string; icon: string; order: number; is_highlighted: boolean }>) => {
+        const response = await api.put(`/settings/categories/${id}`, data);
+        return response.data.category as MenuCategory;
+    },
+
+    delete: async (id: number) => {
+        await api.delete(`/settings/categories/${id}`);
+    },
+
+    reorder: async (items: Array<{ id: number; order: number }>) => {
+        await api.put('/settings/categories/reorder', { items });
+    },
+};
+
+// ========================================
 // API MENU — Item Images (galerie)
 // ========================================
 export const menuItemImagesApi = {
-    sync: async (menuId: number, itemImages: Array<{
-        gallery_image_id: number;
-        category: string;
-        item_index: number;
-        display_order: number;
-    }>) => {
-        const response = await api.post(`/menus/${menuId}/item-images`, { item_images: itemImages });
-        return response.data.item_images as MenuItemImageLink[];
+    add: async (menuId: number, itemId: number, galleryImageId: number, displayOrder = 0) => {
+        const response = await api.post(`/menus/${menuId}/items/${itemId}/images`, {
+            gallery_image_id: galleryImageId,
+            display_order: displayOrder,
+        });
+        return response.data.link as MenuItemImageLink;
     },
 
-    remove: async (menuId: number, linkId: number) => {
-        await api.delete(`/menus/${menuId}/item-images/${linkId}`);
+    remove: async (menuId: number, itemId: number, linkId: number) => {
+        await api.delete(`/menus/${menuId}/items/${itemId}/images/${linkId}`);
     },
 };
 
@@ -1060,10 +1093,15 @@ export const adminApi = {
 // TYPES DE CONFIGURATION RESTAURANT
 // ========================================
 export interface MenuCategory {
-    id: string;
+    id: number;
+    restaurant_id?: number;
+    parent_id: number | null;
     label: string;
     icon: string;
     order: number;
+    is_protected: boolean;
+    is_highlighted: boolean;
+    subcategories?: MenuCategory[];
 }
 
 export interface DietaryTag {
@@ -1108,8 +1146,12 @@ export interface TaxonomyData {
     certification_categories: CertificationCategory[];
 }
 
+export type ServiceHoursDay = { open: string; close: string };
+export type ServiceHours = Record<string, ServiceHoursDay>; // key = day index as string "0"…"6"
+
 export interface RestaurantConfig {
     service_days: number[];
+    service_hours: ServiceHours;
     menu_categories: MenuCategory[];
     dietary_tags: DietaryTag[];
     certifications: CertificationItem[];
@@ -1117,23 +1159,64 @@ export interface RestaurantConfig {
 
 export interface RestaurantSettings {
     name?: string;
-    address?: string;
     logo_url?: string;
     service_days?: number[];
-    menu_categories?: MenuCategory[];
-    dietary_tags?: string[];       // send IDs only
-    certifications?: string[];     // send IDs only
+    service_hours?: ServiceHours;
+    address_label?: string | null;
+    address_lat?: number | null;
+    address_lon?: number | null;
+    email?: string | null;
+    phone?: string | null;
+    capacity?: number | null;
+    payment_methods?: string[] | null;
+    pmr_access?: boolean | null;
+    dietary_tags?: string[];
+    certifications?: string[];
 }
 
 export interface RestaurantWithConfig {
     id: number;
     name: string;
     code: string;
-    address?: string;
     logo_url?: string;
     is_active: boolean;
+    address_label?: string | null;
+    address_lat?: number | null;
+    address_lon?: number | null;
+    email?: string | null;
+    phone?: string | null;
+    capacity?: number | null;
+    payment_methods?: string[] | null;
+    pmr_access?: boolean | null;
+    service_hours: ServiceHours;
     config: RestaurantConfig;
 }
+
+// ── Base Adresse Nationale (IGN Géoplateforme) ──────────────────────────────
+
+export interface BanSuggestion {
+    label: string;
+    lat: number;
+    lon: number;
+}
+
+export const banApi = {
+    search: async (q: string): Promise<BanSuggestion[]> => {
+        if (!q || q.length < 3) return [];
+        const url = new URL('https://data.geopf.fr/geocodage/completion');
+        url.searchParams.set('text', q);
+        url.searchParams.set('maximumResponses', '6');
+        url.searchParams.set('type', 'StreetAddress,PositionOfInterest');
+        const res = await fetch(url.toString());
+        if (!res.ok) return [];
+        const json = await res.json();
+        return (json.results ?? []).map((r: { fulltext: string; x: number; y: number }) => ({
+            label: r.fulltext,
+            lat: r.y,
+            lon: r.x,
+        }));
+    },
+};
 
 // ========================================
 // API PUBLIQUE (sans auth)

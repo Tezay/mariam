@@ -60,6 +60,7 @@ DIETARY_TAGS = [
     {"id": "traditional",     "label": "Recette traditionnelle","icon": "notebook-pen", "color": "orange", "category_id": "preparation",        "sort_order": 12},
     {"id": "local_product",   "label": "Produit local",        "icon": "map-pin",      "color": "blue",   "category_id": "preparation",        "sort_order": 13},
     {"id": "seasonal",        "label": "Produit de saison",    "icon": "tree-pine",    "color": "green",  "category_id": "preparation",        "sort_order": 14},
+    {"id": "hot_appetizer",   "label": "Entrée chaude",        "icon": "soup",         "color": "orange", "category_id": "preparation",        "sort_order": 15},
     # ── Goût / profil ──
     {"id": "spicy",           "label": "Épicé",                "icon": "flame",        "color": "red",    "category_id": "taste_profile",      "sort_order": 15},
     {"id": "low_salt",        "label": "Peu salé",             "icon": "droplets",     "color": "cyan",   "category_id": "taste_profile",      "sort_order": 16},
@@ -82,6 +83,7 @@ DIETARY_TAG_KEYWORDS: dict[str, list[str]] = {
     "traditional":  ["recette traditionnelle", "traditionnel", "traditionnelle"],
     "local_product":["local", "locaux", "régional", "regional", "circuit court", "fermier"],
     "seasonal":     ["de saison", "saisonnier", "saisonnière"],
+    "hot_appetizer": ["entrée chaude", "entree chaude", "chaud", "chaude"],
     "spicy":        ["épicé", "epice", "épicée", "epicee", "spicy"],
     "low_salt":     ["peu salé", "peu sale", "faible en sel", "low salt"],
     "sweet_savory": ["sucré-salé", "sucre-sale", "sweet savory"],

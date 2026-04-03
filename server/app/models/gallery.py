@@ -8,7 +8,7 @@ Architecture :
   - type 'category' : référence la catégorie du restaurant (évolue si la catégorie est renommée).
   - type 'manual' : tag libre ajouté par le gestionnaire.
 - MenuItemImage : table de jonction liant une image de la galerie à un
-  item de menu spécifique (menu_id + category + item_index).
+  item de menu spécifique via menu_item_id (FK stable).
 """
 from datetime import datetime
 from ..extensions import db
@@ -75,7 +75,7 @@ class GalleryImageTag(db.Model):
     gallery_image_id = db.Column(db.Integer, db.ForeignKey('gallery_images.id'), nullable=False)
     name = db.Column(db.String(200), nullable=False)
     tag_type = db.Column(db.String(20), nullable=False)       # dish, category, manual
-    category_id = db.Column(db.String(50), nullable=True)     # pour type='category', réf. config
+    category_id = db.Column(db.Integer, nullable=True)         # pour type='category', FK menu_categories.id
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     VALID_TYPES = ('dish', 'category', 'manual')
@@ -102,41 +102,35 @@ class GalleryImageTag(db.Model):
 class MenuItemImage(db.Model):
     """Jonction entre un item de menu et une image de la galerie.
 
-    Identifie l'item par (menu_id, category, item_index) plutôt que par
-    MenuItem.id car les items sont recréés à chaque sauvegarde du menu.
+    Lie directement à MenuItem.id (stable grâce à la sauvegarde diff-based).
     """
 
     __tablename__ = 'menu_item_images'
 
     id = db.Column(db.Integer, primary_key=True)
-    menu_id = db.Column(db.Integer, db.ForeignKey('menus.id'), nullable=False)
-    gallery_image_id = db.Column(db.Integer, db.ForeignKey('gallery_images.id'), nullable=False)
-    category = db.Column(db.String(50), nullable=False)       # 'entree', 'plat', etc.
-    item_index = db.Column(db.Integer, default=0)             # index dans la catégorie
+    menu_item_id = db.Column(
+        db.Integer, db.ForeignKey('menu_items.id', ondelete='CASCADE'), nullable=False
+    )
+    gallery_image_id = db.Column(
+        db.Integer, db.ForeignKey('gallery_images.id'), nullable=False
+    )
     display_order = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Relation vers le menu
-    menu = db.relationship('Menu', backref=db.backref(
-        'item_images', lazy='dynamic', cascade='all, delete-orphan',
-    ))
-
     __table_args__ = (
-        db.Index('ix_menu_item_images_menu', 'menu_id'),
+        db.Index('ix_menu_item_images_item', 'menu_item_id'),
         db.Index('ix_menu_item_images_gallery', 'gallery_image_id'),
     )
 
     def to_dict(self):
         return {
             'id': self.id,
-            'menu_id': self.menu_id,
+            'menu_item_id': self.menu_item_id,
             'gallery_image_id': self.gallery_image_id,
-            'category': self.category,
-            'item_index': self.item_index,
             'display_order': self.display_order,
             'url': self.gallery_image.url if self.gallery_image else None,
             'filename': self.gallery_image.filename if self.gallery_image else None,
         }
 
     def __repr__(self):
-        return f'<MenuItemImage menu={self.menu_id} cat={self.category}[{self.item_index}]>'
+        return f'<MenuItemImage item={self.menu_item_id} gallery={self.gallery_image_id}>'

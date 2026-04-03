@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-04-03
+
+### Added
+
+- **Menu categories**: New `menu_categories` DB table replaces the JSON field on `Restaurant`. Supports one level of subcategories (`parent_id` self-referential FK). Default tree: Entrée → Plat principal (Protéines, Accompagnements, Option végétarienne) → Dessert.
+- **Menu items**: `category_id` (integer FK) replaces the `category` string slug. New `is_out_of_stock` flag and `replacement_label` text field per item.
+- **Category CRUD API**: `GET/POST/PUT/DELETE /v1/settings/categories` with `is_protected` enforcement and reorder endpoint.
+- **Restaurant info fields**: `address_label/lat/lon` (BAN-verified), `email`, `phone`, `capacity`, `payment_methods`, `pmr_access` on `restaurants`.
+- **Service page** (`/admin/service`): Dedicated real-time service view. Per-item stock toggle, inline item editor (name, tags, replacement label), auto-saving chef's note, and a shortcut to the full MenuEditor.
+
+### Changed
+
+- **Settings page**: New sections for address (BAN autocomplete), contact info, capacity, service hours, PMR accessibility, and accepted payment methods.
+
+### Database
+
+- Migration `c1d2e3f4a5b6`: creates `menu_categories`, migrates `menu_items.category`, migrates `menu_item_images` to FK-based linking, converts `gallery_image_tags.category_id` from VARCHAR to INTEGER, drops `restaurant.menu_categories` JSON column.
+- Migration `d2e3f4a5b6c7`: inserts `hot_appetizer` dietary tag.
+- Migration `e3f4a5b6c7d8`: adds restaurant info fields; creates `restaurant_service_hours`; drops legacy `address` column.
+
+---
+
 ## [0.8.7] - 2026-04-01
 
 - **Analytics**: Custom Umami events - `menu-tomorrow-view`, `notifications-subscribe/unsubscribe`, `login-success/failure` (with method), `menu-week-publish`, `event-publish`.

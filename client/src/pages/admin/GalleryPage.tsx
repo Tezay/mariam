@@ -4,9 +4,9 @@
  * Page d'administration pour parcourir, rechercher, tagger et supprimer
  * les photos de la galerie partagée.
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
-    galleryApi, adminApi,
+    galleryApi, categoriesApi,
     GalleryImage, GalleryImageTag, GalleryListResponse,
     MenuCategory,
 } from '@/lib/api';
@@ -33,12 +33,6 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
     { value: 'usage', label: 'Plus utilisées' },
 ];
 
-const DEFAULT_CATEGORIES: MenuCategory[] = [
-    { id: 'entree', label: 'Entrée', icon: 'salad', order: 1 },
-    { id: 'plat', label: 'Plat principal', icon: 'utensils', order: 2 },
-    { id: 'vg', label: 'Option végétarienne', icon: 'leaf', order: 3 },
-    { id: 'dessert', label: 'Dessert', icon: 'cake-slice', order: 4 },
-];
 
 const TAG_TYPE_COLORS: Record<string, string> = {
     dish: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
@@ -54,11 +48,23 @@ export function GalleryPage() {
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [sort, setSort] = useState<SortOption>('recent');
-    const [categoryFilter, setCategoryFilter] = useState<string>('');
+    const [categoryFilter, setCategoryFilter] = useState<number | undefined>(undefined);
     const [loading, setLoading] = useState(true);
 
-    // Categories from config
-    const [categories, setCategories] = useState<MenuCategory[]>(DEFAULT_CATEGORIES);
+    // Categories from DB
+    const [categories, setCategories] = useState<MenuCategory[]>([]);
+
+    const leafCategories = useMemo(() => {
+        const leaves: MenuCategory[] = [];
+        for (const cat of categories) {
+            if (cat.subcategories && cat.subcategories.length > 0) {
+                leaves.push(...cat.subcategories);
+            } else {
+                leaves.push(cat);
+            }
+        }
+        return leaves;
+    }, [categories]);
 
     // Detail modal
     const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
@@ -78,19 +84,11 @@ export function GalleryPage() {
     // Filter dropdown open
     const [filterOpen, setFilterOpen] = useState(false);
 
-    // Load categories
+    // Load categories from DB
     useEffect(() => {
-        const loadConfig = async () => {
-            try {
-                const data = await adminApi.getSettings();
-                if (data?.config?.menu_categories) {
-                    setCategories(data.config.menu_categories);
-                }
-            } catch {
-                // keep defaults
-            }
-        };
-        loadConfig();
+        categoriesApi.list()
+            .then(data => setCategories(data.categories || []))
+            .catch(() => {});
     }, []);
 
     // Debounce search
@@ -215,7 +213,7 @@ export function GalleryPage() {
 
     const activeFilterCount = (categoryFilter ? 1 : 0) + (sort !== 'recent' ? 1 : 0);
     const activeSortLabel = SORT_OPTIONS.find(s => s.value === sort)?.label || '';
-    const activeCategoryLabel = categories.find(c => c.id === categoryFilter)?.label || '';
+    const activeCategoryLabel = leafCategories.find(c => c.id === categoryFilter)?.label || '';
 
     return (
         <div className="container-mariam py-6">
@@ -316,7 +314,7 @@ export function GalleryPage() {
                                 <div className="space-y-1">
                                     <button
                                         type="button"
-                                        onClick={() => { setCategoryFilter(''); setPage(1); }}
+                                        onClick={() => { setCategoryFilter(undefined); setPage(1); }}
                                         className={`w-full text-left text-sm px-3 py-2 rounded-md flex items-center justify-between transition-colors ${
                                             !categoryFilter
                                                 ? 'bg-primary/10 text-primary font-medium'
@@ -326,7 +324,7 @@ export function GalleryPage() {
                                         Toutes les catégories
                                         {!categoryFilter && <Check className="w-4 h-4" />}
                                     </button>
-                                    {categories.sort((a, b) => a.order - b.order).map(cat => (
+                                    {leafCategories.sort((a, b) => a.order - b.order).map(cat => (
                                         <button
                                             key={cat.id}
                                             type="button"
@@ -353,7 +351,7 @@ export function GalleryPage() {
                                         className="w-full text-muted-foreground"
                                         onClick={() => {
                                             setSort('recent');
-                                            setCategoryFilter('');
+                                            setCategoryFilter(undefined);
                                             setPage(1);
                                         }}
                                     >
@@ -375,7 +373,7 @@ export function GalleryPage() {
                             </Badge>
                         )}
                         {categoryFilter && (
-                            <Badge variant="secondary" className="gap-1.5 text-xs cursor-pointer" onClick={() => { setCategoryFilter(''); setPage(1); }}>
+                            <Badge variant="secondary" className="gap-1.5 text-xs cursor-pointer" onClick={() => { setCategoryFilter(undefined); setPage(1); }}>
                                 {activeCategoryLabel}
                                 <X className="w-3 h-3" />
                             </Badge>

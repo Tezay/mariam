@@ -23,6 +23,7 @@ from flask_smorest import Blueprint
 from ..extensions import db
 from ..models import User, Restaurant, Menu, MenuItem, AuditLog, ImportSession
 from ..models import DietaryTag, Certification, DietaryTagKeyword, CertificationKeyword
+from ..models.category import MenuCategory
 from ..security import get_client_ip
 from ..schemas.imports import ImportUploadSchema, ImportPreviewSchema, ImportConfirmSchema
 from ..schemas.common import ErrorSchema
@@ -165,26 +166,41 @@ def clean_item_name(name: str) -> str:
     return name.strip()
 
 
-def suggest_column_mapping(columns: list[str]) -> dict:
+def normalize_label(label: str) -> str:
+    """Normalise un label pour la comparaison (minuscules, sans accents)."""
+    import unicodedata
+    label = label.lower().strip()
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', label)
+        if unicodedata.category(c) != 'Mn'
+    )
+
+
+def suggest_column_mapping(columns: list[str], restaurant_id: int | None = None) -> dict:
+    """Auto-mappe les colonnes CSV aux catégories DB par label (insensible à la casse/accents)."""
     mapping = {}
     date_patterns = ['date', 'jour', 'day', 'fecha']
-    category_patterns = {
-        'entree': ['entrée', 'entree', 'starter', 'appetizer'],
-        'plat': ['plat', 'plat principal', 'main', 'main course', 'dish'],
-        'vg': ['vg', 'végétarien', 'vegetarien', 'végé', 'vege', 'vegan'],
-        'dessert': ['dessert', 'sweet', 'postre'],
+
+    # Charger toutes les catégories du restaurant (principales + sous-catégories)
+    categories: list[MenuCategory] = []
+    if restaurant_id:
+        categories = MenuCategory.query.filter_by(restaurant_id=restaurant_id).all()
+
+    # Index label normalisé → category id (int)
+    cat_label_index: dict[str, int] = {
+        normalize_label(c.label): c.id for c in categories
     }
+
     for col in columns:
-        col_lower = col.lower().strip()
+        col_norm = normalize_label(col)
         for pattern in date_patterns:
-            if pattern in col_lower:
+            if pattern in col_norm:
                 mapping['date'] = col
                 break
-        for category_id, patterns in category_patterns.items():
-            for pattern in patterns:
-                if pattern in col_lower:
-                    mapping.setdefault('categories', {})[col] = category_id
-                    break
+        for label_norm, cat_id in cat_label_index.items():
+            if label_norm in col_norm or col_norm in label_norm:
+                mapping.setdefault('categories', {})[col] = cat_id
+                break
     return mapping
 
 
@@ -238,17 +254,15 @@ def build_menus_from_rows(rows, column_mapping, date_config, restaurant_id):
                 if not item_name:
                     continue
                 item = {
-                    'category': category_id,
+                    'category_id': category_id,  # integer FK
                     'name': clean_item_name(item_name),
                     'order': order,
                     'tags': [],
                     'certifications': [],
                 }
-                if category_id == 'vg':
-                    item['tags'].append('vegetarian')
                 if auto_detect_tags:
                     detected = detect_tags_from_text(item_name)
-                    item['tags'] = list(set(item['tags'] + detected['tags']))
+                    item['tags'] = detected['tags']
                     item['certifications'] = detected['certifications']
                 items.append(item)
 
@@ -325,7 +339,12 @@ def upload_file():
         db.session.add(session)
         db.session.commit()
 
-        auto_mapping = suggest_column_mapping(columns)
+        upload_restaurant_id = request.form.get('restaurant_id', type=int)
+        if not upload_restaurant_id:
+            default_restaurant = get_default_restaurant()
+            if default_restaurant:
+                upload_restaurant_id = default_restaurant.id
+        auto_mapping = suggest_column_mapping(columns, upload_restaurant_id)
 
         detected_date_format = None
         if auto_mapping.get('date'):
@@ -479,7 +498,7 @@ def confirm_import(data):
                 cert_ids = item_data.get('certifications', [])
                 item = MenuItem(
                     menu_id=menu.id,
-                    category=item_data['category'],
+                    category_id=item_data['category_id'],
                     name=item_data['name'],
                     order=item_data.get('order', idx),
                 )

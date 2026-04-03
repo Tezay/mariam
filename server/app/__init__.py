@@ -184,8 +184,10 @@ def create_app(config_class=None):
     from .routes.audit import audit_bp
     from .routes.imports import imports_bp
     from .routes.notifications import notifications_bp
+    from .routes.categories import categories_bp
 
     api.register_blueprint(menus_bp,         url_prefix='/v1/menus')
+    api.register_blueprint(categories_bp,    url_prefix='/v1')
     api.register_blueprint(auth_bp,          url_prefix='/v1/auth')
     api.register_blueprint(events_bp,        url_prefix='/v1/events')
     api.register_blueprint(gallery_bp,       url_prefix='/v1/gallery')
@@ -203,7 +205,7 @@ def create_app(config_class=None):
         return {
             'status': 'healthy',
             'message': 'MARIAM API is running',
-            'version': '0.8.7',
+            'version': '0.9.0',
             'docs': '/docs'
         }
 

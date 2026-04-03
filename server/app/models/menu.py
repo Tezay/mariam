@@ -56,31 +56,19 @@ class Menu(db.Model):
         }
         
         if include_items:
-            data['items'] = [item.to_dict() for item in self.items.order_by(MenuItem.category, MenuItem.order)]
+            data['items'] = [item.to_dict() for item in self.items.order_by(MenuItem.category_id, MenuItem.order)]
 
         if include_images:
-            # Legacy images (ancien système)
+            # Legacy images (photos du jour)
             data['images'] = [img.to_dict() for img in self.images.order_by(MenuImage.order)]
-            # Nouveau système : images par catégorie via la galerie
-            if hasattr(self, 'item_images'):
-                from .gallery import MenuItemImage
-                item_imgs = MenuItemImage.query.filter_by(menu_id=self.id).order_by(
-                    MenuItemImage.category, MenuItemImage.item_index, MenuItemImage.display_order
-                ).all()
-                data['item_images'] = [img.to_dict() for img in item_imgs]
-            else:
-                data['item_images'] = []
         
         return data
     
     def get_items_by_category(self):
-        """Retourne les items groupés par catégorie (dynamique).
-        
-        Supporte toutes les catégories configurées, pas seulement les valeurs hardcodées.
-        """
+        """Retourne les items groupés par category_id (entier)."""
         categories = {}
         for item in self.items:
-            cat = item.category
+            cat = item.category_id
             if cat not in categories:
                 categories[cat] = []
             categories[cat].append(item.to_dict())
@@ -92,15 +80,18 @@ class Menu(db.Model):
 
 class MenuItem(db.Model):
     """Item d'un menu (entrée, plat, dessert, etc.)."""
-    
+
     __tablename__ = 'menu_items'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     menu_id = db.Column(db.Integer, db.ForeignKey('menus.id'), nullable=False)
-    category = db.Column(db.String(50), nullable=False)  # Dynamic categories from config
+    category_id = db.Column(db.Integer, db.ForeignKey('menu_categories.id'), nullable=False)
     name = db.Column(db.String(200), nullable=False)
     order = db.Column(db.Integer, default=0)
-    
+    # Option de remplacement (texte libre) affiché si is_out_of_stock=True
+    replacement_label = db.Column(db.String(200), nullable=True)
+    is_out_of_stock = db.Column(db.Boolean, nullable=False, default=False)
+
     # Relations N:N normalisées (tags & certifications)
     tags = db.relationship(
         'DietaryTag',
@@ -114,21 +105,33 @@ class MenuItem(db.Model):
         lazy='select',
         order_by='Certification.sort_order',
     )
-    
+    # Images liées à cet item (via galerie)
+    images = db.relationship(
+        'MenuItemImage',
+        backref='menu_item',
+        lazy='select',
+        cascade='all, delete-orphan',
+        order_by='MenuItemImage.display_order',
+        foreign_keys='MenuItemImage.menu_item_id',
+    )
+
     def to_dict(self):
         """Sérialise l'item en dictionnaire JSON."""
         return {
             'id': self.id,
             'menu_id': self.menu_id,
-            'category': self.category,
+            'category_id': self.category_id,
             'name': self.name,
             'order': self.order,
+            'replacement_label': self.replacement_label,
+            'is_out_of_stock': self.is_out_of_stock,
             'tags': [t.to_dict() for t in self.tags],
             'certifications': [c.to_dict() for c in self.certifications],
+            'images': [img.to_dict() for img in self.images],
         }
-    
+
     def __repr__(self):
-        return f'<MenuItem {self.category}: {self.name}>'
+        return f'<MenuItem cat={self.category_id}: {self.name}>'
 
 
 class MenuImage(db.Model):

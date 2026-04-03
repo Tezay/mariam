@@ -3,9 +3,8 @@
  * 
  * Permet d'importer des menus depuis un fichier CSV ou Excel.
  */
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { csvImportApi, MenuItem, MenuCategory, adminApi } from '@/lib/api';
-import { DEFAULT_CATEGORIES } from '@/lib/constants';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { csvImportApi, MenuItem, MenuCategory, categoriesApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,7 +30,7 @@ type ImportStep = 'upload' | 'mapping' | 'dates' | 'duplicates' | 'preview';
 interface ColumnMapping {
     csv_column: string;
     target_field: 'date' | 'category' | 'ignore';
-    category_id?: string;
+    category_id?: number;
 }
 
 interface DateConfig {
@@ -50,7 +49,7 @@ interface UploadedFile {
     row_count: number;
     auto_mapping: {
         date?: string;
-        categories?: Record<string, string>;
+        categories?: Record<string, number>;
     };
     detected_date_format?: string;
 }
@@ -113,8 +112,21 @@ export function CsvImportModal({ restaurantId, weekStart, onClose, onImportCompl
     // Pluralization Helper
     const plural = (count: number, singular: string, plural: string) => count > 1 ? `${count} ${plural}` : `${count} ${singular}`;
 
-    // Catégories du restaurant
-    const [categories, setCategories] = useState<MenuCategory[]>(DEFAULT_CATEGORIES);
+    // Catégories du restaurant (hiérarchie complète)
+    const [categories, setCategories] = useState<MenuCategory[]>([]);
+
+    // Catégories feuilles uniquement (celles qui contiennent des items directement)
+    const leafCategories = useMemo(() => {
+        const leaves: MenuCategory[] = [];
+        for (const cat of categories) {
+            if (cat.subcategories && cat.subcategories.length > 0) {
+                leaves.push(...cat.subcategories);
+            } else {
+                leaves.push(cat);
+            }
+        }
+        return leaves;
+    }, [categories]);
 
     // Ref pour l'input file
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -123,10 +135,8 @@ export function CsvImportModal({ restaurantId, weekStart, onClose, onImportCompl
     useEffect(() => {
         const loadCategories = async () => {
             try {
-                const settings = await adminApi.getSettings();
-                if (settings.config?.menu_categories?.length) {
-                    setCategories(settings.config.menu_categories);
-                }
+                const { categories: cats } = await categoriesApi.list();
+                setCategories(cats || []);
             } catch (err) {
                 console.error('Erreur chargement catégories:', err);
             }
@@ -482,7 +492,7 @@ export function CsvImportModal({ restaurantId, weekStart, onClose, onImportCompl
                                 if (value.startsWith('category:')) {
                                     updateMapping(index, {
                                         target_field: 'category',
-                                        category_id: value.replace('category:', '')
+                                        category_id: Number(value.replace('category:', ''))
                                     });
                                 } else {
                                     updateMapping(index, {
@@ -495,7 +505,7 @@ export function CsvImportModal({ restaurantId, weekStart, onClose, onImportCompl
                             <option value="ignore">— Ignorer —</option>
                             <option value="date">Date</option>
                             <optgroup label="Catégories">
-                                {categories.map(cat => (
+                                {leafCategories.map(cat => (
                                     <option key={cat.id} value={`category:${cat.id}`}>
                                         {cat.label}
                                     </option>
