@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+
+- **Rate limiting**: use `CF-Connecting-IP` as the authoritative client IP to prevent `X-Forwarded-For` spoofing.
+- **Token blacklist**: fail-closed when Redis is configured but unreachable.
+- **Intermediate tokens**: `webauthn_pending`, `setup_phase`, and `session_transfer` tokens are now rejected on all regular `@jwt_required()` endpoints.
+- **Account activation**: `passkey/setup/begin` and `mfa/verify-setup` require a short-lived `setup_token` (15 min) issued at activation; added dedicated rate limit (5/min) on `mfa/verify-setup`.
+- **Frontend**: editor-only pages now enforce `editor`/`admin` role; `reader` accounts are redirected to 403.
+
 ## [0.9.0] - 2026-04-03
 
 ### Added
@@ -24,8 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Migration `c1d2e3f4a5b6`: creates `menu_categories`, migrates `menu_items.category`, migrates `menu_item_images` to FK-based linking, converts `gallery_image_tags.category_id` from VARCHAR to INTEGER, drops `restaurant.menu_categories` JSON column.
 - Migration `d2e3f4a5b6c7`: inserts `hot_appetizer` dietary tag.
 - Migration `e3f4a5b6c7d8`: adds restaurant info fields; creates `restaurant_service_hours`; drops legacy `address` column.
-
----
 
 ## [0.8.7] - 2026-04-01
 

@@ -45,6 +45,7 @@ export function Activate() {
     const [qrCode, setQrCode] = useState('');
     const [mfaSecret, setMfaSecret] = useState('');
     const [userId, setUserId] = useState<number>(0);
+    const [setupToken, setSetupToken] = useState('');
     const [mfaCode, setMfaCode] = useState('');
 
     // UI
@@ -103,6 +104,7 @@ export function Activate() {
                 setQrCode(result.mfa_setup.qr_code);
                 setMfaSecret(result.mfa_setup.secret);
                 setUserId(result.mfa_setup.user_id);
+                setSetupToken(result.mfa_setup.setup_token);
                 // Proposer le choix si le navigateur supporte les passkeys
                 setStep(passkeySupported ? 'choose' : 'mfa');
             }
@@ -120,7 +122,7 @@ export function Activate() {
         setIsLoading(true);
 
         try {
-            const { options, challenge_token } = await authApi.passkeySetupBegin(userId);
+            const { options, challenge_token } = await authApi.passkeySetupBegin(userId, setupToken);
             const credential = await startRegistration({
                 optionsJSON: options as unknown as PublicKeyCredentialCreationOptionsJSON,
             });
@@ -149,7 +151,7 @@ export function Activate() {
         setIsLoading(true);
 
         try {
-            const user = await authApi.verifyMfaSetup(userId, mfaCode);
+            const user = await authApi.verifyMfaSetup(userId, mfaCode, setupToken);
             activateComplete(user);
             navigate('/admin');
         } catch (err: unknown) {

@@ -258,12 +258,14 @@ def activate_account(data):
         'mfa_setup': {
             'qr_code': f'data:image/png;base64,{qr_base64}',
             'secret': mfa_secret,
-            'user_id': user.id
+            'user_id': user.id,
+            'setup_token': _make_setup_token(user.id),
         }
     }), 201
 
 
 @auth_bp.route('/mfa/verify-setup', methods=['POST'])
+@limiter.limit("5 per minute")
 @auth_bp.response(200, LoginResponseSchema)
 @auth_bp.alt_response(401, schema=ErrorSchema, description="Invalid TOTP code")
 def verify_mfa_setup():
@@ -271,6 +273,7 @@ def verify_mfa_setup():
     Confirm MFA setup by verifying a TOTP code.
 
     On success, MFA is enabled and full JWT tokens are returned.
+    Requires a setup_token issued by the activate endpoint.
     """
     data = request.get_json()
 
@@ -279,9 +282,20 @@ def verify_mfa_setup():
 
     user_id = data.get('user_id')
     code = data.get('code')
+    setup_token = data.get('setup_token')
 
     if not user_id or not code:
         return jsonify({'error': 'ID utilisateur et code requis'}), 400
+
+    if not setup_token:
+        return jsonify({'error': 'setup_token requis'}), 400
+
+    try:
+        decoded = decode_token(setup_token)
+        if not decoded.get('setup_phase') or int(decoded['sub']) != int(user_id):
+            return jsonify({'error': 'setup_token invalide'}), 401
+    except Exception:
+        return jsonify({'error': 'setup_token invalide ou expiré'}), 401
 
     user = User.query.get(user_id)
     if not user:
@@ -757,6 +771,22 @@ def _get_webauthn_config():
     )
 
 
+def _make_setup_token(user_id: int) -> str:
+    """
+    Issue a short-lived setup token (15 min) used exclusively during account
+    activation to authorise passkey registration and TOTP verification.
+
+    Accepted ONLY by passkey_setup_begin, passkey_setup_complete, and
+    verify_mfa_setup. Blocked on all regular @jwt_required() endpoints by
+    the check_if_token_revoked callback (setup_phase claim).
+    """
+    return create_access_token(
+        identity=str(user_id),
+        additional_claims={'setup_phase': True},
+        expires_delta=timedelta(minutes=15),
+    )
+
+
 def _make_challenge_token(user_id: int, challenge_bytes: bytes) -> str:
     """
     Encode a WebAuthn challenge into a short-lived JWT (120 s).
@@ -1164,8 +1194,20 @@ def passkey_setup_begin():
         return jsonify({'error': 'Données manquantes'}), 400
 
     user_id = data.get('user_id')
+    setup_token = data.get('setup_token')
+
     if not user_id:
         return jsonify({'error': 'user_id requis'}), 400
+
+    if not setup_token:
+        return jsonify({'error': 'setup_token requis'}), 400
+
+    try:
+        decoded = decode_token(setup_token)
+        if not decoded.get('setup_phase') or int(decoded['sub']) != int(user_id):
+            return jsonify({'error': 'setup_token invalide'}), 401
+    except Exception:
+        return jsonify({'error': 'setup_token invalide ou expiré'}), 401
 
     user = User.query.get(int(user_id))
     if not user:

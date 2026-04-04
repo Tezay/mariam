@@ -247,8 +247,8 @@ export const authApi = {
     /**
      * Confirme la configuration MFA
      */
-    verifyMfaSetup: async (userId: number, code: string) => {
-        const response = await api.post('/auth/mfa/verify-setup', { user_id: userId, code });
+    verifyMfaSetup: async (userId: number, code: string, setupToken: string) => {
+        const response = await api.post('/auth/mfa/verify-setup', { user_id: userId, code, setup_token: setupToken });
         const { access_token, refresh_token, user } = response.data;
         localStorage.setItem('access_token', access_token);
         localStorage.setItem('refresh_token', refresh_token);
@@ -440,8 +440,8 @@ export const authApi = {
     },
 
     /** Démarre l'enregistrement d'une passkey lors de l'activation du compte */
-    passkeySetupBegin: async (userId: number) => {
-        const response = await api.post('/auth/passkey/setup/begin', { user_id: userId });
+    passkeySetupBegin: async (userId: number, setupToken: string) => {
+        const response = await api.post('/auth/passkey/setup/begin', { user_id: userId, setup_token: setupToken });
         return response.data as { options: Record<string, unknown>; challenge_token: string };
     },
 

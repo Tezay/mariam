@@ -70,6 +70,25 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
 }
 
+// Route éditeur (rôle admin ou editor requis)
+function EditorRoute({ children }: { children: React.ReactNode }) {
+    const { user, isLoading } = useAuth();
+
+    if (isLoading) {
+        return (
+            <div className="flex h-screen items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+        );
+    }
+
+    if (user?.role !== 'admin' && user?.role !== 'editor') {
+        return <Forbidden />;
+    }
+
+    return <>{children}</>;
+}
+
 // Route publique (redirige si déjà connecté)
 function PublicRoute({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, isLoading } = useAuth();
@@ -140,21 +159,21 @@ function App() {
                         </ProtectedRoute>
                     }
                 >
-                    {/* Dashboard = Weekly Planner (tous les utilisateurs authentifiés) */}
-                    <Route index element={<WeeklyPlanner />} />
-                    <Route path="menus" element={<WeeklyPlanner />} />
+                    {/* Dashboard = Weekly Planner (admin ou editor) */}
+                    <Route index element={<EditorRoute><WeeklyPlanner /></EditorRoute>} />
+                    <Route path="menus" element={<EditorRoute><WeeklyPlanner /></EditorRoute>} />
 
                     {/* Mon compte (tous les utilisateurs authentifiés) */}
                     <Route path="account" element={<AccountPage />} />
 
-                    {/* Service en cours (tous les utilisateurs authentifiés) */}
-                    <Route path="service" element={<ServicePage />} />
+                    {/* Service en cours (admin ou editor) */}
+                    <Route path="service" element={<EditorRoute><ServicePage /></EditorRoute>} />
 
-                    {/* Événements (tous les utilisateurs authentifiés) */}
-                    <Route path="events" element={<EventsPage />} />
+                    {/* Événements (admin ou editor) */}
+                    <Route path="events" element={<EditorRoute><EventsPage /></EditorRoute>} />
 
-                    {/* Galerie photos (tous les utilisateurs authentifiés) */}
-                    <Route path="gallery" element={<GalleryPage />} />
+                    {/* Galerie photos (admin ou editor) */}
+                    <Route path="gallery" element={<EditorRoute><GalleryPage /></EditorRoute>} />
 
                     {/* Gestion des utilisateurs (admin only) */}
                     <Route path="users" element={<AdminRoute><UsersPage /></AdminRoute>} />

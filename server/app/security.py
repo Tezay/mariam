@@ -41,22 +41,35 @@ def blacklist_token(jti: str, ttl_seconds: int) -> None:
 def is_token_blacklisted(jti: str) -> bool:
     """
     Return True if the token JTI is present in the blacklist.
+
+    Fail-closed: if Redis is configured but unreachable, the token is
+    rejected (returns True) to prevent revoked tokens from being reused.
+    If Redis is not configured at all (dev / memory://), tokens are allowed.
     """
+    import logging
     r = _get_blacklist_redis()
     if r:
         try:
             return r.exists(f'mariam:revoked:{jti}') > 0
         except Exception:
-            return False
+            logging.getLogger(__name__).error(
+                "Redis blacklist unavailable — rejecting token as a precaution"
+            )
+            return True
     return False
 
 
 def get_client_ip():
     """
-    Récupère l'adresse IP réelle du client.
-    En serverless, le proxy ajoute X-Forwarded-For.
+    Retourne l'adresse IP réelle du client.
+
+    - Production (Cloudflare) : utilise CF-Connecting-IP (fiable, non falsifiable).
+    - Fallback : X-Forwarded-For, puis remote_addr.
     """
     from flask import request
+    cf_ip = request.headers.get('CF-Connecting-IP', '').strip()
+    if cf_ip:
+        return cf_ip
     forwarded_for = request.headers.get('X-Forwarded-For', '')
     if forwarded_for:
         return forwarded_for.split(',')[0].strip()

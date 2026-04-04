@@ -117,12 +117,19 @@ def create_app(config_class=None):
     def check_if_token_revoked(jwt_header, jwt_payload):
         """
         Bloque deux catégories de tokens :
-        1. Tokens MFA intermédiaires (mfa_pending=True) — ne doivent jamais
-           être acceptés sur des endpoints @jwt_required() ordinaires.
+        1. Tokens intermédiaires / à usage limité — identifiés par une claim
+           spécifique (mfa_pending, webauthn_pending, setup_phase,
+           session_transfer). Ne doivent jamais être acceptés sur les
+           endpoints @jwt_required() ordinaires.
         2. Tokens révoqués explicitement (logout, usage unique) — vérifiés
            en Redis via leur JTI.
         """
-        if jwt_payload.get('mfa_pending'):
+        if (
+            jwt_payload.get('mfa_pending')
+            or jwt_payload.get('webauthn_pending')
+            or jwt_payload.get('session_transfer')
+            or jwt_payload.get('setup_phase')
+        ):
             return True
         jti = jwt_payload.get('jti')
         if not jti:
@@ -136,6 +143,16 @@ def create_app(config_class=None):
             return jsonify({
                 'error': 'Authentification incomplète',
                 'message': 'Veuillez compléter la vérification MFA'
+            }), 401
+        if jwt_payload.get('webauthn_pending') or jwt_payload.get('setup_phase'):
+            return jsonify({
+                'error': 'Token à usage limité',
+                'message': 'Ce token ne peut pas être utilisé sur cet endpoint'
+            }), 401
+        if jwt_payload.get('session_transfer'):
+            return jsonify({
+                'error': 'Token de transfert invalide',
+                'message': 'Ce token ne peut pas être utilisé comme token d\'accès'
             }), 401
         return jsonify({
             'error': 'Token révoqué',
