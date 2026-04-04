@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.9.1] - 2026-04-04
 
 ### Security
 
@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Intermediate tokens**: `webauthn_pending`, `setup_phase`, and `session_transfer` tokens are now rejected on all regular `@jwt_required()` endpoints.
 - **Account activation**: `passkey/setup/begin` and `mfa/verify-setup` require a short-lived `setup_token` (15 min) issued at activation; added dedicated rate limit (5/min) on `mfa/verify-setup`.
 - **Frontend**: editor-only pages now enforce `editor`/`admin` role; `reader` accounts are redirected to 403.
+
+### Fixed
+
+- **CORS**: added `PATCH` to allowed methods (stock toggle on the service page was blocked by preflight).
 
 ## [0.9.0] - 2026-04-03
 

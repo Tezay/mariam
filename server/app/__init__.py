@@ -182,7 +182,7 @@ def create_app(config_class=None):
         origins=origins,
         supports_credentials=True,
         allow_headers=['Content-Type', 'Authorization'],
-        methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+        methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
     )
     
     # ========================================
@@ -222,7 +222,7 @@ def create_app(config_class=None):
         return {
             'status': 'healthy',
             'message': 'MARIAM API is running',
-            'version': '0.9.0',
+            'version': '0.9.1',
             'docs': '/docs'
         }
 
