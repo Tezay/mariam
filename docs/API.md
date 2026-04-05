@@ -51,7 +51,15 @@ Invitation links support two activation paths depending on the user's choice of 
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
 | `POST` | `/v1/auth/refresh` | refresh token | Issue a new access token |
+| `POST` | `/v1/auth/logout` | bearer | Invalidate the current access token |
 | `GET` | `/v1/auth/me` | bearer | Current user profile |
+
+### Session transfer
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| `POST` | `/v1/auth/session-transfer/generate` | bearer | Generate a session transfer token |
+| `POST` | `/v1/auth/session-transfer/validate` | none | Validate and complete session transfer |
 
 ### TOTP (authenticator app)
 
@@ -149,8 +157,9 @@ Requires `editor` role or above, except the public read routes listed above.
 | `DELETE` | `/v1/menus/<id>/images/<img_id>` | Delete an image |
 | `PUT` | `/v1/menus/<id>/images/reorder` | Reorder images |
 | `PUT` | `/v1/menus/<id>/chef-note` | Update chef note |
-| `POST` | `/v1/menus/<id>/item-images` | Sync gallery images for menu items |
-| `DELETE` | `/v1/menus/<id>/item-images/<link_id>` | Unlink a gallery image from a menu item |
+| `PATCH` | `/v1/menus/<id>/items/<item_id>/stock` | Toggle item out-of-stock status |
+| `POST` | `/v1/menus/<id>/items/<item_id>/images` | Link a gallery image to a menu item |
+| `DELETE` | `/v1/menus/<id>/items/<item_id>/images/<link_id>` | Unlink a gallery image from a menu item |
 
 ---
 
@@ -200,6 +209,20 @@ Requires `editor` role or above.
 | `GET` | `/v1/restaurants` | admin | List all restaurants |
 | `POST` | `/v1/restaurants` | admin | Create a restaurant |
 | `PUT` | `/v1/restaurants/<id>` | admin | Update a restaurant |
+
+---
+
+## Categories
+
+Requires `admin` role.
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/v1/settings/categories` | List all categories with subcategories |
+| `POST` | `/v1/settings/categories` | Create a category or subcategory |
+| `PUT` | `/v1/settings/categories/reorder` | Reorder categories |
+| `PUT` | `/v1/settings/categories/<id>` | Update a category |
+| `DELETE` | `/v1/settings/categories/<id>` | Delete a category |
 
 ---
 
