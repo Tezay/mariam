@@ -23,7 +23,7 @@ export function MobileCategorySection({ categories, onItemTap }: MobileCategoryS
                 const hasSubs = (category.subcategories ?? []).some(s => (s.items ?? []).length > 0);
                 if (!hasItems && !hasSubs) return null;
 
-                if (category.is_highlighted) {
+                if (category.is_highlighted || (category.subcategories?.length ?? 0) > 0) {
                     const result = (
                         <MobileHighlightedCategory
                             key={category.id}

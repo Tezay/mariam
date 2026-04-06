@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.1] 2026-04-07
+
+### Fixed
+
+- **Mobile menu**: "Plat principal" and its subcategories were invisible on mobile in production due to `is_highlighted` hardcoded to `false` in migration `c1d2e3f4a5b6`. Fixed by migration `g6b7c8d9e0f1`.
+
+### Database
+
+- Migration `g6b7c8d9e0f1`: sets `is_highlighted = true` on top-level protected categories (`is_protected = true, parent_id IS NULL`).
+
 ## [0.10.0] - 2026-04-07
 
 ### Added

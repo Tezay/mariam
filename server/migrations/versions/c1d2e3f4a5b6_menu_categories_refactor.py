@@ -38,11 +38,11 @@ MAIN_COURSE_SUBCATEGORIES = [
     # La sous-cat "Option végétarienne" est ajoutée si le restaurant avait une cat 'vg'
 ]
 
-# Mapping slug → (label, icon, order, is_protected)
+# Mapping slug → (label, icon, order, is_protected, is_highlighted)
 KNOWN_SLUG_MAP = {
-    'entree':  ('Entrée',        'salad',      1, False),
-    'plat':    ('Plat principal', 'utensils',   2, True),
-    'dessert': ('Dessert',       'cake-slice',  3, False),
+    'entree':  ('Entrée',        'salad',      1, False, False),
+    'plat':    ('Plat principal', 'utensils',   2, True,  True),
+    'dessert': ('Dessert',       'cake-slice',  3, False, False),
     'vg':      None,  # traité comme sous-catégorie de plat principal
 }
 
@@ -108,22 +108,23 @@ def upgrade():
 
             mapping = KNOWN_SLUG_MAP.get(slug)
             if mapping:
-                label, icon, order, is_protected = mapping
+                label, icon, order, is_protected, is_highlighted = mapping
             else:
                 # Catégorie custom
                 label = cat_config.get('label', slug)
                 icon = cat_config.get('icon', 'utensils')
                 order = cat_config.get('order', 99)
                 is_protected = False
+                is_highlighted = False
 
             result = conn.execute(text(
                 "INSERT INTO menu_categories "
                 "(restaurant_id, parent_id, label, icon, \"order\", is_protected, is_highlighted, created_at, updated_at) "
-                "VALUES (:rid, NULL, :label, :icon, :order, :prot, false, :now, :now) "
+                "VALUES (:rid, NULL, :label, :icon, :order, :prot, :highlight, :now, :now) "
                 "RETURNING id"
             ), {
                 'rid': restaurant_id, 'label': label, 'icon': icon,
-                'order': order, 'prot': is_protected, 'now': now,
+                'order': order, 'prot': is_protected, 'highlight': is_highlighted, 'now': now,
             })
             cat_id = result.fetchone()[0]
             slug_to_cat_id[restaurant_id][slug] = cat_id
