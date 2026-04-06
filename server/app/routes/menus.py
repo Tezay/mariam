@@ -25,7 +25,8 @@ Editor endpoints (JWT required):
 - POST /v1/menus/<id>/items/<item_id>/images         Link gallery image to item
 - DELETE /v1/menus/<id>/items/<item_id>/images/<lid> Unlink gallery image from item
 """
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from ..utils.time import paris_today
 from functools import wraps
 from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
@@ -70,7 +71,7 @@ def editor_required(f):
 def get_week_dates(reference_date=None):
     """Retourne les dates du lundi au dimanche de la semaine."""
     if reference_date is None:
-        reference_date = date.today()
+        reference_date = paris_today()
     monday = reference_date - timedelta(days=reference_date.weekday())
     return [monday + timedelta(days=i) for i in range(7)]
 
@@ -173,6 +174,7 @@ def _format_menu_for_display(menu):
             'is_highlighted': cat.is_highlighted,
             'is_protected': cat.is_protected,
             'order': cat.order,
+            'color_key': cat.color_key,
         }
         if cat.subcategories:
             subcats = []
@@ -184,6 +186,7 @@ def _format_menu_for_display(menu):
                     'is_highlighted': sub.is_highlighted,
                     'is_protected': sub.is_protected,
                     'order': sub.order,
+                    'color_key': sub.color_key,
                     'items': items_by_cat.get(sub.id, []),
                 })
             cat_dict['subcategories'] = subcats
@@ -220,7 +223,7 @@ def get_today_menu():
         else:
             return jsonify({'error': 'Aucun restaurant configuré', 'menu': None}), 200
 
-    today = date.today()
+    today = paris_today()
     menu = Menu.query.filter_by(
         restaurant_id=restaurant_id, date=today, status='published'
     ).first()
@@ -249,7 +252,7 @@ def get_tomorrow_menu():
         else:
             return jsonify({'error': 'Aucun restaurant configuré', 'menu': None}), 200
 
-    tomorrow = date.today() + timedelta(days=1)
+    tomorrow = paris_today() + timedelta(days=1)
     menu = Menu.query.filter_by(
         restaurant_id=restaurant_id, date=tomorrow, status='published'
     ).first()
@@ -299,7 +302,7 @@ def get_week_menu():
     else:
         restaurant = Restaurant.query.get(restaurant_id)
 
-    reference_date = date.today() + timedelta(weeks=week_offset)
+    reference_date = paris_today() + timedelta(weeks=week_offset)
     week_dates = get_week_dates(reference_date)
     day_names = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
@@ -451,7 +454,7 @@ def publish_week(data):
         if restaurant:
             restaurant_id = restaurant.id
 
-    reference_date = date.today() + timedelta(weeks=week_offset)
+    reference_date = paris_today() + timedelta(weeks=week_offset)
     week_dates = get_week_dates(reference_date)
 
     published_count = 0
@@ -459,7 +462,7 @@ def publish_week(data):
         menu = Menu.query.filter_by(restaurant_id=restaurant_id, date=d).first()
         if menu and menu.status == 'draft':
             menu.status = 'published'
-            menu.published_at = datetime.utcnow()
+            menu.published_at = datetime.now(timezone.utc)
             menu.published_by_id = current_user_id
             published_count += 1
 
@@ -566,7 +569,7 @@ def publish_menu(menu_id):
         return jsonify({'error': 'Menu non trouvé'}), 404
 
     menu.status = 'published'
-    menu.published_at = datetime.utcnow()
+    menu.published_at = datetime.now(timezone.utc)
     menu.published_by_id = current_user_id
 
     AuditLog.log(

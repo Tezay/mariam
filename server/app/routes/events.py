@@ -18,7 +18,8 @@ Editor endpoints (JWT required):
 - DELETE /v1/events/<id>/images/<img_id>   Delete image
 - PUT    /v1/events/<id>/images/reorder    Reorder images
 """
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
+from ..utils.time import paris_today
 from functools import wraps
 from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
@@ -114,7 +115,7 @@ def list_events():
         query = Event.query.filter_by(restaurant_id=restaurant_id)
 
         if upcoming_only:
-            query = query.filter(Event.event_date >= date.today())
+            query = query.filter(Event.event_date >= paris_today())
 
         if not include_inactive:
             query = query.filter_by(is_active=True)
@@ -135,7 +136,7 @@ def list_events():
             Event.restaurant_id == restaurant_id,
             Event.is_active == True,
             Event.status == 'published',
-            Event.event_date >= date.today(),
+            Event.event_date >= paris_today(),
         )
 
         if visibility in ['tv', 'mobile']:
@@ -145,7 +146,7 @@ def list_events():
 
         events = query.order_by(Event.event_date.asc()).limit(limit).all()
 
-        today = date.today()
+        today = paris_today()
         today_event = None
         upcoming_events = []
 

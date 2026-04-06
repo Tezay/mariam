@@ -12,6 +12,7 @@ class MenuCategorySchema(Schema):
     order = fields.Int()
     is_protected = fields.Bool(dump_only=True)
     is_highlighted = fields.Bool()
+    color_key = fields.Str(allow_none=True)
     subcategories = fields.List(fields.Nested(lambda: MenuCategorySchema()), dump_only=True)
 
 
@@ -31,6 +32,7 @@ class MenuCategoryUpdateSchema(Schema):
     icon = fields.Str()
     order = fields.Int()
     is_highlighted = fields.Bool()
+    color_key = fields.Str(allow_none=True)
 
 
 class MenuCategoryReorderSchema(Schema):

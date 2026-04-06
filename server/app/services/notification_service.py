@@ -9,7 +9,8 @@ Gère l'envoi des notifications Web Push via VAPID :
 import os
 import json
 import logging
-from datetime import date, time, datetime, timedelta
+from datetime import time, timedelta
+from ..utils.time import paris_today, paris_now
 
 from pywebpush import webpush, WebPushException
 
@@ -148,7 +149,7 @@ def build_today_menu_payload(menu_items: list[dict]) -> dict | None:
         'icon': '/web-app-manifest-192x192.png',
         'badge': '/favicon-96x96.png',
         'url': '/menu',
-        'tag': f"menu-today-{date.today().isoformat()}",
+        'tag': f"menu-today-{paris_today().isoformat()}",
     }
 
 
@@ -161,7 +162,7 @@ def build_tomorrow_menu_payload(menu_items: list[dict]) -> dict | None:
     if body is None:
         return None
 
-    tomorrow = date.today() + timedelta(days=1)
+    tomorrow = paris_today() + timedelta(days=1)
     day_names = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
     day_name = day_names[tomorrow.weekday()]
 
@@ -216,9 +217,9 @@ def check_and_send_notifications(app):
         from ..models.restaurant import Restaurant
         from ..extensions import db
 
-        now = datetime.utcnow()
+        now = paris_now()
         current_time = time(now.hour, now.minute)
-        today = date.today()
+        today = paris_today()
         tomorrow = today + timedelta(days=1)
 
         # Acquérir un verrou Redis pour cette minute (évite les doublons multi-instance)
@@ -317,7 +318,7 @@ def _check_event_notifications(db, now, sent_count: int) -> int:
     from ..models.push_subscription import PushSubscription
     from ..models.event import Event
 
-    today = date.today()
+    today = paris_today()
     target_7d = today + timedelta(days=7)
     target_1d = today + timedelta(days=1)
 

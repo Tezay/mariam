@@ -8,6 +8,7 @@ import { useTheme } from '@/contexts/ThemeProvider';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/Logo';
 import { eventsApi, publicApi, ServiceHours } from '@/lib/api';
+import { parisToday } from '@/lib/date-utils';
 import { isInServiceHours } from '@/lib/utils';
 import {
     DropdownMenu,
@@ -76,7 +77,7 @@ export function AdminLayout() {
     }, [user, location.pathname, navigate]);
 
     useEffect(() => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = parisToday();
         eventsApi.list(true)
             .then(events => {
                 setHasTodayEvent(events.some(

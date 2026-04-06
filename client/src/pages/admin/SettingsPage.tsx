@@ -14,8 +14,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { IconPicker, Icon } from '@/components/ui/icon-picker';
 import { iconsData } from '@/components/ui/icons-data';
-import { Save, Plus, Trash2, ArrowUp, ArrowDown, Star, StarOff, Lock, ChevronRight, MapPin, Accessibility, CreditCard } from 'lucide-react';
+import { Save, Plus, Trash2, ArrowUp, ArrowDown, Star, StarOff, Lock, ChevronRight, MapPin, Accessibility, CreditCard, Check, Palette } from 'lucide-react';
 import type { IconName } from '@/components/ui/icon-picker';
+import { COLOR_KEY_MAP } from '@/lib/category-colors';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 const DAY_NAMES = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
@@ -65,7 +67,7 @@ interface CategoryRowProps {
     index: number;
     total: number;
     foodBeverageIcons: typeof iconsData;
-    onUpdate: (id: number, data: Partial<{ label: string; icon: string; is_highlighted: boolean }>) => void;
+    onUpdate: (id: number, data: Partial<{ label: string; icon: string; is_highlighted: boolean; color_key: string | null }>) => void;
     onDelete: (id: number) => void;
     onMove: (id: number, direction: 'up' | 'down') => void;
     indent?: boolean;
@@ -128,7 +130,51 @@ function CategoryRow({ category, index, total, foodBeverageIcons, onUpdate, onDe
                 placeholder="Nom de la catégorie"
             />
 
-            {/* Mise en avant — masqué si la catégorie a des sous-catégories */}
+            {/* Palette couleur */}
+            {!category.is_highlighted && (
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="w-8 h-8 shrink-0 border-0"
+                            title="Couleur de la catégorie"
+                            style={category.color_key ? {
+                                backgroundColor: COLOR_KEY_MAP[category.color_key]?.bg,
+                            } : undefined}
+                        >
+                            <Palette
+                                className="w-5 h-5"
+                                style={{ color: category.color_key ? COLOR_KEY_MAP[category.color_key]?.label : undefined }}
+                            />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-2" align="center">
+                        <div className="grid grid-cols-3 gap-2">
+                            {Object.entries(COLOR_KEY_MAP).map(([key, color]) => (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    title={key}
+                                    onClick={() => onUpdate(category.id, { color_key: key })}
+                                    className="w-8 h-8 rounded-full flex items-center justify-center transition-transform hover:scale-110"
+                                    style={{
+                                        backgroundColor: color.bg,
+                                        outline: category.color_key === key ? `3px solid ${color.border}` : 'none',
+                                        outlineOffset: '2px',
+                                    }}
+                                >
+                                    {category.color_key === key && (
+                                        <Check className="w-4 h-4" style={{ color: color.label }} strokeWidth={3} />
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    </PopoverContent>
+                </Popover>
+            )}
+
+            {/* Mise en avant (highlight) */}
             {!(category.subcategories && category.subcategories.length > 0) ? (
                 <button
                     onClick={() => onUpdate(category.id, { is_highlighted: !category.is_highlighted })}
@@ -392,7 +438,7 @@ export function SettingsPage() {
     };
 
     // ── CRUD Catégories (DB direct) ──────────────────────────────────────────
-    const handleCategoryUpdate = async (id: number, data: Partial<{ label: string; icon: string; is_highlighted: boolean }>) => {
+    const handleCategoryUpdate = async (id: number, data: Partial<{ label: string; icon: string; is_highlighted: boolean; color_key: string | null }>) => {
         try {
             const updated = await categoriesApi.update(id, data);
             setCategories(prev => prev.map(c => {

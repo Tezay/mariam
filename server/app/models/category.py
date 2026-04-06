@@ -28,6 +28,7 @@ class MenuCategory(db.Model):
     order = db.Column(db.Integer, nullable=False, default=0)
     is_protected = db.Column(db.Boolean, nullable=False, default=False)
     is_highlighted = db.Column(db.Boolean, nullable=False, default=False)
+    color_key = db.Column(db.String(30), nullable=True, default=None)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -64,6 +65,7 @@ class MenuCategory(db.Model):
             'order': self.order,
             'is_protected': self.is_protected,
             'is_highlighted': self.is_highlighted,
+            'color_key': self.color_key,
         }
         if include_subcategories and self.parent_id is None:
             data['subcategories'] = [s.to_dict(include_subcategories=False) for s in self.subcategories]

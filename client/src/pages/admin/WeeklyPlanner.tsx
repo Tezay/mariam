@@ -10,6 +10,7 @@
  */
 import { useState, useEffect } from 'react';
 import { menusApi, categoriesApi, Menu, MenuItem, MenuCategory } from '@/lib/api';
+import { parisToday, addDays } from '@/lib/date-utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -100,16 +101,13 @@ export function WeeklyPlanner() {
         if (!weekData?.week_start) return [];
 
         const dates: { dateStr: string; dayIndex: number }[] = [];
-        const start = new Date(weekData.week_start);
         const serviceDays = weekData.service_days || [0, 1, 2, 3, 4]; // Par défaut : Mon-Fri
 
         for (let i = 0; i < 7; i++) {
             // Seulement les jours de service configurés
             if (serviceDays.includes(i)) {
-                const date = new Date(start);
-                date.setDate(start.getDate() + i);
                 dates.push({
-                    dateStr: date.toISOString().split('T')[0],
+                    dateStr: addDays(weekData.week_start, i),
                     dayIndex: i
                 });
             }
@@ -197,7 +195,7 @@ export function WeeklyPlanner() {
     // Afficher le contenu d'une carte de jour
     const renderDayCard = (dateStr: string, dayIndex: number) => {
         const menu = weekData?.menus[dateStr];
-        const isToday = dateStr === new Date().toISOString().split('T')[0];
+        const isToday = dateStr === parisToday();
 
         return (
             <Card
@@ -422,7 +420,7 @@ export function WeeklyPlanner() {
                         <div className="flex gap-1 overflow-x-auto pb-3 mb-4 scrollbar-hide">
                             {weekDates.map(({ dateStr, dayIndex }, idx) => {
                                 const menu = weekData?.menus[dateStr];
-                                const isToday = dateStr === new Date().toISOString().split('T')[0];
+                                const isToday = dateStr === parisToday();
                                 const isActive = idx === mobileIndex;
 
                                 return (

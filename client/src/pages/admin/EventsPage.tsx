@@ -10,6 +10,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { eventsApi, Event } from '@/lib/api';
+import { parisToday } from '@/lib/date-utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateEventPalette } from '@/lib/color-utils';
 import { EventEditor } from '@/components/EventEditor';
@@ -74,7 +75,7 @@ export function EventsPage() {
             // Pour le filtre "passés", on charge tout et filtre côté client
             if (filter === 'past') {
                 const allData = await eventsApi.list(false, undefined, true);
-                const today = new Date().toISOString().split('T')[0];
+                const today = parisToday();
                 setEvents(allData.filter(e => e.event_date < today));
             } else if (filter === 'all') {
                 const allData = await eventsApi.list(false, undefined, true);
@@ -165,11 +166,11 @@ export function EventsPage() {
     };
 
     const isToday = (dateStr: string) => {
-        return dateStr === new Date().toISOString().split('T')[0];
+        return dateStr === parisToday();
     };
 
     const isPast = (dateStr: string) => {
-        return dateStr < new Date().toISOString().split('T')[0];
+        return dateStr < parisToday();
     };
 
     // ------------------------------------------------------------------

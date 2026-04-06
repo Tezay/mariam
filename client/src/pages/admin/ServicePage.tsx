@@ -14,6 +14,7 @@ import {
     Menu, MenuItem, MenuCategory, DietaryTag, ServiceHours,
 } from '@/lib/api';
 import { isInServiceHours } from '@/lib/utils';
+import { parisToday } from '@/lib/date-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -240,7 +241,7 @@ function ItemRow({ item, isToggling, onToggle, onEdit }: ItemRowProps) {
 
 export function ServicePage() {
     const navigate = useNavigate();
-    const today = new Date().toISOString().split('T')[0];
+    const today = parisToday();
 
     const [menu, setMenu] = useState<Menu | null>(null);
     const [categories, setCategories] = useState<MenuCategory[]>([]);

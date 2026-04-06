@@ -6,6 +6,7 @@
  */
 
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { parisToday } from './date-utils';
 
 // Déclaration du type pour la config runtime (injectée par docker-entrypoint.sh)
 declare global {
@@ -1054,7 +1055,7 @@ export const adminApi = {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `audit_logs_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.download = `audit_logs_${parisToday()}.csv`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -1101,6 +1102,7 @@ export interface MenuCategory {
     order: number;
     is_protected: boolean;
     is_highlighted: boolean;
+    color_key?: string | null;
     subcategories?: MenuCategory[];
 }
 

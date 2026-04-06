@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-04-07
+
+### Added
+
+- **Mobile menu UI** (full rewrite): `MenuDisplay` is now a thin orchestrator delegating to `TvMenuDisplay` or `MobileMenuDisplay` based on screen width / `?mode=tv`. Ten dedicated mobile components: `MobileHeader`, `MobileMenuDisplay`, `MobileCategorySection`, `MobileHighlightedCategory`, `MobileStandardCategory`, `MobileItemCard`, `MobileItemDetailSheet`, `MobileEventSection`, `MobileChefNote`, `MobileDayToggle`, `MobileMenuSkeleton`.
+- **Per-category colors**: Six named colors (green, blue, purple, yellow, teal, slate) stored as `color_key` on `menu_categories`. Public menu display uses `color_key`.
+- **Expandable mobile header**: Restaurant info (payment methods, capacity, PMR chip, service hours, contact) behind a collapsible panel.
+- **Closed-day message**: When the selected day is outside `service_days`, the UI shows a "restaurant closed" message with the next scheduled opening date.
+
+### Changed
+
+- **Timezone**: All date computations now use `Europe/Paris` instead of UTC. Backend: `paris_today()` / `paris_now()` via `zoneinfo.ZoneInfo`. Frontend: `parisToday()` / `addDays()` via `Intl.DateTimeFormat`. `published_at` timestamps use `datetime.now(timezone.utc)` (replaces deprecated `utcnow()`). Audit log `created_at` serialisation now includes the `+00:00` UTC offset so the frontend displays the correct local time.
+
+### Database
+
+- Migration `f5a6b7c8d9e0`: adds `color_key VARCHAR(30)` to `menu_categories`; existing top-level non-highlighted categories assigned default colors in order.
+
 ## [0.9.1] - 2026-04-04
 
 ### Security

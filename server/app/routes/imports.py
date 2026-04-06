@@ -15,7 +15,8 @@ import csv
 import io
 import uuid
 import re
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, timedelta
+from ..utils.time import paris_today
 from functools import wraps
 from flask import request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -229,7 +230,7 @@ def build_menus_from_rows(rows, column_mapping, date_config, restaurant_id):
         except ValueError:
             raise ValueError(f"Format de date invalide: {start_date_str}")
     else:
-        start_date = date.today()
+        start_date = paris_today()
 
     current_date = start_date
 
