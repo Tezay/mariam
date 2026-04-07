@@ -222,7 +222,7 @@ def create_app(config_class=None):
         return {
             'status': 'healthy',
             'message': 'MARIAM API is running',
-            'version': '0.10.2',
+            'version': '0.10.3',
             'docs': '/docs'
         }
 

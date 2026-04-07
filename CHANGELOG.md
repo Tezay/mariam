@@ -5,14 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.10.2] 2026-04-07
+## [0.10.3] - 2026-04-07
+
+### Added
+
+- **Mobile item card**: dietary tag icons displayed alongside certification logos.
+- **shadcn Drawer component**: new `Drawer` built on `vaul` replacing `Sheet` for `MobileItemDetailSheet` (for native swipe-to-close supports).
+
+## [0.10.2] - 2026-04-07
 
 ### Changed
 
 - **Mobile menu**: hide "Fermé aujourd'hui" status when no service hours are configured.
 - **Mobile menu**: add footer at the bottom of the content area.
 
-## [0.10.1] 2026-04-07
+## [0.10.1] - 2026-04-07
 
 ### Fixed
 

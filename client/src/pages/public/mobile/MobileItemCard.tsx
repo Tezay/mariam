@@ -1,6 +1,19 @@
 import { useState } from 'react';
 import type { MenuItemData } from '../menu-types';
 import type { CategoryColor } from '@/lib/category-colors';
+import { Icon, type IconName } from '@/components/ui/icon-picker';
+
+const TAG_ICON_COLOR: Record<string, { text: string; bg: string }> = {
+    green:  { text: 'text-green-600',  bg: 'bg-green-50' },
+    teal:   { text: 'text-teal-600',   bg: 'bg-teal-50' },
+    orange: { text: 'text-orange-500', bg: 'bg-orange-50' },
+    blue:   { text: 'text-blue-600',   bg: 'bg-blue-50' },
+    indigo: { text: 'text-indigo-600', bg: 'bg-indigo-50' },
+    amber:  { text: 'text-amber-500',  bg: 'bg-amber-50' },
+    cyan:   { text: 'text-cyan-600',   bg: 'bg-cyan-50' },
+    red:    { text: 'text-red-600',    bg: 'bg-red-50' },
+    purple: { text: 'text-purple-600', bg: 'bg-purple-50' },
+};
 
 interface MobileItemCardProps {
     item: MenuItemData;
@@ -21,10 +34,30 @@ function StockBubble({ type }: { type: 'rupture' | 'nouveau' }) {
     );
 }
 
-function CertsBubble({ certs }: { certs: NonNullable<MenuItemData['certifications']> }) {
-    if (certs.length === 0) return null;
+function BadgesBubble({ tags, certs }: {
+    tags: NonNullable<MenuItemData['tags']>;
+    certs: NonNullable<MenuItemData['certifications']>;
+}) {
+    const hasTags = tags.length > 0;
+    const hasCerts = certs.length > 0;
+    if (!hasTags && !hasCerts) return null;
     return (
-        <div className="absolute bottom-0 right-2 translate-y-1/2 z-20 bg-white rounded-full border border-gray-200 shadow-sm flex items-center gap-1.5 px-1.5 py-1">
+        <div className="absolute bottom-0 right-2 translate-y-1/3 z-20 bg-white rounded-full border border-gray-200 shadow-sm flex items-center gap-1 px-1 py-1.5">
+            {tags.slice(0, 4).map((tag) => {
+                const colors = TAG_ICON_COLOR[tag.color] ?? { text: 'text-gray-500', bg: 'bg-gray-50' };
+                return (
+                    <span
+                        key={tag.id}
+                        title={tag.label}
+                        className={`flex items-center justify-center w-4 h-4 rounded-full ${colors.bg}`}
+                    >
+                        <Icon name={tag.icon as IconName} className={`w-2.5 h-2.5 ${colors.text}`} />
+                    </span>
+                );
+            })}
+            {hasTags && hasCerts && (
+                <span className="w-px h-3 bg-gray-200 mx-0.5 shrink-0" />
+            )}
             {certs.slice(0, 3).map((cert) => (
                 <img
                     key={cert.id}
@@ -44,6 +77,7 @@ export function MobileItemCard({ item, categoryColor, isHighlighted, imagePositi
     const isOutOfStock = item.is_out_of_stock ?? false;
     const hasReplacement = isOutOfStock && !!item.replacement_label;
     const certs = item.certifications ?? [];
+    const tags = item.tags ?? [];
     const firstImage = item.images?.[0]?.url;
 
     const displayName = hasReplacement ? item.replacement_label! : item.name;
@@ -77,6 +111,7 @@ export function MobileItemCard({ item, categoryColor, isHighlighted, imagePositi
                     {/* Box texte */}
                     <div
                         className={`flex-1 px-4 py-4 rounded-2xl bg-white shadow-sm relative z-0 ${imagePosition === 'left' && showImage ? 'ml-[-12px]' : ''} ${imagePosition === 'right' && showImage ? 'mr-[-12px]' : ''}`}
+                        style={{ borderBottom: '4px solid #c8ccd5' }}
                     >
                         {isOutOfStock && (
                             <StockBubble type={hasReplacement ? 'nouveau' : 'rupture'} />
@@ -84,8 +119,8 @@ export function MobileItemCard({ item, categoryColor, isHighlighted, imagePositi
                         <p className={`text-base font-bold line-clamp-2 leading-snug ${isStrikethrough ? 'line-through text-gray-400' : 'text-gray-900'}`}>
                             {displayName}
                         </p>
-                        {/* Bulle certifications dans la text box */}
-                        <CertsBubble certs={certs} />
+                        {/* Bulles tags (gauche) et certifications (droite) */}
+                        <BadgesBubble tags={tags} certs={certs} />
                     </div>
 
                     {/* Image droite */}
@@ -132,8 +167,8 @@ export function MobileItemCard({ item, categoryColor, isHighlighted, imagePositi
                 </p>
             </button>
 
-            {/* Bulle certifications en bas-droit du bouton */}
-            <CertsBubble certs={certs} />
+            {/* Bulles tags (gauche) et certifications (droite) */}
+            <BadgesBubble tags={tags} certs={certs} />
         </div>
     );
 }

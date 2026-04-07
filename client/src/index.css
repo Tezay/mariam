@@ -196,6 +196,16 @@ body {
 }
 
 /* ========================================
+   VAUL DRAWER — VITESSE D'ANIMATION
+   ======================================== */
+[data-vaul-drawer] {
+    transition-duration: 0.3s !important;
+}
+[data-vaul-overlay] {
+    transition-duration: 0.3s !important;
+}
+
+/* ========================================
    RESPONSIVE BREAKPOINTS
    ======================================== */
 /* Mobile first, puis desktop, puis TV */

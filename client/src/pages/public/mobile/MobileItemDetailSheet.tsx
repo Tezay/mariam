@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import type { MenuItemData } from '../menu-types';
 import type { DietaryTag, CertificationItem } from '@/lib/api';
+import { Icon, type IconName } from '@/components/ui/icon-picker';
 
 const TAG_COLOR_CLASSES: Record<string, string> = {
     green: 'bg-green-100 text-green-700 border-green-200',
@@ -35,6 +36,7 @@ const SCHEME_LABELS: Record<string, string> = {
 function TagChip({ tag }: { tag: DietaryTag }) {
     return (
         <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${TAG_COLOR_CLASSES[tag.color] || 'bg-gray-100 text-gray-700'}`}>
+            <Icon name={tag.icon as IconName} className="w-3 h-3 shrink-0" />
             {tag.label}
         </span>
     );
@@ -88,31 +90,22 @@ export function MobileItemDetailSheet({ item, open, onClose }: MobileItemDetailS
     });
 
     return (
-        <Sheet open={open} onOpenChange={open => { if (!open) onClose(); }}>
-            <SheetContent
-                side="bottom"
-                className="h-[90vh] overflow-y-auto p-0 rounded-t-2xl flex flex-col"
-            >
-                {/* Drag handle */}
-                <div className="flex justify-center pt-3 pb-1 shrink-0">
-                    <div className="w-12 h-1 bg-gray-200 rounded-full" />
-                </div>
-
+        <Drawer open={open} onOpenChange={open => { if (!open) onClose(); }}>
+            <DrawerContent className="h-[70vh] flex flex-col p-0">
                 {item && (
                     <>
-                        <SheetHeader className="px-5 pt-2 pb-3 shrink-0">
-                            <SheetTitle className="text-xl font-bold text-left leading-snug">
+                        <DrawerHeader className="px-5 pt-2 pb-3 shrink-0">
+                            <DrawerTitle className="text-xl font-bold text-left leading-snug pr-8">
                                 {item.replacement_label ?? item.name}
-                            </SheetTitle>
+                            </DrawerTitle>
 
-                            {/* Contexte rupture */}
                             {isOutOfStock && !item.replacement_label && (
                                 <p className="text-sm text-red-600 mt-1">Cet article est actuellement en rupture de service.</p>
                             )}
                             {isOutOfStock && item.replacement_label && (
                                 <p className="text-sm text-amber-600 mt-1">Remplace : {item.name}</p>
                             )}
-                        </SheetHeader>
+                        </DrawerHeader>
 
                         <div className="flex-1 overflow-y-auto px-5 pb-8 space-y-5">
                             {/* Galerie images */}
@@ -185,7 +178,7 @@ export function MobileItemDetailSheet({ item, open, onClose }: MobileItemDetailS
                         </div>
                     </>
                 )}
-            </SheetContent>
-        </Sheet>
+            </DrawerContent>
+        </Drawer>
     );
 }
