@@ -4,6 +4,7 @@
  * Gère le fetch des données et orchestre tous les composants mobiles.
  */
 import { useState, useEffect, useRef } from 'react';
+import { Zap } from 'lucide-react';
 import { menusApi, eventsApi, publicApi } from '@/lib/api';
 import { InlineError, getErrorType } from '@/components/InlineError';
 import { jsDayToMariamDay, getNextOpeningDate } from '@/lib/service-utils';
@@ -180,6 +181,19 @@ export function MobileMenuDisplay() {
                         <MobileEventSection upcomingEvents={upcomingEvents} />
                     </>
                 )}
+
+                {/* Footer */}
+                <footer className="py-6 text-center">
+                    <a
+                        href="https://mariam.app"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs text-gray-300 hover:text-gray-400 transition-colors"
+                    >
+                        <Zap className="w-3 h-3" />
+                        Alimenté par <span className="underline">mariam.app</span>
+                    </a>
+                </footer>
             </div>
 
             {/* Sheet détail item */}

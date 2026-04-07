@@ -58,12 +58,14 @@ export function MobileHeader({ restaurant }: MobileHeaderProps) {
                     {restaurant.address_label && (
                         <p className="text-xs text-gray-500 truncate mt-0.5">{restaurant.address_label}</p>
                     )}
-                    <div className="flex items-center gap-1.5 mt-1">
-                        <ServiceStatusDot color={status.color} />
-                        <span className={`text-xs font-medium ${status.isOpen ? 'text-green-600' : status.color === 'amber' ? 'text-amber-600' : 'text-gray-400'}`}>
-                            {status.label}
-                        </span>
-                    </div>
+                    {serviceDays.length > 0 && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                            <ServiceStatusDot color={status.color} />
+                            <span className={`text-xs font-medium ${status.isOpen ? 'text-green-600' : status.color === 'amber' ? 'text-amber-600' : 'text-gray-400'}`}>
+                                {status.label}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 <button
