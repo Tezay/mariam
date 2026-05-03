@@ -56,6 +56,9 @@ class AuditLog(db.Model):
     ACTION_PASSKEY_SETUP = 'passkey_setup'
     ACTION_PASSKEY_RENAMED = 'passkey_renamed'
     ACTION_PASSKEY_DELETED = 'passkey_deleted'
+    ACTION_CLOSURE_CREATE = 'closure_create'
+    ACTION_CLOSURE_UPDATE = 'closure_update'
+    ACTION_CLOSURE_DELETE = 'closure_delete'
     
     @classmethod
     def log(cls, action, user_id=None, target_type=None, target_id=None, 

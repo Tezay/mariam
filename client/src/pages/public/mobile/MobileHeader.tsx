@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Phone, Mail, Users, Accessibility, Bell } from 
 import { useNavigate } from 'react-router-dom';
 import { getServiceStatus, groupConsecutiveHours } from '@/lib/service-utils';
 import type { RestaurantPublic } from '../menu-types';
+import type { ExceptionalClosure } from '@/lib/api';
 
 const PAYMENT_CONFIG: Record<string, { src: string; label: string }> = {
     izly:              { src: '/payments/izly.svg',              label: 'Izly' },
@@ -11,23 +12,27 @@ const PAYMENT_CONFIG: Record<string, { src: string; label: string }> = {
     ticket_restaurant: { src: '/payments/ticket_restaurant.svg', label: 'Ticket Restaurant' },
 };
 
-function ServiceStatusDot({ color }: { color: 'green' | 'amber' | 'gray' }) {
-    const cls = { green: 'bg-green-500', amber: 'bg-amber-400', gray: 'bg-gray-400' }[color];
+function ServiceStatusDot({ color }: { color: 'green' | 'amber' | 'gray' | 'red' }) {
+    const cls = { green: 'bg-green-500', amber: 'bg-amber-400', gray: 'bg-gray-400', red: 'bg-red-500' }[color];
     return <span className={`inline-block w-2 h-2 rounded-full ${cls} shrink-0`} />;
 }
 
 interface MobileHeaderProps {
     restaurant: RestaurantPublic;
+    activeClosure?: ExceptionalClosure | null;
 }
 
-export function MobileHeader({ restaurant }: MobileHeaderProps) {
+export function MobileHeader({ restaurant, activeClosure }: MobileHeaderProps) {
     const [expanded, setExpanded] = useState(false);
 
     const navigate = useNavigate();
 
     const serviceDays = restaurant.config?.service_days ?? [];
     const serviceHours = restaurant.service_hours ?? {};
-    const status = getServiceStatus(serviceHours, serviceDays);
+    const normalStatus = getServiceStatus(serviceHours, serviceDays);
+    const status = activeClosure
+        ? { label: `Fermé — ${activeClosure.reason ?? 'Fermeture exceptionnelle'}`, isOpen: false, color: 'red' as const }
+        : normalStatus;
     const paymentMethods = restaurant.payment_methods ?? [];
     const groupedHours = groupConsecutiveHours(serviceHours, serviceDays);
 
@@ -61,7 +66,7 @@ export function MobileHeader({ restaurant }: MobileHeaderProps) {
                     {serviceDays.length > 0 && (
                         <div className="flex items-center gap-1.5 mt-1">
                             <ServiceStatusDot color={status.color} />
-                            <span className={`text-xs font-medium ${status.isOpen ? 'text-green-600' : status.color === 'amber' ? 'text-amber-600' : 'text-gray-400'}`}>
+                            <span className={`text-xs font-medium ${status.isOpen ? 'text-green-600' : status.color === 'amber' ? 'text-amber-600' : status.color === 'red' ? 'text-red-600 font-semibold' : 'text-gray-400'}`}>
                                 {status.label}
                             </span>
                         </div>

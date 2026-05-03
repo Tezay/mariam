@@ -4,8 +4,8 @@
  * Gère le fetch des données et orchestre tous les composants mobiles.
  */
 import { useState, useEffect, useRef } from 'react';
-import { Zap } from 'lucide-react';
-import { menusApi, eventsApi, publicApi } from '@/lib/api';
+import { Zap, CalendarOff } from 'lucide-react';
+import { menusApi, eventsApi, publicApi, closuresApi, ExceptionalClosure } from '@/lib/api';
 import { InlineError, getErrorType } from '@/components/InlineError';
 import { jsDayToMariamDay, getNextOpeningDate } from '@/lib/service-utils';
 import { MobileHeader } from './MobileHeader';
@@ -14,6 +14,7 @@ import { MobileDayToggle } from './MobileDayToggle';
 import { MobileCategorySection } from './MobileCategorySection';
 import { MobileItemDetailSheet } from './MobileItemDetailSheet';
 import { MobileEventSection, MobileTodayEvent } from './MobileEventSection';
+import { MobileClosureSection } from './MobileClosureSection';
 import { MobileMenuSkeleton } from './MobileMenuSkeleton';
 import type { MenuData, MenuItemData, EventData, RestaurantPublic } from '../menu-types';
 
@@ -21,12 +22,43 @@ const LOADING_SPINNER_DELAY_MS = 3000;
 const ERROR_GRACE_PERIOD_MS = 20000;
 const RETRY_INTERVAL_MS = 500;
 
+function ActiveClosureMessage({ closure }: { closure: ExceptionalClosure }) {
+    const formatRange = (start: string, end: string) => {
+        const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long' };
+        const fmt = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', opts);
+        return start === end ? fmt(start) : `du ${fmt(start)} au ${fmt(end)}`;
+    };
+
+    return (
+        <div className="mx-4 my-6 rounded-2xl bg-red-50 border border-red-100 px-6 py-8 flex flex-col items-center text-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <CalendarOff className="w-7 h-7 text-red-400" />
+            </div>
+            <div className="space-y-1">
+                <p className="text-red-700 font-bold text-lg leading-snug">
+                    {closure.reason ?? 'Fermeture exceptionnelle'}
+                </p>
+                <p className="text-red-500 text-sm">
+                    {formatRange(closure.start_date, closure.end_date)}
+                </p>
+            </div>
+            {closure.description && (
+                <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line border-t border-red-100 pt-4 w-full text-left">
+                    {closure.description}
+                </p>
+            )}
+        </div>
+    );
+}
+
 export function MobileMenuDisplay() {
     const [selectedDay, setSelectedDay] = useState<'today' | 'tomorrow'>('today');
     const [todayData, setTodayData] = useState<MenuData | null>(null);
     const [tomorrowData, setTomorrowData] = useState<MenuData | null>(null);
     const [todayEvent, setTodayEvent] = useState<EventData | null>(null);
     const [upcomingEvents, setUpcomingEvents] = useState<EventData[]>([]);
+    const [activeClosure, setActiveClosure] = useState<ExceptionalClosure | null>(null);
+    const [upcomingClosures, setUpcomingClosures] = useState<ExceptionalClosure[]>([]);
     const [restaurant, setRestaurant] = useState<RestaurantPublic | null>(null);
     const [selectedItem, setSelectedItem] = useState<MenuItemData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -54,11 +86,12 @@ export function MobileMenuDisplay() {
                 ? Promise.resolve(restaurantRef.current)
                 : publicApi.getRestaurant();
 
-            const [today, tomorrow, eventsData, restaurantData] = await Promise.all([
+            const [today, tomorrow, eventsData, restaurantData, closuresData] = await Promise.all([
                 menusApi.getToday(),
                 menusApi.getTomorrow(),
                 eventsApi.getPublic('mobile'),
                 restaurantPromise,
+                closuresApi.getPublic(),
             ]);
 
             if (requestId !== requestIdRef.current) return;
@@ -67,6 +100,8 @@ export function MobileMenuDisplay() {
             setTomorrowData(tomorrow);
             setTodayEvent(eventsData?.today_event || null);
             setUpcomingEvents(eventsData?.upcoming_events || []);
+            setActiveClosure(closuresData?.current_closure || null);
+            setUpcomingClosures(closuresData?.upcoming_closures || []);
 
             if (restaurantData && !restaurantRef.current) {
                 restaurantRef.current = restaurantData;
@@ -130,7 +165,7 @@ export function MobileMenuDisplay() {
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
             {/* Header restaurant */}
-            {restaurant && <MobileHeader restaurant={restaurant} />}
+            {restaurant && <MobileHeader restaurant={restaurant} activeClosure={activeClosure} />}
 
             {/* Note du chef */}
             {currentData?.menu?.chef_note && (
@@ -164,6 +199,8 @@ export function MobileMenuDisplay() {
                                 categories={currentData.menu.by_category || []}
                                 onItemTap={setSelectedItem}
                             />
+                        ) : activeClosure && selectedDay === 'today' ? (
+                            <ActiveClosureMessage closure={activeClosure} />
                         ) : isClosedDay ? (
                             <ClosedDayMessage
                                 selectedDay={selectedDay}
@@ -179,6 +216,11 @@ export function MobileMenuDisplay() {
 
                         {/* Événements à venir — toujours affichés */}
                         <MobileEventSection upcomingEvents={upcomingEvents} />
+
+                        {/* Fermetures exceptionnelles à venir */}
+                        {upcomingClosures.length > 0 && (
+                            <MobileClosureSection closures={upcomingClosures} />
+                        )}
                     </>
                 )}
 

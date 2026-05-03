@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-05-04
+
+### Added
+
+- **Exceptional closures**: Create, edit, and delete exceptional closure periods from the calendar.
+- **Menu onboarding**: Full-screen step-by-step wizard to create a new menu (name -> dietary tags -> next dish).
+
+### Changed
+
+- **Admin calendar interface**: Rebuilt as a unified interface combining menu planning and event management. New calendar views: day, week (inline editing per column), month, and year overview.
+
+### Database
+
+- Migration `a96639e26a02`: creates `exceptional_closures` table (`restaurant_id`, `start_date`, `end_date`, `reason`, `description`).
+- Migration `892fe6ef799c`: removes `status` column from `exceptional_closures`.
+
 ## [0.10.3] - 2026-04-07
 
 ### Added

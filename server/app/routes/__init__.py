@@ -12,6 +12,7 @@ from .users import users_bp
 from .audit import audit_bp
 from .imports import imports_bp
 from .notifications import notifications_bp
+from .closures import closures_bp
 
 __all__ = [
     'auth_bp',
@@ -25,4 +26,5 @@ __all__ = [
     'audit_bp',
     'imports_bp',
     'notifications_bp',
+    'closures_bp',
 ]

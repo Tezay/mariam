@@ -12,6 +12,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { IconPicker, Icon } from '@/components/ui/icon-picker';
 import { iconsData } from '@/components/ui/icons-data';
 import { Save, Plus, Trash2, ArrowUp, ArrowDown, Star, StarOff, Lock, ChevronRight, MapPin, Accessibility, CreditCard, Check, Palette } from 'lucide-react';
@@ -261,6 +271,8 @@ export function SettingsPage() {
     // Catégories (DB-backed, CRUD direct)
     const [categories, setCategories] = useState<MenuCategory[]>([]);
     const [catLoading, setCatLoading] = useState(false);
+    const [pendingNavHref, setPendingNavHref] = useState<string | null>(null);
+    const [deletingCategoryId, setDeletingCategoryId] = useState<number | null>(null);
 
     const hasChanges = useMemo(() => {
         if (isLoading || originalStateRef.current === '') return false;
@@ -355,9 +367,9 @@ export function SettingsPage() {
             if (anchor?.href && hasChanges) {
                 const url = new URL(anchor.href);
                 if (url.pathname !== location.pathname) {
-                    if (!window.confirm('Vous avez des modifications non enregistrées. Voulez-vous vraiment quitter ?')) {
-                        e.preventDefault(); e.stopPropagation();
-                    }
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setPendingNavHref(anchor.href);
                 }
             }
         };
@@ -457,13 +469,19 @@ export function SettingsPage() {
         }
     };
 
-    const handleCategoryDelete = async (id: number) => {
-        if (!window.confirm('Supprimer cette catégorie ? Les items associés seront également supprimés.')) return;
+    const handleCategoryDelete = (id: number) => {
+        setDeletingCategoryId(id);
+    };
+
+    const confirmCategoryDelete = async () => {
+        if (!deletingCategoryId) return;
         try {
-            await categoriesApi.delete(id);
-            await loadCategories(); // Recharger pour avoir l'état propre
+            await categoriesApi.delete(deletingCategoryId);
+            await loadCategories();
         } catch {
             setMessage({ type: 'error', text: 'Impossible de supprimer cette catégorie' });
+        } finally {
+            setDeletingCategoryId(null);
         }
     };
 
@@ -1012,6 +1030,46 @@ export function SettingsPage() {
                     {isSaving ? 'Enregistrement...' : 'Enregistrer les paramètres'}
                 </Button>
             </div>
+
+            <AlertDialog open={pendingNavHref !== null} onOpenChange={open => { if (!open) setPendingNavHref(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Modifications non sauvegardées</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Vous avez des modifications non enregistrées. Si vous continuez, elles seront perdues.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setPendingNavHref(null)}>Rester</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => { if (pendingNavHref) window.location.href = pendingNavHref; }}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Quitter sans sauvegarder
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={deletingCategoryId !== null} onOpenChange={open => { if (!open) setDeletingCategoryId(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Supprimer cette catégorie ?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Les items associés à cette catégorie seront également supprimés.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setDeletingCategoryId(null)}>Annuler</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmCategoryDelete}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Supprimer
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

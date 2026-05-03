@@ -66,6 +66,7 @@ export default {
             },
             // Breakpoints pour TV
             screens: {
+                'sidebar': '1350px',
                 'tv': '1920px',
                 '4k': '2560px',
             },

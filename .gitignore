@@ -42,3 +42,9 @@ scripts/
 # ========================================
 # Montages locaux temporaires
 postgres_data/
+
+# ========================================
+# CLAUDE CODE
+# ========================================
+.claude/
+CLAUDE.md

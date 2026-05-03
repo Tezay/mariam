@@ -202,6 +202,7 @@ def create_app(config_class=None):
     from .routes.imports import imports_bp
     from .routes.notifications import notifications_bp
     from .routes.categories import categories_bp
+    from .routes.closures import closures_bp
 
     api.register_blueprint(menus_bp,         url_prefix='/v1/menus')
     api.register_blueprint(categories_bp,    url_prefix='/v1')
@@ -214,6 +215,7 @@ def create_app(config_class=None):
     api.register_blueprint(audit_bp,         url_prefix='/v1/audit-logs')
     api.register_blueprint(imports_bp,       url_prefix='/v1/imports/menus')
     api.register_blueprint(notifications_bp, url_prefix='/v1/notifications')
+    api.register_blueprint(closures_bp,      url_prefix='/v1/closures')
 
     # Route de santé (non versionnée, non documentée)
     @app.route('/health')
@@ -222,7 +224,7 @@ def create_app(config_class=None):
         return {
             'status': 'healthy',
             'message': 'MARIAM API is running',
-            'version': '0.10.3',
+            'version': '0.11.0',
             'docs': '/docs'
         }
 

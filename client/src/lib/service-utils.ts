@@ -117,6 +117,21 @@ export function groupConsecutiveHours(
     return groups;
 }
 
+import type { ExceptionalClosure } from './api';
+
+/**
+ * Retourne la fermeture exceptionnelle active pour une date donnée (YYYY-MM-DD), ou null.
+ * Ne prend en compte que les fermetures publiées et actives.
+ */
+export function getActiveClosureForDate(
+    closures: ExceptionalClosure[],
+    dateISO: string,
+): ExceptionalClosure | null {
+    return closures.find(
+        c => c.is_active && c.start_date <= dateISO && c.end_date >= dateISO
+    ) ?? null;
+}
+
 export interface NextOpeningDate {
     /** Abréviation + date courte : "Lun 7 avr." */
     label: string;

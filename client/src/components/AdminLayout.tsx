@@ -7,8 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/Logo';
-import { eventsApi, publicApi, ServiceHours } from '@/lib/api';
-import { parisToday } from '@/lib/date-utils';
+import { publicApi, ServiceHours } from '@/lib/api';
 import { isInServiceHours } from '@/lib/utils';
 import {
     DropdownMenu,
@@ -21,7 +20,6 @@ import {
 import {
     CalendarDays,
     ChefHat,
-    Megaphone,
     Image as ImageIcon,
     Users,
     Settings,
@@ -34,7 +32,7 @@ import {
     Moon,
     Sun,
     ChevronDown,
-    HelpCircle
+    HelpCircle,
 } from 'lucide-react';
 
 interface NavItem {
@@ -53,7 +51,6 @@ export function AdminLayout() {
     const navigate = useNavigate();
     const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [hasTodayEvent, setHasTodayEvent] = useState(false);
     const [serviceHours, setServiceHours] = useState<ServiceHours>({});
     const [duringService, setDuringService] = useState(false);
 
@@ -77,17 +74,6 @@ export function AdminLayout() {
     }, [user, location.pathname, navigate]);
 
     useEffect(() => {
-        const today = parisToday();
-        eventsApi.list(true)
-            .then(events => {
-                setHasTodayEvent(events.some(
-                    e => e.event_date === today && e.status === 'published'
-                ));
-            })
-            .catch(() => {});
-    }, []);
-
-    useEffect(() => {
         publicApi.getRestaurant()
             .then(r => setServiceHours(r?.config?.service_hours ?? {}))
             .catch(() => {});
@@ -105,13 +91,6 @@ export function AdminLayout() {
         navigate('/login');
     };
 
-    const todayDot = hasTodayEvent ? (
-        <span className="relative flex h-2 w-2 ml-auto">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-        </span>
-    ) : undefined;
-
     const servicePulse = duringService ? (
         <span className="relative flex h-2 w-2 ml-auto">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
@@ -120,9 +99,8 @@ export function AdminLayout() {
     ) : undefined;
 
     const navItems: NavItem[] = [
-        { to: '/admin/menus', label: 'Menus', icon: <CalendarDays className="w-5 h-5" /> },
+        { to: '/admin/calendar', label: 'Calendrier', icon: <CalendarDays className="w-5 h-5" /> },
         { to: '/admin/service', label: 'Service en cours', mobileLabel: 'Service', icon: <ChefHat className="w-5 h-5" />, badge: servicePulse, highlight: 'amber' },
-        { to: '/admin/events', label: 'Événements', icon: <Megaphone className="w-5 h-5" />, badge: todayDot },
         { to: '/admin/gallery', label: 'Galerie', icon: <ImageIcon className="w-5 h-5" /> },
         { to: '/admin/users', label: 'Utilisateurs', icon: <Users className="w-5 h-5" />, adminOnly: true },
         { to: '/admin/settings', label: 'Paramètres', icon: <Settings className="w-5 h-5" />, adminOnly: true },
@@ -142,7 +120,7 @@ export function AdminLayout() {
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setSidebarOpen(true)}
-                            className="md:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground"
+                            className="sidebar:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground"
                             aria-label="Ouvrir le menu"
                         >
                             <MenuIcon className="w-6 h-6" />
@@ -211,7 +189,7 @@ export function AdminLayout() {
                 {/* Overlay mobile */}
                 {sidebarOpen && (
                     <div
-                        className="fixed inset-0 bg-black/50 z-30 md:hidden"
+                        className="fixed inset-0 bg-black/50 z-30 sidebar:hidden"
                         onClick={closeSidebar}
                     />
                 )}
@@ -221,21 +199,21 @@ export function AdminLayout() {
                     fixed inset-y-0 left-0 z-30
                     w-64 bg-card border-r border-border
                     transform transition-transform duration-200 ease-in-out
-                    md:transform-none md:transition-none
-                    ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-                    md:top-16
-                    pt-16 md:pt-0
+                    sidebar:transform-none sidebar:transition-none
+                    ${sidebarOpen ? 'translate-x-0' : '-translate-x-full sidebar:translate-x-0'}
+                    sidebar:top-16
+                    pt-16 sidebar:pt-0
                 `}>
                     {/* Bouton fermer (mobile) */}
                     <button
                         onClick={closeSidebar}
-                        className="md:hidden absolute top-4 right-4 p-2 text-muted-foreground hover:text-foreground"
+                        className="sidebar:hidden absolute top-4 right-4 p-2 text-muted-foreground hover:text-foreground"
                         aria-label="Fermer le menu"
                     >
                         <X className="w-5 h-5" />
                     </button>
 
-                    <div className="flex flex-col justify-between h-[calc(100vh-4rem)] pb-16 md:pb-0">
+                    <div className="flex flex-col justify-between h-[calc(100vh-4rem)] pb-16 sidebar:pb-0">
                         <nav className="p-4 space-y-1">
                             {filteredNavItems.map((item) => (
                                 <NavLink
@@ -271,13 +249,13 @@ export function AdminLayout() {
                 </aside>
 
                 {/* Contenu principal */}
-                <main className="flex-1 min-w-0 overflow-x-hidden pb-20 md:pb-0 md:ml-64">
+                <main className="flex-1 min-w-0 overflow-x-hidden pb-20 sidebar:pb-0 sidebar:ml-64">
                     <Outlet />
                 </main>
             </div>
 
             {/* Nav mobile (bottom) */}
-            <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex z-30">
+            <nav className="sidebar:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex z-30">
                 {filteredNavItems.slice(0, 4).map((item) => (
                     <NavLink
                         key={item.to}

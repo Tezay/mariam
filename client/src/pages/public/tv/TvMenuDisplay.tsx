@@ -4,14 +4,14 @@
  * Optimisé pour grands écrans (salles à manger, cafétérias).
  */
 import { useState, useEffect, useRef } from 'react';
-import { menusApi, eventsApi, DietaryTag, CertificationItem } from '@/lib/api';
+import { menusApi, eventsApi, closuresApi, ExceptionalClosure, DietaryTag, CertificationItem } from '@/lib/api';
 import { generateEventPalette } from '@/lib/color-utils';
 import { Icon } from '@/components/ui/icon-picker';
 import { InlineError, getErrorType } from '@/components/InlineError';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
     RefreshCw, ZoomIn, ZoomOut, CalendarClock,
-    Megaphone, Calendar, ChefHat,
+    Megaphone, Calendar, ChefHat, CalendarOff,
 } from 'lucide-react';
 import type { MenuItemData, DisplayCategory, MenuResponse, MenuData, EventData } from '../menu-types';
 import type { IconName } from '@/components/ui/icon-picker';
@@ -262,6 +262,34 @@ function TvCategoryCard({
     );
 }
 
+// ─── TvClosureDisplay ───────────────────────────────────────────────────────
+
+function TvClosureDisplay({ closure }: { closure: ExceptionalClosure }) {
+    const fmt = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+    const dateLabel = closure.start_date === closure.end_date
+        ? fmt(closure.start_date)
+        : `Du ${fmt(closure.start_date)} au ${fmt(closure.end_date)}`;
+
+    return (
+        <div className="h-full flex flex-col items-center justify-center gap-10 text-center px-20">
+            <div className="w-32 h-32 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <CalendarOff className="w-16 h-16 text-red-400" />
+            </div>
+            <div className="space-y-4">
+                <p className="text-7xl font-bold text-gray-800 leading-tight">
+                    {closure.reason ?? 'Fermeture exceptionnelle'}
+                </p>
+                <p className="text-4xl text-gray-400 font-light">{dateLabel}</p>
+            </div>
+            {closure.description && (
+                <p className="text-3xl text-gray-500 font-light leading-relaxed max-w-4xl whitespace-pre-line border-t border-gray-200 pt-8">
+                    {closure.description}
+                </p>
+            )}
+        </div>
+    );
+}
+
 // ─── TvMenuDisplay ──────────────────────────────────────────────────────────
 
 export function TvMenuDisplay() {
@@ -269,6 +297,7 @@ export function TvMenuDisplay() {
     const [tomorrowData, setTomorrowData] = useState<MenuData | null>(null);
     const [todayEvent, setTodayEvent] = useState<EventData | null>(null);
     const [upcomingEvents, setUpcomingEvents] = useState<EventData[]>([]);
+    const [activeClosure, setActiveClosure] = useState<ExceptionalClosure | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<unknown>(null);
     const [showError, setShowError] = useState(false);
@@ -292,16 +321,18 @@ export function TvMenuDisplay() {
     const attemptLoad = async (requestId: number) => {
         setIsLoading(true);
         try {
-            const [today, tomorrow, eventsData] = await Promise.all([
+            const [today, tomorrow, eventsData, closuresData] = await Promise.all([
                 menusApi.getToday(),
                 menusApi.getTomorrow(),
                 eventsApi.getPublic('tv'),
+                closuresApi.getPublic(),
             ]);
             if (requestId !== requestIdRef.current) return;
             setTodayData(today);
             setTomorrowData(tomorrow);
             setTodayEvent(eventsData?.today_event || null);
             setUpcomingEvents(eventsData?.upcoming_events || []);
+            setActiveClosure(closuresData?.current_closure || null);
             const config = today?.restaurant?.config || tomorrow?.restaurant?.config;
             if (config) {
                 if (config.dietary_tags?.length) setDietaryTags(config.dietary_tags);
@@ -500,7 +531,7 @@ export function TvMenuDisplay() {
                 </header>
 
                 {/* Bannière événement du jour */}
-                {todayEvent && <TvTodayEventBanner event={todayEvent} />}
+                {!activeClosure && todayEvent && <TvTodayEventBanner event={todayEvent} />}
 
                 {/* Contenu principal */}
                 <main className="flex-1 p-10 overflow-hidden bg-gray-50/50">
@@ -508,6 +539,8 @@ export function TvMenuDisplay() {
                         <div className="h-full flex items-center justify-center">
                             <div className="animate-spin rounded-full h-32 w-32 border-b-8 border-mariam-blue" />
                         </div>
+                    ) : activeClosure ? (
+                        <TvClosureDisplay closure={activeClosure} />
                     ) : todayData?.menu ? (
                         <div className="h-full flex gap-10">
                             <div className="flex-1 overflow-y-auto pr-6 custom-scrollbar">

@@ -18,16 +18,17 @@ import { ResetPassword } from './pages/ResetPassword';
 import { MenuDisplay } from './pages/public/MenuDisplay';
 import { NotificationsPage } from './pages/public/NotificationsPage';
 import { AdminLayout } from './components/AdminLayout';
-import { WeeklyPlanner } from './pages/admin/WeeklyPlanner';
 import { UsersPage } from './pages/admin/UsersPage';
 import { SettingsPage } from './pages/admin/SettingsPage';
 import { AuditLogsPage } from './pages/admin/AuditLogsPage';
 import { AccountPage } from './pages/admin/AccountPage';
 import { EventsPage } from './pages/admin/EventsPage';
+import { ClosuresPage } from './pages/admin/ClosuresPage';
 import { ServicePage } from './pages/admin/ServicePage';
 import { GalleryPage } from './pages/admin/GalleryPage';
 import { InstallPage } from './pages/admin/InstallPage';
 import { SetupTransferPage } from './pages/admin/SetupTransferPage';
+import { CalendarPage } from './pages/admin/calendar/CalendarPage';
 
 // Error pages
 import { NotFound, Forbidden } from './pages/errors';
@@ -159,9 +160,12 @@ function App() {
                         </ProtectedRoute>
                     }
                 >
-                    {/* Dashboard = Weekly Planner (admin ou editor) */}
-                    <Route index element={<EditorRoute><WeeklyPlanner /></EditorRoute>} />
-                    <Route path="menus" element={<EditorRoute><WeeklyPlanner /></EditorRoute>} />
+                    {/* Dashboard = Calendrier unifié (admin ou editor) */}
+                    <Route index element={<EditorRoute><CalendarPage /></EditorRoute>} />
+                    <Route path="calendar" element={<EditorRoute><CalendarPage /></EditorRoute>} />
+
+                    {/* Anciennes routes — redirigent vers le calendrier */}
+                    <Route path="menus" element={<Navigate to="/admin/calendar" replace />} />
 
                     {/* Mon compte (tous les utilisateurs authentifiés) */}
                     <Route path="account" element={<AccountPage />} />
@@ -171,6 +175,9 @@ function App() {
 
                     {/* Événements (admin ou editor) */}
                     <Route path="events" element={<EditorRoute><EventsPage /></EditorRoute>} />
+
+                    {/* Fermetures exceptionnelles (admin ou editor) */}
+                    <Route path="closures" element={<EditorRoute><ClosuresPage /></EditorRoute>} />
 
                     {/* Galerie photos (admin ou editor) */}
                     <Route path="gallery" element={<EditorRoute><GalleryPage /></EditorRoute>} />

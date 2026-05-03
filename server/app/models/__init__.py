@@ -7,6 +7,7 @@ from .restaurant import Restaurant, RestaurantServiceHours
 from .category import MenuCategory
 from .menu import Menu, MenuItem, MenuImage
 from .event import Event, EventImage
+from .exceptional_closure import ExceptionalClosure
 from .gallery import GalleryImage, GalleryImageTag, MenuItemImage
 from .activation_link import ActivationLink
 from .audit_log import AuditLog
@@ -36,6 +37,7 @@ __all__ = [
     'MenuImage',
     'Event',
     'EventImage',
+    'ExceptionalClosure',
     'GalleryImage',
     'GalleryImageTag',
     'MenuItemImage',

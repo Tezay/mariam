@@ -301,6 +301,9 @@ def check_and_send_notifications(app):
             # Vérifié une seule fois par jour (première exécution de la journée).
             sent_count = _check_event_notifications(db, now, sent_count)
 
+            # ===== Fermetures exceptionnelles (J-7 et J-1 avant start_date) =====
+            sent_count = _check_closure_notifications(db, now, sent_count)
+
         except Exception as e:
             logger.error(f"Erreur dans check_and_send_notifications : {e}")
             db.session.rollback()
@@ -366,6 +369,74 @@ def _check_event_notifications(db, now, sent_count: int) -> int:
         sent_count += event_sent
         if event_sent:
             logger.info(f"\U0001F4C5 Événement '{event.title}' ({'tomorrow' if is_1d else '7days'}) : {event_sent} notification(s)")
+
+    db.session.commit()
+    return sent_count
+
+
+def _check_closure_notifications(db, now, sent_count: int) -> int:
+    """
+    Vérifie les fermetures exceptionnelles publiées nécessitant une notification (J-7 ou J-1).
+    Envoie aux abonnés ayant activé notify_events (même canal que les événements).
+    """
+    from ..models.push_subscription import PushSubscription
+    from ..models.exceptional_closure import ExceptionalClosure
+    from ..utils.time import paris_today
+
+    today = paris_today()
+    target_7d = today + timedelta(days=7)
+    target_1d = today + timedelta(days=1)
+
+    closures = ExceptionalClosure.query.filter(
+        ExceptionalClosure.is_active == True,
+        ExceptionalClosure.start_date.in_([target_7d, target_1d]),
+    ).all()
+
+    for closure in closures:
+        is_7d = (closure.start_date == target_7d) and not closure.notified_7d
+        is_1d = (closure.start_date == target_1d) and not closure.notified_1d
+
+        if not is_7d and not is_1d:
+            continue
+
+        # Formater la plage de dates
+        if closure.start_date == closure.end_date:
+            date_label = closure.start_date.strftime('%d/%m')
+        else:
+            date_label = f"{closure.start_date.strftime('%d/%m')} au {closure.end_date.strftime('%d/%m')}"
+
+        reason_suffix = f' — {closure.reason}' if closure.reason else ''
+        title = 'Fermeture exceptionnelle'
+        body = (f"Demain{reason_suffix}" if is_1d else f"Dans une semaine — {date_label}{reason_suffix}")
+
+        payload = {
+            'title': title,
+            'body': body,
+            'icon': '/web-app-manifest-192x192.png',
+            'badge': '/favicon-96x96.png',
+            'url': '/menu',
+            'tag': f"closure-{closure.id}-{'1d' if is_1d else '7d'}",
+        }
+
+        subs = PushSubscription.query.filter(
+            PushSubscription.restaurant_id == closure.restaurant_id,
+            PushSubscription.notify_events == True,
+        ).all()
+
+        closure_sent = 0
+        for sub in subs:
+            if send_push_notification(sub.get_subscription_info(), payload):
+                sub.last_notified_at = now
+                closure_sent += 1
+
+        if is_7d:
+            closure.notified_7d = True
+        if is_1d:
+            closure.notified_1d = True
+
+        sent_count += closure_sent
+        if closure_sent:
+            logger.info(f"\U0001F6AB Fermeture {date_label} ({'1d' if is_1d else '7d'}) : {closure_sent} notification(s)")
 
     db.session.commit()
     return sent_count
