@@ -110,13 +110,19 @@ export function MobileItemCard({ item, categoryColor, isHighlighted, imagePositi
 
                     {/* Box texte */}
                     <div
-                        className={`flex-1 px-4 py-4 rounded-2xl bg-white shadow-sm relative z-0 ${imagePosition === 'left' && showImage ? 'ml-[-12px]' : ''} ${imagePosition === 'right' && showImage ? 'mr-[-12px]' : ''}`}
-                        style={{ borderBottom: '4px solid #c8ccd5' }}
+                        className={`flex-1 px-4 py-4 rounded-2xl relative z-0 ${imagePosition === 'left' && showImage ? 'ml-[-12px]' : ''} ${imagePosition === 'right' && showImage ? 'mr-[-12px]' : ''}`}
+                        style={{
+                            backgroundColor: categoryColor.bg,
+                            borderBottom: `4px solid ${categoryColor.border}`,
+                        }}
                     >
                         {isOutOfStock && (
                             <StockBubble type={hasReplacement ? 'nouveau' : 'rupture'} />
                         )}
-                        <p className={`text-base font-bold line-clamp-2 leading-snug ${isStrikethrough ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                        <p
+                            className={`text-base font-bold line-clamp-2 leading-snug ${isStrikethrough ? 'line-through opacity-60' : ''}`}
+                            style={{ color: categoryColor.label }}
+                        >
                             {displayName}
                         </p>
                         {/* Bulles tags (gauche) et certifications (droite) */}

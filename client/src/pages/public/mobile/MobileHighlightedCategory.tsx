@@ -1,6 +1,5 @@
 import type { DisplayCategory, MenuItemData } from '../menu-types';
 import { getCategoryColor } from '@/lib/category-colors';
-import { HIGHLIGHTED_COLOR } from '@/lib/category-colors';
 import { MobileItemCard } from './MobileItemCard';
 import { MobileStandardCategory } from './MobileStandardCategory';
 
@@ -12,16 +11,19 @@ interface MobileHighlightedCategoryProps {
 
 export function MobileHighlightedCategory({ category, onItemTap, subColorBaseIndex = 0 }: MobileHighlightedCategoryProps) {
     const hasSubcategories = category.subcategories && category.subcategories.length > 0;
+    const color = getCategoryColor(category.color_key, 0);
+    const headerTextColor = hasSubcategories ? '#093EAA' : color.sectionLabel;
+    const headerLineColor = hasSubcategories ? '#C5D2F1' : color.sectionBorder;
 
     return (
         <div className="mb-2">
             {/* Header de la catégorie principale */}
             <div className="flex items-center gap-3 mb-4 px-4">
-                <div className="flex-1 h-px bg-mariam-blue/30" />
-                <span className="text-sm font-bold uppercase tracking-widest text-mariam-blue">
+                <div className="flex-1 h-px" style={{ backgroundColor: headerLineColor }} />
+                <span className="text-sm font-bold uppercase tracking-widest" style={{ color: headerTextColor }}>
                     {category.label}
                 </span>
-                <div className="flex-1 h-px bg-mariam-blue/30" />
+                <div className="flex-1 h-px" style={{ backgroundColor: headerLineColor }} />
             </div>
 
             {/* Items directs */}
@@ -31,7 +33,7 @@ export function MobileHighlightedCategory({ category, onItemTap, subColorBaseInd
                         <MobileItemCard
                             key={item.id ?? item.name}
                             item={item}
-                            categoryColor={HIGHLIGHTED_COLOR}
+                            categoryColor={color}
                             isHighlighted
                             imagePosition={index % 2 === 0 ? 'right' : 'left'}
                             onTap={() => onItemTap(item)}
@@ -42,14 +44,15 @@ export function MobileHighlightedCategory({ category, onItemTap, subColorBaseInd
 
             {/* Sous-catégories */}
             {hasSubcategories && category.subcategories!.map((sub, subIndex) => {
+                const subColor = getCategoryColor(sub.color_key, subColorBaseIndex + subIndex);
+                const items = sub.items ?? [];
+
                 if (sub.is_highlighted) {
-                    const items = sub.items ?? [];
                     if (items.length === 0) return null;
                     return (
                         <div key={sub.id} className="mb-4">
-                            {/* Nom masqué pour la première sous-catégorie */}
                             {subIndex > 0 && (
-                                <p className="text-xs font-semibold uppercase tracking-wider px-4 mb-3 text-mariam-blue/70">
+                                <p className="text-xs font-semibold uppercase tracking-wider px-4 mb-3" style={{ color: subColor.sectionLabel + 'B3' }}>
                                     {sub.label}
                                 </p>
                             )}
@@ -58,7 +61,7 @@ export function MobileHighlightedCategory({ category, onItemTap, subColorBaseInd
                                     <MobileItemCard
                                         key={item.id ?? item.name}
                                         item={item}
-                                        categoryColor={HIGHLIGHTED_COLOR}
+                                        categoryColor={subColor}
                                         isHighlighted
                                         imagePosition={index % 2 === 0 ? 'right' : 'left'}
                                         onTap={() => onItemTap(item)}
@@ -70,7 +73,6 @@ export function MobileHighlightedCategory({ category, onItemTap, subColorBaseInd
                 }
 
                 // Sous-catégorie non-highlight : grille 2 colonnes
-                const subColor = getCategoryColor(sub.color_key, subColorBaseIndex + subIndex);
                 return (
                     <div key={sub.id} className="mb-4">
                         <MobileStandardCategory

@@ -304,9 +304,9 @@ export function CalendarPage() {
     // ─── Render ───────────────────────────────────────────────────────────────
 
     return (
-        <div className="flex flex-col overflow-hidden h-[calc(100dvh-4rem)]">
+        <div className="flex flex-col overflow-hidden h-[calc(100dvh-9rem)] sidebar:h-[calc(100dvh-4rem)]">
             {onboardingDate ? (
-                <div className="flex flex-col flex-1 min-h-0 pb-16 sidebar:pb-0">
+                <div className="flex flex-col flex-1 min-h-0">
                     <MenuOnboarding
                         date={onboardingDate}
                         restaurantId={restaurantId}

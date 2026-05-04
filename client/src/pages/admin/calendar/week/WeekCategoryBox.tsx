@@ -1,6 +1,6 @@
 import { Plus } from 'lucide-react';
 import type { MenuItem, MenuCategory } from '@/lib/api';
-import { getCategoryColor, HIGHLIGHTED_COLOR } from '@/lib/category-colors';
+import { getCategoryColor } from '@/lib/category-colors';
 import { WeekMenuItemBox } from './WeekMenuItemBox';
 import type { UseMenuEditorReturn } from '../day/useMenuEditor';
 import type { CategoryColor } from '@/lib/category-colors';
@@ -25,9 +25,11 @@ export function WeekCategoryBox({
     isSelected,
     onToggleItem,
 }: WeekCategoryBoxProps) {
-    const color = category.is_highlighted ? HIGHLIGHTED_COLOR : getCategoryColor(category.color_key, category.order);
+    const color = getCategoryColor(category.color_key, category.order);
     const subcategories = category.subcategories ?? [];
     const hasSubcategories = subcategories.length > 0;
+    const headerTextColor = hasSubcategories ? '#093EAA' : color.sectionLabel;
+    const headerLineColor = hasSubcategories ? '#C5D2F1' : color.sectionBorder;
 
     // Group items by category_id for subcategory rendering
     const itemsByCatId = new Map<number, MenuItem[]>();
@@ -75,14 +77,14 @@ export function WeekCategoryBox({
         <div className="space-y-1">
             {/* Category header — horizontal lines + centered label */}
             <div className="flex items-center gap-2 px-1">
-                <div className="h-px flex-1" style={{ backgroundColor: color.sectionBorder + '60' }} />
+                <div className="h-px flex-1" style={{ backgroundColor: headerLineColor + '60' }} />
                 <span
                     className="text-[10px] font-bold uppercase tracking-widest whitespace-nowrap"
-                    style={{ color: color.sectionLabel }}
+                    style={{ color: headerTextColor }}
                 >
                     {category.label}
                 </span>
-                <div className="h-px flex-1" style={{ backgroundColor: color.sectionBorder + '60' }} />
+                <div className="h-px flex-1" style={{ backgroundColor: headerLineColor + '60' }} />
             </div>
 
             {!hasSubcategories ? (
@@ -104,7 +106,7 @@ export function WeekCategoryBox({
                     {subcategories.map(sub => {
                         const subItems = itemsByCatId.get(sub.id) ?? [];
                         if (subItems.length === 0 && !canEdit) return null;
-                        const subColor = sub.is_highlighted ? HIGHLIGHTED_COLOR : getCategoryColor(sub.color_key, sub.order);
+                        const subColor = getCategoryColor(sub.color_key, sub.order);
                         return (
                             <div key={sub.id} className="space-y-0.5">
                                 <p

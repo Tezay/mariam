@@ -19,6 +19,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_smorest import Blueprint
 from ..extensions import db
 from ..models import User, Restaurant, RestaurantServiceHours, AuditLog, DietaryTag, Certification
+from ..models.category import MenuCategory
 from ..security import get_client_ip, limiter
 from ..schemas.restaurant import RestaurantSchema, RestaurantUpdateSchema
 from ..schemas.common import ErrorSchema, MessageSchema
@@ -214,6 +215,36 @@ def update_settings(data):
 
 
 # ============================================================
+# HELPERS
+# ============================================================
+
+def _create_default_categories(restaurant_id: int) -> None:
+    """Create the standard set of categories for a new restaurant."""
+    plat = MenuCategory(
+        restaurant_id=restaurant_id,
+        label='Plat principal',
+        icon='utensils',
+        order=2,
+        is_protected=True,
+        is_highlighted=True,
+        color_key=None,
+    )
+    db.session.add(plat)
+    db.session.flush()  # get plat.id for subcategories
+
+    defaults = [
+        MenuCategory(restaurant_id=restaurant_id, label='Entrées', icon='salad', order=1, color_key='indigo'),
+        MenuCategory(restaurant_id=restaurant_id, label='Dessert', icon='cake-slice', order=3, color_key='saffron'),
+    ]
+    subcategories = [
+        MenuCategory(restaurant_id=restaurant_id, parent_id=plat.id, label='Protéine', icon='beef', order=1, is_protected=True, color_key='clay'),
+        MenuCategory(restaurant_id=restaurant_id, parent_id=plat.id, label='Accompagnement', icon='wheat', order=2, is_protected=True, color_key='mint'),
+    ]
+    for cat in defaults + subcategories:
+        db.session.add(cat)
+
+
+# ============================================================
 # GESTION ADMIN DES RESTAURANTS (CRUD)
 # ============================================================
 
@@ -250,6 +281,9 @@ def create_restaurant(data):
         logo_url=data.get('logo_url'),
     )
     db.session.add(restaurant)
+    db.session.flush()  # get restaurant.id without committing
+
+    _create_default_categories(restaurant.id)
     db.session.commit()
 
     return jsonify({'message': 'Restaurant créé', 'restaurant': restaurant.to_dict()}), 201

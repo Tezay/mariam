@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Camera, ImageIcon, ImagePlus, Images, Trash2, X } from 'lucide-react';
 import type { GalleryImage, MenuItem, MenuCategory } from '@/lib/api';
-import { getCategoryColor, HIGHLIGHTED_COLOR } from '@/lib/category-colors';
+import { getCategoryColor } from '@/lib/category-colors';
 import { cn } from '@/lib/utils';
 import { AdminTagsBubble } from './AdminTagsBubble';
 import type { UseMenuEditorReturn } from './useMenuEditor';
@@ -174,9 +174,7 @@ function AdminImageButton({ item, editor }: AdminImageButtonProps) {
 // ─── AdminMenuItemCard ────────────────────────────────────────────────────────
 
 export function AdminMenuItemCard({ item, category, editor, canEdit }: AdminMenuItemCardProps) {
-    const color = category.is_highlighted
-        ? HIGHLIGHTED_COLOR
-        : getCategoryColor(category.color_key, category.order);
+    const color = getCategoryColor(category.color_key, category.order);
     const inputRef = useRef<HTMLInputElement>(null);
     const isOos = item.is_out_of_stock ?? false;
     const currentImage = item.images?.[0] ?? null;

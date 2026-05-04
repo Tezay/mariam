@@ -85,6 +85,7 @@ interface CategoryRowProps {
 
 function CategoryRow({ category, index, total, foodBeverageIcons, onUpdate, onDelete, onMove, indent = false }: CategoryRowProps) {
     const [label, setLabel] = useState(category.label);
+    const hasSubcategories = (category.subcategories?.length ?? 0) > 0;
 
     const handleLabelBlur = () => {
         if (label.trim() && label !== category.label) {
@@ -96,70 +97,106 @@ function CategoryRow({ category, index, total, foodBeverageIcons, onUpdate, onDe
     useEffect(() => { setLabel(category.label); }, [category.label]);
 
     return (
-        <div className={`flex items-center gap-2 p-3 bg-muted/50 rounded-lg ${indent ? 'ml-8 border-l-2 border-border' : ''}`}>
-            {/* Réorder */}
-            <div className="flex flex-col gap-0.5">
-                <button
-                    onClick={() => onMove(category.id, 'up')}
-                    disabled={index === 0}
-                    className={`p-1 rounded hover:bg-muted ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}`}
-                    title="Monter"
+        <div className={`bg-muted/50 rounded-xl p-2 sm:p-3 ${indent ? 'ml-4 sm:ml-8 border-l-2 border-border' : ''}`}>
+            {/* Ligne principale : réorder + icône + nom */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+                {/* Réorder */}
+                <div className="flex flex-col gap-0.5 shrink-0">
+                    <button
+                        onClick={() => onMove(category.id, 'up')}
+                        disabled={index === 0}
+                        className={`p-1 rounded-lg hover:bg-muted ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}`}
+                        title="Monter"
+                    >
+                        <ArrowUp className="w-3 h-3" />
+                    </button>
+                    <button
+                        onClick={() => onMove(category.id, 'down')}
+                        disabled={index === total - 1}
+                        className={`p-1 rounded-lg hover:bg-muted ${index === total - 1 ? 'opacity-30 cursor-not-allowed' : ''}`}
+                        title="Descendre"
+                    >
+                        <ArrowDown className="w-3 h-3" />
+                    </button>
+                </div>
+
+                {/* Icône */}
+                <IconPicker
+                    value={category.icon as IconName}
+                    onValueChange={(icon) => onUpdate(category.id, { icon })}
+                    iconsList={foodBeverageIcons}
+                    categorized={false}
+                    searchPlaceholder="Rechercher..."
+                    triggerPlaceholder="Icône"
                 >
-                    <ArrowUp className="w-3 h-3" />
-                </button>
-                <button
-                    onClick={() => onMove(category.id, 'down')}
-                    disabled={index === total - 1}
-                    className={`p-1 rounded hover:bg-muted ${index === total - 1 ? 'opacity-30 cursor-not-allowed' : ''}`}
-                    title="Descendre"
-                >
-                    <ArrowDown className="w-3 h-3" />
-                </button>
+                    <Button variant="outline" size="icon" className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl">
+                        <Icon name={category.icon as IconName} className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </Button>
+                </IconPicker>
+
+                {/* Nom */}
+                <Input
+                    value={label}
+                    onChange={(e) => setLabel(e.target.value)}
+                    onBlur={handleLabelBlur}
+                    className="flex-1 min-w-0 rounded-xl text-sm"
+                    placeholder="Nom de la catégorie"
+                />
+
+                {/* Actions : masquées sur très petit écran, visibles sinon */}
+                <div className="hidden sm:flex items-center gap-1 shrink-0">
+                    <ActionButtons
+                        category={category}
+                        hasSubcategories={hasSubcategories}
+                        onUpdate={onUpdate}
+                        onDelete={onDelete}
+                    />
+                </div>
             </div>
 
-            {/* Icône */}
-            <IconPicker
-                value={category.icon as IconName}
-                onValueChange={(icon) => onUpdate(category.id, { icon })}
-                iconsList={foodBeverageIcons}
-                categorized={false}
-                searchPlaceholder="Rechercher..."
-                triggerPlaceholder="Icône"
-            >
-                <Button variant="outline" size="icon" className="w-10 h-10 shrink-0">
-                    <Icon name={category.icon as IconName} className="w-5 h-5" />
-                </Button>
-            </IconPicker>
+            {/* Actions sur mobile (xs et moins) */}
+            <div className="flex sm:hidden items-center justify-end gap-1 mt-1.5 pt-1.5 border-t border-border/50">
+                <ActionButtons
+                    category={category}
+                    hasSubcategories={hasSubcategories}
+                    onUpdate={onUpdate}
+                    onDelete={onDelete}
+                />
+            </div>
+        </div>
+    );
+}
 
-            {/* Nom */}
-            <Input
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                onBlur={handleLabelBlur}
-                className="flex-1"
-                placeholder="Nom de la catégorie"
-            />
+interface ActionButtonsProps {
+    category: MenuCategory;
+    hasSubcategories: boolean;
+    onUpdate: (id: number, data: Partial<{ label: string; icon: string; is_highlighted: boolean; color_key: string | null }>) => void;
+    onDelete: (id: number) => void;
+}
 
-            {/* Palette couleur */}
-            {!category.is_highlighted && (
+function ActionButtons({ category, hasSubcategories, onUpdate, onDelete }: ActionButtonsProps) {
+    return (
+        <>
+            {/* Palette couleur — masquée pour les catégories parent (avec sous-catégories) */}
+            {!hasSubcategories ? (
                 <Popover>
                     <PopoverTrigger asChild>
                         <Button
                             variant="outline"
                             size="icon"
-                            className="w-8 h-8 shrink-0 border-0"
+                            className="w-8 h-8 shrink-0 border-0 rounded-xl"
                             title="Couleur de la catégorie"
                             style={category.color_key ? {
                                 backgroundColor: COLOR_KEY_MAP[category.color_key]?.bg,
                             } : undefined}
                         >
                             <Palette
-                                className="w-5 h-5"
+                                className="w-4 h-4"
                                 style={{ color: category.color_key ? COLOR_KEY_MAP[category.color_key]?.label : undefined }}
                             />
                         </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-2" align="center">
+                    <PopoverContent className="w-auto p-2" align="end">
                         <div className="grid grid-cols-3 gap-2">
                             {Object.entries(COLOR_KEY_MAP).map(([key, color]) => (
                                 <button
@@ -182,14 +219,16 @@ function CategoryRow({ category, index, total, foodBeverageIcons, onUpdate, onDe
                         </div>
                     </PopoverContent>
                 </Popover>
+            ) : (
+                <div className="w-8 h-8 shrink-0" />
             )}
 
-            {/* Mise en avant (highlight) */}
-            {!(category.subcategories && category.subcategories.length > 0) ? (
+            {/* Mise en avant (highlight) — masquée pour les catégories avec sous-catégories */}
+            {!hasSubcategories ? (
                 <button
                     onClick={() => onUpdate(category.id, { is_highlighted: !category.is_highlighted })}
                     title={category.is_highlighted ? 'Retirer la mise en avant' : 'Mettre en avant (items affichés en grand)'}
-                    className={`p-2 rounded-lg transition-colors ${
+                    className={`p-2 rounded-xl transition-colors ${
                         category.is_highlighted
                             ? 'text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'
                             : 'text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10'
@@ -198,7 +237,7 @@ function CategoryRow({ category, index, total, foodBeverageIcons, onUpdate, onDe
                     {category.is_highlighted ? <Star className="w-4 h-4 fill-current" /> : <StarOff className="w-4 h-4" />}
                 </button>
             ) : (
-                <div className="w-10 h-10 shrink-0" />
+                <div className="w-8 h-8 shrink-0" />
             )}
 
             {/* Supprimer */}
@@ -211,12 +250,12 @@ function CategoryRow({ category, index, total, foodBeverageIcons, onUpdate, onDe
                     variant="ghost"
                     size="icon"
                     onClick={() => onDelete(category.id)}
-                    className="text-destructive hover:text-destructive shrink-0"
+                    className="text-destructive hover:text-destructive shrink-0 rounded-xl"
                 >
                     <Trash2 className="w-4 h-4" />
                 </Button>
             )}
-        </div>
+        </>
     );
 }
 

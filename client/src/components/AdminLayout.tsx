@@ -255,15 +255,15 @@ export function AdminLayout() {
             </div>
 
             {/* Nav mobile (bottom) */}
-            <nav className="sidebar:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex z-30">
+            <nav className="sidebar:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex h-20 z-30">
                 {filteredNavItems.slice(0, 4).map((item) => (
                     <NavLink
                         key={item.to}
                         to={item.to}
                         className={({ isActive }) => {
-                            if (!isActive) return 'flex-1 flex flex-col items-center py-3 text-xs text-muted-foreground';
-                            if (item.highlight === 'amber' && duringService) return 'flex-1 flex flex-col items-center py-3 text-xs text-amber-600 dark:text-amber-400';
-                            return 'flex-1 flex flex-col items-center py-3 text-xs text-primary';
+                            if (!isActive) return 'flex-1 flex flex-col items-center justify-center py-3 text-xs text-muted-foreground';
+                            if (item.highlight === 'amber' && duringService) return 'flex-1 flex flex-col items-center justify-center py-3 text-xs text-amber-600 dark:text-amber-400';
+                            return 'flex-1 flex flex-col items-center justify-center py-3 text-xs text-primary';
                         }}
                     >
                         <span className="relative">

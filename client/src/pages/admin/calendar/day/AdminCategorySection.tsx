@@ -1,6 +1,6 @@
 import { Plus } from 'lucide-react';
 import type { MenuItem, MenuCategory } from '@/lib/api';
-import { getCategoryColor, HIGHLIGHTED_COLOR } from '@/lib/category-colors';
+import { getCategoryColor } from '@/lib/category-colors';
 import { AdminMenuItemCard } from './AdminMenuItemCard';
 import type { UseMenuEditorReturn } from './useMenuEditor';
 
@@ -21,9 +21,7 @@ interface ItemListProps {
 }
 
 function ItemList({ items, actualCategory, editor, canEdit }: ItemListProps) {
-    const color = actualCategory.is_highlighted
-        ? HIGHLIGHTED_COLOR
-        : getCategoryColor(actualCategory.color_key, actualCategory.order);
+    const color = getCategoryColor(actualCategory.color_key, actualCategory.order);
 
     return (
         <div className="space-y-3">
@@ -84,6 +82,9 @@ function StandardSection({ category, items, editor, canEdit }: AdminCategorySect
 
 function HighlightedSection({ category, items, editor, canEdit }: AdminCategorySectionProps) {
     const hasSubcategories = (category.subcategories?.length ?? 0) > 0;
+    const color = getCategoryColor(category.color_key, category.order);
+    const headerTextColor = hasSubcategories ? '#093EAA' : color.sectionLabel;
+    const headerLineColor = hasSubcategories ? '#C5D2F1' : color.sectionBorder;
 
     const itemsByCatId = new Map<number, MenuItem[]>();
     for (const item of items) {
@@ -96,11 +97,11 @@ function HighlightedSection({ category, items, editor, canEdit }: AdminCategoryS
     return (
         <div className="space-y-4">
             <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-[#093EAA]/30" />
-                <span className="text-sm font-bold uppercase tracking-widest text-[#093EAA]">
+                <div className="flex-1 h-px" style={{ backgroundColor: headerLineColor }} />
+                <span className="text-sm font-bold uppercase tracking-widest" style={{ color: headerTextColor }}>
                     {category.label}
                 </span>
-                <div className="flex-1 h-px bg-[#093EAA]/30" />
+                <div className="flex-1 h-px" style={{ backgroundColor: headerLineColor }} />
             </div>
 
             {directItems.length > 0 || (!hasSubcategories && canEdit) ? (
@@ -110,9 +111,7 @@ function HighlightedSection({ category, items, editor, canEdit }: AdminCategoryS
             {hasSubcategories && category.subcategories!.map((sub, subIdx) => {
                 const subItems = itemsByCatId.get(sub.id) ?? [];
                 if (subItems.length === 0 && !canEdit) return null;
-                const subColor = sub.is_highlighted
-                    ? HIGHLIGHTED_COLOR
-                    : getCategoryColor(sub.color_key, sub.order);
+                const subColor = getCategoryColor(sub.color_key, sub.order);
 
                 return (
                     <div key={sub.id} className="space-y-3">

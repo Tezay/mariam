@@ -8,7 +8,6 @@ Admin endpoints (JWT required, admin role):
 - DELETE /v1/settings/categories/<id>         Delete (forbidden if is_protected)
 - PUT    /v1/settings/categories/reorder      Reorder categories (array of {id, order})
 """
-from collections import Counter
 from functools import wraps
 from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -109,15 +108,14 @@ def create_category(data):
     if not label:
         return jsonify({'error': 'Le nom est requis'}), 400
 
-    # Auto-assign the least-used color from the palette
-    _palette = ['green', 'blue', 'purple', 'yellow', 'teal', 'slate']
-    existing_colors = [
+    # Auto-assign the first unused color from the palette (cyclic from indigo)
+    _palette = ['indigo', 'sky', 'mint', 'saffron', 'clay', 'lilac']
+    existing_colors = {
         c.color_key for c in
         MenuCategory.query.filter_by(restaurant_id=restaurant.id).all()
         if c.color_key
-    ]
-    _counts = Counter(existing_colors)
-    auto_color = min(_palette, key=lambda c: _counts.get(c, 0))
+    }
+    auto_color = next((c for c in _palette if c not in existing_colors), _palette[0])
 
     category = MenuCategory(
         restaurant_id=restaurant.id,

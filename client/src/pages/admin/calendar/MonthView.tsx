@@ -3,7 +3,8 @@ import { closuresApi } from '@/lib/api';
 import type { Event, ExceptionalClosure, MenuCategory, MenuItem } from '@/lib/api';
 import { addDays, parisToday } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
-import { getCategoryColor, HIGHLIGHTED_COLOR } from '@/lib/category-colors';
+import { getCategoryColor } from '@/lib/category-colors';
+import { generateEventPalette } from '@/lib/color-utils';
 import type { CalendarData } from './useCalendarData';
 import type { DesktopView, MobileView } from './CalendarToolbar';
 import { CLOSURE_HATCH_STYLE } from './closure/closureStyle';
@@ -55,7 +56,7 @@ function getDragPreviewStyle(date: string, drag: DragMode | null): string {
 // ─── CompactCategoryBox ───────────────────────────────────────────────────────
 
 function CompactCategoryBox({ category, items }: { category: MenuCategory; items: MenuItem[] }) {
-    const color = category.is_highlighted ? HIGHLIGHTED_COLOR : getCategoryColor(category.color_key, category.order);
+    const color = getCategoryColor(category.color_key, category.order);
     return (
         <div
             className="rounded-xl px-1.5 pt-1 pb-1.5 mb-0.5 last:mb-0"
@@ -269,18 +270,28 @@ export function MonthView({ year, month, data, canEdit, serviceDays, categories,
                                 )}
 
                                 {/* Events */}
-                                {!isClosureDay && isCurrentMonth && (dayData?.events ?? []).map(event => (
-                                    <button
-                                        key={event.id}
-                                        type="button"
-                                        onClick={() => onEditEvent?.(event)}
-                                        className="w-full text-left mb-0.5 px-0.5"
-                                    >
-                                        <p className="text-[9px] font-semibold bg-emerald-50 border border-emerald-200 text-emerald-700 rounded px-1 py-0.5 truncate">
-                                            {event.title}
-                                        </p>
-                                    </button>
-                                ))}
+                                {!isClosureDay && isCurrentMonth && (dayData?.events ?? []).map(event => {
+                                    const evPalette = generateEventPalette(event.color || '#3498DB');
+                                    return (
+                                        <button
+                                            key={event.id}
+                                            type="button"
+                                            onClick={() => onEditEvent?.(event)}
+                                            className="w-full text-left mb-0.5 px-0.5"
+                                        >
+                                            <p
+                                                className="text-[9px] font-semibold rounded px-1 py-0.5 truncate border"
+                                                style={{
+                                                    backgroundColor: evPalette.bg,
+                                                    borderColor: evPalette.border,
+                                                    color: evPalette.text,
+                                                }}
+                                            >
+                                                {event.title}
+                                            </p>
+                                        </button>
+                                    );
+                                })}
 
                                 {/* Category boxes */}
                                 {!isClosureDay && isServiceDay && isCurrentMonth && groups.length > 0 && (
