@@ -1,0 +1,40 @@
+name: Feature request
+description: Proposer une nouvelle fonctionnalité ou amélioration
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problème à résoudre
+      description: Quel besoin ou frustration cette fonctionnalité adresse-t-elle ?
+      placeholder: "En tant que gestionnaire de menu, je ne peux pas… ce qui m'oblige à…"
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solution proposée
+      description: Décrivez la fonctionnalité souhaitée
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives envisagées
+      description: Avez-vous considéré d'autres approches ?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priorité estimée
+      options:
+        - Critique (bloquant pour les utilisateurs)
+        - Haute (impact significatif)
+        - Moyenne (amélioration utile)
+        - Basse (nice-to-have)
+    validations:
+      required: true

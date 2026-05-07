@@ -1,0 +1,120 @@
+name: Quality Gates
+
+on:
+  push:
+    branches: ['feature/**', 'fix/**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-backend:
+    name: Backend lint (ruff + mypy)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: mariam
+          POSTGRES_PASSWORD: mariam_secret
+          POSTGRES_DB: mariam_db
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        working-directory: server
+        run: uv sync --group dev --no-install-project --frozen
+
+      - name: ruff check
+        working-directory: server
+        run: uv run ruff check app/
+
+      - name: mypy
+        working-directory: server
+        run: uv run mypy app/
+
+  test-backend:
+    name: Backend tests (pytest)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: mariam
+          POSTGRES_PASSWORD: mariam_secret
+          POSTGRES_DB: mariam_db
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://mariam:mariam_secret@localhost:5432/mariam_db
+      DB_HOST: localhost
+      SECRET_KEY: ci-secret-key
+      JWT_SECRET_KEY: ci-jwt-secret-key
+      FLASK_APP: run.py
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        working-directory: server
+        run: uv sync --group dev --no-install-project --frozen
+
+      - name: Run migrations
+        working-directory: server
+        run: uv run flask db upgrade
+
+      - name: Run tests
+        working-directory: server
+        run: uv run pytest
+
+  lint-frontend:
+    name: Frontend lint (ESLint + Prettier)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        working-directory: client
+        run: bun install --frozen-lockfile
+
+      - name: ESLint
+        working-directory: client
+        run: bun run lint
+
+      - name: Prettier check
+        working-directory: client
+        run: bun run format:check
+
+  test-frontend:
+    name: Frontend tests (Vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        working-directory: client
+        run: bun install --frozen-lockfile
+
+      - name: Run tests
+        working-directory: client
+        run: bun run test
