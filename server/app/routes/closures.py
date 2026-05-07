@@ -12,19 +12,22 @@ Editor endpoints (JWT required):
 """
 from datetime import datetime
 from functools import wraps
-from flask import request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
+
+from flask import jsonify, request
+from flask_jwt_extended import get_jwt_identity, jwt_required, verify_jwt_in_request
 from flask_smorest import Blueprint
+
 from ..extensions import db
-from ..models import User, Restaurant, ExceptionalClosure, AuditLog
-from ..security import get_client_ip
-from ..utils.time import paris_today
+from ..models import AuditLog, ExceptionalClosure, Restaurant, User
 from ..schemas.closures import (
-    ClosureSchema, ClosureCreateSchema, ClosureUpdateSchema,
+    ClosureCreateSchema,
+    ClosureSchema,
+    ClosureUpdateSchema,
     PublicClosuresResponseSchema,
 )
 from ..schemas.common import ErrorSchema, MessageSchema
-
+from ..security import get_client_ip
+from ..utils.time import paris_today
 
 closures_bp = Blueprint(
     'closures', __name__,
@@ -79,6 +82,7 @@ def list_closures():
     restaurant_id = request.args.get('restaurant_id', type=int)
 
     is_editor = False
+    user = None
     try:
         verify_jwt_in_request(optional=True)
         identity = get_jwt_identity()
@@ -89,15 +93,18 @@ def list_closures():
         pass
 
     if not restaurant_id:
-        restaurant = get_default_restaurant()
-        if restaurant:
-            restaurant_id = restaurant.id
+        if is_editor and user and user.restaurant_id:
+            restaurant_id = user.restaurant_id
         else:
-            return jsonify({
-                'current_closure': None,
-                'upcoming_closures': [],
-                'closures': [],
-            }), 200
+            restaurant = get_default_restaurant()
+            if restaurant:
+                restaurant_id = restaurant.id
+            else:
+                return jsonify({
+                    'current_closure': None,
+                    'upcoming_closures': [],
+                    'closures': [],
+                }), 200
 
     today = paris_today()
 
@@ -121,7 +128,7 @@ def list_closures():
         # Vue publique : actives, end_date >= today
         query = ExceptionalClosure.query.filter(
             ExceptionalClosure.restaurant_id == restaurant_id,
-            ExceptionalClosure.is_active == True,
+            ExceptionalClosure.is_active,
             ExceptionalClosure.end_date >= today,
         ).order_by(ExceptionalClosure.start_date.asc())
 
@@ -152,6 +159,7 @@ def list_closures():
 def create_closure(data):
     """Create a new exceptional closure."""
     current_user_id = int(get_jwt_identity())
+    current_user = User.query.get(current_user_id)
     today = paris_today()
 
     start_date = parse_date(data.get('start_date'), 'start_date')
@@ -165,11 +173,14 @@ def create_closure(data):
 
     restaurant_id = data.get('restaurant_id')
     if not restaurant_id:
-        restaurant = get_default_restaurant()
-        if restaurant:
-            restaurant_id = restaurant.id
+        if current_user and current_user.restaurant_id:
+            restaurant_id = current_user.restaurant_id
         else:
-            return jsonify({'error': 'Aucun restaurant configuré'}), 400
+            restaurant = get_default_restaurant()
+            if restaurant:
+                restaurant_id = restaurant.id
+            else:
+                return jsonify({'error': 'Aucun restaurant configuré'}), 400
 
     closure = ExceptionalClosure(
         restaurant_id=restaurant_id,

@@ -38,6 +38,13 @@ scripts/
 *.timestamp-*.mjs
 
 # ========================================
+# TESTS / COUVERTURE
+# ========================================
+server/.coverage
+server/test_out.txt
+client/coverage/
+
+# ========================================
 # DOCKER
 # ========================================
 # Montages locaux temporaires

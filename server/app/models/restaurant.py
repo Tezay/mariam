@@ -8,15 +8,15 @@ Pensé dès le départ pour le multi-RU :
 - Configuration personnalisable (jours, catégories, tags/certifications)
 """
 from datetime import datetime
-from ..extensions import db
-from ..data.taxonomy import DEFAULT_ENABLED_TAG_IDS, DEFAULT_ENABLED_CERT_IDS
-from .taxonomy import (
-    restaurant_dietary_tags,
-    restaurant_certifications,
-    DietaryTag,
-    Certification,
-)
 
+from ..data.taxonomy import DEFAULT_ENABLED_CERT_IDS, DEFAULT_ENABLED_TAG_IDS
+from ..extensions import db
+from .taxonomy import (
+    Certification,
+    DietaryTag,
+    restaurant_certifications,
+    restaurant_dietary_tags,
+)
 
 # Jours de service par défaut (0=Lundi, 4=Vendredi)
 DEFAULT_SERVICE_DAYS = [0, 1, 2, 3, 4]

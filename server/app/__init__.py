@@ -6,13 +6,28 @@ des menus universitaires.
 """
 import os
 from datetime import timedelta
+
 from flask import Flask, jsonify
 from flask_cors import CORS
 
 from .extensions import db, jwt, migrate
-from .models import User, Restaurant, Menu, MenuItem, Event, EventImage, GalleryImage, GalleryImageTag, MenuItemImage, ActivationLink, AuditLog, ImportSession, PushSubscription
+from .models import (
+    ActivationLink,
+    AuditLog,
+    Event,
+    EventImage,
+    GalleryImage,
+    GalleryImageTag,
+    ImportSession,
+    Menu,
+    MenuItem,
+    MenuItemImage,
+    PushSubscription,
+    Restaurant,
+    User,
+)
+from .security import is_token_blacklisted, limiter
 from .services.storage import storage
-from .security import limiter, is_token_blacklisted
 
 
 def create_app(config_class=None):
@@ -191,18 +206,18 @@ def create_app(config_class=None):
     from flask_smorest import Api
     api = Api(app)
 
-    from .routes.menus import menus_bp
-    from .routes.events import events_bp
-    from .routes.gallery import gallery_bp
-    from .routes.restaurant import restaurant_bp
-    from .routes.taxonomy import taxonomy_bp
-    from .routes.auth import auth_bp
-    from .routes.users import users_bp
     from .routes.audit import audit_bp
-    from .routes.imports import imports_bp
-    from .routes.notifications import notifications_bp
+    from .routes.auth import auth_bp
     from .routes.categories import categories_bp
     from .routes.closures import closures_bp
+    from .routes.events import events_bp
+    from .routes.gallery import gallery_bp
+    from .routes.imports import imports_bp
+    from .routes.menus import menus_bp
+    from .routes.notifications import notifications_bp
+    from .routes.restaurant import restaurant_bp
+    from .routes.taxonomy import taxonomy_bp
+    from .routes.users import users_bp
 
     api.register_blueprint(menus_bp,         url_prefix='/v1/menus')
     api.register_blueprint(categories_bp,    url_prefix='/v1')
@@ -313,7 +328,7 @@ Disallow: /v1/users/
         click.echo("🔐 LIEN D'ACTIVATION PREMIER ADMINISTRATEUR")
         click.echo("=" * 60)
         click.echo(f"\nURL : {activation_url}")
-        click.echo(f"\n⚠️  Ce lien expire dans 24 heures.")
+        click.echo("\n⚠️  Ce lien expire dans 24 heures.")
         click.echo("⚠️  Ce lien ne peut être utilisé qu'une seule fois.")
         click.echo("=" * 60 + "\n")
     
@@ -388,16 +403,24 @@ Disallow: /v1/users/
         click.echo("=" * 60)
         click.echo(f"\nUtilisateur : {email}")
         click.echo(f"URL : {reset_url}")
-        click.echo(f"\n⚠️  Ce lien expire dans 72 heures.")
+        click.echo("\n⚠️  Ce lien expire dans 72 heures.")
         click.echo("⚠️  Ce lien ne peut être utilisé qu'une seule fois.")
         click.echo("⚠️  L'authentification MFA sera requise.")
         click.echo("=" * 60 + "\n")
     
     # ========================================
+    # COMMANDES CLI — seed & demo
+    # ========================================
+    from .commands.demo import register_commands as register_demo
+    from .commands.seed import register_commands as register_seed
+    register_seed(app)
+    register_demo(app)
+
+    # ========================================
     # SCHEDULER — Notifications push planifiées
     # ========================================
     _start_notification_scheduler(app)
-    
+
     return app
 
 
@@ -417,6 +440,7 @@ def _start_notification_scheduler(app):
     
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
+
         from .services.notification_service import check_and_send_notifications
         
         scheduler = BackgroundScheduler(daemon=True)

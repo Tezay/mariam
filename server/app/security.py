@@ -9,8 +9,8 @@ En développement (sans REDIS_URL), fallback automatique sur stockage en mémoir
 La blacklist de tokens utilise le même Redis avec le préfixe "mariam:revoked:".
 """
 import os
+
 from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 
 try:
     import redis as _redis_lib

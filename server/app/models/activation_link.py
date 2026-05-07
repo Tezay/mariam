@@ -6,8 +6,9 @@ Utilisé pour :
 - Inviter de nouveaux utilisateurs
 - Réinitialiser les accès en cas de problème
 """
-from datetime import datetime, timedelta
 import secrets
+from datetime import datetime, timedelta
+
 from ..extensions import db
 
 

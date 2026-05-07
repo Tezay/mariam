@@ -169,7 +169,7 @@ export function EventEditor({ event, onClose, onSave, storageConfigured }: Event
     // ------------------------------------------------------------------
 
     const renderMarkdownPreview = (md: string) => {
-        let html = md
+        const html = md
             // Headers
             .replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold mt-3 mb-1">$1</h3>')
             .replace(/^## (.+)$/gm, '<h2 class="text-lg font-bold mt-4 mb-1">$1</h2>')

@@ -120,7 +120,8 @@ Mariam/
 │   │   └── services/
 │   │       └── storage.py     # Service S3 (upload, delete, gestion bucket)
 │   ├── migrations/            # Alembic (schéma BDD)
-│   └── requirements.txt
+│   ├── pyproject.toml         # Dépendances Python + config ruff/mypy/pytest
+│   └── uv.lock
 └── client/                    # Frontend React
     └── src/
         ├── pages/

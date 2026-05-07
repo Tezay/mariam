@@ -11,6 +11,7 @@ Architecture :
   item de menu spécifique via menu_item_id (FK stable).
 """
 from datetime import datetime
+
 from ..extensions import db
 
 

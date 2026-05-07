@@ -2,8 +2,8 @@ import os
 import sys
 import time
 
+from flask_migrate import stamp, upgrade
 from sqlalchemy import create_engine, text
-from flask_migrate import upgrade, stamp
 
 from app import create_app
 

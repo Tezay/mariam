@@ -12,6 +12,9 @@ import { MobileMenuDisplay } from './mobile/MobileMenuDisplay';
 export function MenuDisplay() {
     const [searchParams] = useSearchParams();
     const forceTvMode = searchParams.get('mode') === 'tv';
+    const restaurantId = searchParams.get('restaurant_id')
+        ? Number(searchParams.get('restaurant_id'))
+        : undefined;
     const [isTvMode, setIsTvMode] = useState(forceTvMode);
 
     useEffect(() => {
@@ -25,5 +28,7 @@ export function MenuDisplay() {
         return () => window.removeEventListener('resize', check);
     }, [forceTvMode]);
 
-    return isTvMode ? <TvMenuDisplay /> : <MobileMenuDisplay />;
+    return isTvMode
+        ? <TvMenuDisplay restaurantId={restaurantId} />
+        : <MobileMenuDisplay restaurantId={restaurantId} />;
 }

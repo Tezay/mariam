@@ -1,4 +1,4 @@
-from marshmallow import Schema, fields, EXCLUDE
+from marshmallow import EXCLUDE, Schema, fields
 
 
 class ClosureSchema(Schema):

@@ -6,6 +6,7 @@ La clé privée reste dans le secure enclave de l'appareil ; on stocke uniquemen
 la clé publique, l'identifiant de credential et le compteur de signatures.
 """
 from datetime import datetime
+
 from ..extensions import db
 
 

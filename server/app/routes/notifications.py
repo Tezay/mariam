@@ -12,16 +12,17 @@ Endpoints:
 - POST   /v1/notifications/test              Send a test notification
 """
 from datetime import time
-from flask import request, jsonify
+
+from flask import jsonify, request
 from flask_smorest import Blueprint
+
 from ..extensions import db
 from ..models.push_subscription import PushSubscription
 from ..models.restaurant import Restaurant
-from ..services.notification_service import get_vapid_public_key, send_push_notification
-from ..security import limiter
-from ..schemas.notifications import SubscribeSchema, PreferencesUpdateSchema
 from ..schemas.common import ErrorSchema, MessageSchema
-
+from ..schemas.notifications import PreferencesUpdateSchema, SubscribeSchema
+from ..security import limiter
+from ..services.notification_service import get_vapid_public_key, send_push_notification
 
 notifications_bp = Blueprint(
     'notifications', __name__,

@@ -7,19 +7,20 @@ Endpoints:
 - GET /v1/audit-logs         Paginated list with filters
 - GET /v1/audit-logs/export  CSV export (max 10,000 rows)
 """
+import csv
 from datetime import datetime
 from functools import wraps
-import csv
 from io import StringIO
-from flask import request, jsonify, make_response
-from flask_jwt_extended import jwt_required, get_jwt_identity
+
+from flask import jsonify, make_response, request
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_smorest import Blueprint
 from sqlalchemy.orm import joinedload
-from ..extensions import db
-from ..models import User, AuditLog
-from ..security import get_client_ip
-from ..schemas.common import ErrorSchema
 
+from ..extensions import db
+from ..models import AuditLog, User
+from ..schemas.common import ErrorSchema
+from ..security import get_client_ip
 
 audit_bp = Blueprint(
     'audit', __name__,

@@ -2,25 +2,35 @@
 MARIAM - Schemas Marshmallow centralisés.
 Utilisés par Flask-Smorest pour la documentation OpenAPI et la validation.
 """
-from .common import ErrorSchema, MessageSchema
 from .auth import (
-    LoginSchema, LoginResponseSchema,
-    MFAVerifySchema, MFAVerifySetupSchema,
-    ActivateAccountSchema, ResetPasswordSchema, ChangePasswordSchema,
-    TokenRefreshSchema, UserSchema,
+    ActivateAccountSchema,
+    ChangePasswordSchema,
+    LoginResponseSchema,
+    LoginSchema,
+    MFAVerifySchema,
+    MFAVerifySetupSchema,
+    ResetPasswordSchema,
+    TokenRefreshSchema,
+    UserSchema,
 )
-from .menus import (
-    MenuSchema, MenuItemSchema, MenuListSchema,
-    MenuCreateSchema, MenuUpdateSchema,
-    WeekMenuSchema, PublicMenuSchema, PublicDayMenuSchema,
-)
-from .events import EventSchema, EventCreateSchema, EventUpdateSchema, EventListSchema
+from .common import ErrorSchema, MessageSchema
+from .events import EventCreateSchema, EventListSchema, EventSchema, EventUpdateSchema
 from .gallery import GalleryImageSchema, GalleryListSchema, GalleryTagSchema
-from .users import UserAdminSchema, InviteSchema, InvitationSchema
-from .restaurant import RestaurantSchema, RestaurantConfigSchema, RestaurantUpdateSchema
+from .imports import ImportConfirmSchema, ImportPreviewSchema, ImportUploadSchema
+from .menus import (
+    MenuCreateSchema,
+    MenuItemSchema,
+    MenuListSchema,
+    MenuSchema,
+    MenuUpdateSchema,
+    PublicDayMenuSchema,
+    PublicMenuSchema,
+    WeekMenuSchema,
+)
+from .notifications import PreferencesUpdateSchema, SubscribeSchema
+from .restaurant import RestaurantConfigSchema, RestaurantSchema, RestaurantUpdateSchema
 from .taxonomy import TaxonomySchema
-from .notifications import SubscribeSchema, PreferencesUpdateSchema
-from .imports import ImportUploadSchema, ImportPreviewSchema, ImportConfirmSchema
+from .users import InvitationSchema, InviteSchema, UserAdminSchema
 
 __all__ = [
     'ErrorSchema', 'MessageSchema',

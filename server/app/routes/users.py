@@ -13,15 +13,16 @@ Endpoints:
 - GET  /v1/users/invitations        List pending invitations
 """
 from functools import wraps
-from flask import request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_smorest import Blueprint
-from ..extensions import db
-from ..models import User, ActivationLink, AuditLog
-from ..security import get_client_ip
-from ..schemas.users import UserAdminSchema, UserUpdateSchema, InviteSchema, InvitationSchema
-from ..schemas.common import ErrorSchema, MessageSchema
 
+from flask import jsonify
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_smorest import Blueprint
+
+from ..extensions import db
+from ..models import ActivationLink, AuditLog, User
+from ..schemas.common import ErrorSchema, MessageSchema
+from ..schemas.users import InvitationSchema, InviteSchema, UserAdminSchema, UserUpdateSchema
+from ..security import get_client_ip
 
 users_bp = Blueprint(
     'users', __name__,

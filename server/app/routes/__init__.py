@@ -1,18 +1,18 @@
 """
 Routes MARIAM - Exports centralisés.
 """
+from .audit import audit_bp
 from .auth import auth_bp
-from .menus import menus_bp
 from .categories import categories_bp
+from .closures import closures_bp
 from .events import events_bp
 from .gallery import gallery_bp
+from .imports import imports_bp
+from .menus import menus_bp
+from .notifications import notifications_bp
 from .restaurant import restaurant_bp
 from .taxonomy import taxonomy_bp
 from .users import users_bp
-from .audit import audit_bp
-from .imports import imports_bp
-from .notifications import notifications_bp
-from .closures import closures_bp
 
 __all__ = [
     'auth_bp',

@@ -19,21 +19,24 @@ Editor endpoints (JWT required):
 - PUT    /v1/events/<id>/images/reorder    Reorder images
 """
 from datetime import datetime, timedelta
-from ..utils.time import paris_today
 from functools import wraps
-from flask import request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
+
+from flask import jsonify, request
+from flask_jwt_extended import get_jwt_identity, jwt_required, verify_jwt_in_request
 from flask_smorest import Blueprint
+
 from ..extensions import db
-from ..models import User, Restaurant, Event, EventImage, AuditLog
-from ..services.storage import storage
-from ..security import get_client_ip
+from ..models import AuditLog, Event, EventImage, Restaurant, User
+from ..schemas.common import ErrorSchema, MessageSchema
 from ..schemas.events import (
-    EventSchema, EventCreateSchema, EventUpdateSchema,
+    EventCreateSchema,
+    EventSchema,
+    EventUpdateSchema,
     PublicEventsResponseSchema,
 )
-from ..schemas.common import ErrorSchema, MessageSchema
-
+from ..security import get_client_ip
+from ..services.storage import storage
+from ..utils.time import paris_today
 
 events_bp = Blueprint(
     'events', __name__,
@@ -86,6 +89,7 @@ def list_events():
 
     # Déterminer si l'appelant est un éditeur authentifié
     is_editor = False
+    user = None
     try:
         verify_jwt_in_request(optional=True)
         identity = get_jwt_identity()
@@ -96,15 +100,18 @@ def list_events():
         pass
 
     if not restaurant_id:
-        restaurant = get_default_restaurant()
-        if restaurant:
-            restaurant_id = restaurant.id
+        if is_editor and user and user.restaurant_id:
+            restaurant_id = user.restaurant_id
         else:
-            return jsonify({
-                'today_event': None,
-                'upcoming_events': [],
-                'events': [],
-            }), 200
+            restaurant = get_default_restaurant()
+            if restaurant:
+                restaurant_id = restaurant.id
+            else:
+                return jsonify({
+                    'today_event': None,
+                    'upcoming_events': [],
+                    'events': [],
+                }), 200
 
     if is_editor:
         # Vue gestion : tous les événements avec filtres
@@ -134,7 +141,7 @@ def list_events():
 
         query = Event.query.filter(
             Event.restaurant_id == restaurant_id,
-            Event.is_active == True,
+            Event.is_active,
             Event.status == 'published',
             Event.event_date >= paris_today(),
         )
@@ -172,6 +179,7 @@ def list_events():
 def create_event(data):
     """Create a new event."""
     current_user_id = int(get_jwt_identity())
+    current_user = User.query.get(current_user_id)
 
     title = data.get('title')
     event_date_str = data.get('event_date')
@@ -186,11 +194,14 @@ def create_event(data):
 
     restaurant_id = data.get('restaurant_id')
     if not restaurant_id:
-        restaurant = get_default_restaurant()
-        if restaurant:
-            restaurant_id = restaurant.id
+        if current_user and current_user.restaurant_id:
+            restaurant_id = current_user.restaurant_id
         else:
-            return jsonify({'error': 'Aucun restaurant configuré'}), 400
+            restaurant = get_default_restaurant()
+            if restaurant:
+                restaurant_id = restaurant.id
+            else:
+                return jsonify({'error': 'Aucun restaurant configuré'}), 400
 
     visibility = data.get('visibility', 'all')
     if visibility not in Event.VALID_VISIBILITY:

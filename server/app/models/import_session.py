@@ -5,6 +5,7 @@ Stocke temporairement les fichiers CSV parsés en base de données.
 """
 import json
 from datetime import datetime, timedelta
+
 from ..extensions import db
 
 

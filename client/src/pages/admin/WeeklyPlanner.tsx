@@ -17,9 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MenuEditor } from '@/components/MenuEditor';
 import { CsvImportModal } from '@/components/CsvImportModal';
-import { Icon } from '@/components/ui/icon-picker';
 import { InlineError, getErrorType } from '@/components/InlineError';
-import type { IconName } from '@/components/ui/icon-picker';
 import { ChevronLeft, ChevronRight, Check, FileEdit, FileX, Send, Upload } from 'lucide-react';
 
 const DAY_NAMES = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
@@ -231,7 +229,6 @@ export function WeeklyPlanner() {
                                 return (
                                     <div key={category.id}>
                                         <div className="text-xs font-semibold uppercase tracking-wide mb-1 flex items-center gap-1 text-muted-foreground">
-                                            <Icon name={category.icon as IconName} className="w-3 h-3" />
                                             {category.label}
                                         </div>
                                         <ul className="space-y-0.5">

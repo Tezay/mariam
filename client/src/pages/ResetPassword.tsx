@@ -70,7 +70,7 @@ export function ResetPassword() {
         if (!/[A-Z]/.test(pwd)) errors.push('Une majuscule');
         if (!/[a-z]/.test(pwd)) errors.push('Une minuscule');
         if (!/\d/.test(pwd)) errors.push('Un chiffre');
-        if (!/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;'`~]/.test(pwd)) errors.push('Un caractère spécial');
+        if (!/[!@#$%^&*(),.?":{}|<>_\-+=[\]\\;'`~]/.test(pwd)) errors.push('Un caractère spécial');
         return errors;
     };
 

@@ -6,15 +6,15 @@ Fonctionne avec MinIO (développement) et Scaleway Object Storage (production).
 Inclut la conversion automatique HEIC/HEIF → JPEG pour les photos iPhone.
 """
 import io
+import json
 import os
 import uuid
-import json
 from datetime import datetime
 
 import boto3
+import pillow_heif
 from botocore.exceptions import ClientError
 from PIL import Image, ImageOps
-import pillow_heif
 
 # Enregistrement du codec HEIC/HEIF dans Pillow
 pillow_heif.register_heif_opener()

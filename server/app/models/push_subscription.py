@@ -11,6 +11,7 @@ Chaque souscription contient :
 - La plateforme détectée (analytics)
 """
 from datetime import datetime, time
+
 from ..extensions import db
 
 

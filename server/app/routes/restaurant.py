@@ -14,16 +14,17 @@ Admin endpoints:
 - PUT  /v1/restaurants/<id>  Update a restaurant
 """
 from functools import wraps
-from flask import request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_smorest import Blueprint
-from ..extensions import db
-from ..models import User, Restaurant, RestaurantServiceHours, AuditLog, DietaryTag, Certification
-from ..models.category import MenuCategory
-from ..security import get_client_ip, limiter
-from ..schemas.restaurant import RestaurantSchema, RestaurantUpdateSchema
-from ..schemas.common import ErrorSchema, MessageSchema
 
+from flask import jsonify, request
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_smorest import Blueprint
+
+from ..extensions import db
+from ..models import AuditLog, Certification, DietaryTag, Restaurant, RestaurantServiceHours, User
+from ..models.category import MenuCategory
+from ..schemas.common import ErrorSchema
+from ..schemas.restaurant import RestaurantSchema, RestaurantUpdateSchema
+from ..security import get_client_ip, limiter
 
 restaurant_bp = Blueprint(
     'restaurant', __name__,
@@ -96,7 +97,10 @@ def get_settings():
     if not user:
         return jsonify({'error': 'Utilisateur introuvable'}), 401
 
-    restaurant = Restaurant.query.filter_by(is_active=True).first()
+    if user.restaurant_id:
+        restaurant = Restaurant.query.get(user.restaurant_id)
+    else:
+        restaurant = Restaurant.query.filter_by(is_active=True).first()
     if not restaurant:
         return jsonify({'error': 'Aucun restaurant configuré'}), 404
 
@@ -223,7 +227,6 @@ def _create_default_categories(restaurant_id: int) -> None:
     plat = MenuCategory(
         restaurant_id=restaurant_id,
         label='Plat principal',
-        icon='utensils',
         order=2,
         is_protected=True,
         is_highlighted=True,
@@ -233,12 +236,12 @@ def _create_default_categories(restaurant_id: int) -> None:
     db.session.flush()  # get plat.id for subcategories
 
     defaults = [
-        MenuCategory(restaurant_id=restaurant_id, label='Entrées', icon='salad', order=1, color_key='indigo'),
-        MenuCategory(restaurant_id=restaurant_id, label='Dessert', icon='cake-slice', order=3, color_key='saffron'),
+        MenuCategory(restaurant_id=restaurant_id, label='Entrées', order=1, color_key='indigo'),
+        MenuCategory(restaurant_id=restaurant_id, label='Dessert', order=3, color_key='saffron'),
     ]
     subcategories = [
-        MenuCategory(restaurant_id=restaurant_id, parent_id=plat.id, label='Protéine', icon='beef', order=1, is_protected=True, color_key='clay'),
-        MenuCategory(restaurant_id=restaurant_id, parent_id=plat.id, label='Accompagnement', icon='wheat', order=2, is_protected=True, color_key='mint'),
+        MenuCategory(restaurant_id=restaurant_id, parent_id=plat.id, label='Protéine', order=1, is_protected=True, color_key='clay'),
+        MenuCategory(restaurant_id=restaurant_id, parent_id=plat.id, label='Accompagnement', order=2, is_protected=True, color_key='mint'),
     ]
     for cat in defaults + subcategories:
         db.session.add(cat)

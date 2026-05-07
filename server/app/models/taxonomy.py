@@ -4,9 +4,7 @@ Modèles de taxonomie — Tags alimentaires & Certifications.
 Tables de référence peuplées depuis server/app/data/taxonomy.py.
 Tables de jonction pour les relations N:N avec restaurants et menu_items.
 """
-from datetime import datetime
 from ..extensions import db
-
 
 # ──────────────────────────────────────────────────────────────────────
 #  TABLES DE JONCTION  (N:N)

@@ -990,12 +990,12 @@ export const categoriesApi = {
         return response.data;
     },
 
-    create: async (data: { label: string; icon?: string; order?: number; parent_id?: number | null }) => {
+    create: async (data: { label: string; order?: number; parent_id?: number | null }) => {
         const response = await api.post('/settings/categories', data);
         return response.data.category as MenuCategory;
     },
 
-    update: async (id: number, data: Partial<{ label: string; icon: string; order: number; is_highlighted: boolean }>) => {
+    update: async (id: number, data: Partial<{ label: string; order: number; is_highlighted: boolean }>) => {
         const response = await api.put(`/settings/categories/${id}`, data);
         return response.data.category as MenuCategory;
     },
@@ -1154,7 +1154,6 @@ export interface MenuCategory {
     restaurant_id?: number;
     parent_id: number | null;
     label: string;
-    icon: string;
     order: number;
     is_protected: boolean;
     is_highlighted: boolean;

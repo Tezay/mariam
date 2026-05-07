@@ -4,26 +4,27 @@ Category routes for MARIAM — CRUD for menu categories and subcategories.
 Admin endpoints (JWT required, admin role):
 - GET    /v1/settings/categories              List all categories + subcategories
 - POST   /v1/settings/categories              Create a category (or subcategory if parent_id)
-- PUT    /v1/settings/categories/<id>         Update label, icon, order, is_highlighted
+- PUT    /v1/settings/categories/<id>         Update label, order, is_highlighted
 - DELETE /v1/settings/categories/<id>         Delete (forbidden if is_protected)
 - PUT    /v1/settings/categories/reorder      Reorder categories (array of {id, order})
 """
 from functools import wraps
-from flask import request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_smorest import Blueprint
-from ..extensions import db
-from ..models import User, Restaurant, AuditLog
-from ..models.category import MenuCategory
-from ..security import get_client_ip
-from ..schemas.menus import (
-    MenuCategorySchema,
-    MenuCategoryCreateSchema,
-    MenuCategoryUpdateSchema,
-    MenuCategoryReorderSchema,
-)
-from ..schemas.common import ErrorSchema, MessageSchema
 
+from flask import jsonify
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_smorest import Blueprint
+
+from ..extensions import db
+from ..models import AuditLog, Restaurant, User
+from ..models.category import MenuCategory
+from ..schemas.common import ErrorSchema, MessageSchema
+from ..schemas.menus import (
+    MenuCategoryCreateSchema,
+    MenuCategoryReorderSchema,
+    MenuCategorySchema,
+    MenuCategoryUpdateSchema,
+)
+from ..security import get_client_ip
 
 categories_bp = Blueprint(
     'categories', __name__,
@@ -46,7 +47,9 @@ def admin_required(f):
     return decorated
 
 
-def _get_restaurant():
+def _get_restaurant(user=None):
+    if user and user.restaurant_id:
+        return Restaurant.query.get(user.restaurant_id)
     return Restaurant.query.filter_by(is_active=True).first()
 
 
@@ -67,7 +70,7 @@ def list_categories():
     if not user:
         return jsonify({'error': 'Non authentifié'}), 401
 
-    restaurant = _get_restaurant()
+    restaurant = _get_restaurant(user)
     if not restaurant:
         return jsonify({'categories': []}), 200
 
@@ -90,7 +93,8 @@ def create_category(data):
     Pass `parent_id` to create a subcategory (max 1 level deep).
     Subcategories can only be created under top-level categories.
     """
-    restaurant = _get_restaurant()
+    user = User.query.get(int(get_jwt_identity()))
+    restaurant = _get_restaurant(user)
     if not restaurant:
         return jsonify({'error': 'Aucun restaurant configuré'}), 404
 
@@ -121,7 +125,6 @@ def create_category(data):
         restaurant_id=restaurant.id,
         parent_id=parent_id,
         label=label,
-        icon=data.get('icon', 'utensils'),
         order=data.get('order', 0),
         color_key=auto_color,
     )
@@ -148,7 +151,8 @@ def reorder_categories(data):
 
     JSON body: `{ "items": [{"id": 1, "order": 0}, {"id": 2, "order": 1}] }`
     """
-    restaurant = _get_restaurant()
+    user = User.query.get(int(get_jwt_identity()))
+    restaurant = _get_restaurant(user)
     if not restaurant:
         return jsonify({'error': 'Aucun restaurant configuré'}), 404
 
@@ -169,8 +173,9 @@ def reorder_categories(data):
 @categories_bp.alt_response(404, schema=ErrorSchema)
 @admin_required
 def update_category(data, category_id):
-    """Update a category: label, icon, order, or is_highlighted."""
-    restaurant = _get_restaurant()
+    """Update a category: label, order, or is_highlighted."""
+    user = User.query.get(int(get_jwt_identity()))
+    restaurant = _get_restaurant(user)
     if not restaurant:
         return jsonify({'error': 'Aucun restaurant configuré'}), 404
 
@@ -182,8 +187,6 @@ def update_category(data, category_id):
 
     if 'label' in data:
         category.label = data['label'].strip() or category.label
-    if 'icon' in data:
-        category.icon = data['icon']
     if 'order' in data:
         category.order = data['order']
     if 'is_highlighted' in data:
@@ -215,7 +218,8 @@ def delete_category(category_id):
     Forbidden if `is_protected=True`.
     Cascades to subcategories and their menu items (FK cascade).
     """
-    restaurant = _get_restaurant()
+    user = User.query.get(int(get_jwt_identity()))
+    restaurant = _get_restaurant(user)
     if not restaurant:
         return jsonify({'error': 'Aucun restaurant configuré'}), 404
 

@@ -8,6 +8,7 @@ Structure :
 - is_highlighted : items affichés en grand format avec image visible par défaut
 """
 from datetime import datetime
+
 from ..extensions import db
 
 
@@ -24,7 +25,6 @@ class MenuCategory(db.Model):
         db.Integer, db.ForeignKey('menu_categories.id', ondelete='CASCADE'), nullable=True
     )
     label = db.Column(db.String(100), nullable=False)
-    icon = db.Column(db.String(50), nullable=False, default='utensils')
     order = db.Column(db.Integer, nullable=False, default=0)
     is_protected = db.Column(db.Boolean, nullable=False, default=False)
     is_highlighted = db.Column(db.Boolean, nullable=False, default=False)
@@ -61,7 +61,6 @@ class MenuCategory(db.Model):
             'restaurant_id': self.restaurant_id,
             'parent_id': self.parent_id,
             'label': self.label,
-            'icon': self.icon,
             'order': self.order,
             'is_protected': self.is_protected,
             'is_highlighted': self.is_highlighted,

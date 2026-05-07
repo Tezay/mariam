@@ -13,22 +13,33 @@ Endpoints (editor role required):
 """
 import csv
 import io
-import uuid
 import re
+import uuid
 from datetime import date, datetime, timedelta
-from ..utils.time import paris_today
 from functools import wraps
-from flask import request, jsonify, current_app
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_smorest import Blueprint
-from ..extensions import db
-from ..models import User, Restaurant, Menu, MenuItem, AuditLog, ImportSession
-from ..models import DietaryTag, Certification, DietaryTagKeyword, CertificationKeyword
-from ..models.category import MenuCategory
-from ..security import get_client_ip
-from ..schemas.imports import ImportUploadSchema, ImportPreviewSchema, ImportConfirmSchema
-from ..schemas.common import ErrorSchema
 
+from flask import current_app, jsonify, request
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_smorest import Blueprint
+
+from ..extensions import db
+from ..models import (
+    AuditLog,
+    Certification,
+    CertificationKeyword,
+    DietaryTag,
+    DietaryTagKeyword,
+    ImportSession,
+    Menu,
+    MenuItem,
+    Restaurant,
+    User,
+)
+from ..models.category import MenuCategory
+from ..schemas.common import ErrorSchema
+from ..schemas.imports import ImportConfirmSchema, ImportPreviewSchema, ImportUploadSchema
+from ..security import get_client_ip
+from ..utils.time import paris_today
 
 imports_bp = Blueprint(
     'imports', __name__,
@@ -111,7 +122,7 @@ def parse_excel_content(file_content: bytes) -> tuple[list[str], list[dict]]:
         wb.close()
         return columns, rows
     except ImportError:
-        raise ValueError("La bibliothèque openpyxl n'est pas installée pour lire les fichiers Excel.")
+        raise ValueError("La bibliothèque openpyxl n'est pas installée pour lire les fichiers Excel.") from None
 
 
 def detect_date_format(date_str: str) -> str | None:
@@ -228,7 +239,7 @@ def build_menus_from_rows(rows, column_mapping, date_config, restaurant_id):
         try:
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
         except ValueError:
-            raise ValueError(f"Format de date invalide: {start_date_str}")
+            raise ValueError(f"Format de date invalide: {start_date_str}") from None
     else:
         start_date = paris_today()
 

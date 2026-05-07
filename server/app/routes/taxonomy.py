@@ -9,10 +9,10 @@ Public endpoints:
 """
 from flask import jsonify
 from flask_smorest import Blueprint
-from ..models import DietaryTagCategory, CertificationCategory
-from ..security import limiter
-from ..schemas.taxonomy import TaxonomySchema
 
+from ..models import CertificationCategory, DietaryTagCategory
+from ..schemas.taxonomy import TaxonomySchema
+from ..security import limiter
 
 taxonomy_bp = Blueprint(
     'taxonomy', __name__,

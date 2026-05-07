@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
@@ -110,6 +110,15 @@ export default defineConfig({
         watch: {
             // Ignore config file changes in Docker to prevent Vite restart crashes
             ignored: ['**/vite.config.ts'],
+        },
+    },
+    test: {
+        environment: 'jsdom',
+        globals: true,
+        setupFiles: ['./src/__tests__/setup.ts'],
+        coverage: {
+            provider: 'v8',
+            reporter: ['text', 'lcov'],
         },
     },
 })

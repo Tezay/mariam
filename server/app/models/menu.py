@@ -8,10 +8,11 @@ Structure :
 - Statuts : brouillon (draft) ou publié (published)
 """
 from datetime import datetime
+
 from ..extensions import db
 from .taxonomy import (
-    menu_item_dietary_tags,
     menu_item_certifications,
+    menu_item_dietary_tags,
 )
 
 

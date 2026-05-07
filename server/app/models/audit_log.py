@@ -7,8 +7,9 @@ Enregistre les actions critiques pour la sécurité et la traçabilité :
 - Gestion des utilisateurs
 - Modifications de configuration
 """
-from datetime import datetime, timezone
 import json
+from datetime import UTC, datetime
+
 from ..extensions import db
 
 
@@ -97,7 +98,7 @@ class AuditLog(db.Model):
             'target_id': self.target_id,
             'details': self.get_details(),
             'ip_address': self.ip_address,
-            'created_at': self.created_at.replace(tzinfo=timezone.utc).isoformat() if self.created_at else None
+            'created_at': self.created_at.replace(tzinfo=UTC).isoformat() if self.created_at else None
         }
     
     def __repr__(self):

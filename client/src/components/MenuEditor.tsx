@@ -20,13 +20,13 @@ import { GalleryPicker } from '@/components/GalleryPicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Icon } from '@/components/ui/icon-picker';
+import { DynamicIcon as Icon } from 'lucide-react/dynamic';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
     Plus, X, Trash2, ChefHat, Tag, Upload, FolderOpen,
     RotateCcw, AlertTriangle,
 } from 'lucide-react';
-import type { IconName } from '@/components/ui/icon-picker';
+import type { IconName } from 'lucide-react/dynamic';
 
 interface MenuEditorProps {
     date: string;
@@ -769,7 +769,6 @@ function CategorySection({ category, ...props }: CategorySectionProps) {
         return (
             <div>
                 <Label className="text-base flex items-center gap-2 mb-3">
-                    {props.renderIcon(category.icon, 'w-5 h-5 text-muted-foreground')}
                     {category.label}
                 </Label>
                 <div className="space-y-4 pl-4 border-l-2 border-border">
@@ -805,7 +804,6 @@ function LeafCategorySection({
         <div>
             <div className="flex items-center justify-between mb-2">
                 <Label className="text-sm font-medium flex items-center gap-2">
-                    {renderIcon(category.icon, 'w-4 h-4 text-muted-foreground')}
                     {category.label}
                     {items.length >= MAX_ITEMS_PER_CATEGORY && (
                         <span className="text-[10px] text-muted-foreground/60 font-normal">(max {MAX_ITEMS_PER_CATEGORY})</span>

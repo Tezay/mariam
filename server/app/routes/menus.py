@@ -25,25 +25,40 @@ Editor endpoints (JWT required):
 - POST /v1/menus/<id>/items/<item_id>/images         Link gallery image to item
 - DELETE /v1/menus/<id>/items/<item_id>/images/<lid> Unlink gallery image from item
 """
-from datetime import datetime, timedelta, timezone
-from ..utils.time import paris_today
+from datetime import UTC, datetime, timedelta
 from functools import wraps
-from flask import request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
-from flask_smorest import Blueprint
-from ..extensions import db
-from ..models import User, Restaurant, Menu, MenuItem, MenuImage, AuditLog
-from ..models import GalleryImage, MenuItemImage
-from ..models import DietaryTag, Certification
-from ..models.category import MenuCategory
-from ..services.storage import storage
-from ..security import get_client_ip, limiter
-from ..schemas.menus import (
-    MenuSchema, MenuListSchema, MenuCreateSchema, MenuUpdateSchema,
-    WeekMenuSchema, PublicDayMenuSchema, MenuItemStockSchema,
-)
-from ..schemas.common import ErrorSchema, MessageSchema
 
+from flask import jsonify, request
+from flask_jwt_extended import get_jwt_identity, jwt_required, verify_jwt_in_request
+from flask_smorest import Blueprint
+
+from ..extensions import db
+from ..models import (
+    AuditLog,
+    Certification,
+    DietaryTag,
+    GalleryImage,
+    Menu,
+    MenuImage,
+    MenuItem,
+    MenuItemImage,
+    Restaurant,
+    User,
+)
+from ..models.category import MenuCategory
+from ..schemas.common import ErrorSchema, MessageSchema
+from ..schemas.menus import (
+    MenuCreateSchema,
+    MenuItemStockSchema,
+    MenuListSchema,
+    MenuSchema,
+    MenuUpdateSchema,
+    PublicDayMenuSchema,
+    WeekMenuSchema,
+)
+from ..security import get_client_ip, limiter
+from ..services.storage import storage
+from ..utils.time import paris_today
 
 menus_bp = Blueprint(
     'menus', __name__,
@@ -170,7 +185,6 @@ def _format_menu_for_display(menu):
         cat_dict = {
             'id': cat.id,
             'label': cat.label,
-            'icon': cat.icon,
             'is_highlighted': cat.is_highlighted,
             'is_protected': cat.is_protected,
             'order': cat.order,
@@ -182,7 +196,6 @@ def _format_menu_for_display(menu):
                 subcats.append({
                     'id': sub.id,
                     'label': sub.label,
-                    'icon': sub.icon,
                     'is_highlighted': sub.is_highlighted,
                     'is_protected': sub.is_protected,
                     'order': sub.order,
@@ -283,6 +296,7 @@ def get_week_menu():
     week_offset = request.args.get('week_offset', 0, type=int)
 
     is_editor = False
+    user = None
     try:
         verify_jwt_in_request(optional=True)
         identity = get_jwt_identity()
@@ -294,11 +308,15 @@ def get_week_menu():
 
     restaurant = None
     if not restaurant_id:
-        restaurant = get_default_restaurant()
-        if restaurant:
-            restaurant_id = restaurant.id
+        if is_editor and user and user.restaurant_id:
+            restaurant_id = user.restaurant_id
+            restaurant = Restaurant.query.get(restaurant_id)
         else:
-            return jsonify({'error': 'Aucun restaurant configuré', 'menus': {}}), 200
+            restaurant = get_default_restaurant()
+            if restaurant:
+                restaurant_id = restaurant.id
+            else:
+                return jsonify({'error': 'Aucun restaurant configuré', 'menus': {}}), 200
     else:
         restaurant = Restaurant.query.get(restaurant_id)
 
@@ -389,6 +407,7 @@ def create_or_update_menu(data):
     (stable IDs preserved, linked images kept).
     """
     current_user_id = int(get_jwt_identity())
+    current_user = User.query.get(current_user_id)
 
     date_str = data.get('date')
     if not date_str:
@@ -401,11 +420,14 @@ def create_or_update_menu(data):
 
     restaurant_id = data.get('restaurant_id')
     if not restaurant_id:
-        restaurant = get_default_restaurant()
-        if restaurant:
-            restaurant_id = restaurant.id
+        if current_user and current_user.restaurant_id:
+            restaurant_id = current_user.restaurant_id
         else:
-            return jsonify({'error': 'Aucun restaurant configuré'}), 400
+            restaurant = get_default_restaurant()
+            if restaurant:
+                restaurant_id = restaurant.id
+            else:
+                return jsonify({'error': 'Aucun restaurant configuré'}), 400
 
     menu = Menu.query.filter_by(restaurant_id=restaurant_id, date=menu_date).first()
     is_new = menu is None
@@ -446,13 +468,17 @@ def publish_week(data):
     Optional JSON body: `{ "week_offset": 0, "restaurant_id": 1 }`
     """
     current_user_id = int(get_jwt_identity())
+    current_user = User.query.get(current_user_id)
 
     week_offset = data.get('week_offset', 0)
     restaurant_id = data.get('restaurant_id')
     if not restaurant_id:
-        restaurant = get_default_restaurant()
-        if restaurant:
-            restaurant_id = restaurant.id
+        if current_user and current_user.restaurant_id:
+            restaurant_id = current_user.restaurant_id
+        else:
+            restaurant = get_default_restaurant()
+            if restaurant:
+                restaurant_id = restaurant.id
 
     reference_date = paris_today() + timedelta(weeks=week_offset)
     week_dates = get_week_dates(reference_date)
@@ -462,7 +488,7 @@ def publish_week(data):
         menu = Menu.query.filter_by(restaurant_id=restaurant_id, date=d).first()
         if menu and menu.status == 'draft':
             menu.status = 'published'
-            menu.published_at = datetime.now(timezone.utc)
+            menu.published_at = datetime.now(UTC)
             menu.published_by_id = current_user_id
             published_count += 1
 
@@ -500,11 +526,15 @@ def get_menu_by_date(date_str):
     except ValueError:
         return jsonify({'error': 'Format de date invalide (YYYY-MM-DD)'}), 400
 
+    current_user = User.query.get(int(get_jwt_identity()))
     restaurant_id = request.args.get('restaurant_id', type=int)
     if not restaurant_id:
-        restaurant = get_default_restaurant()
-        if restaurant:
-            restaurant_id = restaurant.id
+        if current_user and current_user.restaurant_id:
+            restaurant_id = current_user.restaurant_id
+        else:
+            restaurant = get_default_restaurant()
+            if restaurant:
+                restaurant_id = restaurant.id
 
     menu = Menu.query.filter_by(restaurant_id=restaurant_id, date=menu_date).first()
     return jsonify({
@@ -569,7 +599,7 @@ def publish_menu(menu_id):
         return jsonify({'error': 'Menu non trouvé'}), 404
 
     menu.status = 'published'
-    menu.published_at = datetime.now(timezone.utc)
+    menu.published_at = datetime.now(UTC)
     menu.published_by_id = current_user_id
 
     AuditLog.log(

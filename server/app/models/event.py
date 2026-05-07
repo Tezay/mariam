@@ -10,6 +10,7 @@ Chaque événement possède un titre, sous-titre, description (Markdown),
 une couleur symbolique et jusqu'à 6 images stockées sur S3.
 """
 from datetime import datetime
+
 from ..extensions import db
 
 

@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 PARIS_TZ = ZoneInfo('Europe/Paris')

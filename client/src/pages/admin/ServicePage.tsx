@@ -23,8 +23,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { MenuEditor } from '@/components/MenuEditor';
-import { Icon } from '@/components/ui/icon-picker';
-import type { IconName } from '@/components/ui/icon-picker';
+import { DynamicIcon as Icon } from 'lucide-react/dynamic';
+import type { IconName } from 'lucide-react/dynamic';
 import {
     ChefHat, Clock, Pencil, ChevronRight, AlertTriangle, CalendarDays,
 } from 'lucide-react';
@@ -340,7 +340,6 @@ export function ServicePage() {
         return (
             <div key={category.id} className="space-y-2">
                 <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    <Icon name={category.icon as IconName} className="w-3.5 h-3.5" />
                     {category.label}
                 </div>
                 {items.map(item => (
@@ -368,7 +367,6 @@ export function ServicePage() {
             return (
                 <div key={cat.id} className="space-y-4">
                     <div className="flex items-center gap-2">
-                        <Icon name={cat.icon as IconName} className="w-5 h-5 text-muted-foreground" />
                         <h3 className="font-medium text-foreground">{cat.label}</h3>
                     </div>
                     <div className="pl-4 border-l-2 border-border space-y-4">{subContent}</div>

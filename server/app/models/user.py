@@ -7,9 +7,11 @@ Différences par rapport à un modèle User classique :
 - Association possible à un restaurant (multi-RU ready)
 - Validation de mot de passe fort
 """
-from datetime import datetime
 import re
-from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
+
+from werkzeug.security import check_password_hash, generate_password_hash
+
 from ..extensions import db
 
 

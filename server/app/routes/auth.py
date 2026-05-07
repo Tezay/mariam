@@ -29,31 +29,38 @@ Endpoints:
 - PATCH  /v1/auth/passkey/<id>               Rename a passkey
 - DELETE /v1/auth/passkey/<id>                Remove a passkey (requires remaining 2FA)
 """
+import base64
 import io
 import json
-import base64
+from datetime import UTC, timedelta
+
 import pyotp
 import qrcode
-from datetime import timedelta
-from flask import request, jsonify, current_app
-from flask_smorest import Blueprint
+from flask import current_app, jsonify, request
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
-    jwt_required,
-    get_jwt_identity,
-    get_jwt,
     decode_token,
+    get_jwt,
+    get_jwt_identity,
+    jwt_required,
 )
-from ..extensions import db
-from ..models import User, Passkey, ActivationLink, AuditLog
-from ..security import limiter, get_client_ip, blacklist_token, is_token_blacklisted
-from ..schemas import (
-    LoginSchema, LoginResponseSchema, MFAVerifySchema,
-    ActivateAccountSchema, ResetPasswordSchema, ChangePasswordSchema,
-    ErrorSchema, MessageSchema, UserSchema,
-)
+from flask_smorest import Blueprint
 
+from ..extensions import db
+from ..models import ActivationLink, AuditLog, Passkey, User
+from ..schemas import (
+    ActivateAccountSchema,
+    ChangePasswordSchema,
+    ErrorSchema,
+    LoginResponseSchema,
+    LoginSchema,
+    MessageSchema,
+    MFAVerifySchema,
+    ResetPasswordSchema,
+    UserSchema,
+)
+from ..security import blacklist_token, get_client_ip, is_token_blacklisted, limiter
 
 auth_bp = Blueprint(
     'auth',
@@ -472,9 +479,9 @@ def logout():
     - Refresh token: sent as Authorization: Bearer {refresh_token}
     - Access token:  sent in the request body as { "access_token": "..." }
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    now_ts = datetime.now(timezone.utc).timestamp()
+    now_ts = datetime.now(UTC).timestamp()
 
     # Blacklist the refresh token (from Authorization header)
     jwt_data = get_jwt()
@@ -829,12 +836,12 @@ def passkey_register_begin():
     short-lived challenge_token to submit with the /complete request.
     """
     from webauthn import generate_registration_options, options_to_json
+    from webauthn.helpers.cose import COSEAlgorithmIdentifier
     from webauthn.helpers.structs import (
         AuthenticatorSelectionCriteria,
-        UserVerificationRequirement,
         ResidentKeyRequirement,
+        UserVerificationRequirement,
     )
-    from webauthn.helpers.cose import COSEAlgorithmIdentifier
 
     rp_id, rp_name, _ = _get_webauthn_config()
     current_user_id = int(get_jwt_identity())
@@ -881,9 +888,9 @@ def passkey_register_complete():
     from webauthn import verify_registration_response
     from webauthn.helpers import base64url_to_bytes
     from webauthn.helpers.structs import (
-        RegistrationCredential,
         AuthenticatorAttestationResponse,
         AuthenticatorTransport,
+        RegistrationCredential,
     )
 
     data = request.get_json()
@@ -1182,12 +1189,12 @@ def passkey_setup_begin():
     Body: { user_id }
     """
     from webauthn import generate_registration_options, options_to_json
+    from webauthn.helpers.cose import COSEAlgorithmIdentifier
     from webauthn.helpers.structs import (
         AuthenticatorSelectionCriteria,
-        UserVerificationRequirement,
         ResidentKeyRequirement,
+        UserVerificationRequirement,
     )
-    from webauthn.helpers.cose import COSEAlgorithmIdentifier
 
     data = request.get_json()
     if not data:
@@ -1256,9 +1263,9 @@ def passkey_setup_complete():
     from webauthn import verify_registration_response
     from webauthn.helpers import base64url_to_bytes
     from webauthn.helpers.structs import (
-        RegistrationCredential,
         AuthenticatorAttestationResponse,
         AuthenticatorTransport,
+        RegistrationCredential,
     )
 
     data = request.get_json()
@@ -1351,9 +1358,9 @@ def passkey_change_password_begin():
     """
     from webauthn import generate_authentication_options, options_to_json
     from webauthn.helpers.structs import (
-        UserVerificationRequirement,
-        PublicKeyCredentialDescriptor,
         AuthenticatorTransport,
+        PublicKeyCredentialDescriptor,
+        UserVerificationRequirement,
     )
 
     data = request.get_json()
@@ -1528,9 +1535,9 @@ def passkey_reset_password_begin():
     """
     from webauthn import generate_authentication_options, options_to_json
     from webauthn.helpers.structs import (
-        UserVerificationRequirement,
-        PublicKeyCredentialDescriptor,
         AuthenticatorTransport,
+        PublicKeyCredentialDescriptor,
+        UserVerificationRequirement,
     )
 
     data = request.get_json()

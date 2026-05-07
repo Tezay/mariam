@@ -4,9 +4,9 @@
  * Optimisé pour grands écrans (salles à manger, cafétérias).
  */
 import { useState, useEffect, useRef } from 'react';
-import { menusApi, eventsApi, closuresApi, ExceptionalClosure, DietaryTag, CertificationItem } from '@/lib/api';
+import { menusApi, eventsApi, closuresApi, ExceptionalClosure, CertificationItem } from '@/lib/api';
 import { generateEventPalette } from '@/lib/color-utils';
-import { Icon } from '@/components/ui/icon-picker';
+import { DynamicIcon as Icon } from 'lucide-react/dynamic';
 import { InlineError, getErrorType } from '@/components/InlineError';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
@@ -14,7 +14,7 @@ import {
     Megaphone, Calendar, ChefHat, CalendarOff,
 } from 'lucide-react';
 import type { MenuItemData, DisplayCategory, MenuResponse, MenuData, EventData } from '../menu-types';
-import type { IconName } from '@/components/ui/icon-picker';
+import type { IconName } from 'lucide-react/dynamic';
 
 const ERROR_GRACE_PERIOD_MS = 20000;
 const RETRY_INTERVAL_MS = 500;
@@ -232,9 +232,6 @@ function TvCategoryCard({
             isHighlighted ? 'ring-2 ring-mariam-blue/30 shadow-lg bg-white border-gray-100' : 'bg-white border-gray-100'
         }`}>
             <h2 className="flex items-center gap-4 border-b border-gray-50 pb-4">
-                <div className="p-3 rounded-2xl shadow-sm bg-gray-100 text-gray-600">
-                    <Icon name={category.icon as IconName} className="w-10 h-10" />
-                </div>
                 <span className="text-3xl font-bold uppercase tracking-wide text-gray-700">
                     {category.label}
                 </span>
@@ -292,7 +289,7 @@ function TvClosureDisplay({ closure }: { closure: ExceptionalClosure }) {
 
 // ─── TvMenuDisplay ──────────────────────────────────────────────────────────
 
-export function TvMenuDisplay() {
+export function TvMenuDisplay({ restaurantId }: { restaurantId?: number }) {
     const [todayData, setTodayData] = useState<MenuData | null>(null);
     const [tomorrowData, setTomorrowData] = useState<MenuData | null>(null);
     const [todayEvent, setTodayEvent] = useState<EventData | null>(null);
@@ -305,8 +302,6 @@ export function TvMenuDisplay() {
     const [isRotated, setIsRotated] = useState(false);
     const [zoomLevel, setZoomLevel] = useState(1);
     const [showControls, setShowControls] = useState(false);
-    const [, setDietaryTags] = useState<DietaryTag[]>([]);
-    const [, setCertifications] = useState<CertificationItem[]>([]);
 
     const loadStartRef = useRef<number>(0);
     const requestIdRef = useRef(0);
@@ -322,10 +317,10 @@ export function TvMenuDisplay() {
         setIsLoading(true);
         try {
             const [today, tomorrow, eventsData, closuresData] = await Promise.all([
-                menusApi.getToday(),
-                menusApi.getTomorrow(),
-                eventsApi.getPublic('tv'),
-                closuresApi.getPublic(),
+                menusApi.getToday(restaurantId),
+                menusApi.getTomorrow(restaurantId),
+                eventsApi.getPublic('tv', restaurantId),
+                closuresApi.getPublic(restaurantId),
             ]);
             if (requestId !== requestIdRef.current) return;
             setTodayData(today);
@@ -333,11 +328,6 @@ export function TvMenuDisplay() {
             setTodayEvent(eventsData?.today_event || null);
             setUpcomingEvents(eventsData?.upcoming_events || []);
             setActiveClosure(closuresData?.current_closure || null);
-            const config = today?.restaurant?.config || tomorrow?.restaurant?.config;
-            if (config) {
-                if (config.dietary_tags?.length) setDietaryTags(config.dietary_tags);
-                if (config.certifications?.length) setCertifications(config.certifications);
-            }
             setError(null);
             setShowError(false);
             clearTimers();
@@ -368,7 +358,7 @@ export function TvMenuDisplay() {
         loadData();
         const interval = setInterval(loadData, 5 * 60 * 1000);
         return () => clearInterval(interval);
-    }, []);
+    }, [restaurantId]);
 
     useEffect(() => () => clearTimers(), []);
 

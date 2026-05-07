@@ -6,13 +6,14 @@ Gère l'envoi des notifications Web Push via VAPID :
 - Menu du lendemain (notification la veille au soir)
 - Événements à venir (notification à la publication)
 """
-import os
 import json
 import logging
+import os
 from datetime import time, timedelta
-from ..utils.time import paris_today, paris_now
 
-from pywebpush import webpush, WebPushException
+from pywebpush import WebPushException, webpush
+
+from ..utils.time import paris_now, paris_today
 
 logger = logging.getLogger(__name__)
 
@@ -101,8 +102,8 @@ def send_push_notification(subscription_info: dict, payload: dict) -> bool:
 
 def _remove_expired_subscription(endpoint: str):
     """Supprime une souscription dont l'endpoint est expiré."""
-    from ..models.push_subscription import PushSubscription
     from ..extensions import db
+    from ..models.push_subscription import PushSubscription
 
     sub = PushSubscription.query.filter_by(endpoint=endpoint).first()
     if sub:
@@ -212,10 +213,10 @@ def check_and_send_notifications(app):
     les envois en double si plusieurs instances du backend tournent.
     """
     with app.app_context():
-        from ..models.push_subscription import PushSubscription
-        from ..models.menu import Menu
-        from ..models.restaurant import Restaurant
         from ..extensions import db
+        from ..models.menu import Menu
+        from ..models.push_subscription import PushSubscription
+        from ..models.restaurant import Restaurant
 
         now = paris_now()
         current_time = time(now.hour, now.minute)
@@ -232,7 +233,7 @@ def check_and_send_notifications(app):
         try:
             # ===== Menu du jour =====
             today_subs = PushSubscription.query.filter(
-                PushSubscription.notify_today_menu == True,
+                PushSubscription.notify_today_menu,
                 PushSubscription.notify_today_menu_time == current_time,
             ).all()
 
@@ -266,7 +267,7 @@ def check_and_send_notifications(app):
 
             # ===== Menu du lendemain =====
             tomorrow_subs = PushSubscription.query.filter(
-                PushSubscription.notify_tomorrow_menu == True,
+                PushSubscription.notify_tomorrow_menu,
                 PushSubscription.notify_tomorrow_menu_time == current_time,
             ).all()
 
@@ -318,8 +319,8 @@ def _check_event_notifications(db, now, sent_count: int) -> int:
     Envoie aux abonnés ayant activé notify_events.
     Retourne le nouveau sent_count.
     """
-    from ..models.push_subscription import PushSubscription
     from ..models.event import Event
+    from ..models.push_subscription import PushSubscription
 
     today = paris_today()
     target_7d = today + timedelta(days=7)
@@ -330,7 +331,7 @@ def _check_event_notifications(db, now, sent_count: int) -> int:
     # Événements publiés à J-7 ou J-1
     events = Event.query.filter(
         Event.status == 'published',
-        Event.is_active == True,
+        Event.is_active,
         Event.event_date.in_([target_7d, target_1d]),
     ).all()
 
@@ -351,7 +352,7 @@ def _check_event_notifications(db, now, sent_count: int) -> int:
 
         subs = PushSubscription.query.filter(
             PushSubscription.restaurant_id == event.restaurant_id,
-            PushSubscription.notify_events == True,
+            PushSubscription.notify_events,
         ).all()
 
         event_sent = 0
@@ -379,8 +380,8 @@ def _check_closure_notifications(db, now, sent_count: int) -> int:
     Vérifie les fermetures exceptionnelles publiées nécessitant une notification (J-7 ou J-1).
     Envoie aux abonnés ayant activé notify_events (même canal que les événements).
     """
-    from ..models.push_subscription import PushSubscription
     from ..models.exceptional_closure import ExceptionalClosure
+    from ..models.push_subscription import PushSubscription
     from ..utils.time import paris_today
 
     today = paris_today()
@@ -388,7 +389,7 @@ def _check_closure_notifications(db, now, sent_count: int) -> int:
     target_1d = today + timedelta(days=1)
 
     closures = ExceptionalClosure.query.filter(
-        ExceptionalClosure.is_active == True,
+        ExceptionalClosure.is_active,
         ExceptionalClosure.start_date.in_([target_7d, target_1d]),
     ).all()
 
@@ -420,7 +421,7 @@ def _check_closure_notifications(db, now, sent_count: int) -> int:
 
         subs = PushSubscription.query.filter(
             PushSubscription.restaurant_id == closure.restaurant_id,
-            PushSubscription.notify_events == True,
+            PushSubscription.notify_events,
         ).all()
 
         closure_sent = 0

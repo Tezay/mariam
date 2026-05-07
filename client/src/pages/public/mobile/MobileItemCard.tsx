@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { MenuItemData } from '../menu-types';
 import type { CategoryColor } from '@/lib/category-colors';
-import { Icon, type IconName } from '@/components/ui/icon-picker';
+import { DynamicIcon as Icon } from 'lucide-react/dynamic';
+import type { IconName } from 'lucide-react/dynamic';
 
 const TAG_ICON_COLOR: Record<string, { text: string; bg: string }> = {
     green:  { text: 'text-green-600',  bg: 'bg-green-50' },

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import api from '@/lib/api';
 import type { DietaryTag, CertificationItem, MenuItem } from '@/lib/api';
-import { Icon, type IconName } from '@/components/ui/icon-picker';
+import { DynamicIcon as Icon } from 'lucide-react/dynamic';
+import type { IconName } from 'lucide-react/dynamic';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { UseMenuEditorReturn } from './useMenuEditor';
 

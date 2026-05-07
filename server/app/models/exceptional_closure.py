@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 from ..extensions import db
 
 
@@ -21,8 +22,8 @@ class ExceptionalClosure(db.Model):
     notified_7d = db.Column(db.Boolean, default=False, nullable=False)
     notified_1d = db.Column(db.Boolean, default=False, nullable=False)
 
-    created_at    = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_at    = db.Column(db.DateTime(timezone=True), onupdate=lambda: datetime.now(timezone.utc))
+    created_at    = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    updated_at    = db.Column(db.DateTime(timezone=True), onupdate=lambda: datetime.now(UTC))
     created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
     created_by = db.relationship('User', backref='created_closures', foreign_keys=[created_by_id])

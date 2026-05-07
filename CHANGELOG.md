@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-05-07
+
+### Added
+
+- **`flask seed` command**: idempotent upsert of all reference taxonomy data (dietary tags, certifications and their keywords). Replaces the anti-pattern of seeding data inside Alembic migrations.
+- **`flask seed-demo` command**: creates a demo restaurant, an admin account without MFA, and a full published week of demo menus (63 dishes across 5 days). Outputs credentials and ready-to-use URLs.
+- **`make db-seed` / `make db-demo`**: Makefile shortcuts for the two commands above.
+- **pytest infrastructure**: `server/conftest.py` with isolated PostgreSQL test DB, and six test suites covering auth, menus, categories, restaurant settings, users, and the public menu API (46 tests).
+- **`server/pyproject.toml`**: replaces `requirements.txt`; production and dev dependencies managed via `uv`. Includes ruff configuration.
+
+### Changed
+
+- **CI build time**: GitHub Actions workflow split into two parallel jobs (`build-backend`, `build-frontend`) and restricted to `linux/amd64` only.
+- **Multi-restaurant support for admin routes**: all authenticated backend routes (`/menus/week`, `/settings`, `/settings/categories`, `/events`, `/closures`, etc.) now resolve the restaurant from the authenticated user's `restaurant_id`.
+- **Public menu pages accept `?restaurant_id=`**: `MobileMenuDisplay` and `TvMenuDisplay` accept a `restaurantId` prop forwarded from `MenuDisplay`, which reads it from the URL query string.
+- **Backend runtime**: Docker images now use `uv` instead of `pip` for dependency installation.
+
+### Removed
+
+- **Icon picker system**: removed `icon-picker.tsx`, `icons-data.ts` (8 335 lines), and all icon-related fields and UI across the admin, TV, and mobile views. Menu categories no longer have an icon field.
+
+### Database
+
+- Migration `55b3b63a2e51`: drops `icon` column from `menu_categories`.
+
 ## [0.11.1] - 2026-05-04
 
 ### Added

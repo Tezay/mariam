@@ -3,7 +3,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import type { MenuItemData } from '../menu-types';
 import type { DietaryTag, CertificationItem } from '@/lib/api';
-import { Icon, type IconName } from '@/components/ui/icon-picker';
+import { DynamicIcon as Icon } from 'lucide-react/dynamic';
+import type { IconName } from 'lucide-react/dynamic';
 
 const TAG_COLOR_CLASSES: Record<string, string> = {
     green: 'bg-green-100 text-green-700 border-green-200',

@@ -3,13 +3,14 @@
 # ========================================
 # Stage 1: Builder
 # ========================================
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
-RUN pip install --user --no-cache-dir gunicorn
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --no-dev --no-install-project --frozen
 
 # ========================================
 # Stage 2: Production
@@ -21,8 +22,8 @@ WORKDIR /app
 RUN useradd -m appuser
 USER appuser
 
-COPY --from=builder /root/.local /home/appuser/.local
-ENV PATH=/home/appuser/.local/bin:$PATH
+COPY --from=builder /app/.venv /app/.venv
+ENV PATH=/app/.venv/bin:$PATH
 
 COPY --chown=appuser:appuser . .
 

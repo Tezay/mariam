@@ -1,4 +1,4 @@
-from marshmallow import Schema, fields, EXCLUDE
+from marshmallow import EXCLUDE, Schema, fields
 
 
 class MenuCategorySchema(Schema):
@@ -8,7 +8,6 @@ class MenuCategorySchema(Schema):
     restaurant_id = fields.Int(dump_only=True)
     parent_id = fields.Int(allow_none=True)
     label = fields.Str()
-    icon = fields.Str()
     order = fields.Int()
     is_protected = fields.Bool(dump_only=True)
     is_highlighted = fields.Bool()
@@ -21,7 +20,6 @@ class MenuCategoryCreateSchema(Schema):
         unknown = EXCLUDE
     parent_id = fields.Int(allow_none=True, load_default=None)
     label = fields.Str(required=True)
-    icon = fields.Str(load_default='utensils')
     order = fields.Int(load_default=0)
 
 
@@ -29,7 +27,6 @@ class MenuCategoryUpdateSchema(Schema):
     class Meta:
         unknown = EXCLUDE
     label = fields.Str()
-    icon = fields.Str()
     order = fields.Int()
     is_highlighted = fields.Bool()
     color_key = fields.Str(allow_none=True)

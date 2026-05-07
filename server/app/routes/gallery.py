@@ -14,16 +14,16 @@ Endpoints (editor role required):
 - DELETE /v1/gallery/<id>/tags/<tag_id>     Remove a tag
 """
 from functools import wraps
-from flask import request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_smorest import Blueprint
-from sqlalchemy import or_
-from ..extensions import db
-from ..models import User, Restaurant, GalleryImage, GalleryImageTag, MenuItemImage
-from ..services.storage import storage
-from ..schemas.gallery import GalleryImageSchema, GalleryListSchema
-from ..schemas.common import ErrorSchema, MessageSchema
 
+from flask import jsonify, request
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_smorest import Blueprint
+
+from ..extensions import db
+from ..models import GalleryImage, GalleryImageTag, MenuItemImage, Restaurant, User
+from ..schemas.common import ErrorSchema, MessageSchema
+from ..schemas.gallery import GalleryImageSchema, GalleryListSchema
+from ..services.storage import storage
 
 gallery_bp = Blueprint(
     'gallery', __name__,

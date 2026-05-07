@@ -22,10 +22,9 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { IconPicker, Icon } from '@/components/ui/icon-picker';
-import { iconsData } from '@/components/ui/icons-data';
+import { DynamicIcon as Icon } from 'lucide-react/dynamic';
+import type { IconName } from 'lucide-react/dynamic';
 import { Save, Plus, Trash2, ArrowUp, ArrowDown, Star, StarOff, Lock, ChevronRight, MapPin, Accessibility, CreditCard, Check, Palette } from 'lucide-react';
-import type { IconName } from '@/components/ui/icon-picker';
 import { COLOR_KEY_MAP } from '@/lib/category-colors';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
@@ -76,14 +75,13 @@ interface CategoryRowProps {
     category: MenuCategory;
     index: number;
     total: number;
-    foodBeverageIcons: typeof iconsData;
-    onUpdate: (id: number, data: Partial<{ label: string; icon: string; is_highlighted: boolean; color_key: string | null }>) => void;
+    onUpdate: (id: number, data: Partial<{ label: string; is_highlighted: boolean; color_key: string | null }>) => void;
     onDelete: (id: number) => void;
     onMove: (id: number, direction: 'up' | 'down') => void;
     indent?: boolean;
 }
 
-function CategoryRow({ category, index, total, foodBeverageIcons, onUpdate, onDelete, onMove, indent = false }: CategoryRowProps) {
+function CategoryRow({ category, index, total, onUpdate, onDelete, onMove, indent = false }: CategoryRowProps) {
     const [label, setLabel] = useState(category.label);
     const hasSubcategories = (category.subcategories?.length ?? 0) > 0;
 
@@ -119,20 +117,6 @@ function CategoryRow({ category, index, total, foodBeverageIcons, onUpdate, onDe
                         <ArrowDown className="w-3 h-3" />
                     </button>
                 </div>
-
-                {/* Icône */}
-                <IconPicker
-                    value={category.icon as IconName}
-                    onValueChange={(icon) => onUpdate(category.id, { icon })}
-                    iconsList={foodBeverageIcons}
-                    categorized={false}
-                    searchPlaceholder="Rechercher..."
-                    triggerPlaceholder="Icône"
-                >
-                    <Button variant="outline" size="icon" className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl">
-                        <Icon name={category.icon as IconName} className="w-4 h-4 sm:w-5 sm:h-5" />
-                    </Button>
-                </IconPicker>
 
                 {/* Nom */}
                 <Input
@@ -170,7 +154,7 @@ function CategoryRow({ category, index, total, foodBeverageIcons, onUpdate, onDe
 interface ActionButtonsProps {
     category: MenuCategory;
     hasSubcategories: boolean;
-    onUpdate: (id: number, data: Partial<{ label: string; icon: string; is_highlighted: boolean; color_key: string | null }>) => void;
+    onUpdate: (id: number, data: Partial<{ label: string; is_highlighted: boolean; color_key: string | null }>) => void;
     onDelete: (id: number) => void;
 }
 
@@ -272,12 +256,6 @@ export function SettingsPage() {
     // Taxonomy
     const [tagCategories, setTagCategories] = useState<DietaryTagCategory[]>([]);
     const [certCategories, setCertCategories] = useState<CertificationCategory[]>([]);
-
-    // Icônes food
-    const foodBeverageIcons = useMemo(() =>
-        iconsData.filter(icon => icon.categories.includes('food-beverage')),
-        []
-    );
 
     // Settings généraux
     const [name, setName] = useState('');
@@ -489,7 +467,7 @@ export function SettingsPage() {
     };
 
     // ── CRUD Catégories (DB direct) ──────────────────────────────────────────
-    const handleCategoryUpdate = async (id: number, data: Partial<{ label: string; icon: string; is_highlighted: boolean; color_key: string | null }>) => {
+    const handleCategoryUpdate = async (id: number, data: Partial<{ label: string; is_highlighted: boolean; color_key: string | null }>) => {
         try {
             const updated = await categoriesApi.update(id, data);
             setCategories(prev => prev.map(c => {
@@ -556,7 +534,7 @@ export function SettingsPage() {
 
     const handleAddCategory = async () => {
         try {
-            await categoriesApi.create({ label: 'Nouvelle catégorie', icon: 'utensils', order: categories.length });
+            await categoriesApi.create({ label: 'Nouvelle catégorie', order: categories.length });
             await loadCategories();
         } catch {
             setMessage({ type: 'error', text: "Erreur lors de la création de la catégorie" });
@@ -567,7 +545,7 @@ export function SettingsPage() {
         try {
             const parent = categories.find(c => c.id === parentId);
             const subCount = parent?.subcategories?.length ?? 0;
-            await categoriesApi.create({ label: 'Nouvelle sous-catégorie', icon: 'utensils', order: subCount, parent_id: parentId });
+            await categoriesApi.create({ label: 'Nouvelle sous-catégorie', order: subCount, parent_id: parentId });
             await loadCategories();
         } catch {
             setMessage({ type: 'error', text: "Erreur lors de la création de la sous-catégorie" });
@@ -934,7 +912,6 @@ export function SettingsPage() {
                                             category={cat}
                                             index={index}
                                             total={categories.length}
-                                            foodBeverageIcons={foodBeverageIcons}
                                             onUpdate={handleCategoryUpdate}
                                             onDelete={handleCategoryDelete}
                                             onMove={handleCategoryMove}
@@ -949,7 +926,6 @@ export function SettingsPage() {
                                                         category={sub}
                                                         index={subIndex}
                                                         total={cat.subcategories!.length}
-                                                        foodBeverageIcons={foodBeverageIcons}
                                                         onUpdate={handleCategoryUpdate}
                                                         onDelete={handleCategoryDelete}
                                                         onMove={handleCategoryMove}
