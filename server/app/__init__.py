@@ -232,14 +232,13 @@ def create_app(config_class=None):
     api.register_blueprint(notifications_bp, url_prefix='/v1/notifications')
     api.register_blueprint(closures_bp,      url_prefix='/v1/closures')
 
-    # Route de santé (non versionnée, non documentée)
     @app.route('/health')
     @limiter.exempt
     def health_check():
         return {
             'status': 'healthy',
             'message': 'MARIAM API is running',
-            'version': '0.11.1',
+            'version': '0.12.0',
             'docs': '/docs'
         }
 
