@@ -23,7 +23,7 @@ dependencies = [
     "flask-smorest==0.44.0",
     "marshmallow==3.21.0",
     # Storage S3
-    "boto3>=1.28.0",
+    "boto3>=1.43.5",
     # Image processing
     "Pillow>=10.0.0",
     "pillow-heif>=0.16.0",
