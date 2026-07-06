@@ -60,6 +60,11 @@ class AuditLog(db.Model):
     ACTION_CLOSURE_CREATE = 'closure_create'
     ACTION_CLOSURE_UPDATE = 'closure_update'
     ACTION_CLOSURE_DELETE = 'closure_delete'
+    ACTION_DISH_CREATE = 'dish_create'
+    ACTION_DISH_UPDATE = 'dish_update'
+    ACTION_DISH_DELETE = 'dish_delete'
+    ACTION_DISH_IMAGE_UPLOAD = 'dish_image_upload'
+    ACTION_DISH_IMAGE_DELETE = 'dish_image_delete'
     
     @classmethod
     def log(cls, action, user_id=None, target_type=None, target_id=None, 

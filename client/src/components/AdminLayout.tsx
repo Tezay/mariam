@@ -1,81 +1,80 @@
-/**
- * MARIAM - Layout Admin avec sidebar
- */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeProvider';
-import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/Logo';
 import { publicApi, ServiceHours } from '@/lib/api';
 import { isInServiceHours } from '@/lib/utils';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext';
+import { Sidebar, type SidebarNavItem } from '@/components/layout/Sidebar';
+import { Topbar } from '@/components/layout/Topbar';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 import {
     CalendarDays,
     ChefHat,
-    Image as ImageIcon,
+    BookOpen,
     Users,
     Settings,
-    Menu as MenuIcon,
-    X,
-    LogOut,
-    ExternalLink,
     Shield,
-    User,
-    Moon,
-    Sun,
-    ChevronDown,
-    HelpCircle,
+    X,
 } from 'lucide-react';
 
-interface NavItem {
-    to: string;
-    label: string;
-    mobileLabel?: string;
-    icon: React.ReactNode;
-    adminOnly?: boolean;
-    badge?: React.ReactNode;
-    highlight?: 'amber';
+// Fallback affiché dans la zone de contenu pendant le téléchargement
+// d'un chunk lazy (pages admin lourdes) — la sidebar reste visible,
+// puis le skeleton de données propre à chaque page prend le relais.
+function ContentSkeleton() {
+    return (
+        <div className="p-4 sm:p-6 space-y-4">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-96 max-w-full" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+                <Skeleton className="h-40" />
+                <Skeleton className="h-40" />
+                <Skeleton className="h-40" />
+            </div>
+        </div>
+    );
 }
 
-export function AdminLayout() {
-    const { user, logout } = useAuth();
-    const { theme, setTheme } = useTheme();
+// ─── Layout inner (needs SidebarProvider above) ───────────────────────────────
+
+function AdminLayoutContent() {
+    const { user } = useAuth();
+    const { isMobileOpen, setMobileOpen, immersive } = useSidebar();
     const navigate = useNavigate();
     const location = useLocation();
-    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [serviceHours, setServiceHours] = useState<ServiceHours>({});
     const [duringService, setDuringService] = useState(false);
 
-    // Identify authenticated user in Umami by role
+    // Identify in Umami by role — intentionally re-runs on id change only
     useEffect(() => {
         if (user?.role) window.umami?.identify({ role: user.role });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id]);
 
-    // Redirect admin/editor to the PWA install onboarding on first login
+    // Redirect to PWA onboarding on first login
     useEffect(() => {
         const isAdminOrEditor = user?.role === 'admin' || user?.role === 'editor';
-        const alreadyShown = !!localStorage.getItem('mariam_pwa_install_done');
-        const isPwa = window.matchMedia('(display-mode: standalone)').matches ||
+        const alreadyShown = !!localStorage.getItem('mariam-pwa-install-done');
+        const isPwa =
+            window.matchMedia('(display-mode: standalone)').matches ||
             (window.navigator as unknown as { standalone?: boolean }).standalone === true;
 
-        if (isAdminOrEditor && !alreadyShown && !isPwa &&
+        if (
+            isAdminOrEditor &&
+            !alreadyShown &&
+            !isPwa &&
             location.pathname !== '/admin/install' &&
-            location.pathname !== '/admin/setup') {
+            location.pathname !== '/admin/setup'
+        ) {
             window.location.replace('/admin/install');
         }
     }, [user, location.pathname, navigate]);
 
     useEffect(() => {
         publicApi.getRestaurant()
-            .then(r => setServiceHours(r?.config?.service_hours ?? {}))
+            .then((r) => setServiceHours(r?.config?.service_hours ?? {}))
             .catch(() => {});
     }, []);
 
@@ -86,196 +85,182 @@ export function AdminLayout() {
         return () => clearInterval(id);
     }, [serviceHours]);
 
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
-    };
-
     const servicePulse = duringService ? (
-        <span className="relative flex h-2 w-2 ml-auto">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+        <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
         </span>
     ) : undefined;
 
-    const navItems: NavItem[] = [
-        { to: '/admin/calendar', label: 'Calendrier', icon: <CalendarDays className="w-5 h-5" /> },
-        { to: '/admin/service', label: 'Service en cours', mobileLabel: 'Service', icon: <ChefHat className="w-5 h-5" />, badge: servicePulse, highlight: 'amber' },
-        { to: '/admin/gallery', label: 'Galerie', icon: <ImageIcon className="w-5 h-5" /> },
-        { to: '/admin/users', label: 'Utilisateurs', icon: <Users className="w-5 h-5" />, adminOnly: true },
-        { to: '/admin/settings', label: 'Paramètres', icon: <Settings className="w-5 h-5" />, adminOnly: true },
-        { to: '/admin/audit-logs', label: 'Logs d\'audit', icon: <Shield className="w-5 h-5" />, adminOnly: true },
+    const navItems: SidebarNavItem[] = [
+        {
+            to: '/admin/calendar',
+            label: 'Calendrier',
+            icon: <CalendarDays className="w-5 h-5" />,
+        },
+        {
+            to: '/admin/service',
+            label: 'Service en cours',
+            icon: <ChefHat className="w-5 h-5" />,
+            badge: servicePulse,
+        },
+        {
+            to: '/admin/catalogue',
+            label: 'Catalogue',
+            icon: <BookOpen className="w-5 h-5" />,
+        },
+        {
+            to: '/admin/users',
+            label: 'Utilisateurs',
+            icon: <Users className="w-5 h-5" />,
+        },
+        {
+            to: '/admin/settings',
+            label: 'Paramètres',
+            icon: <Settings className="w-5 h-5" />,
+        },
+        {
+            to: '/admin/audit-logs',
+            label: "Logs d'audit",
+            icon: <Shield className="w-5 h-5" />,
+        },
     ];
 
-    const filteredNavItems = navItems.filter(item => !item.adminOnly || user?.role === 'admin');
+    const filteredNavItems = navItems.filter((item) => {
+        const adminOnly = ['/admin/users', '/admin/settings', '/admin/audit-logs'].includes(item.to);
+        return !adminOnly || user?.role === 'admin';
+    });
 
-    const closeSidebar = () => setSidebarOpen(false);
+    // Bottom nav: pinned 4 routes (calendar, service, catalogue, settings)
+    const bottomNavItems = filteredNavItems.filter(item =>
+        ['/admin/calendar', '/admin/service', '/admin/catalogue', '/admin/settings'].includes(item.to)
+    );
 
     return (
-        <div className="min-h-screen bg-background">
-            {/* Header */}
-            <header className="bg-card border-b border-border sticky top-0 z-40">
-                <div className="container-mariam flex items-center justify-between h-16">
-                    {/* Menu hamburger (mobile) + Logo */}
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => setSidebarOpen(true)}
-                            className="sidebar:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground"
-                            aria-label="Ouvrir le menu"
-                        >
-                            <MenuIcon className="w-6 h-6" />
-                        </button>
-                        <NavLink to="/admin" className="flex items-center gap-2">
-                            <Logo className="h-16 w-auto p-2" />
-                            <span className="text-sm text-muted-foreground hidden sm:inline">Gestion</span>
-                        </NavLink>
-                    </div>
+        <>
+            {/* ── Main shell ─────────────────────────────────────────────── */}
+            <div className="flex h-screen overflow-hidden bg-background">
+                {/* Desktop sidebar */}
+                <Sidebar navItems={filteredNavItems} />
 
-                    {/* Menu utilisateur */}
-                    <div className="flex items-center gap-4">
-                        <NavLink
-                            to="/menu"
-                            target="_blank"
-                            className="text-sm text-muted-foreground hover:text-mariam-blue hidden sm:flex items-center gap-1"
-                        >
-                            Voir le menu public
-                            <ExternalLink className="w-3 h-3" />
-                        </NavLink>
-
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="gap-2">
-                                    <User className="w-4 h-4" />
-                                    <span className="hidden sm:inline max-w-32 truncate">
-                                        {user?.username || user?.email}
-                                    </span>
-                                    <ChevronDown className="w-3 h-3" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuLabel>
-                                    <div>
-                                        <p className="font-medium">{user?.username || user?.email}</p>
-                                        <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
-                                    </div>
-                                </DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem asChild>
-                                    <NavLink to="/admin/account" className="cursor-pointer">
-                                        <User className="w-4 h-4 mr-2" />
-                                        Mon compte
-                                    </NavLink>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-                                    {theme === 'dark'
-                                        ? <Sun className="w-4 h-4 mr-2" />
-                                        : <Moon className="w-4 h-4 mr-2" />
-                                    }
-                                    Thème sombre
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
-                                    <LogOut className="w-4 h-4 mr-2" />
-                                    Se déconnecter
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
+                {/* Content area */}
+                <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+                    <Topbar />
+                    <main className={cn('flex-1 overflow-auto', immersive ? 'pb-0' : 'pb-24 sidebar:pb-0')}>
+                        <Suspense fallback={<ContentSkeleton />}>
+                            <Outlet />
+                        </Suspense>
+                    </main>
                 </div>
-            </header>
-
-            {/* Layout principal */}
-            <div className="flex">
-                {/* Overlay mobile */}
-                {sidebarOpen && (
-                    <div
-                        className="fixed inset-0 bg-black/50 z-30 sidebar:hidden"
-                        onClick={closeSidebar}
-                    />
-                )}
-
-                {/* Sidebar */}
-                <aside className={`
-                    fixed inset-y-0 left-0 z-30
-                    w-64 bg-card border-r border-border
-                    transform transition-transform duration-200 ease-in-out
-                    sidebar:transform-none sidebar:transition-none
-                    ${sidebarOpen ? 'translate-x-0' : '-translate-x-full sidebar:translate-x-0'}
-                    sidebar:top-16
-                    pt-16 sidebar:pt-0
-                `}>
-                    {/* Bouton fermer (mobile) */}
-                    <button
-                        onClick={closeSidebar}
-                        className="sidebar:hidden absolute top-4 right-4 p-2 text-muted-foreground hover:text-foreground"
-                        aria-label="Fermer le menu"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-
-                    <div className="flex flex-col justify-between h-[calc(100vh-4rem)] pb-16 sidebar:pb-0">
-                        <nav className="p-4 space-y-1">
-                            {filteredNavItems.map((item) => (
-                                <NavLink
-                                    key={item.to}
-                                    to={item.to}
-                                    onClick={closeSidebar}
-                                    className={({ isActive }) => {
-                                        if (!isActive) return 'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-muted-foreground hover:bg-muted';
-                                        if (item.highlight === 'amber' && duringService) return 'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium';
-                                        return 'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors bg-primary/10 text-primary font-medium';
-                                    }}
-                                >
-                                    {item.icon}
-                                    <span>{item.label}</span>
-                                    {item.badge}
-                                </NavLink>
-                            ))}
-                        </nav>
-
-                        <div className="p-4 border-t border-border">
-                            <a
-                                href="https://mariam.app/docs/"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-muted transition-colors"
-                            >
-                                <HelpCircle className="w-5 h-5" />
-                                <span>Besoin d'aide ?</span>
-                                <ExternalLink className="w-4 h-4 ml-auto" />
-                            </a>
-                        </div>
-                    </div>
-                </aside>
-
-                {/* Contenu principal */}
-                <main className="flex-1 min-w-0 overflow-x-hidden pb-20 sidebar:pb-0 sidebar:ml-64">
-                    <Outlet />
-                </main>
             </div>
 
-            {/* Nav mobile (bottom) */}
-            <nav className="sidebar:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex h-20 z-30">
-                {filteredNavItems.slice(0, 4).map((item) => (
-                    <NavLink
-                        key={item.to}
-                        to={item.to}
-                        className={({ isActive }) => {
-                            if (!isActive) return 'flex-1 flex flex-col items-center justify-center py-3 text-xs text-muted-foreground';
-                            if (item.highlight === 'amber' && duringService) return 'flex-1 flex flex-col items-center justify-center py-3 text-xs text-amber-600 dark:text-amber-400';
-                            return 'flex-1 flex flex-col items-center justify-center py-3 text-xs text-primary';
-                        }}
+            {/* ── Mobile sidebar overlay ─────────────────────────────────── */}
+            <AnimatePresence>
+                {isMobileOpen && (
+                    <>
+                        <motion.div
+                            className="fixed inset-0 bg-black/50 z-40 sidebar:hidden"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.15 }}
+                            onClick={() => setMobileOpen(false)}
+                        />
+                        <motion.aside
+                            className="fixed inset-y-0 left-0 w-72 bg-card border-r border-border z-50 flex flex-col sidebar:hidden"
+                            initial={{ x: -288 }}
+                            animate={{ x: 0 }}
+                            exit={{ x: -288 }}
+                            transition={{ type: 'tween', duration: 0.2, ease: 'easeInOut' }}
+                        >
+                            {/* Mobile sidebar header — grand logo aligné à gauche */}
+                            <div className="h-14 flex items-center px-4 border-b border-border shrink-0">
+                                <Logo className="h-8 w-auto" />
+                                <button
+                                    onClick={() => setMobileOpen(false)}
+                                    className="ml-auto p-1.5 text-muted-foreground hover:text-foreground rounded-md transition-colors"
+                                    aria-label="Fermer"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            {/* Mobile nav */}
+                            <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+                                {filteredNavItems.map((item) => (
+                                    <NavLink
+                                        key={item.to}
+                                        to={item.to}
+                                        onClick={() => setMobileOpen(false)}
+                                        className={({ isActive }) =>
+                                            cn(
+                                                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors',
+                                                isActive
+                                                    ? 'bg-primary/10 text-primary font-medium'
+                                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                                            )
+                                        }
+                                    >
+                                        <span className="shrink-0">{item.icon}</span>
+                                        <span className="flex-1 truncate">{item.label}</span>
+                                        {item.badge}
+                                    </NavLink>
+                                ))}
+                            </nav>
+                        </motion.aside>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* ── Mobile bottom nav (floating pill) — masquée en mode immersif ── */}
+            <AnimatePresence>
+                {!immersive && (
+                    <motion.nav
+                        className="sidebar:hidden fixed bottom-4 left-1/2 z-30 flex items-center gap-1 px-2 py-2 bg-background/95 backdrop-blur-md border border-border/50 shadow-lg shadow-black/5 rounded-full"
+                        // framer-motion pilote le transform : le centrage -translate-x-1/2
+                        // doit passer par `x`, pas par une classe Tailwind (sinon écrasé)
+                        initial={{ opacity: 0, y: 12, x: '-50%' }}
+                        animate={{ opacity: 1, y: 0, x: '-50%' }}
+                        exit={{ opacity: 0, y: 12, x: '-50%' }}
+                        transition={{ duration: 0.2 }}
                     >
-                        <span className="relative">
-                            {item.icon}
-                            {item.badge && (
-                                <span className="absolute -top-0.5 -right-0.5">{item.badge}</span>
-                            )}
-                        </span>
-                        <span className="mt-1">{item.mobileLabel ?? item.label}</span>
-                    </NavLink>
-                ))}
-            </nav>
-        </div>
+                        {bottomNavItems.map((item) => (
+                            <NavLink
+                                key={item.to}
+                                to={item.to}
+                                className={({ isActive }) =>
+                                    cn(
+                                        'flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-full text-[10px] leading-tight transition-colors min-w-[52px]',
+                                        isActive
+                                            ? 'text-primary bg-primary/10'
+                                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
+                                    )
+                                }
+                            >
+                                <span className="relative">
+                                    {item.icon}
+                                    {item.badge && (
+                                        <span className="absolute -top-0.5 -right-0.5">{item.badge}</span>
+                                    )}
+                                </span>
+                                <span className="truncate max-w-[56px] text-center">
+                                    {item.label === 'Service en cours' ? 'Service' : item.label}
+                                </span>
+                            </NavLink>
+                        ))}
+                    </motion.nav>
+                )}
+            </AnimatePresence>
+        </>
+    );
+}
+
+// ─── Public export ────────────────────────────────────────────────────────────
+
+export function AdminLayout() {
+    return (
+        <SidebarProvider>
+            <AdminLayoutContent />
+        </SidebarProvider>
     );
 }

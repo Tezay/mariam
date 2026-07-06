@@ -1,16 +1,19 @@
-import type { DietaryTag, CertificationItem } from '@/lib/api';
+import type { DietaryTag, CertificationItem, DishCatalogItem } from '@/lib/api';
 
-export type { DietaryTag, CertificationItem };
+export type { DietaryTag, CertificationItem, DishCatalogItem };
 
 export interface MenuItemData {
     id?: number;
-    name: string;
     category_id?: number;
+    dish_id?: number;
+    dish?: DishCatalogItem;
     is_out_of_stock?: boolean;
-    replacement_label?: string | null;
-    tags?: DietaryTag[];
-    certifications?: CertificationItem[];
-    images?: { id: number; menu_item_id: number; gallery_image_id: number; url: string; display_order: number }[];
+    order?: number;
+}
+
+export interface CategorySubstitutionData {
+    dish: DishCatalogItem;
+    order: number;
 }
 
 export interface DisplayCategory {
@@ -29,8 +32,8 @@ export interface MenuResponse {
     date: string;
     items: MenuItemData[];
     by_category: DisplayCategory[];
-    images?: { id: number; url: string; filename?: string; order: number }[];
     chef_note?: string;
+    substitutions?: Record<string, CategorySubstitutionData[]>;
 }
 
 export interface MenuData {

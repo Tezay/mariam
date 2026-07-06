@@ -13,7 +13,7 @@ import {
     RefreshCw, ZoomIn, ZoomOut, CalendarClock,
     Megaphone, Calendar, ChefHat, CalendarOff,
 } from 'lucide-react';
-import type { MenuItemData, DisplayCategory, MenuResponse, MenuData, EventData } from '../menu-types';
+import type { MenuItemData, DisplayCategory, MenuResponse, MenuData, EventData, CategorySubstitutionData } from '../menu-types';
 import type { IconName } from 'lucide-react/dynamic';
 
 const ERROR_GRACE_PERIOD_MS = 20000;
@@ -196,7 +196,7 @@ function TvTomorrowFooter({ menu }: { menu: MenuResponse }) {
             <div className="flex items-baseline gap-4">
                 <span className="text-gray-500 text-2xl uppercase tracking-wider font-bold">Demain :</span>
                 <span className="text-4xl font-bold text-mariam-blue tracking-tight">
-                    {firstItem?.name || 'Menu surprise'}
+                    {firstItem?.dish?.name || 'Menu surprise'}
                 </span>
             </div>
         </div>
@@ -221,12 +221,19 @@ function TvCategoryCard({
     category,
     items,
     renderBadges,
+    substitutions,
 }: {
     category: DisplayCategory;
     items: MenuItemData[];
     renderBadges: (item: MenuItemData) => React.ReactNode;
+    substitutions?: CategorySubstitutionData[];
 }) {
     const isHighlighted = category.is_highlighted;
+    // Plats de substitution : affichés uniquement si un item de la catégorie est en rupture
+    const oosPresent = items.some(i => i.is_out_of_stock);
+    const subItems: MenuItemData[] = oosPresent
+        ? (substitutions ?? []).map(s => ({ dish: s.dish, category_id: category.id, is_out_of_stock: false }))
+        : [];
     return (
         <section className={`rounded-3xl p-8 shadow-md border flex flex-col gap-6 h-full transition-all duration-300 ${
             isHighlighted ? 'ring-2 ring-mariam-blue/30 shadow-lg bg-white border-gray-100' : 'bg-white border-gray-100'
@@ -240,17 +247,25 @@ function TvCategoryCard({
                 {items.map((item, i) => (
                     <li key={i} className="flex flex-col gap-2 text-gray-900">
                         <span className={`leading-tight font-medium ${isHighlighted ? 'text-5xl tracking-tight' : 'text-4xl'} ${item.is_out_of_stock ? 'line-through text-gray-400' : ''}`}>
-                            {item.name}
+                            {item.dish?.name ?? ''}
                         </span>
-                        {item.is_out_of_stock && item.replacement_label && (
-                            <span className="text-2xl text-amber-600 font-medium">→ {item.replacement_label}</span>
-                        )}
-                        {item.is_out_of_stock && !item.replacement_label && (
+                        {item.is_out_of_stock && (
                             <span className="text-xl text-amber-500 font-normal">Rupture de service</span>
                         )}
-                        {!item.is_out_of_stock && isHighlighted && item.images && item.images.length > 0 && (
-                            <img src={item.images[0].url} alt={item.name} className="w-full h-48 object-cover rounded-2xl mt-2" />
+                        {!item.is_out_of_stock && isHighlighted && item.dish?.image_url && (
+                            <img src={item.dish.image_url} alt={item.dish.name} className="w-full h-48 object-cover rounded-2xl mt-2" />
                         )}
+                        <div className="origin-left">{renderBadges(item)}</div>
+                    </li>
+                ))}
+                {subItems.map((item, i) => (
+                    <li key={`sub-${i}`} className="flex flex-col gap-2 text-gray-900">
+                        <span className={`leading-tight font-medium ${isHighlighted ? 'text-5xl tracking-tight' : 'text-4xl'} flex items-center gap-3 flex-wrap`}>
+                            <span className="inline-flex items-center bg-[#F5A524] text-[#4A2E00] text-lg font-bold uppercase tracking-wide px-2.5 py-1 rounded-full">
+                                Nouveau
+                            </span>
+                            {item.dish?.name ?? ''}
+                        </span>
                         <div className="origin-left">{renderBadges(item)}</div>
                     </li>
                 ))}
@@ -440,33 +455,31 @@ export function TvMenuDisplay({ restaurantId }: { restaurantId?: number }) {
 
     const renderTvBadges = (item: MenuItemData) => {
         const badges: JSX.Element[] = [];
-        if (item.tags) {
-            item.tags.forEach(tag => {
-                const cls = tvColorClasses[tag.color] || 'bg-gray-100 text-gray-800 border-gray-200';
-                badges.push(
-                    <Popover key={tag.id}>
-                        <PopoverTrigger asChild>
-                            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border shadow-sm cursor-pointer ${cls}`}>
-                                <Icon name={tag.icon as IconName} className="w-5 h-5" />
-                                <span className="text-lg font-medium">{tag.label}</span>
-                            </div>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-52 p-3" align="start">
-                            <div className="flex items-center gap-2 mb-1">
-                                <Icon name={tag.icon as IconName} className="w-4 h-4 shrink-0" />
-                                <span className="font-semibold text-sm">{tag.label}</span>
-                            </div>
-                            {TAG_CATEGORY_NAMES[tag.category_id] && (
-                                <p className="text-xs text-muted-foreground">{TAG_CATEGORY_NAMES[tag.category_id]}</p>
-                            )}
-                        </PopoverContent>
-                    </Popover>
-                );
-            });
-        }
-        if (item.certifications) {
-            item.certifications.forEach(cert => badges.push(<CertBadge key={cert.id} cert={cert} size="lg" />));
-        }
+        const tags = item.dish?.tags ?? [];
+        const certs = item.dish?.certifications ?? [];
+        tags.forEach(tag => {
+            const cls = tvColorClasses[tag.color] || 'bg-gray-100 text-gray-800 border-gray-200';
+            badges.push(
+                <Popover key={tag.id}>
+                    <PopoverTrigger asChild>
+                        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border shadow-sm cursor-pointer ${cls}`}>
+                            <Icon name={tag.icon as IconName} className="w-5 h-5" />
+                            <span className="text-lg font-medium">{tag.label}</span>
+                        </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-52 p-3" align="start">
+                        <div className="flex items-center gap-2 mb-1">
+                            <Icon name={tag.icon as IconName} className="w-4 h-4 shrink-0" />
+                            <span className="font-semibold text-sm">{tag.label}</span>
+                        </div>
+                        {TAG_CATEGORY_NAMES[tag.category_id] && (
+                            <p className="text-xs text-muted-foreground">{TAG_CATEGORY_NAMES[tag.category_id]}</p>
+                        )}
+                    </PopoverContent>
+                </Popover>
+            );
+        });
+        certs.forEach(cert => badges.push(<CertBadge key={cert.id} cert={cert} size="lg" />));
         return badges.length > 0 ? <div className="flex flex-wrap items-center gap-2 mt-2">{badges}</div> : null;
     };
 
@@ -532,32 +545,22 @@ export function TvMenuDisplay({ restaurantId }: { restaurantId?: number }) {
                     ) : activeClosure ? (
                         <TvClosureDisplay closure={activeClosure} />
                     ) : todayData?.menu ? (
-                        <div className="h-full flex gap-10">
-                            <div className="flex-1 overflow-y-auto pr-6 custom-scrollbar">
-                                <div className="grid grid-cols-[repeat(auto-fit,minmax(450px,1fr))] gap-8 content-start pb-20">
-                                    {(todayData.menu.by_category || []).map(category => {
-                                        if (category.subcategories && category.subcategories.length > 0) {
-                                            return category.subcategories.map(sub => {
-                                                const items = sub.items || [];
-                                                if (items.length === 0) return null;
-                                                return <TvCategoryCard key={sub.id} category={sub} items={items} renderBadges={renderTvBadges} />;
-                                            });
-                                        }
-                                        const items = category.items || [];
-                                        if (items.length === 0) return null;
-                                        return <TvCategoryCard key={category.id} category={category} items={items} renderBadges={renderTvBadges} />;
-                                    })}
-                                </div>
+                        <div className="h-full overflow-y-auto pr-6 custom-scrollbar">
+                            <div className="grid grid-cols-[repeat(auto-fit,minmax(450px,1fr))] gap-8 content-start pb-20">
+                                {(todayData.menu.by_category || []).map(category => {
+                                    const subs = todayData.menu!.substitutions;
+                                    if (category.subcategories && category.subcategories.length > 0) {
+                                        return category.subcategories.map(sub => {
+                                            const items = sub.items || [];
+                                            if (items.length === 0) return null;
+                                            return <TvCategoryCard key={sub.id} category={sub} items={items} renderBadges={renderTvBadges} substitutions={subs?.[sub.id]} />;
+                                        });
+                                    }
+                                    const items = category.items || [];
+                                    if (items.length === 0) return null;
+                                    return <TvCategoryCard key={category.id} category={category} items={items} renderBadges={renderTvBadges} substitutions={subs?.[category.id]} />;
+                                })}
                             </div>
-                            {todayData.menu.images && todayData.menu.images.length > 0 && (
-                                <aside className="w-[28rem] shrink-0">
-                                    <div className="bg-white rounded-3xl overflow-hidden border border-gray-200 shadow-md">
-                                        <div className="aspect-square w-full overflow-hidden">
-                                            <TvImageCarousel images={todayData.menu.images} interval={5000} />
-                                        </div>
-                                    </div>
-                                </aside>
-                            )}
                         </div>
                     ) : (
                         <div className="h-full flex items-center justify-center text-gray-400">

@@ -358,7 +358,7 @@ export function AccountPage() {
 
                                 {/* Sélecteur de méthode de vérification (si les deux sont disponibles) */}
                                 {canUseBoth && (
-                                    <div className="flex rounded-lg border border-border overflow-hidden text-sm">
+                                    <div className="flex rounded-xl border border-border overflow-hidden text-sm">
                                         <button
                                             type="button"
                                             onClick={() => setVerificationMethod('totp')}

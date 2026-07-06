@@ -124,14 +124,17 @@ def _format_menu_body(menu_items: list[dict]) -> str | None:
     if not menu_items:
         return None
 
-    # Un item par catégorie, dans l'ordre d'apparition
-    seen: dict[str, str] = {}
+    # Un item par catégorie, dans l'ordre d'apparition (items en rupture exclus)
+    seen: dict[int | None, str] = {}
     for item in menu_items:
-        cat = item.get('category', '')
-        if cat not in seen:
-            seen[cat] = item.get('name', '')
+        if item.get('is_out_of_stock'):
+            continue
+        category_id = item.get('category_id')
+        name = (item.get('dish') or {}).get('name', '')
+        if category_id not in seen and name:
+            seen[category_id] = name
 
-    lines = [f"• {name}" for name in seen.values() if name]
+    lines = [f"• {name}" for name in seen.values()]
     return '\n'.join(lines) if lines else None
 
 
@@ -466,5 +469,5 @@ def _acquire_lock(lock_key: str, ttl: int = 55) -> bool:
         return bool(acquired)
     except Exception as e:
         logger.warning(f"Impossible d'acquérir le verrou Redis : {e}")
-        # En cas d'erreur Redis, on continue quand même pour éviter de bloquer les notifications
+        # Ne pas bloquer les notifications si Redis indisponible en dev
         return True

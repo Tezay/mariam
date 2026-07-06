@@ -3,11 +3,12 @@
  *
  * Gère le fetch des données et orchestre tous les composants mobiles.
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Zap, CalendarOff } from 'lucide-react';
 import { menusApi, eventsApi, publicApi, closuresApi, ExceptionalClosure } from '@/lib/api';
 import { InlineError, getErrorType } from '@/components/InlineError';
 import { jsDayToMariamDay, getNextOpeningDate } from '@/lib/service-utils';
+import { parisToday, addDays } from '@/lib/date-utils';
 import { MobileHeader } from './MobileHeader';
 import { MobileChefNote } from './MobileChefNote';
 import { MobileDayToggle } from './MobileDayToggle';
@@ -49,6 +50,17 @@ function ActiveClosureMessage({ closure }: { closure: ExceptionalClosure }) {
             )}
         </div>
     );
+}
+
+/** Fenêtre d'affichage des fermetures à venir sur mobile */
+const CLOSURE_WINDOW_DAYS = 14;
+const CLOSURE_MAX_COUNT = 5;
+
+/** Ne garde que les fermetures commençant dans les 14 prochains jours, plafonnées à 5.
+ *  La liste reçue est déjà triée par start_date croissant (backend). */
+function filterUpcomingClosures(closures: ExceptionalClosure[]): ExceptionalClosure[] {
+    const cutoff = addDays(parisToday(), CLOSURE_WINDOW_DAYS);
+    return closures.filter(c => c.start_date <= cutoff).slice(0, CLOSURE_MAX_COUNT);
 }
 
 export function MobileMenuDisplay({ restaurantId }: { restaurantId?: number }) {
@@ -150,6 +162,7 @@ export function MobileMenuDisplay({ restaurantId }: { restaurantId?: number }) {
 
     const currentData = selectedDay === 'today' ? todayData : tomorrowData;
     const isPending = isLoading || (Boolean(error) && !showError);
+    const visibleClosures = useMemo(() => filterUpcomingClosures(upcomingClosures), [upcomingClosures]);
 
     if (error && showError) {
         return (
@@ -202,6 +215,7 @@ export function MobileMenuDisplay({ restaurantId }: { restaurantId?: number }) {
                             <MobileCategorySection
                                 categories={currentData.menu.by_category || []}
                                 onItemTap={setSelectedItem}
+                                substitutions={currentData.menu.substitutions}
                             />
                         ) : activeClosure && selectedDay === 'today' ? (
                             <ActiveClosureMessage closure={activeClosure} />
@@ -222,8 +236,8 @@ export function MobileMenuDisplay({ restaurantId }: { restaurantId?: number }) {
                         <MobileEventSection upcomingEvents={upcomingEvents} />
 
                         {/* Fermetures exceptionnelles à venir */}
-                        {upcomingClosures.length > 0 && (
-                            <MobileClosureSection closures={upcomingClosures} />
+                        {visibleClosures.length > 0 && (
+                            <MobileClosureSection closures={visibleClosures} />
                         )}
                     </>
                 )}

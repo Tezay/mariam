@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { closuresApi, ExceptionalClosure } from '@/lib/api';
+import { notify } from '@/lib/toast';
 import { parisToday } from '@/lib/date-utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -198,7 +199,8 @@ export function ClosuresPage() {
 
     const handleDelete = async (id: number) => {
         try { await closuresApi.delete(id); await loadClosures(); }
-        catch {} finally { setDeletingId(null); }
+        catch { notify.error('Impossible de supprimer la fermeture'); }
+        finally { setDeletingId(null); }
     };
 
     // ── Render ────────────────────────────────────────────────────────────────

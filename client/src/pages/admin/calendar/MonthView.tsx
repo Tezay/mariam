@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Copy, Plus } from 'lucide-react';
 import { closuresApi } from '@/lib/api';
 import type { Event, ExceptionalClosure, MenuCategory, MenuItem } from '@/lib/api';
 import { addDays, parisToday } from '@/lib/date-utils';
@@ -10,6 +11,7 @@ import type { DesktopView, MobileView } from './CalendarToolbar';
 import { CLOSURE_HATCH_STYLE } from './closure/closureStyle';
 import { DragMode, orderDates } from './closure/closureDrag';
 import { ClosureEditor } from './closure/ClosureEditor';
+import { MenuCopyPopover } from './selection/MenuCopyPopover';
 
 const FR_DAYS_SHORT = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -66,14 +68,11 @@ function CompactCategoryBox({ category, items }: { category: MenuCategory; items
                style={{ color: color.label + 'CC' }}>
                 {category.label}
             </p>
-            {items.slice(0, 3).map((item, i) => (
+            {items.map((item, i) => (
                 <p key={i} className="text-[9px] truncate leading-tight" style={{ color: color.label }}>
-                    {item.name}
+                    {item.dish?.name ?? ''}
                 </p>
             ))}
-            {items.length > 3 && (
-                <p className="text-[8px]" style={{ color: color.label + '99' }}>+{items.length - 3}</p>
-            )}
         </div>
     );
 }
@@ -87,12 +86,13 @@ interface MonthViewProps {
     canEdit: boolean;
     serviceDays: number[];
     categories: MenuCategory[];
+    restaurantId?: number;
     onNavigate: (view: DesktopView | MobileView, date: string) => void;
     onReload: () => void;
     onEditEvent?: (event: Event) => void;
 }
 
-export function MonthView({ year, month, data, canEdit, serviceDays, categories, onNavigate, onReload, onEditEvent }: MonthViewProps) {
+export function MonthView({ year, month, data, canEdit, serviceDays, categories, restaurantId, onNavigate, onReload, onEditEvent }: MonthViewProps) {
     const today = parisToday();
 
     const [drag, setDrag] = useState<DragMode | null>(null);
@@ -100,6 +100,20 @@ export function MonthView({ year, month, data, canEdit, serviceDays, categories,
     const [editorOpen, setEditorOpen] = useState(false);
     const [editingClosure, setEditingClosure] = useState<ExceptionalClosure | null>(null);
     const [closurePrefill, setClosurePrefill] = useState<{ start: string; end: string } | null>(null);
+    const [pendingRange, setPendingRange] = useState<{ start: string; end: string } | null>(null);
+
+    // Items à dupliquer = tous les plats des jours de la plage sélectionnée
+    const rangeItems = useMemo<MenuItem[]>(() => {
+        if (!pendingRange) return [];
+        const items: MenuItem[] = [];
+        let c = pendingRange.start;
+        while (c <= pendingRange.end) {
+            const menu = data[c]?.menu;
+            if (menu?.items) items.push(...menu.items);
+            c = addDays(c, 1);
+        }
+        return items;
+    }, [pendingRange, data]);
 
     const mm = String(month + 1).padStart(2, '0');
     const firstDay = `${year}-${mm}-01`;
@@ -160,9 +174,8 @@ export function MonthView({ year, month, data, canEdit, serviceDays, categories,
             } else if (start === end) {
                 onNavigate('day', start);
             } else {
-                setEditingClosure(null);
-                setClosurePrefill({ start, end });
-                setEditorOpen(true);
+                // Multi-day drag → show choice bar (duplicate or create closure)
+                setPendingRange({ start, end });
             }
         } else {
             const { closure, handle, hover } = drag;
@@ -237,7 +250,7 @@ export function MonthView({ year, month, data, canEdit, serviceDays, categories,
                             <div
                                 key={date}
                                 className={cn(
-                                    'relative border-b min-h-[80px] p-1 flex flex-col transition-colors select-none',
+                                    'relative border-b min-h-[120px] p-1 flex flex-col transition-colors select-none',
                                     nextHasClosure ? 'border-r border-r-transparent' : 'border-r border-border',
                                     !isCurrentMonth && 'bg-muted/20',
                                     !isServiceDay && isCurrentMonth && !isClosureDay && 'bg-muted/10',
@@ -254,7 +267,7 @@ export function MonthView({ year, month, data, canEdit, serviceDays, categories,
                                         'text-xs font-semibold w-5 h-5 flex items-center justify-center rounded-full',
                                         isToday && !isClosureDay ? 'bg-primary text-white' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground/40',
                                         !isServiceDay && isCurrentMonth && 'opacity-40',
-                                        isClosureDay && 'bg-white/70',
+                                        isClosureDay && 'bg-card/80 text-foreground',
                                     )}>
                                         {dayNum}
                                     </span>
@@ -263,14 +276,14 @@ export function MonthView({ year, month, data, canEdit, serviceDays, categories,
                                 {/* Closure label on first day */}
                                 {isClosureDay && closure!.start_date === date && (
                                     <div className="absolute inset-0 flex flex-col items-start justify-end p-1 pointer-events-none">
-                                        <span className="text-[9px] font-semibold text-gray-500 bg-white/70 rounded px-1 truncate max-w-full">
+                                        <span className="text-[9px] font-semibold text-muted-foreground bg-card/80 rounded px-1 truncate max-w-full">
                                             {closure!.reason ?? 'Fermé'}
                                         </span>
                                     </div>
                                 )}
 
                                 {/* Events */}
-                                {!isClosureDay && isCurrentMonth && (dayData?.events ?? []).map(event => {
+                                {!isClosureDay && (dayData?.events ?? []).map(event => {
                                     const evPalette = generateEventPalette(event.color || '#3498DB');
                                     return (
                                         <button
@@ -294,24 +307,25 @@ export function MonthView({ year, month, data, canEdit, serviceDays, categories,
                                 })}
 
                                 {/* Category boxes */}
-                                {!isClosureDay && isServiceDay && isCurrentMonth && groups.length > 0 && (
-                                    <div className="flex-1 overflow-hidden mt-0.5">
-                                        {groups.slice(0, 3).map(({ category, items }) => (
+                                {!isClosureDay && isServiceDay && groups.length > 0 && (
+                                    <div className={cn('flex-1 overflow-y-auto mt-0.5', !isCurrentMonth && 'opacity-60')}>
+                                        {groups.map(({ category, items }) => (
                                             <CompactCategoryBox key={category.id} category={category} items={items} />
                                         ))}
-                                        {groups.length > 3 && (
-                                            <p className="text-[9px] text-muted-foreground px-1">
-                                                +{groups.length - 3} catégories
-                                            </p>
-                                        )}
                                     </div>
                                 )}
 
-                                {/* Empty service day hint */}
-                                {!isClosureDay && isServiceDay && isCurrentMonth && !menu && canEdit && (
-                                    <div className="flex-1 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                                        <span className="text-[9px] text-muted-foreground">+</span>
-                                    </div>
+                                {/* Bouton + : naviguer vers vue jour pour créer/compléter le menu */}
+                                {!isClosureDay && isServiceDay && isCurrentMonth && canEdit && (
+                                    <button
+                                        type="button"
+                                        onMouseDown={e => e.stopPropagation()}
+                                        onClick={e => { e.stopPropagation(); onNavigate('day', date); }}
+                                        className="mt-auto flex items-center justify-center gap-0.5 text-[9px] text-muted-foreground hover:text-primary transition-colors opacity-0 hover:opacity-100 py-0.5 w-full"
+                                    >
+                                        <Plus className="w-2.5 h-2.5" />
+                                        {menu ? 'Ajouter' : 'Créer'}
+                                    </button>
                                 )}
                             </div>
                         );
@@ -327,6 +341,48 @@ export function MonthView({ year, month, data, canEdit, serviceDays, categories,
                 onClose={() => { setEditorOpen(false); setEditingClosure(null); setClosurePrefill(null); }}
                 onSaved={() => { setEditorOpen(false); setEditingClosure(null); setClosurePrefill(null); onReload(); }}
             />
+
+            {/* Pending range action bar */}
+            {pendingRange && canEdit && (
+                <div className="sticky bottom-0 z-20 flex items-center gap-2 px-4 py-3 bg-card/95 backdrop-blur-sm border-t border-border">
+                    <span className="text-xs text-muted-foreground flex-1">
+                        {pendingRange.start} → {pendingRange.end}
+                    </span>
+                    <MenuCopyPopover
+                        direction="export"
+                        sourceItems={rangeItems}
+                        restaurantId={restaurantId}
+                        onDone={() => { setPendingRange(null); onReload(); }}
+                        align="end"
+                    >
+                        <button
+                            type="button"
+                            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors"
+                        >
+                            <Copy className="w-3.5 h-3.5" />
+                            Dupliquer
+                        </button>
+                    </MenuCopyPopover>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setClosurePrefill(pendingRange);
+                            setPendingRange(null);
+                            setEditorOpen(true);
+                        }}
+                        className="text-xs font-medium px-3 py-1.5 rounded-xl border border-border hover:bg-muted transition-colors"
+                    >
+                        Créer fermeture
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setPendingRange(null)}
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

@@ -7,14 +7,17 @@ Inclut la conversion automatique HEIC/HEIF → JPEG pour les photos iPhone.
 """
 import io
 import json
+import logging
 import os
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 import boto3
 import pillow_heif
 from botocore.exceptions import ClientError
 from PIL import Image, ImageOps
+
+logger = logging.getLogger(__name__)
 
 # Enregistrement du codec HEIC/HEIF dans Pillow
 pillow_heif.register_heif_opener()
@@ -110,7 +113,7 @@ class StorageService:
                 'url': self.get_public_url(key),
             }
         except ClientError as e:
-            print(f"S3 upload error: {e}")
+            logger.error('Erreur upload S3 : %s', e)
             return None
 
     def delete_file(self, key):
@@ -233,13 +236,13 @@ class StorageService:
                     }),
                 )
             except ClientError as e:
-                print(f"Warning: Could not create S3 bucket: {e}")
+                logger.warning('Création du bucket S3 impossible : %s', e)
 
     def _generate_key(self, prefix, filename):
         """Génère une clé S3 unique avec structure date/uuid."""
         ext = os.path.splitext(filename)[1].lower() if filename else '.jpg'
         unique = uuid.uuid4().hex[:12]
-        date_prefix = datetime.utcnow().strftime('%Y/%m')
+        date_prefix = datetime.now(UTC).strftime('%Y/%m')
         return f"{prefix}/{date_prefix}/{unique}{ext}"
 
 

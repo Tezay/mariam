@@ -12,10 +12,8 @@ Endpoints:
 - POST /v1/users/invite             Create an invitation link
 - GET  /v1/users/invitations        List pending invitations
 """
-from functools import wraps
-
 from flask import jsonify
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import get_jwt_identity
 from flask_smorest import Blueprint
 
 from ..extensions import db
@@ -23,6 +21,7 @@ from ..models import ActivationLink, AuditLog, User
 from ..schemas.common import ErrorSchema, MessageSchema
 from ..schemas.users import InvitationSchema, InviteSchema, UserAdminSchema, UserUpdateSchema
 from ..security import get_client_ip
+from .helpers import admin_required
 
 users_bp = Blueprint(
     'users', __name__,
@@ -33,19 +32,6 @@ users_bp = Blueprint(
 # ============================================================
 # HELPERS
 # ============================================================
-
-def admin_required(f):
-    """Décorateur : accès réservé aux administrateurs."""
-    @wraps(f)
-    @jwt_required()
-    def decorated_function(*args, **kwargs):
-        current_user_id = int(get_jwt_identity())
-        user = User.query.get(current_user_id)
-        if not user or not user.is_admin():
-            return jsonify({'error': 'Accès réservé aux administrateurs'}), 403
-        return f(*args, **kwargs)
-    return decorated_function
-
 
 # ============================================================
 # ROUTES STATIQUES — avant /<int:user_id>

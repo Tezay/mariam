@@ -39,6 +39,28 @@ L'application sera sur http://localhost (port 80).
 
 > **Note** : Si le port 80 est occupé, modifiez `PORT=8080` dans `.env`
 
+## Mise à jour (déploiement d'une nouvelle version)
+
+Les migrations Alembic s'exécutent **automatiquement** au démarrage du conteneur
+backend (`entrypoint.prod.sh`). Certaines migrations sont destructives — **toujours
+sauvegarder la base avant de déployer** :
+
+```bash
+# 1. Backup de la base (obligatoire avant tout déploiement)
+docker compose exec db pg_dump -U mariam -Fc mariam_db > backup_$(date +%Y%m%d_%H%M%S).dump
+
+# 2. Déploiement
+git pull && ./scripts/run.sh
+
+# 3. En cas de problème : restauration
+# docker compose exec -T db pg_restore -U mariam -d mariam_db --clean < backup_XXXX.dump
+```
+
+> ⚠️ **v0.13** : la migration `bfb39474c140` supprime tous les items de menu
+> existants (passage au catalogue de plats, sans conversion de données) et exige
+> les nouvelles variables `.env` : `REDIS_URL`, `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN`
+> (voir `.env.example`). Le backend refuse désormais de démarrer sans elles.
+
 ## Documentation
 
 - [INSTALL.md](docs/INSTALL.md) - Guide d'installation complet

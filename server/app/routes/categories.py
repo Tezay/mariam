@@ -8,8 +8,6 @@ Admin endpoints (JWT required, admin role):
 - DELETE /v1/settings/categories/<id>         Delete (forbidden if is_protected)
 - PUT    /v1/settings/categories/reorder      Reorder categories (array of {id, order})
 """
-from functools import wraps
-
 from flask import jsonify
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_smorest import Blueprint
@@ -25,6 +23,7 @@ from ..schemas.menus import (
     MenuCategoryUpdateSchema,
 )
 from ..security import get_client_ip
+from .helpers import admin_required
 
 categories_bp = Blueprint(
     'categories', __name__,
@@ -35,17 +34,6 @@ categories_bp = Blueprint(
 # ============================================================
 # HELPERS
 # ============================================================
-
-def admin_required(f):
-    @wraps(f)
-    @jwt_required()
-    def decorated(*args, **kwargs):
-        user = User.query.get(int(get_jwt_identity()))
-        if not user or not user.is_admin():
-            return jsonify({'error': 'Accès réservé aux administrateurs'}), 403
-        return f(*args, **kwargs)
-    return decorated
-
 
 def _get_restaurant(user=None):
     if user and user.restaurant_id:

@@ -48,17 +48,17 @@ function ClosureScreen({ closure, canEdit, onReload }: ClosureScreenProps) {
     const [editorOpen, setEditorOpen] = useState(false);
     return (
         <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8 text-center" style={CLOSURE_HATCH_STYLE}>
-            <div className="w-20 h-20 rounded-full bg-white/80 shadow-sm flex items-center justify-center">
-                <CalendarOff className="w-10 h-10 text-gray-400" />
+            <div className="w-20 h-20 rounded-full bg-card/80 shadow-sm flex items-center justify-center">
+                <CalendarOff className="w-10 h-10 text-muted-foreground/60" />
             </div>
-            <div className="bg-white/80 rounded-2xl px-6 py-4 shadow-sm max-w-sm space-y-1">
-                <p className="text-base font-bold text-gray-800">Fermeture exceptionnelle</p>
-                {closure.reason && <p className="text-sm text-gray-600">{closure.reason}</p>}
-                {closure.description && <p className="text-xs text-gray-500">{closure.description}</p>}
-                <p className="text-xs text-gray-400 pt-1">{formatClosureRange(closure.start_date, closure.end_date)}</p>
+            <div className="bg-card/80 rounded-2xl px-6 py-4 shadow-sm max-w-sm space-y-1">
+                <p className="text-base font-bold text-foreground">Fermeture exceptionnelle</p>
+                {closure.reason && <p className="text-sm text-muted-foreground">{closure.reason}</p>}
+                {closure.description && <p className="text-xs text-muted-foreground">{closure.description}</p>}
+                <p className="text-xs text-muted-foreground/70 pt-1">{formatClosureRange(closure.start_date, closure.end_date)}</p>
             </div>
             {canEdit && (
-                <Button variant="outline" onClick={() => setEditorOpen(true)} className="gap-2 rounded-xl bg-white">
+                <Button variant="outline" onClick={() => setEditorOpen(true)} className="gap-2 rounded-xl bg-card">
                     <Pencil className="w-4 h-4" />
                     Modifier la fermeture
                 </Button>

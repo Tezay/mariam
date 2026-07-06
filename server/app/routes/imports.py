@@ -11,35 +11,49 @@ Endpoints (editor role required):
 - POST /v1/imports/menus/preview
 - POST /v1/imports/menus/confirm
 """
-import csv
-import io
 import re
 import uuid
-from datetime import date, datetime, timedelta
-from functools import wraps
+from datetime import UTC, date, datetime, timedelta
 
 from flask import current_app, jsonify, request
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import get_jwt_identity
 from flask_smorest import Blueprint
 
 from ..extensions import db
 from ..models import (
     AuditLog,
-    Certification,
-    CertificationKeyword,
-    DietaryTag,
-    DietaryTagKeyword,
+    DishCatalog,
     ImportSession,
     Menu,
     MenuItem,
-    Restaurant,
-    User,
 )
 from ..models.category import MenuCategory
 from ..schemas.common import ErrorSchema
-from ..schemas.imports import ImportConfirmSchema, ImportPreviewSchema, ImportUploadSchema
+from ..schemas.imports import (
+    CatalogImportConfirmSchema,
+    CatalogImportPreviewResultSchema,
+    CatalogImportPreviewSchema,
+    CatalogImportResultSchema,
+    CatalogImportUploadSchema,
+    ImportConfirmSchema,
+    ImportPreviewSchema,
+    ImportUploadSchema,
+)
 from ..security import get_client_ip
+from ..services.csv_import import (
+    clean_item_name,
+    detect_tags_from_text,
+    normalize_label,
+    parse_upload,
+)
 from ..utils.time import paris_today
+from .helpers import (
+    editor_required,
+    get_default_restaurant,
+    get_or_create_dish,
+    get_user_and_restaurant,
+    normalize_dish_name,
+)
 
 imports_bp = Blueprint(
     'imports', __name__,
@@ -50,80 +64,6 @@ imports_bp = Blueprint(
 # ============================================================
 # HELPERS
 # ============================================================
-
-def editor_required(f):
-    """Décorateur : accès réservé aux éditeurs (role editor ou admin)."""
-    @wraps(f)
-    @jwt_required()
-    def decorated_function(*args, **kwargs):
-        current_user_id = int(get_jwt_identity())
-        user = User.query.get(current_user_id)
-        if not user or not user.is_editor():
-            return jsonify({'error': 'Accès réservé aux éditeurs'}), 403
-        return f(*args, **kwargs)
-    return decorated_function
-
-
-def get_default_restaurant():
-    return Restaurant.query.filter_by(is_active=True).first()
-
-
-def detect_encoding(file_content: bytes) -> str:
-    try:
-        import chardet
-        result = chardet.detect(file_content)
-        return result.get('encoding', 'utf-8') or 'utf-8'
-    except ImportError:
-        for encoding in ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252']:
-            try:
-                file_content.decode(encoding)
-                return encoding
-            except (UnicodeDecodeError, LookupError):
-                continue
-        return 'utf-8'
-
-
-def detect_delimiter(sample: str) -> str:
-    delimiters = [';', ',', '\t', '|']
-    max_count = 0
-    best_delimiter = ';'
-    first_line = sample.split('\n')[0] if '\n' in sample else sample
-    for delimiter in delimiters:
-        count = first_line.count(delimiter)
-        if count > max_count:
-            max_count = count
-            best_delimiter = delimiter
-    return best_delimiter
-
-
-def parse_csv_content(content: str, delimiter: str) -> tuple[list[str], list[dict]]:
-    reader = csv.DictReader(io.StringIO(content), delimiter=delimiter)
-    columns = reader.fieldnames or []
-    rows = list(reader)
-    return columns, rows
-
-
-def parse_excel_content(file_content: bytes) -> tuple[list[str], list[dict]]:
-    try:
-        from openpyxl import load_workbook
-        wb = load_workbook(filename=io.BytesIO(file_content), read_only=True, data_only=True)
-        ws = wb.active
-        rows_iter = ws.iter_rows(values_only=True)
-        headers = next(rows_iter, None)
-        if not headers:
-            return [], []
-        columns = [str(h).strip() if h else f'Column_{i}' for i, h in enumerate(headers)]
-        rows = []
-        for row in rows_iter:
-            row_dict = {columns[i]: str(v).strip() if v is not None else ''
-                        for i, v in enumerate(row) if i < len(columns)}
-            if any(row_dict.values()):
-                rows.append(row_dict)
-        wb.close()
-        return columns, rows
-    except ImportError:
-        raise ValueError("La bibliothèque openpyxl n'est pas installée pour lire les fichiers Excel.") from None
-
 
 def detect_date_format(date_str: str) -> str | None:
     formats = [
@@ -156,36 +96,6 @@ def parse_date(date_str: str, date_format: str | None = None) -> date | None:
         except ValueError:
             pass
     return None
-
-
-def detect_tags_from_text(text: str) -> dict:
-    text_lower = text.lower()
-    detected_tag_ids: set[str] = set()
-    detected_cert_ids: set[str] = set()
-    for tk in DietaryTagKeyword.query.all():
-        if tk.keyword in text_lower:
-            detected_tag_ids.add(tk.tag_id)
-    for ck in CertificationKeyword.query.all():
-        if ck.keyword in text_lower:
-            detected_cert_ids.add(ck.certification_id)
-    return {'tags': sorted(detected_tag_ids), 'certifications': sorted(detected_cert_ids)}
-
-
-def clean_item_name(name: str) -> str:
-    for emoji in ['🌱', '🥬', '🥗', '🕌', '🌿', '🇫🇷', '♻️', '🐟', '🐄', '🐔']:
-        name = name.replace(emoji, '')
-    name = re.sub(r'\s*[\(\[](vg|végétarien|bio|halal|sans porc|local)[\)\]]', '', name, flags=re.IGNORECASE)
-    return name.strip()
-
-
-def normalize_label(label: str) -> str:
-    """Normalise un label pour la comparaison (minuscules, sans accents)."""
-    import unicodedata
-    label = label.lower().strip()
-    return ''.join(
-        c for c in unicodedata.normalize('NFD', label)
-        if unicodedata.category(c) != 'Mn'
-    )
 
 
 def suggest_column_mapping(columns: list[str], restaurant_id: int | None = None) -> dict:
@@ -294,7 +204,7 @@ def build_menus_from_rows(rows, column_mapping, date_config, restaurant_id):
 # ENDPOINTS
 # ============================================================
 
-@imports_bp.route('/upload', methods=['POST'])
+@imports_bp.route('/menus/upload', methods=['POST'])
 @imports_bp.response(200, ImportUploadSchema)
 @imports_bp.alt_response(400, schema=ErrorSchema, description="Invalid or missing file")
 @imports_bp.alt_response(500, schema=ErrorSchema, description="Processing error")
@@ -315,26 +225,8 @@ def upload_file():
     if not file.filename:
         return jsonify({'error': 'Nom de fichier manquant'}), 400
 
-    filename = file.filename.lower()
-    if not (filename.endswith('.csv') or filename.endswith('.xlsx') or filename.endswith('.xls')):
-        return jsonify({'error': 'Format non supporté. Utilisez CSV ou Excel (.xlsx)'}), 400
-
     try:
-        file_content = file.read()
-
-        if filename.endswith('.xlsx') or filename.endswith('.xls'):
-            columns, rows = parse_excel_content(file_content)
-            delimiter = None
-        else:
-            encoding = detect_encoding(file_content)
-            content = file_content.decode(encoding).replace('\r\n', '\n').replace('\r', '\n')
-            delimiter = detect_delimiter(content)
-            columns, rows = parse_csv_content(content, delimiter)
-
-        if not columns:
-            return jsonify({'error': 'Fichier vide ou impossible de lire les colonnes'}), 400
-        if not rows:
-            return jsonify({'error': 'Aucune donnée trouvée dans le fichier'}), 400
+        columns, rows, delimiter = parse_upload(file)
 
         file_id = str(uuid.uuid4())
         ImportSession.cleanup_expired()
@@ -386,7 +278,7 @@ def upload_file():
         return jsonify({'error': f'Erreur lors du traitement du fichier: {e}'}), 500
 
 
-@imports_bp.route('/preview', methods=['POST'])
+@imports_bp.route('/menus/preview', methods=['POST'])
 @imports_bp.arguments(ImportPreviewSchema)
 @imports_bp.response(200, ImportUploadSchema)
 @imports_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
@@ -443,7 +335,7 @@ def preview_import(data):
         return jsonify({'error': f'Erreur lors de la prévisualisation: {e}'}), 500
 
 
-@imports_bp.route('/confirm', methods=['POST'])
+@imports_bp.route('/menus/confirm', methods=['POST'])
 @imports_bp.arguments(ImportConfirmSchema)
 @imports_bp.response(200, ImportUploadSchema)
 @imports_bp.alt_response(400, schema=ErrorSchema, description="Invalid data or missing restaurant")
@@ -506,23 +398,25 @@ def confirm_import(data):
                 imported_count += 1
 
             for idx, item_data in enumerate(menu_data['items']):
-                tag_ids = item_data.get('tags', [])
-                cert_ids = item_data.get('certifications', [])
+                dish = get_or_create_dish(restaurant_id, {
+                    'name': item_data['name'],
+                    'category_id': item_data['category_id'],
+                    'tag_ids': item_data.get('tags', []),
+                    'certification_ids': item_data.get('certifications', []),
+                })
+                if not dish:
+                    continue
                 item = MenuItem(
                     menu_id=menu.id,
                     category_id=item_data['category_id'],
-                    name=item_data['name'],
+                    dish_id=dish.id,
                     order=item_data.get('order', idx),
                 )
-                if tag_ids:
-                    item.tags = DietaryTag.query.filter(DietaryTag.id.in_(tag_ids)).all()
-                if cert_ids:
-                    item.certifications = Certification.query.filter(Certification.id.in_(cert_ids)).all()
                 db.session.add(item)
 
             if auto_publish:
                 menu.status = 'published'
-                menu.published_at = datetime.utcnow()
+                menu.published_at = datetime.now(UTC)
                 menu.published_by_id = current_user_id
 
         AuditLog.log(
@@ -558,3 +452,204 @@ def confirm_import(data):
         db.session.rollback()
         current_app.logger.error(f"Erreur import CSV: {e}")
         return jsonify({'error': f"Erreur lors de l'import: {e}"}), 500
+
+
+# ============================================================
+# IMPORT CATALOGUE — liste de plats (1 ligne = 1 plat)
+# ============================================================
+
+_NAME_COLUMN_HINTS = ['nom', 'plat', 'name', 'intitule', 'dish', 'libelle', 'produit']
+
+
+def suggest_name_column(columns: list[str]) -> str | None:
+    """Devine la colonne contenant le nom du plat (sinon la première colonne)."""
+    for col in columns:
+        col_norm = normalize_label(col)
+        if any(hint in col_norm for hint in _NAME_COLUMN_HINTS):
+            return col
+    return columns[0] if columns else None
+
+
+def existing_dish_norms(restaurant_id: int, category_id: int) -> set[str]:
+    """Noms normalisés des plats déjà présents dans une catégorie (pour la dédup)."""
+    dishes = DishCatalog.query.filter_by(
+        restaurant_id=restaurant_id, category_id=category_id
+    ).all()
+    return {normalize_label(d.name) for d in dishes}
+
+
+def build_catalog_dishes(session, name_column, tag_columns, auto_detect_tags, existing_norms):
+    """Construit la liste des plats à importer depuis les lignes de la session.
+
+    Chaque plat : {name, tags, certifications, is_duplicate}. Un plat est doublon
+    si son nom normalisé existe déjà dans la catégorie (existing_norms) ou est
+    répété plus haut dans le fichier.
+    """
+    dishes = []
+    seen: set[str] = set()
+    for row in session.get_rows():
+        raw = (row.get(name_column) or '').strip()
+        if not raw:
+            continue
+        name = normalize_dish_name(clean_item_name(raw))
+        if not name:
+            continue
+        norm = normalize_label(name)
+
+        # Texte scanné pour la taxonomie : colonnes tags + (optionnel) le nom
+        parts = [(row.get(c) or '') for c in tag_columns]
+        if auto_detect_tags:
+            parts.append(raw)
+        text = ' '.join(p for p in parts if p)
+        detected = detect_tags_from_text(text) if text.strip() else {'tags': [], 'certifications': []}
+
+        dishes.append({
+            'name': name,
+            'tags': detected['tags'],
+            'certifications': detected['certifications'],
+            'is_duplicate': norm in existing_norms or norm in seen,
+        })
+        seen.add(norm)
+    return dishes
+
+
+@imports_bp.route('/catalog/upload', methods=['POST'])
+@imports_bp.response(200, CatalogImportUploadSchema)
+@imports_bp.alt_response(400, schema=ErrorSchema, description="Invalid or missing file")
+@imports_bp.alt_response(500, schema=ErrorSchema, description="Processing error")
+@editor_required
+def catalog_upload():
+    """Upload et parse un fichier CSV/Excel de plats.
+
+    Renvoie les colonnes, un aperçu des premières lignes, et une suggestion
+    de la colonne contenant le nom du plat.
+    """
+    if 'file' not in request.files:
+        return jsonify({'error': 'Aucun fichier fourni'}), 400
+    file = request.files['file']
+    if not file.filename:
+        return jsonify({'error': 'Nom de fichier manquant'}), 400
+
+    try:
+        columns, rows, delimiter = parse_upload(file)
+
+        file_id = str(uuid.uuid4())
+        ImportSession.cleanup_expired()
+        session = ImportSession(
+            id=file_id,
+            user_id=int(get_jwt_identity()),
+            filename=file.filename,
+            columns=columns,
+            rows=rows,
+            expires_minutes=30,
+        )
+        db.session.add(session)
+        db.session.commit()
+
+        return jsonify({
+            'file_id': file_id,
+            'filename': file.filename,
+            'columns': columns,
+            'preview_rows': rows[:10],
+            'row_count': len(rows),
+            'delimiter': delimiter,
+            'suggested_name_column': suggest_name_column(columns),
+        }), 200
+
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        current_app.logger.error(f"Erreur upload catalogue: {e}")
+        return jsonify({'error': f'Erreur lors du traitement du fichier: {e}'}), 500
+
+
+@imports_bp.route('/catalog/preview', methods=['POST'])
+@imports_bp.arguments(CatalogImportPreviewSchema)
+@imports_bp.response(200, CatalogImportPreviewResultSchema)
+@imports_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
+@imports_bp.alt_response(404, schema=ErrorSchema, description="Session expired")
+@editor_required
+def catalog_preview(data):
+    """Prévisualise l'import : liste des plats, tags détectés et doublons."""
+    user, restaurant = get_user_and_restaurant()
+    if not restaurant:
+        return jsonify({'error': 'Aucun restaurant configuré'}), 400
+
+    session = ImportSession.get_valid(data['file_id'], user.id)
+    if not session:
+        return jsonify({'error': 'Session expirée ou fichier non trouvé. Veuillez re-uploader le fichier.'}), 404
+
+    existing = existing_dish_norms(restaurant.id, data['category_id'])
+    dishes = build_catalog_dishes(
+        session, data['name_column'], data['tag_columns'],
+        data['auto_detect_tags'], existing,
+    )
+    new_count = sum(1 for d in dishes if not d['is_duplicate'])
+
+    return jsonify({
+        'dishes': dishes,
+        'total': len(dishes),
+        'new_count': new_count,
+        'duplicate_count': len(dishes) - new_count,
+    }), 200
+
+
+@imports_bp.route('/catalog/confirm', methods=['POST'])
+@imports_bp.arguments(CatalogImportConfirmSchema)
+@imports_bp.response(200, CatalogImportResultSchema)
+@imports_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
+@imports_bp.alt_response(404, schema=ErrorSchema, description="Session expired")
+@editor_required
+def catalog_confirm(data):
+    """Crée les plats du catalogue (doublons ignorés)."""
+    user, restaurant = get_user_and_restaurant()
+    if not restaurant:
+        return jsonify({'error': 'Aucun restaurant configuré'}), 400
+
+    session = ImportSession.get_valid(data['file_id'], user.id)
+    if not session:
+        return jsonify({'error': 'Session expirée ou fichier non trouvé. Veuillez re-uploader le fichier.'}), 404
+
+    category = MenuCategory.query.filter_by(
+        id=data['category_id'], restaurant_id=restaurant.id
+    ).first()
+    if not category:
+        return jsonify({'error': 'Catégorie introuvable'}), 400
+
+    existing = existing_dish_norms(restaurant.id, category.id)
+    dishes = build_catalog_dishes(
+        session, data['name_column'], data['tag_columns'],
+        data['auto_detect_tags'], existing,
+    )
+
+    created = 0
+    for d in dishes:
+        if d['is_duplicate']:
+            continue
+        # get_or_create_dish gère la normalisation, la dédup et l'attache des tags
+        get_or_create_dish(restaurant.id, {
+            'name': d['name'],
+            'category_id': category.id,
+            'tag_ids': d['tags'],
+            'certification_ids': d['certifications'],
+        })
+        created += 1
+    skipped = len(dishes) - created
+
+    AuditLog.log(
+        action='catalog_import',
+        user_id=user.id,
+        details={
+            'filename': session.filename,
+            'category_id': category.id,
+            'created_count': created,
+            'skipped_count': skipped,
+        },
+        ip_address=get_client_ip(),
+    )
+    db.session.commit()
+
+    db.session.delete(session)
+    db.session.commit()
+
+    return jsonify({'created_count': created, 'skipped_count': skipped}), 200

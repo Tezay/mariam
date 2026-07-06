@@ -27,8 +27,8 @@ from ..extensions import db
 from ..models.category import MenuCategory
 from ..models.menu import Menu, MenuItem
 from ..models.restaurant import Restaurant
-from ..models.taxonomy import DietaryTag
 from ..models.user import User
+from ..routes.helpers import get_or_create_dish
 
 _DEMO_CODE = 'DEMO'
 _DEMO_EMAIL = 'demo@mariam.app'
@@ -326,10 +326,6 @@ def _create_demo_menus(
     categories: dict,
     week: list[date],
 ) -> tuple[int, int]:
-    tag_cache: dict[str, DietaryTag] = {
-        t.id: t for t in DietaryTag.query.all()
-    }
-
     menu_count = 0
     item_count = 0
 
@@ -356,16 +352,20 @@ def _create_demo_menus(
             if not cat_id:
                 continue
 
+            dish = get_or_create_dish(restaurant_id, {
+                'name': name,
+                'category_id': cat_id,
+                'tag_ids': tag_ids,
+            })
+            if not dish:
+                continue
+
             item = MenuItem(
                 menu_id=menu.id,
                 category_id=cat_id,
-                name=name,
+                dish_id=dish.id,
                 order=order,
             )
-            for tid in tag_ids:
-                if tid in tag_cache:
-                    item.tags.append(tag_cache[tid])
-
             db.session.add(item)
             item_count += 1
 

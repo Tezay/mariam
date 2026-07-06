@@ -1,18 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { addDays, parisToday } from '@/lib/date-utils';
-import { categoriesApi, ExceptionalClosure, Event } from '@/lib/api';
-import type { MenuCategory } from '@/lib/api';
-import { EventEditor } from '@/components/EventEditor';
+import { categoriesApi, adminApi, ExceptionalClosure, Event } from '@/lib/api';
+import type { MenuCategory, CalendarSettings } from '@/lib/api';
 import { InlineError, getErrorType } from '@/components/InlineError';
 import { CalendarToolbar, DesktopView, MobileView } from './CalendarToolbar';
-import { MenuOnboarding } from './day/MenuOnboarding';
+import { MenuOnboardingWizard } from './day/onboarding/MenuOnboardingWizard';
 import { WeekView } from './WeekView';
 import { MonthView } from './MonthView';
 import { DayView } from './DayView';
 import { useCalendarData } from './useCalendarData';
 import { ClosureEditor } from './closure/ClosureEditor';
 import { YearView } from './views/YearView';
+import { DayViewSkeleton, MonthViewSkeleton, WeekViewSkeleton } from './CalendarSkeleton';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -72,6 +73,7 @@ function formatDayLabel(dateStr: string): string {
 
 export function CalendarPage() {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const canEdit = user?.role === 'admin' || user?.role === 'editor';
     const today = parisToday();
 
@@ -84,6 +86,18 @@ export function CalendarPage() {
     const [desktopView, setDesktopView] = useState<DesktopView>('week');
     const [mobileView, setMobileView] = useState<MobileView>('day');
     const [centerDate, setCenterDate] = useState(today);
+
+    // ── URL param ?date= (depuis GlobalSearch) ──
+    const [searchParams] = useSearchParams();
+    useEffect(() => {
+        const dateParam = searchParams.get('date');
+        if (dateParam) {
+            setCenterDate(dateParam);
+            setDesktopView('day');
+            setMobileView('day');
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // ── Catégories ──
     const [categories, setCategories] = useState<MenuCategory[]>([]);
@@ -160,7 +174,13 @@ export function CalendarPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [desktopView, centerDate]);
 
-    const { data, isLoading, error, reload, restaurantId, serviceDays, storageConfigured } = useCalendarData(rangeStart, rangeEnd);
+    const { data, isLoading, error, reload, restaurantId, serviceDays } = useCalendarData(rangeStart, rangeEnd);
+
+    const [calendarSettings, setCalendarSettings] = useState<CalendarSettings | undefined>(undefined);
+    useEffect(() => {
+        if (!restaurantId) return;
+        adminApi.getCalendarSettings().then(setCalendarSettings).catch(() => {});
+    }, [restaurantId]);
 
     // ── Auto-select next service day on first load ──
     const hasAutoSelectedRef = useRef(false);
@@ -258,14 +278,9 @@ export function CalendarPage() {
 
     const handleToday = useCallback(() => guardedAction(() => setCenterDate(today)), [today, guardedAction]);
 
-    // ── Event editor state ──
-    const [editorEvent, setEditorEvent] = useState<Event | null>(null);
-    const [isCreatingEvent, setIsCreatingEvent] = useState(false);
-
     const handleEditEvent = useCallback((event: Event) => {
-        setEditorEvent(event);
-        setIsCreatingEvent(false);
-    }, []);
+        navigate(`/admin/events/${event.id}/edit`);
+    }, [navigate]);
 
     // ── Onboarding state ──
     const [onboardingDate, setOnboardingDate] = useState<string | null>(null);
@@ -305,18 +320,18 @@ export function CalendarPage() {
 
     return (
         <div className="flex flex-col overflow-hidden h-[calc(100dvh-9rem)] sidebar:h-[calc(100dvh-4rem)]">
-            {onboardingDate ? (
-                <div className="flex flex-col flex-1 min-h-0">
-                    <MenuOnboarding
-                        date={onboardingDate}
-                        restaurantId={restaurantId}
-                        categories={topCategories}
-                        onDone={() => { setOnboardingDate(null); reload(); }}
-                        onCancel={() => setOnboardingDate(null)}
-                    />
-                </div>
-            ) : (
-                <>
+            {/* Wizard de création de menu — overlay plein écran au-dessus du calendrier */}
+            {onboardingDate && (
+                <MenuOnboardingWizard
+                    date={onboardingDate}
+                    restaurantId={restaurantId}
+                    categories={topCategories}
+                    onDone={() => { setOnboardingDate(null); reload(); }}
+                    onCancel={() => setOnboardingDate(null)}
+                />
+            )}
+
+            <>
                     <CalendarToolbar
                         label={toolbarLabel}
                         onPrev={handlePrev}
@@ -326,8 +341,8 @@ export function CalendarPage() {
                         onDesktopView={v => guardedAction(() => setDesktopView(v))}
                         mobileView={mobileView}
                         onMobileView={v => guardedAction(() => setMobileView(v))}
-                        onAddMenu={() => guardedAction(() => { setCenterDate(today); setDesktopView('day'); })}
-                        onAddEvent={() => { setIsCreatingEvent(true); setEditorEvent(null); }}
+                        onAddMenu={(date) => guardedAction(() => { setCenterDate(date); setDesktopView('day'); })}
+                        onAddEvent={() => navigate('/admin/events/new')}
                         onAddClosure={() => openCreateClosure(today)}
                         canEdit={canEdit}
                         canGoPrev={canGoPrev}
@@ -336,9 +351,14 @@ export function CalendarPage() {
 
                     {/* Loading / Error */}
                     {isLoading && (
-                        <div className="flex-1 flex items-center justify-center">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-                        </div>
+                        <>
+                            <div className="hidden md:flex flex-col flex-1 overflow-hidden">
+                                {desktopView === 'week' ? <WeekViewSkeleton /> : desktopView === 'day' ? <DayViewSkeleton /> : <MonthViewSkeleton />}
+                            </div>
+                            <div className="flex md:hidden flex-col flex-1 overflow-hidden">
+                                {mobileView === 'week' ? <WeekViewSkeleton columnCount={7} /> : <DayViewSkeleton />}
+                            </div>
+                        </>
                     )}
                     {!isLoading && !!error && (
                         <div className="flex-1 flex items-center justify-center p-8">
@@ -374,10 +394,10 @@ export function CalendarPage() {
                                         serviceDays={serviceDays}
                                         restaurantId={restaurantId}
                                         categories={categories}
-                                        onNavigate={handleNavigate}
                                         onReload={reload}
                                         onDirtyChange={setEditorDirty}
                                         onEditEvent={handleEditEvent}
+                                        onStartOnboarding={handleStartOnboarding}
                                     />
                                 )}
                                 {desktopView === 'month' && (
@@ -398,6 +418,7 @@ export function CalendarPage() {
                                         year={curYear}
                                         data={data}
                                         canEdit={canEdit}
+                                        calendarSettings={calendarSettings}
                                         onNavigate={handleNavigate}
                                         onReload={reload}
                                     />
@@ -429,27 +450,16 @@ export function CalendarPage() {
                                         serviceDays={serviceDays}
                                         restaurantId={restaurantId}
                                         categories={categories}
-                                        onNavigate={handleNavigate}
                                         onReload={reload}
                                         onDirtyChange={setEditorDirty}
                                         onEditEvent={handleEditEvent}
+                                        onStartOnboarding={handleStartOnboarding}
                                     />
                                 )}
                             </div>
                         </>
                     )}
-                </>
-            )}
-
-            {/* ── EventEditor ── */}
-            {(isCreatingEvent || editorEvent) && (
-                <EventEditor
-                    event={editorEvent}
-                    onClose={() => { setEditorEvent(null); setIsCreatingEvent(false); }}
-                    onSave={() => { setEditorEvent(null); setIsCreatingEvent(false); reload(); }}
-                    storageConfigured={storageConfigured}
-                />
-            )}
+            </>
 
             {/* ── Closure Editor (toolbar "Nouvelle fermeture") ── */}
             <ClosureEditor

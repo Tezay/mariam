@@ -7,12 +7,13 @@ MARIAM est une solution moderne pour faciliter la communication des menus de res
 ## 📋 Fonctionnalités
 
 ### Pour les gestionnaires
-- **Weekly Planner** - Vue hebdomadaire pour préparer les menus en avance
-- **Éditeur simple** - Saisie rapide par catégorie (entrées, plat, VG, desserts)
+- **Calendrier unifié** - Vues jour/semaine/mois/année pour préparer et publier les menus
+- **Catalogue de plats** - Plats réutilisables par restaurant, avec image, tags, certifications et statistiques d'utilisation
+- **Éditeur simple** - Saisie rapide par catégorie (entrées, plat, VG, desserts) avec suggestions issues du catalogue
+- **Import CSV / Excel** - Import en masse des menus depuis un fichier
 - **Publication** - Publier un jour ou toute la semaine en un clic
-- **Événements** - Créer et annoncer les événements spéciaux avec images
-- **Galerie photos** - Galerie partagée avec tags automatiques et recherche
-- **Réutilisation photos** - Sélectionner depuis la galerie existante
+- **Événements & fermetures** - Annoncer les événements spéciaux et gérer les fermetures exceptionnelles
+- **Centre de notifications** - Alertes en temps réel (menu non publié, jour férié à venir) et préférences par utilisateur
 - **Mot du chef** - Note personnalisée affichée dans le bandeau TV
 - **Gestion des utilisateurs** - Inviter, modifier les rôles, réinitialiser MFA
 
@@ -55,7 +56,7 @@ MARIAM est une solution moderne pour faciliter la communication des menus de res
 └──────────────┘ └─────────────┘
 ```
 
-> **Stockage S3** : MinIO en développement, [Scaleway Object Storage](https://www.scaleway.com/en/object-storage/) en production. Utilisé pour la galerie photos, les images événements et logos.
+> **Stockage S3** : MinIO en développement, [Scaleway Object Storage](https://www.scaleway.com/en/object-storage/) en production. Utilisé pour les photos de plats du catalogue, les images d'événements et les logos.
 
 ## 🚀 Mise en Production
 
@@ -84,7 +85,7 @@ docker compose up --build
 
 L'application sera accessible sur :
 - **Frontend** : http://localhost:5173
-- **API** : http://localhost:5000/api/health
+- **API** : http://localhost:5000/health
 - **MinIO Console** : http://localhost:9001 (identifiants : `mariam_minio` / `mariam_minio_secret`)
 
 > MinIO démarre automatiquement via Docker Compose et fournit un stockage S3-compatible local. Le bucket `mariam-uploads` est créé automatiquement au premier lancement du backend.
@@ -115,11 +116,14 @@ Mariam/
 │   ├── app/
 │   │   ├── __init__.py        # Factory pattern
 │   │   ├── data/              # taxonomy.py (registre tags & certifications)
-│   │   ├── models/            # User, Restaurant, Menu, Event, Taxonomy, Gallery...
-│   │   ├── routes/            # auth, menus, events, gallery, restaurant, users, audit, imports...
+│   │   ├── models/            # User, Restaurant, Menu, DishCatalog, Event, Notification...
+│   │   ├── routes/            # auth, menus, catalog, inbox, events, closures, restaurant, users, audit, imports...
 │   │   └── services/
-│   │       └── storage.py     # Service S3 (upload, delete, gestion bucket)
+│   │       ├── storage.py     # Service S3 (upload, delete, gestion bucket)
+│   │       ├── holidays.py    # Proxy jours fériés (cache Redis)
+│   │       └── notification_service.py  # Web Push + alertes
 │   ├── migrations/            # Alembic (schéma BDD)
+│   ├── tests/                 # Suites pytest
 │   ├── pyproject.toml         # Dépendances Python + config ruff/mypy/pytest
 │   └── uv.lock
 └── client/                    # Frontend React
@@ -127,13 +131,13 @@ Mariam/
         ├── pages/
         │   ├── Login.tsx
         │   ├── Activate.tsx
-        │   ├── admin/WeeklyPlanner.tsx
-        │   ├── admin/GalleryPage.tsx
+        │   ├── admin/CataloguePage.tsx      # Catalogue de plats
+        │   ├── admin/calendar/              # Calendrier unifié (jour/semaine/mois/année)
+        │   ├── admin/settings/              # Onglets de la page Paramètres
         │   └── public/MenuDisplay.tsx
         ├── components/
-        │   ├── MenuEditor.tsx    # Éditeur avec images par item
-        │   └── GalleryPicker.tsx # Sélecteur galerie partagée
-        └── lib/api.ts            # Client API avec interceptors
+        │   └── layout/                      # Shell admin (sidebar, topbar)
+        └── lib/api.ts                       # Client API avec interceptors
 ```
 
 ## 🔌 API
@@ -161,9 +165,8 @@ MARIAM utilise un stockage **S3-compatible** pour gérer les images uploadées p
 
 | Fonctionnalité | Limite | Préfixe S3 |
 |----------------|--------|------------|
-| Galerie photos (menus) | 3 par item | `gallery/` |
+| Photos de plats (catalogue) | 1 par plat | `catalog/` |
 | Images événements | 10 par événement | `events/` |
-| Photos du jour (legacy) | 6 par menu | `menus/` |
 | Logos restaurant | 1 par restaurant | `logos/` |
 
 **Contraintes** : 5 Mo max par image, formats acceptés : JPG, PNG, GIF, WebP.

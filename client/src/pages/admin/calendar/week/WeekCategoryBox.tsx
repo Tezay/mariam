@@ -1,8 +1,12 @@
-import { Plus } from 'lucide-react';
+import { ArrowLeftRight } from 'lucide-react';
 import type { MenuItem, MenuCategory } from '@/lib/api';
 import { getCategoryColor } from '@/lib/category-colors';
+import { cn } from '@/lib/utils';
 import { WeekMenuItemBox } from './WeekMenuItemBox';
-import type { UseMenuEditorReturn } from '../day/useMenuEditor';
+import { AddDishCombobox } from '../day/AddDishCombobox';
+import { SelectionCheckbox } from '../selection/SelectionCheckbox';
+import type { UseSelectionReturn } from '../selection/useSelection';
+import type { UseMenuEditorReturn, SubstitutionMap } from '../day/useMenuEditor';
 import type { CategoryColor } from '@/lib/category-colors';
 
 interface WeekCategoryBoxProps {
@@ -11,9 +15,9 @@ interface WeekCategoryBoxProps {
     editor: UseMenuEditorReturn;
     canEdit: boolean;
     selectionMode: boolean;
-    isSelected: (itemId: number) => boolean;
-    onToggleItem: (item: MenuItem) => void;
+    selection: UseSelectionReturn;
     date: string;
+    substitutions?: SubstitutionMap;
 }
 
 export function WeekCategoryBox({
@@ -22,8 +26,9 @@ export function WeekCategoryBox({
     editor,
     canEdit,
     selectionMode,
-    isSelected,
-    onToggleItem,
+    selection,
+    date,
+    substitutions,
 }: WeekCategoryBoxProps) {
     const color = getCategoryColor(category.color_key, category.order);
     const subcategories = category.subcategories ?? [];
@@ -39,84 +44,104 @@ export function WeekCategoryBox({
         itemsByCatId.set(item.category_id, list);
     }
 
-    const renderItemList = (itemList: MenuItem[], itemColor: CategoryColor) =>
-        itemList.map(item => (
-            <WeekMenuItemBox
-                key={item.id}
-                item={item}
-                color={itemColor}
-                canEdit={canEdit}
-                selectionMode={selectionMode}
-                isSelected={item.id !== undefined && isSelected(item.id)}
-                onNameChange={name => editor.updateItem(item.id!, { name })}
-                onRemove={() => editor.removeItem(item.id!)}
-                onToggleSelect={() => onToggleItem(item)}
-            />
-        ));
+    const renderItemList = (itemList: MenuItem[], itemColor: CategoryColor) => (
+        <div className="space-y-0.5 rounded-xl">
+            {itemList.map(item => (
+                <WeekMenuItemBox
+                    key={item.id}
+                    item={item}
+                    color={itemColor}
+                    canEdit={canEdit}
+                    selectionMode={selectionMode}
+                    isSelected={item.id !== undefined && selection.isItemSelected(item.id, date)}
+                    date={date}
+                    onRemove={() => editor.removeItem(item.id!)}
+                    onToggleSelect={() => selection.toggleItem({ type: 'item', itemId: item.id!, date, categoryId: item.category_id })}
+                />
+            ))}
+        </div>
+    );
 
-    const renderAddButton = (catId: number, btnColor: CategoryColor, label: string, compact = false) =>
-        canEdit && (
-            <div
-                role="button"
-                tabIndex={0}
-                onClick={() => editor.addItem(catId)}
-                onKeyDown={e => e.key === 'Enter' && editor.addItem(catId)}
-                className={`w-full flex items-center justify-center gap-1 rounded-xl transition-colors cursor-pointer border-dashed border ${compact ? 'py-1 text-[10px] font-medium' : 'py-1.5 text-[11px] font-medium border-2'}`}
-                style={{
-                    backgroundColor: btnColor.addBg,
-                    borderColor: btnColor.border + (compact ? '60' : '80'),
-                    color: btnColor.addLabel,
-                }}
-            >
-                <Plus className={compact ? 'w-2.5 h-2.5' : 'w-3 h-3'} />
-                {label}
+    const showAdd = canEdit && !selectionMode;
+
+    // En mode sélection, on garde l'espace du bouton "Ajouter" (rendu invisible)
+    const renderAddControl = (catId: number) =>
+        canEdit ? (
+            <div className={cn(!showAdd && 'invisible pointer-events-none')} aria-hidden={!showAdd}>
+                <AddDishCombobox categoryId={catId} editor={editor} compact />
             </div>
-        );
+        ) : null;
 
     return (
         <div className="space-y-1">
             {/* Category header — horizontal lines + centered label */}
             <div className="flex items-center gap-2 px-1">
                 <div className="h-px flex-1" style={{ backgroundColor: headerLineColor + '60' }} />
-                <span
-                    className="text-[10px] font-bold uppercase tracking-widest whitespace-nowrap"
-                    style={{ color: headerTextColor }}
-                >
-                    {category.label}
-                </span>
+                {selectionMode ? (
+                    <button
+                        type="button"
+                        onClick={() => selection.toggleGroup(date, items)}
+                        className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap rounded-lg px-1 py-0.5 transition-colors hover:bg-muted"
+                        style={{ color: headerTextColor }}
+                    >
+                        <SelectionCheckbox
+                            size="sm"
+                            state={selection.getGroupState(date, items)}
+                            onToggle={() => selection.toggleGroup(date, items)}
+                            aria-label={`Sélectionner ${category.label}`}
+                        />
+                        {category.label}
+                    </button>
+                ) : (
+                    <span
+                        className="text-[10px] font-bold uppercase tracking-widest whitespace-nowrap"
+                        style={{ color: headerTextColor }}
+                    >
+                        {category.label}
+                    </span>
+                )}
                 <div className="h-px flex-1" style={{ backgroundColor: headerLineColor + '60' }} />
+                {(substitutions?.[category.id]?.length ?? 0) > 0 && (
+                    <span className="shrink-0 text-orange-500/60" title="Substitut défini">
+                        <ArrowLeftRight className="w-3 h-3" />
+                    </span>
+                )}
             </div>
 
             {!hasSubcategories ? (
-                /* No subcategories: flat list + single add button */
                 <>
-                    <div className="space-y-0.5">
-                        {renderItemList(items, color)}
-                    </div>
-                    {renderAddButton(category.id, color, 'Ajouter un plat')}
+                    {renderItemList(items, color)}
+                    {renderAddControl(category.id)}
                 </>
             ) : (
-                /* Has subcategories: direct parent items first, then each subcategory */
                 <>
-                    {(itemsByCatId.get(category.id) ?? []).length > 0 && (
-                        <div className="space-y-0.5">
-                            {renderItemList(itemsByCatId.get(category.id) ?? [], color)}
-                        </div>
-                    )}
+                    {(itemsByCatId.get(category.id) ?? []).length > 0 &&
+                        renderItemList(itemsByCatId.get(category.id) ?? [], color)
+                    }
                     {subcategories.map(sub => {
                         const subItems = itemsByCatId.get(sub.id) ?? [];
-                        if (subItems.length === 0 && !canEdit) return null;
+                        if (subItems.length === 0 && !showAdd) return null;
                         const subColor = getCategoryColor(sub.color_key, sub.order);
                         return (
-                            <div key={sub.id} className="space-y-0.5">
-                                <p
-                                    className="text-[9px] font-bold uppercase tracking-widest px-1 pt-0.5"
-                                    style={{ color: subColor.sectionLabel }}
-                                >
-                                    {sub.label}
-                                </p>
+                            <div key={sub.id}>
+                                <div className="flex items-center gap-1.5 px-1 pt-0.5 pb-0.5">
+                                    {selectionMode && subItems.length > 0 && (
+                                        <SelectionCheckbox
+                                            size="sm"
+                                            state={selection.getGroupState(date, subItems)}
+                                            onToggle={() => selection.toggleGroup(date, subItems)}
+                                            aria-label={`Sélectionner ${sub.label}`}
+                                        />
+                                    )}
+                                    <p
+                                        className="text-[9px] font-bold uppercase tracking-widest"
+                                        style={{ color: subColor.sectionLabel }}
+                                    >
+                                        {sub.label}
+                                    </p>
+                                </div>
                                 {renderItemList(subItems, subColor)}
-                                {renderAddButton(sub.id, subColor, sub.label, true)}
+                                {renderAddControl(sub.id)}
                             </div>
                         );
                     })}

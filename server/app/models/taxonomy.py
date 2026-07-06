@@ -22,18 +22,6 @@ restaurant_certifications = db.Table(
     db.Column('certification_id', db.String(50), db.ForeignKey('certifications.id', ondelete='CASCADE'), primary_key=True),
 )
 
-menu_item_dietary_tags = db.Table(
-    'menu_item_dietary_tags',
-    db.Column('menu_item_id', db.Integer, db.ForeignKey('menu_items.id', ondelete='CASCADE'), primary_key=True),
-    db.Column('tag_id', db.String(50), db.ForeignKey('dietary_tags.id', ondelete='CASCADE'), primary_key=True),
-)
-
-menu_item_certifications = db.Table(
-    'menu_item_certifications',
-    db.Column('menu_item_id', db.Integer, db.ForeignKey('menu_items.id', ondelete='CASCADE'), primary_key=True),
-    db.Column('certification_id', db.String(50), db.ForeignKey('certifications.id', ondelete='CASCADE'), primary_key=True),
-)
-
 
 # ──────────────────────────────────────────────────────────────────────
 #  CATÉGORIES
@@ -44,9 +32,9 @@ class DietaryTagCategory(db.Model):
 
     __tablename__ = 'dietary_tag_categories'
 
-    id = db.Column(db.String(50), primary_key=True)          # ex: "regime_composition"
-    name = db.Column(db.String(100), nullable=False)          # "Régime / composition"
-    color = db.Column(db.String(30), nullable=True)           # couleur thème
+    id = db.Column(db.String(50), primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    color = db.Column(db.String(30), nullable=True)
     sort_order = db.Column(db.Integer, default=0)
 
     tags = db.relationship('DietaryTag', backref='category', lazy='select',

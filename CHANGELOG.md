@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Dish catalog**: new per-restaurant `DishCatalog` entity replacing free-text menu items. Admin page `/admin/catalogue` (grid/list views, search, sort by usage), dish detail page with usage statistics and charts, per-dish image upload, and a quick-add combobox in the menu editor.
+- **Dish catalog CSV/Excel import**: bulk-import dishes into a chosen category via a catalogue-page wizard, with dietary tag/certification auto-detection, name normalization, duplicate skipping, and shared CSV parsing in `services/csv_import.py`.
+- **Per-menu category substitutions**: substitution dishes defined per menu and category, displayed when an item is out of stock.
+- **In-app notification center**: bell popover with unread count, persisted notifications, and real-time live alerts (unpublished menu of the day, active service without a published menu, upcoming public holidays). Per-user notification preferences.
+- **Calendar settings**: per-restaurant toggles to display French public holidays and school vacations in the admin calendar.
+- **Menu copy to multiple dates**: copy a day's menu to any set of dates via a multi-date picker.
+- **Full-page event editor**: dedicated `/admin/events/:id/edit` page with rich-text description (Tiptap).
+- **Drag and drop in the week view**: move and reorder menu items across days (dnd-kit).
+- **Swipeable rows on mobile admin**: swipe gestures for item actions in the day editor.
+- **`flask seed-categories` command** and `make db-seed-categories` shortcut.
+
+### Changed
+
+- **Menu creation onboarding rebuilt**: mobile-first wizard with live preview, optional dish photos, per-category substitutions, strict deduplicated suggestions, and a light publish celebration.
+- **Admin layout rebuilt**: collapsible sidebar with persisted state, new shared layout components, and skeleton loading states for the calendar.
+- **Menu API shape**: menu items now reference the catalog — responses nest a `dish` object (`dish_id` foreign key) instead of flat `name`/`tags`/`certifications` fields.
+- **Toasts centralized**: single `notify` helper (`lib/toast.ts`, backed by sonner) across the admin.
+- **Code splitting**: heavy admin pages (catalogue, dish detail, event editor) are lazy-loaded, and public visitors no longer download admin-only dependencies.
+- **API reference (`docs/API.md`)**: documents the Dish Catalog, Inbox Notifications, and calendar-settings endpoints; Gallery section removed.
+- **Settings page rebuilt**: split into per-tab components (`pages/admin/settings/`) sharing one `useSettingsState` hook.
+- **Shared route helpers** centralised in `routes/helpers.py`, removing duplicated copies across blueprints.
+- **Production compose** now wires `REDIS_URL`, the WebAuthn variables and `UMAMI_WEBSITE_ID`, and adds a backend `/health` healthcheck.
+
+### Fixed
+
+- **CSV/Excel import**: fixed a 500 on commit - items were still built with the removed `name`/`tags`/`certifications` fields instead of catalog dishes.
+- **Daily-menu push notifications**: fixed empty payloads (built from the obsolete item shape) that silently suppressed every push.
+
+### Removed
+
+- **Image gallery**: models, routes, schemas, and admin pages (`GalleryPage`, `GalleryPicker`). Images are now attached to catalog dishes and menus directly.
+- **Legacy editors**: `MenuEditor`, `WeeklyPlanner`, `DuplicatePanel`, and `ImportFromDayPanel`, replaced by the new calendar flows.
+
+### Security
+
+- **Multi-tenant scoping on menus**: menu-by-id routes (get/update/publish/unpublish/delete/substitutions) and `GET /menus` are now scoped to the caller's restaurant.
+- **Boot-time secret guard**: the app refuses to start outside development with the default `SECRET_KEY`/`JWT_SECRET_KEY`.
+
+### Database
+
+- Migration `bfb39474c140`: creates `dish_catalog` and `category_substitutions`, links `menu_items` to the catalog. ⚠️ **Destructive**: deletes all existing menu items and drops the gallery tables without converting data — back up the database before upgrading in production.
+- Migration `d6b24ae95a98`: scopes category substitutions per menu (`menu_id` column and updated unique constraint).
+- Migration `ec0cf6a02893`: creates the `inbox_notifications` table.
+- Migration `4c83d7dc335a`: adds `notification_preferences` to users and creates `restaurant_calendar_settings`.
+
 ## [0.12.0] - 2026-05-07
 
 ### Added

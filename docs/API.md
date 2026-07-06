@@ -158,8 +158,8 @@ Requires `editor` role or above, except the public read routes listed above.
 | `PUT` | `/v1/menus/<id>/images/reorder` | Reorder images |
 | `PUT` | `/v1/menus/<id>/chef-note` | Update chef note |
 | `PATCH` | `/v1/menus/<id>/items/<item_id>/stock` | Toggle item out-of-stock status |
-| `POST` | `/v1/menus/<id>/items/<item_id>/images` | Link a gallery image to a menu item |
-| `DELETE` | `/v1/menus/<id>/items/<item_id>/images/<link_id>` | Unlink a gallery image from a menu item |
+| `GET` | `/v1/menus/<id>/substitutions` | Substitution dishes grouped by category |
+| `PUT` | `/v1/menus/<id>/substitutions/<category_id>` | Set substitution dishes for a category |
 
 ---
 
@@ -184,19 +184,36 @@ Requires `editor` role or above. Unauthenticated requests to `GET /v1/events` on
 
 ---
 
-## Gallery
+## Dish Catalog
 
-Requires `editor` role or above.
+Requires `editor` role or above. Dishes are scoped to the authenticated user's restaurant.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `/v1/gallery` | List images with pagination and search |
-| `GET` | `/v1/gallery/<id>` | Image details and usages |
-| `POST` | `/v1/gallery` | Upload an image |
-| `DELETE` | `/v1/gallery/<id>` | Delete an image |
-| `PUT` | `/v1/gallery/<id>/tags` | Replace all tags |
-| `POST` | `/v1/gallery/<id>/tags` | Add a manual tag |
-| `DELETE` | `/v1/gallery/<id>/tags/<tag_id>` | Remove a tag |
+| `GET` | `/v1/catalog` | List dishes (filters: `category_id`, `q`, `sort`; optional pagination) |
+| `POST` | `/v1/catalog` | Create a dish |
+| `GET` | `/v1/catalog/<id>` | Dish details |
+| `PUT` | `/v1/catalog/<id>` | Update a dish |
+| `DELETE` | `/v1/catalog/<id>` | Delete a dish (409 if used in a menu) |
+| `GET` | `/v1/catalog/<id>/stats` | Usage statistics (week/month/semester/year, history) |
+| `POST` | `/v1/catalog/<id>/image` | Upload or replace the dish image (multipart/form-data) |
+| `DELETE` | `/v1/catalog/<id>/image` | Delete the dish image |
+
+---
+
+## Inbox Notifications
+
+Requires authentication. In-app notification center for business alerts.
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/v1/inbox` | List notifications for the current user |
+| `GET` | `/v1/inbox/unread-count` | Unread notifications count |
+| `PUT` | `/v1/inbox/<id>/read` | Mark a notification as read |
+| `PUT` | `/v1/inbox/read-all` | Mark all notifications as read |
+| `DELETE` | `/v1/inbox/<id>` | Delete a notification |
+| `GET` | `/v1/inbox/notification-preferences` | Get in-app notification preferences |
+| `PUT` | `/v1/inbox/notification-preferences` | Update in-app notification preferences |
 
 ---
 
@@ -209,6 +226,8 @@ Requires `editor` role or above.
 | `GET` | `/v1/restaurants` | admin | List all restaurants |
 | `POST` | `/v1/restaurants` | admin | Create a restaurant |
 | `PUT` | `/v1/restaurants/<id>` | admin | Update a restaurant |
+| `GET` | `/v1/restaurant/calendar-settings` | editor+ | Calendar display settings (public holidays, school vacations) |
+| `PUT` | `/v1/restaurant/calendar-settings` | editor+ | Update calendar display settings |
 
 ---
 
@@ -268,10 +287,27 @@ Requires `admin` role with active MFA session.
 
 ## CSV / Excel Import
 
-Requires `editor` role or above. Three-step flow: upload, preview with column mapping, confirm.
+Requires `editor` role or above. Three-step flow: upload, preview, confirm.
+
+### Menus (matrix format: columns = categories, rows = dates)
 
 | Method | Route | Description |
 |--------|-------|-------------|
 | `POST` | `/v1/imports/menus/upload` | Upload and parse file |
 | `POST` | `/v1/imports/menus/preview` | Preview with column mapping |
 | `POST` | `/v1/imports/menus/confirm` | Execute import |
+
+### Dish catalog (list format: one row per dish)
+
+Imports a flat list of dishes into a single chosen category/subcategory (required).
+Tags and certifications are auto-detected from the dish name and any designated
+"tag" columns. Dishes whose normalized name already exists in the target category
+are skipped (idempotent).
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `POST` | `/v1/imports/catalog/upload` | Upload and parse file; suggests the name column |
+| `POST` | `/v1/imports/catalog/preview` | Preview dishes with detected tags and duplicate flags |
+| `POST` | `/v1/imports/catalog/confirm` | Create the dishes (duplicates skipped) |
+
+Preview/confirm body: `{ file_id, name_column, tag_columns[], category_id, auto_detect_tags }`.

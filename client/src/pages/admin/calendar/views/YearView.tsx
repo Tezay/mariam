@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { closuresApi } from '@/lib/api';
-import type { ExceptionalClosure } from '@/lib/api';
+import { closuresApi, menusApi, adminApi } from '@/lib/api';
+import type { ExceptionalClosure, CalendarSettings } from '@/lib/api';
 import { addDays, parisToday } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
 import type { CalendarData } from '../useCalendarData';
@@ -62,12 +62,14 @@ interface MiniMonthProps {
     data: CalendarData;
     drag: DragMode | null;
     canEdit: boolean;
+    joursFeries: Record<string, string>;
+    vacanceDates: Set<string>;
     onMonthClick: () => void;
     onDayMouseDown: (date: string) => void;
     onDayMouseEnter: (date: string) => void;
 }
 
-function MiniMonth({ year, month, today, data, drag, canEdit, onMonthClick, onDayMouseDown, onDayMouseEnter }: MiniMonthProps) {
+function MiniMonth({ year, month, today, data, drag, canEdit, joursFeries, vacanceDates, onMonthClick, onDayMouseDown, onDayMouseEnter }: MiniMonthProps) {
     const mm = String(month + 1).padStart(2, '0');
     const firstDay = `${year}-${mm}-01`;
     const lastDay = `${year}-${mm}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, '0')}`;
@@ -97,6 +99,8 @@ function MiniMonth({ year, month, today, data, drag, canEdit, onMonthClick, onDa
                     const closure = data[date]?.closure ?? null;
                     const isClosure = !!closure && isCurrentMonth;
                     const hasEvent = (data[date]?.events?.length ?? 0) > 0 && isCurrentMonth && !isClosure;
+                    const ferieDesc = isCurrentMonth ? (joursFeries[date] ?? null) : null;
+                    const isVacance = isCurrentMonth && !isClosure && !ferieDesc && vacanceDates.has(date);
 
                     const dragStyle = getDragStyle(date, drag);
                     const isBoundary = isClosure && canEdit && (date === closure!.start_date || date === closure!.end_date);
@@ -104,6 +108,7 @@ function MiniMonth({ year, month, today, data, drag, canEdit, onMonthClick, onDa
                     return (
                         <div
                             key={date}
+                            title={ferieDesc ?? (isVacance ? 'Vacances scolaires' : undefined)}
                             className={cn(
                                 'relative flex flex-col items-center justify-center w-full aspect-square cursor-pointer',
                                 !isCurrentMonth && 'opacity-25',
@@ -111,7 +116,9 @@ function MiniMonth({ year, month, today, data, drag, canEdit, onMonthClick, onDa
                                 !isClosure && 'rounded-sm',
                                 dragStyle,
                                 !dragStyle && !isClosure && isToday && 'bg-primary text-white rounded-full font-bold',
-                                !dragStyle && !isClosure && !isToday && 'hover:bg-muted rounded-sm',
+                                !dragStyle && !isClosure && !isToday && ferieDesc && 'text-amber-600',
+                                !dragStyle && !isClosure && !isToday && isVacance && 'bg-violet-50 dark:bg-violet-950/20 text-violet-600 dark:text-violet-400 rounded-sm',
+                                !dragStyle && !isClosure && !isToday && !ferieDesc && !isVacance && 'hover:bg-muted rounded-sm',
                             )}
                             style={isClosure && !dragStyle ? CLOSURE_HATCH_STYLE : undefined}
                             onMouseDown={() => isCurrentMonth && onDayMouseDown(date)}
@@ -120,7 +127,10 @@ function MiniMonth({ year, month, today, data, drag, canEdit, onMonthClick, onDa
                             <span className={cn('text-[10px]', !dragStyle && !isClosure && isToday && 'font-bold')}>
                                 {dayNum}
                             </span>
-                            {hasEvent && (
+                            {ferieDesc && !isClosure && !isToday && (
+                                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-amber-500" />
+                            )}
+                            {hasEvent && !ferieDesc && (
                                 <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-emerald-400" />
                             )}
                         </div>
@@ -137,11 +147,12 @@ interface YearViewProps {
     year: number;
     data: CalendarData;
     canEdit: boolean;
+    calendarSettings?: CalendarSettings;
     onNavigate: (view: DesktopView | MobileView, date: string) => void;
     onReload: () => void;
 }
 
-export function YearView({ year, data, canEdit, onNavigate, onReload }: YearViewProps) {
+export function YearView({ year, data, canEdit, calendarSettings, onNavigate, onReload }: YearViewProps) {
     const today = parisToday();
     const months = Array.from({ length: 12 }, (_, i) => i);
 
@@ -150,6 +161,42 @@ export function YearView({ year, data, canEdit, onNavigate, onReload }: YearView
     const [closureEditorOpen, setClosureEditorOpen] = useState(false);
     const [editingClosure, setEditingClosure] = useState<ExceptionalClosure | null>(null);
     const [closurePrefill, setClosurePrefill] = useState<{ start: string; end: string } | null>(null);
+    const [joursFeries, setJoursFeries] = useState<Record<string, string>>({});
+    const [vacanceDates, setVacanceDates] = useState<Set<string>>(new Set());
+
+    const showHolidays = calendarSettings?.show_public_holidays ?? true;
+    const showVacances = calendarSettings?.show_school_vacations ?? false;
+    const vacanceZone = calendarSettings?.school_vacation_zone ?? null;
+
+    useEffect(() => {
+        if (!showHolidays) { setJoursFeries({}); return; }
+        menusApi.getJoursFeries(year)
+            .then(list => {
+                const map: Record<string, string> = {};
+                for (const { date, description } of list) map[date] = description;
+                setJoursFeries(map);
+            })
+            .catch(() => {});
+    }, [year, showHolidays]);
+
+    useEffect(() => {
+        if (!showVacances || !vacanceZone) { setVacanceDates(new Set()); return; }
+        adminApi.getVacancesScolaires(year, vacanceZone)
+            .then(list => {
+                const dates = new Set<string>();
+                for (const { start_date, end_date } of list) {
+                    let cur = start_date;
+                    while (cur <= end_date) {
+                        dates.add(cur);
+                        const d = new Date(cur + 'T12:00:00');
+                        d.setDate(d.getDate() + 1);
+                        cur = d.toISOString().split('T')[0];
+                    }
+                }
+                setVacanceDates(dates);
+            })
+            .catch(() => {});
+    }, [year, showVacances, vacanceZone]);
 
     const handleDayMouseDown = useCallback((date: string) => {
         if (!canEdit) return;
@@ -230,6 +277,8 @@ export function YearView({ year, data, canEdit, onNavigate, onReload }: YearView
                         data={data}
                         drag={drag}
                         canEdit={canEdit}
+                        joursFeries={joursFeries}
+                        vacanceDates={vacanceDates}
                         onMonthClick={() => onNavigate('month', `${year}-${String(m + 1).padStart(2, '0')}-01`)}
                         onDayMouseDown={handleDayMouseDown}
                         onDayMouseEnter={handleDayMouseEnter}

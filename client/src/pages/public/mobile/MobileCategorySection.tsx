@@ -1,4 +1,4 @@
-import type { DisplayCategory, MenuItemData } from '../menu-types';
+import type { DisplayCategory, MenuItemData, CategorySubstitutionData } from '../menu-types';
 import { getCategoryColor } from '@/lib/category-colors';
 import { MobileStandardCategory } from './MobileStandardCategory';
 import { MobileHighlightedCategory } from './MobileHighlightedCategory';
@@ -6,13 +6,15 @@ import { MobileHighlightedCategory } from './MobileHighlightedCategory';
 interface MobileCategorySectionProps {
     categories: DisplayCategory[];
     onItemTap: (item: MenuItemData) => void;
+    /** Substitutions par category_id ; affichées si une catégorie a un item en rupture. */
+    substitutions?: Record<string, CategorySubstitutionData[]>;
 }
 
 /** Orchestre l'affichage de toutes les catégories top-level.
  *  - highlight : MobileHighlightedCategory (pleine largeur, image alternée)
  *  - standard  : MobileStandardCategory (grille 2 colonnes, couleur palette)
  */
-export function MobileCategorySection({ categories, onItemTap }: MobileCategorySectionProps) {
+export function MobileCategorySection({ categories, onItemTap, substitutions }: MobileCategorySectionProps) {
     let standardColorIndex = 0;
 
     return (
@@ -30,6 +32,7 @@ export function MobileCategorySection({ categories, onItemTap }: MobileCategoryS
                             category={category}
                             onItemTap={onItemTap}
                             subColorBaseIndex={standardColorIndex}
+                            substitutions={substitutions}
                         />
                     );
                     // Incrémente l'index couleur selon le nombre de sous-catégories non-highlight
@@ -47,6 +50,7 @@ export function MobileCategorySection({ categories, onItemTap }: MobileCategoryS
                         category={category}
                         color={color}
                         onItemTap={onItemTap}
+                        substitutions={substitutions}
                     />
                 );
             })}

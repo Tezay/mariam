@@ -9,7 +9,9 @@
  * - /activate/:token : Activation de compte
  * - /admin/* : Interface d'administration (protégée)
  */
+import { useState, useEffect, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { useAuth } from './contexts/AuthContext';
 import { PwaInstallProvider } from './contexts/PwaInstallContext';
 import { Login } from './pages/Login';
@@ -25,24 +27,39 @@ import { AccountPage } from './pages/admin/AccountPage';
 import { EventsPage } from './pages/admin/EventsPage';
 import { ClosuresPage } from './pages/admin/ClosuresPage';
 import { ServicePage } from './pages/admin/ServicePage';
-import { GalleryPage } from './pages/admin/GalleryPage';
 import { InstallPage } from './pages/admin/InstallPage';
 import { SetupTransferPage } from './pages/admin/SetupTransferPage';
 import { CalendarPage } from './pages/admin/calendar/CalendarPage';
 
+// Pages chargées à la demande
+const EventEditPage = lazy(() =>
+    import('./pages/admin/EventEditPage').then(m => ({ default: m.EventEditPage }))
+);
+const CataloguePage = lazy(() =>
+    import('./pages/admin/CataloguePage').then(m => ({ default: m.CataloguePage }))
+);
+const DishDetailPage = lazy(() =>
+    import('./pages/admin/catalogue/DishDetailPage').then(m => ({ default: m.DishDetailPage }))
+);
+
 // Error pages
 import { NotFound, Forbidden } from './pages/errors';
+
+// Spinner plein écran (attente de l'état d'authentification)
+function FullScreenSpinner() {
+    return (
+        <div className="flex h-screen items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+    );
+}
 
 // Route protégée pour l'admin (authentification requise)
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, isLoading } = useAuth();
 
     if (isLoading) {
-        return (
-            <div className="flex h-screen items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            </div>
-        );
+        return <FullScreenSpinner />;
     }
 
     if (!isAuthenticated) {
@@ -57,11 +74,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
     const { user, isLoading } = useAuth();
 
     if (isLoading) {
-        return (
-            <div className="flex h-screen items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            </div>
-        );
+        return <FullScreenSpinner />;
     }
 
     if (user?.role !== 'admin') {
@@ -76,11 +89,7 @@ function EditorRoute({ children }: { children: React.ReactNode }) {
     const { user, isLoading } = useAuth();
 
     if (isLoading) {
-        return (
-            <div className="flex h-screen items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            </div>
-        );
+        return <FullScreenSpinner />;
     }
 
     if (user?.role !== 'admin' && user?.role !== 'editor') {
@@ -95,11 +104,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, isLoading } = useAuth();
 
     if (isLoading) {
-        return (
-            <div className="flex h-screen items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            </div>
-        );
+        return <FullScreenSpinner />;
     }
 
     if (isAuthenticated) {
@@ -109,9 +114,20 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
 }
 
+function ResponsiveToaster() {
+    const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
+    useEffect(() => {
+        const handler = () => setIsMobile(window.innerWidth < 1024);
+        window.addEventListener('resize', handler);
+        return () => window.removeEventListener('resize', handler);
+    }, []);
+    return <Toaster position={isMobile ? 'top-center' : 'bottom-right'} richColors closeButton />;
+}
+
 function App() {
     return (
         <PwaInstallProvider>
+            <ResponsiveToaster />
             <Routes>
                 {/* Page d'accueil - Affiche le menu public */}
                 <Route path="/" element={<Navigate to="/menu" replace />} />
@@ -175,12 +191,15 @@ function App() {
 
                     {/* Événements (admin ou editor) */}
                     <Route path="events" element={<EditorRoute><EventsPage /></EditorRoute>} />
+                    <Route path="events/new" element={<EditorRoute><EventEditPage /></EditorRoute>} />
+                    <Route path="events/:id/edit" element={<EditorRoute><EventEditPage /></EditorRoute>} />
 
                     {/* Fermetures exceptionnelles (admin ou editor) */}
                     <Route path="closures" element={<EditorRoute><ClosuresPage /></EditorRoute>} />
 
-                    {/* Galerie photos (admin ou editor) */}
-                    <Route path="gallery" element={<EditorRoute><GalleryPage /></EditorRoute>} />
+                    {/* Catalogue de plats (admin ou editor) */}
+                    <Route path="catalogue" element={<EditorRoute><CataloguePage /></EditorRoute>} />
+                    <Route path="catalogue/:id" element={<EditorRoute><DishDetailPage /></EditorRoute>} />
 
                     {/* Gestion des utilisateurs (admin only) */}
                     <Route path="users" element={<AdminRoute><UsersPage /></AdminRoute>} />

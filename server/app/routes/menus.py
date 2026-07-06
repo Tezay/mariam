@@ -22,29 +22,26 @@ Editor endpoints (JWT required):
 - PUT  /v1/menus/<id>/images/reorder                 Reorder images
 - PUT  /v1/menus/<id>/chef-note                      Update chef note
 - PATCH /v1/menus/<id>/items/<item_id>/stock         Toggle item out-of-stock
-- POST /v1/menus/<id>/items/<item_id>/images         Link gallery image to item
-- DELETE /v1/menus/<id>/items/<item_id>/images/<lid> Unlink gallery image from item
+- GET  /v1/menus/<id>/substitutions                  Substitution dishes by category
+- PUT  /v1/menus/<id>/substitutions/<category_id>    Set substitutions for a category
 """
 from datetime import UTC, datetime, timedelta
-from functools import wraps
 
 from flask import jsonify, request
-from flask_jwt_extended import get_jwt_identity, jwt_required, verify_jwt_in_request
+from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 from flask_smorest import Blueprint
 
 from ..extensions import db
 from ..models import (
     AuditLog,
-    Certification,
-    DietaryTag,
-    GalleryImage,
+    DishCatalog,
     Menu,
     MenuImage,
     MenuItem,
-    MenuItemImage,
     Restaurant,
     User,
 )
+from ..models.catalog import CategorySubstitution
 from ..models.category import MenuCategory
 from ..schemas.common import ErrorSchema, MessageSchema
 from ..schemas.menus import (
@@ -57,8 +54,15 @@ from ..schemas.menus import (
     WeekMenuSchema,
 )
 from ..security import get_client_ip, limiter
+from ..services import holidays
 from ..services.storage import storage
-from ..utils.time import paris_today
+from ..utils.time import PARIS_TZ, paris_today
+from .helpers import (
+    editor_required,
+    get_default_restaurant,
+    get_or_create_dish,
+    get_user_and_restaurant,
+)
 
 menus_bp = Blueprint(
     'menus', __name__,
@@ -70,19 +74,6 @@ menus_bp = Blueprint(
 # HELPERS
 # ============================================================
 
-def editor_required(f):
-    """Décorateur : accès réservé aux éditeurs (role editor ou admin)."""
-    @wraps(f)
-    @jwt_required()
-    def decorated_function(*args, **kwargs):
-        current_user_id = int(get_jwt_identity())
-        user = User.query.get(current_user_id)
-        if not user or not user.is_editor():
-            return jsonify({'error': 'Accès réservé aux éditeurs'}), 403
-        return f(*args, **kwargs)
-    return decorated_function
-
-
 def get_week_dates(reference_date=None):
     """Retourne les dates du lundi au dimanche de la semaine."""
     if reference_date is None:
@@ -91,9 +82,14 @@ def get_week_dates(reference_date=None):
     return [monday + timedelta(days=i) for i in range(7)]
 
 
-def get_default_restaurant():
-    """Retourne le premier restaurant actif."""
-    return Restaurant.query.filter_by(is_active=True).first()
+def _get_menu_scoped(menu_id):
+    """
+    Retourne le menu seulement s'il appartient au restaurant de l'utilisateur courant.
+    """
+    _, restaurant = get_user_and_restaurant()
+    if not restaurant:
+        return None
+    return Menu.query.filter_by(id=menu_id, restaurant_id=restaurant.id).first()
 
 
 def _sync_menu_items(menu, items_data):
@@ -102,8 +98,8 @@ def _sync_menu_items(menu, items_data):
     - Les items existants dont l'id est fourni sont mis à jour en place.
     - Les nouveaux items (sans id ou id inconnu) sont insérés.
     - Les items existants absents du payload sont supprimés.
-    - Les images liées (MenuItemImage) sont conservées pour les items maintenus.
     """
+    restaurant_id = menu.restaurant_id
     existing = {item.id: item for item in menu.items}
     incoming_ids = set()
 
@@ -112,44 +108,35 @@ def _sync_menu_items(menu, items_data):
         category_id = item_data.get('category_id')
 
         if item_id and item_id in existing:
-            # Mise à jour en place
             item = existing[item_id]
             item.category_id = category_id or item.category_id
-            item.name = item_data.get('name', item.name)
             item.order = item_data.get('order', idx)
-            item.replacement_label = item_data.get('replacement_label')
-            # is_out_of_stock n'est PAS réinitialisé ici (géré par l'endpoint /stock)
+            item.is_out_of_stock = item_data.get('is_out_of_stock', item.is_out_of_stock)
+            # Mise à jour du plat si dish_id fourni
+            new_dish_id = item_data.get('dish_id')
+            if new_dish_id and new_dish_id != item.dish_id:
+                dish = DishCatalog.query.filter_by(
+                    id=new_dish_id, restaurant_id=restaurant_id
+                ).first()
+                if dish:
+                    item.dish_id = dish.id
             incoming_ids.add(item_id)
         else:
-            # Nouvel item
+            dish = get_or_create_dish(restaurant_id, item_data)
+            if not dish:
+                continue
             item = MenuItem(
                 menu_id=menu.id,
                 category_id=category_id,
-                name=item_data.get('name', ''),
+                dish_id=dish.id,
                 order=item_data.get('order', idx),
-                replacement_label=item_data.get('replacement_label'),
+                is_out_of_stock=item_data.get('is_out_of_stock', False),
             )
             db.session.add(item)
-            db.session.flush()  # Obtenir l'id immédiatement
+            db.session.flush()
             incoming_ids.add(item.id)
 
-        # Sync tags
-        tag_ids = item_data.get('tags') or []
-        if isinstance(tag_ids, list):
-            if tag_ids and isinstance(tag_ids[0], dict):
-                tag_ids = [t['id'] for t in tag_ids]
-            item.tags = DietaryTag.query.filter(DietaryTag.id.in_(tag_ids)).all()
-
-        # Sync certifications
-        cert_ids = item_data.get('certifications') or []
-        if isinstance(cert_ids, list):
-            if cert_ids and isinstance(cert_ids[0], dict):
-                cert_ids = [c['id'] for c in cert_ids]
-            item.certifications = Certification.query.filter(
-                Certification.id.in_(cert_ids)
-            ).all()
-
-    # Supprimer les items retirés du payload (CASCADE supprime aussi leurs images)
+    # Supprimer les items retirés du payload
     for item_id, item in existing.items():
         if item_id not in incoming_ids:
             db.session.delete(item)
@@ -209,12 +196,24 @@ def _format_menu_for_display(menu):
 
     images_list = [img.to_dict() for img in menu.images] if hasattr(menu, 'images') else []
 
+    # Plats de substitution par catégorie (affichés si is_out_of_stock)
+    category_ids = list({item.category_id for item in menu.items})
+    subs_by_cat: dict[int, list] = {}
+    if category_ids:
+        subs = CategorySubstitution.query.filter(
+            CategorySubstitution.menu_id == menu.id,
+            CategorySubstitution.category_id.in_(category_ids),
+        ).order_by(CategorySubstitution.category_id, CategorySubstitution.order).all()
+        for s in subs:
+            subs_by_cat.setdefault(s.category_id, []).append(s.to_dict())
+
     return {
         'date': menu.date.isoformat(),
         'items': [item.to_dict() for item in menu.items],
         'by_category': by_category,
         'images': images_list,
         'chef_note': menu.chef_note,
+        'substitutions': subs_by_cat,
     }
 
 
@@ -306,19 +305,22 @@ def get_week_menu():
     except Exception:
         pass
 
-    restaurant = None
-    if not restaurant_id:
-        if is_editor and user and user.restaurant_id:
-            restaurant_id = user.restaurant_id
-            restaurant = Restaurant.query.get(restaurant_id)
+    if is_editor:
+        if user.restaurant_id:
+            restaurant = Restaurant.query.get(user.restaurant_id)
         else:
             restaurant = get_default_restaurant()
-            if restaurant:
-                restaurant_id = restaurant.id
-            else:
-                return jsonify({'error': 'Aucun restaurant configuré', 'menus': {}}), 200
-    else:
+        if not restaurant:
+            return jsonify({'error': 'Aucun restaurant configuré', 'menus': {}}), 200
+        restaurant_id = restaurant.id
+    elif restaurant_id:
         restaurant = Restaurant.query.get(restaurant_id)
+    else:
+        restaurant = get_default_restaurant()
+        if restaurant:
+            restaurant_id = restaurant.id
+        else:
+            return jsonify({'error': 'Aucun restaurant configuré', 'menus': {}}), 200
 
     reference_date = paris_today() + timedelta(weeks=week_offset)
     week_dates = get_week_dates(reference_date)
@@ -364,19 +366,20 @@ def get_week_menu():
 @menus_bp.response(200, MenuListSchema)
 @editor_required
 def list_menus():
-    """List menus with optional filters.
+    """List menus of the current user's restaurant, with optional filters.
 
-    Query params: `restaurant_id`, `start_date`, `end_date`, `status`
+    Query params: `start_date`, `end_date`, `status`
     """
-    restaurant_id = request.args.get('restaurant_id', type=int)
+    _, restaurant = get_user_and_restaurant()
+    if not restaurant:
+        return jsonify({'menus': []}), 200
+
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     status = request.args.get('status')
 
-    query = Menu.query
+    query = Menu.query.filter_by(restaurant_id=restaurant.id)
 
-    if restaurant_id:
-        query = query.filter_by(restaurant_id=restaurant_id)
     if start_date:
         try:
             query = query.filter(Menu.date >= datetime.strptime(start_date, '%Y-%m-%d').date())
@@ -407,7 +410,6 @@ def create_or_update_menu(data):
     (stable IDs preserved, linked images kept).
     """
     current_user_id = int(get_jwt_identity())
-    current_user = User.query.get(current_user_id)
 
     date_str = data.get('date')
     if not date_str:
@@ -418,16 +420,10 @@ def create_or_update_menu(data):
     except ValueError:
         return jsonify({'error': 'Format de date invalide (YYYY-MM-DD)'}), 400
 
-    restaurant_id = data.get('restaurant_id')
-    if not restaurant_id:
-        if current_user and current_user.restaurant_id:
-            restaurant_id = current_user.restaurant_id
-        else:
-            restaurant = get_default_restaurant()
-            if restaurant:
-                restaurant_id = restaurant.id
-            else:
-                return jsonify({'error': 'Aucun restaurant configuré'}), 400
+    _, restaurant = get_user_and_restaurant()
+    if not restaurant:
+        return jsonify({'error': 'Aucun restaurant configuré'}), 400
+    restaurant_id = restaurant.id
 
     menu = Menu.query.filter_by(restaurant_id=restaurant_id, date=menu_date).first()
     is_new = menu is None
@@ -440,16 +436,23 @@ def create_or_update_menu(data):
     if 'chef_note' in data:
         menu.chef_note = data['chef_note'][:300] if data['chef_note'] else None
 
-    _sync_menu_items(menu, data.get('items', []))
+    items_payload = data.get('items', [])
+    _sync_menu_items(menu, items_payload)
 
-    AuditLog.log(
-        action=AuditLog.ACTION_MENU_CREATE if is_new else AuditLog.ACTION_MENU_UPDATE,
-        user_id=current_user_id,
-        target_type='menu',
-        target_id=menu.id,
-        details={'date': date_str, 'items_count': len(data.get('items', []))},
-        ip_address=get_client_ip()
-    )
+    if not items_payload:
+        menu.status = 'draft'
+        menu.published_at = None
+        menu.published_by_id = None
+
+    if is_new or menu.status == 'published':
+        AuditLog.log(
+            action=AuditLog.ACTION_MENU_CREATE if is_new else AuditLog.ACTION_MENU_UPDATE,
+            user_id=current_user_id,
+            target_type='menu',
+            target_id=menu.id,
+            details={'date': date_str, 'items_count': len(items_payload)},
+            ip_address=get_client_ip()
+        )
 
     db.session.commit()
     return jsonify({
@@ -465,20 +468,15 @@ def create_or_update_menu(data):
 def publish_week(data):
     """Publish all draft menus for the week.
 
-    Optional JSON body: `{ "week_offset": 0, "restaurant_id": 1 }`
+    Optional JSON body: `{ "week_offset": 0 }`
     """
     current_user_id = int(get_jwt_identity())
-    current_user = User.query.get(current_user_id)
 
     week_offset = data.get('week_offset', 0)
-    restaurant_id = data.get('restaurant_id')
-    if not restaurant_id:
-        if current_user and current_user.restaurant_id:
-            restaurant_id = current_user.restaurant_id
-        else:
-            restaurant = get_default_restaurant()
-            if restaurant:
-                restaurant_id = restaurant.id
+    _, restaurant = get_user_and_restaurant()
+    if not restaurant:
+        return jsonify({'error': 'Aucun restaurant configuré'}), 400
+    restaurant_id = restaurant.id
 
     reference_date = paris_today() + timedelta(weeks=week_offset)
     week_dates = get_week_dates(reference_date)
@@ -526,15 +524,10 @@ def get_menu_by_date(date_str):
     except ValueError:
         return jsonify({'error': 'Format de date invalide (YYYY-MM-DD)'}), 400
 
-    current_user = User.query.get(int(get_jwt_identity()))
-    restaurant_id = request.args.get('restaurant_id', type=int)
-    if not restaurant_id:
-        if current_user and current_user.restaurant_id:
-            restaurant_id = current_user.restaurant_id
-        else:
-            restaurant = get_default_restaurant()
-            if restaurant:
-                restaurant_id = restaurant.id
+    _, restaurant = get_user_and_restaurant()
+    if not restaurant:
+        return jsonify({'error': 'Aucun restaurant configuré'}), 400
+    restaurant_id = restaurant.id
 
     menu = Menu.query.filter_by(restaurant_id=restaurant_id, date=menu_date).first()
     return jsonify({
@@ -550,7 +543,7 @@ def get_menu_by_date(date_str):
 @editor_required
 def get_menu(menu_id):
     """Get a menu by ID."""
-    menu = Menu.query.get(menu_id)
+    menu = _get_menu_scoped(menu_id)
     if not menu:
         return jsonify({'error': 'Menu non trouvé'}), 404
     return jsonify({'menu': menu.to_dict()}), 200
@@ -564,7 +557,7 @@ def get_menu(menu_id):
 def update_menu(data, menu_id):
     """Update an existing menu (items and/or chef note)."""
     current_user_id = int(get_jwt_identity())
-    menu = Menu.query.get(menu_id)
+    menu = _get_menu_scoped(menu_id)
     if not menu:
         return jsonify({'error': 'Menu non trouvé'}), 404
 
@@ -589,14 +582,18 @@ def update_menu(data, menu_id):
 
 @menus_bp.route('/<int:menu_id>/publish', methods=['POST'])
 @menus_bp.response(200, MenuSchema)
+@menus_bp.alt_response(400, schema=ErrorSchema)
 @menus_bp.alt_response(404, schema=ErrorSchema)
 @editor_required
 def publish_menu(menu_id):
     """Publish a menu (draft → published)."""
     current_user_id = int(get_jwt_identity())
-    menu = Menu.query.get(menu_id)
+    menu = _get_menu_scoped(menu_id)
     if not menu:
         return jsonify({'error': 'Menu non trouvé'}), 404
+
+    if menu.items.count() == 0:
+        return jsonify({'error': 'Impossible de publier un menu vide'}), 400
 
     menu.status = 'published'
     menu.published_at = datetime.now(UTC)
@@ -623,7 +620,7 @@ def publish_menu(menu_id):
 def unpublish_menu(menu_id):
     """Revert a published menu to draft."""
     current_user_id = int(get_jwt_identity())
-    menu = Menu.query.get(menu_id)
+    menu = _get_menu_scoped(menu_id)
     if not menu:
         return jsonify({'error': 'Menu non trouvé'}), 404
 
@@ -652,7 +649,7 @@ def unpublish_menu(menu_id):
 def delete_menu(menu_id):
     """Delete a menu and all associated data (items, S3 images)."""
     current_user_id = int(get_jwt_identity())
-    menu = Menu.query.get(menu_id)
+    menu = _get_menu_scoped(menu_id)
     if not menu:
         return jsonify({'error': 'Menu non trouvé'}), 404
 
@@ -690,7 +687,11 @@ def update_item_stock(data, menu_id, item_id):
 
     JSON body: `{ "is_out_of_stock": true }`
     """
-    item = MenuItem.query.filter_by(id=item_id, menu_id=menu_id).first()
+    menu = _get_menu_scoped(menu_id)
+    if not menu:
+        return jsonify({'error': 'Menu non trouvé'}), 404
+
+    item = MenuItem.query.filter_by(id=item_id, menu_id=menu.id).first()
     if not item:
         return jsonify({'error': 'Item introuvable'}), 404
 
@@ -719,7 +720,7 @@ def upload_menu_image(menu_id):
     Accepts JPEG, PNG, WebP, HEIC formats (converted to JPEG).
     Multipart/form-data with `file` field.
     """
-    menu = Menu.query.get(menu_id)
+    menu = _get_menu_scoped(menu_id)
     if not menu:
         return jsonify({'error': 'Menu non trouvé'}), 404
 
@@ -775,7 +776,11 @@ def upload_menu_image(menu_id):
 @editor_required
 def delete_menu_image(menu_id, image_id):
     """Delete a menu image from S3 and database."""
-    image = MenuImage.query.filter_by(id=image_id, menu_id=menu_id).first()
+    menu = _get_menu_scoped(menu_id)
+    if not menu:
+        return jsonify({'error': 'Menu non trouvé'}), 404
+
+    image = MenuImage.query.filter_by(id=image_id, menu_id=menu.id).first()
     if not image:
         return jsonify({'error': 'Image non trouvée'}), 404
 
@@ -796,7 +801,7 @@ def reorder_menu_images(menu_id):
 
     JSON body: `{ "image_ids": [3, 1, 2] }`
     """
-    menu = Menu.query.get(menu_id)
+    menu = _get_menu_scoped(menu_id)
     if not menu:
         return jsonify({'error': 'Menu non trouvé'}), 404
 
@@ -823,7 +828,7 @@ def reorder_menu_images(menu_id):
 @editor_required
 def update_chef_note(menu_id):
     """Update the chef note for a menu (max 300 characters)."""
-    menu = Menu.query.get(menu_id)
+    menu = _get_menu_scoped(menu_id)
     if not menu:
         return jsonify({'error': 'Menu non trouvé'}), 404
 
@@ -835,62 +840,184 @@ def update_chef_note(menu_id):
 
 
 # ============================================================
-# IMAGES PAR ITEM (liens vers galerie)
+# SUBSTITUTIONS PAR CATÉGORIE (per-menu)
 # ============================================================
 
-@menus_bp.route('/<int:menu_id>/items/<int:item_id>/images', methods=['POST'])
-@menus_bp.response(200, MessageSchema)
-@menus_bp.alt_response(400, schema=ErrorSchema)
-@menus_bp.alt_response(404, schema=ErrorSchema)
+@menus_bp.route('/<int:menu_id>/substitutions', methods=['GET'])
 @editor_required
-def add_item_image(menu_id, item_id):
-    """Link a gallery image to a specific menu item.
+def get_menu_substitutions(menu_id):
+    """Retourne les substituts de toutes les catégories pour ce menu.
 
-    JSON body: `{ "gallery_image_id": 12, "display_order": 0 }`
-    Max 3 images per item.
+    Response: { "substitutions": { "<category_id>": [{"dish": {...}, "order": 0}, ...] } }
     """
-    item = MenuItem.query.filter_by(id=item_id, menu_id=menu_id).first()
-    if not item:
-        return jsonify({'error': 'Item introuvable'}), 404
+    menu = _get_menu_scoped(menu_id)
+    if not menu:
+        return jsonify({'error': 'Menu non trouvé'}), 404
 
-    data = request.get_json() or {}
-    gallery_image_id = data.get('gallery_image_id')
-    if not gallery_image_id or not GalleryImage.query.get(gallery_image_id):
-        return jsonify({'error': 'Image de galerie introuvable'}), 404
+    subs: dict[str, list] = {}
+    for s in CategorySubstitution.query.filter_by(menu_id=menu_id).order_by(CategorySubstitution.order).all():
+        key = str(s.category_id)
+        if key not in subs:
+            subs[key] = []
+        subs[key].append({'dish': s.dish.to_dict() if s.dish else None, 'order': s.order})
 
-    existing_count = MenuItemImage.query.filter_by(menu_item_id=item_id).count()
-    if existing_count >= 3:
-        return jsonify({'error': 'Maximum 3 images par item'}), 400
-
-    link = MenuItemImage(
-        menu_item_id=item_id,
-        gallery_image_id=gallery_image_id,
-        display_order=data.get('display_order', existing_count),
-    )
-    db.session.add(link)
-    db.session.commit()
-
-    return jsonify({'message': 'Image liée', 'link': link.to_dict()}), 200
+    return jsonify({'substitutions': subs}), 200
 
 
-@menus_bp.route('/<int:menu_id>/items/<int:item_id>/images/<int:link_id>', methods=['DELETE'])
-@menus_bp.response(200, MessageSchema)
-@menus_bp.alt_response(404, schema=ErrorSchema)
+@menus_bp.route('/<int:menu_id>/substitutions/<int:category_id>', methods=['PUT'])
 @editor_required
-def remove_item_image(menu_id, item_id, link_id):
-    """Remove a gallery image link from a menu item (does not delete the photo)."""
-    link = MenuItemImage.query.filter_by(
-        id=link_id, menu_item_id=item_id
-    ).first()
-    if not link:
-        return jsonify({'error': 'Lien non trouvé'}), 404
+def set_menu_category_substitutions(menu_id, category_id):
+    """Définit les substituts pour une catégorie dans ce menu.
 
-    # Vérifier que l'item appartient bien au menu
-    item = MenuItem.query.filter_by(id=item_id, menu_id=menu_id).first()
-    if not item:
-        return jsonify({'error': 'Item introuvable'}), 404
+    Body: { "dish_ids": [1, 2, 3] }  (ordonnés par priorité, max 3)
+    Remplace la liste existante pour cette catégorie.
+    """
+    menu = _get_menu_scoped(menu_id)
+    if not menu:
+        return jsonify({'error': 'Menu non trouvé'}), 404
 
-    db.session.delete(link)
+    data = request.get_json(silent=True) or {}
+    dish_ids = data.get('dish_ids', [])[:3]  # max 3 substituts
+
+    # Supprimer les substitutions existantes pour ce menu + catégorie
+    CategorySubstitution.query.filter_by(menu_id=menu_id, category_id=category_id).delete()
+
+    for order, dish_id in enumerate(dish_ids):
+        dish = DishCatalog.query.filter_by(id=dish_id, restaurant_id=menu.restaurant_id).first()
+        if not dish:
+            continue
+        sub = CategorySubstitution(
+            menu_id=menu_id,
+            category_id=category_id,
+            dish_id=dish_id,
+            order=order,
+        )
+        db.session.add(sub)
+
     db.session.commit()
 
-    return jsonify({'message': 'Image retirée de l\'item'}), 200
+    result = CategorySubstitution.query.filter_by(
+        menu_id=menu_id, category_id=category_id
+    ).order_by(CategorySubstitution.order).all()
+    return jsonify({
+        'substitutions': [{'dish': s.dish.to_dict() if s.dish else None, 'order': s.order} for s in result]
+    }), 200
+
+
+# ============================================================
+# JOURS FÉRIÉS (public, proxy data.gouv.fr + cache Redis)
+# ============================================================
+
+@menus_bp.route('/jours-feries/<int:year>', methods=['GET'])
+@limiter.limit('30 per minute')
+def get_jours_feries(year):
+    """Retourne les jours fériés français pour une année donnée.
+
+    Source : https://calendrier.api.gouv.fr/jours-feries/metropole/<year>.json
+    Cache Redis 24h (voir services/holidays.py).
+    Response: [ { "date": "2026-01-01", "description": "Jour de l'An" }, ... ]
+    """
+    if year < 2020 or year > 2040:
+        return jsonify({'error': 'Année hors plage (2020-2040)'}), 400
+
+    result = holidays.get_jours_feries(year)
+    if result is None:
+        return jsonify({'error': 'Impossible de charger les jours fériés'}), 502
+
+    return jsonify({'jours_feries': result}), 200
+
+
+# ============================================================
+# VACANCES SCOLAIRES (proxy education.gouv.fr + cache Redis)
+# ============================================================
+
+@menus_bp.route('/vacances-scolaires/<int:year>', methods=['GET'])
+@editor_required
+def get_vacances_scolaires(year):
+    """Retourne les vacances scolaires françaises pour une année donnée.
+
+    Source : API data.education.gouv.fr (calendrier scolaire).
+    Cache Redis 24h. Zone : A, B ou C.
+    Response: { vacances: [{ start_date, end_date, description }] }
+    """
+    import json as _json
+
+    import requests as http_requests
+
+    from ..security import _get_blacklist_redis
+
+    if year < 2020 or year > 2040:
+        return jsonify({'error': 'Année hors plage (2020-2040)'}), 400
+
+    zone = request.args.get('zone', '').upper()
+    if zone not in ('A', 'B', 'C'):
+        zone = 'A'
+
+    cache_key = f'vacances_scolaires:{year}:{zone}'
+    r = _get_blacklist_redis()
+
+    if r:
+        try:
+            cached = r.get(cache_key)
+            if cached:
+                return jsonify({'vacances': _json.loads(cached)}), 200
+        except Exception:
+            pass
+
+    # API data.education.gouv.fr
+    try:
+        zones_map = {'A': 'Zone A', 'B': 'Zone B', 'C': 'Zone C'}
+        zone_name = zones_map.get(zone, 'Zone A')
+
+        resp = http_requests.get(
+            'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/'
+            'fr-en-calendrier-scolaire/records',
+            params={
+                'where': (
+                    f'(zones="{zone_name}" AND annee_scolaire="{year-1}-{year}") OR '
+                    f'(zones="{zone_name}" AND annee_scolaire="{year}-{year+1}")'
+                ),
+                'limit': 100,
+                'order_by': 'start_date',
+            },
+            timeout=8,
+        )
+        resp.raise_for_status()
+        records = resp.json().get('results', [])
+
+        # L'API renvoie un enregistrement par académie, on déduplique par description + dates
+        def _to_paris_date(value: str) -> str:
+            dt = datetime.fromisoformat(value)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=UTC)
+            return dt.astimezone(PARIS_TZ).date().isoformat()
+
+        deduped: dict[tuple[str, str, str], dict] = {}
+        for rec in records:
+            raw_start = rec.get('start_date')
+            raw_end = rec.get('end_date')
+            if not raw_start or not raw_end:
+                continue
+            start = _to_paris_date(raw_start)
+            end = _to_paris_date(raw_end)
+            desc = rec.get('description', '')
+            deduped[(desc, start, end)] = {
+                'start_date': start,
+                'end_date': end,
+                'description': desc,
+            }
+
+        result = sorted(deduped.values(), key=lambda v: v['start_date'])
+
+    except Exception:
+        return jsonify({'error': 'Impossible de charger les vacances scolaires'}), 502
+
+    if r and result:
+        try:
+            r.setex(cache_key, 86400, _json.dumps(result))
+        except Exception:
+            pass
+
+    return jsonify({'vacances': result}), 200
+
+

@@ -5,7 +5,9 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { isAxiosError } from 'axios';
 import { adminApi } from '@/lib/api';
+import { notify } from '@/lib/toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -13,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Shield, Download, ChevronLeft, ChevronRight, AlertTriangle, Search } from 'lucide-react';
+import { Shield, Download, ChevronLeft, ChevronRight, AlertTriangle, Search, X } from 'lucide-react';
 
 interface AuditLog {
     id: number;
@@ -22,7 +24,7 @@ interface AuditLog {
     action: string;
     target_type: string | null;
     target_id: number | null;
-    details: any;
+    details: Record<string, unknown> | null;
     ip_address: string | null;
     created_at: string;
 }
@@ -63,6 +65,11 @@ const ACTION_LABELS: Record<string, string> = {
     'passkey_setup': 'Activation passkey (compte)',
     'passkey_renamed': 'Renommage passkey',
     'passkey_deleted': 'Suppr. passkey',
+    'dish_create': 'Création plat',
+    'dish_update': 'Modif. plat',
+    'dish_delete': 'Suppr. plat',
+    'dish_image_upload': 'Upload image plat',
+    'dish_image_delete': 'Suppr. image plat',
 };
 
 // Couleurs des badges par catégorie d'action
@@ -81,6 +88,7 @@ export function AuditLogsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [mfaRequired, setMfaRequired] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
+    const [selectedDetails, setSelectedDetails] = useState<Record<string, unknown> | null>(null);
 
     // Pagination
     const [page, setPage] = useState(1);
@@ -105,11 +113,9 @@ export function AuditLogsPage() {
             setTotal(response.total);
             setTotalPages(response.pages);
             setMfaRequired(false);
-        } catch (error: any) {
-            if (error.response?.data?.error === 'MFA_REQUIRED') {
+        } catch (error) {
+            if (isAxiosError(error) && error.response?.data?.error === 'MFA_REQUIRED') {
                 setMfaRequired(true);
-            } else {
-                console.error('Erreur chargement logs:', error);
             }
         } finally {
             setIsLoading(false);
@@ -131,8 +137,8 @@ export function AuditLogsPage() {
             await adminApi.exportAuditLogs({
                 action: actionFilter || undefined
             });
-        } catch (error) {
-            console.error('Erreur export:', error);
+        } catch {
+            notify.error("Erreur lors de l'export CSV");
         } finally {
             setIsExporting(false);
         }
@@ -300,7 +306,7 @@ export function AuditLogsPage() {
                                             {log.details && (
                                                 <button
                                                     className="text-xs text-primary hover:underline"
-                                                    onClick={() => alert(JSON.stringify(log.details, null, 2))}
+                                                    onClick={() => setSelectedDetails(log.details)}
                                                 >
                                                     Voir
                                                 </button>
@@ -342,6 +348,29 @@ export function AuditLogsPage() {
                         </div>
                     </div>
                 </>
+            )}
+
+            {/* Détails d'un log */}
+            {selectedDetails && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelectedDetails(null)}>
+                    <div
+                        className="bg-card rounded-lg p-6 max-w-lg w-full max-h-[80vh] flex flex-col border border-border shadow-xl"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between mb-3 shrink-0">
+                            <h3 className="font-semibold text-foreground">Détails du log</h3>
+                            <button
+                                onClick={() => setSelectedDetails(null)}
+                                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <pre className="flex-1 overflow-auto text-xs text-foreground bg-muted p-3 rounded-lg font-mono">
+                            {JSON.stringify(selectedDetails, null, 2)}
+                        </pre>
+                    </div>
+                </div>
             )}
         </div>
     );

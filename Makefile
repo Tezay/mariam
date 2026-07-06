@@ -1,4 +1,4 @@
-.PHONY: dev test lint format db-migrate db-upgrade db-downgrade db-seed db-demo logs
+.PHONY: dev test lint format db-migrate db-upgrade db-downgrade db-seed db-demo db-seed-categories logs
 
 dev:
 	docker compose up -d --build
@@ -28,6 +28,9 @@ db-seed:
 
 db-demo:
 	docker compose exec backend flask seed-demo
+
+db-seed-categories:
+	docker compose exec backend flask seed-categories
 
 logs:
 	docker compose logs -f backend

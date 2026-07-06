@@ -1,11 +1,20 @@
-import { useState, useRef } from 'react';
-import { Upload, ChevronRight, Check } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronRight, Check } from 'lucide-react';
 import { csvImportApi } from '@/lib/api';
+import { notify } from '@/lib/toast';
 import type { CsvUploadResponse, ImportPreviewResponse, ColumnMapping, MenuCategory } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet';
+import { CsvStepIndicator } from '@/components/csv-import/CsvStepIndicator';
+import { CsvDropzone } from '@/components/csv-import/CsvDropzone';
 
 type Step = 'upload' | 'mapping' | 'preview';
+
+const STEPS = [
+    { id: 'upload' as const, label: 'Fichier' },
+    { id: 'mapping' as const, label: 'Colonnes' },
+    { id: 'preview' as const, label: 'Confirmer' },
+];
 
 interface DayImportCsvProps {
     open: boolean;
@@ -17,7 +26,6 @@ interface DayImportCsvProps {
 }
 
 export function DayImportCsv({ open, targetDate, restaurantId, categories, onClose, onImported }: DayImportCsvProps) {
-    const fileRef = useRef<HTMLInputElement>(null);
     const [step, setStep] = useState<Step>('upload');
     const [uploadData, setUploadData] = useState<CsvUploadResponse | null>(null);
     const [mapping, setMapping] = useState<ColumnMapping[]>([]);
@@ -90,6 +98,8 @@ export function DayImportCsv({ open, targetDate, restaurantId, categories, onClo
                 auto_publish: false,
                 restaurant_id: restaurantId,
             });
+            const count = previewData?.new_count ?? 0;
+            notify.success(`${count} menu${count > 1 ? 's' : ''} importé${count > 1 ? 's' : ''}`);
             onImported();
         } catch {
             setError('Erreur lors de la confirmation.');
@@ -107,38 +117,11 @@ export function DayImportCsv({ open, targetDate, restaurantId, categories, onClo
                     <SheetTitle>Importer depuis un fichier CSV</SheetTitle>
                 </SheetHeader>
 
-                {/* Step indicator */}
-                <div className="flex items-center gap-2 px-1 py-2">
-                    {(['upload', 'mapping', 'preview'] as Step[]).map((s, i) => (
-                        <div key={s} className="flex items-center gap-2">
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${step === s ? 'bg-primary text-white' : step > s ? 'bg-primary/30 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                                {i + 1}
-                            </div>
-                            <span className={`text-xs ${step === s ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                                {s === 'upload' ? 'Fichier' : s === 'mapping' ? 'Colonnes' : 'Confirmer'}
-                            </span>
-                            {i < 2 && <ChevronRight className="w-3 h-3 text-muted-foreground" />}
-                        </div>
-                    ))}
-                </div>
+                <CsvStepIndicator steps={STEPS} current={step} />
 
                 <div className="flex-1 overflow-y-auto py-4 space-y-4">
                     {step === 'upload' && (
-                        <div
-                            className="flex flex-col items-center gap-3 p-8 rounded-2xl border-2 border-dashed border-border cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
-                            onClick={() => fileRef.current?.click()}
-                        >
-                            <Upload className="w-8 h-8 text-muted-foreground" />
-                            <p className="text-sm font-medium text-foreground">Choisir un fichier CSV</p>
-                            <p className="text-xs text-muted-foreground">CSV, délimiteur auto-détecté</p>
-                            <input
-                                ref={fileRef}
-                                type="file"
-                                accept=".csv"
-                                className="hidden"
-                                onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); }}
-                            />
-                        </div>
+                        <CsvDropzone accept=".csv" hint="CSV, délimiteur auto-détecté" onFile={handleUpload} />
                     )}
 
                     {step === 'mapping' && uploadData && (

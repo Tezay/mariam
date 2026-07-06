@@ -21,23 +21,29 @@ interface MobileItemCardProps {
     categoryColor: CategoryColor;
     isHighlighted: boolean;
     imagePosition?: 'left' | 'right';
+    isNew?: boolean;
     onTap: () => void;
 }
 
-function StockBubble({ type }: { type: 'rupture' | 'nouveau' }) {
-    const cls = type === 'rupture'
-        ? 'bg-red-500 text-white'
-        : 'bg-orange-400 text-white';
+function StockBubble() {
     return (
-        <span className={`absolute top-0 left-3 -translate-y-1/2 z-30 ${cls} text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full whitespace-nowrap`}>
-            {type === 'rupture' ? 'Rupture' : 'Nouveau'}
+        <span className="absolute top-0 left-3 -translate-y-1/2 z-30 bg-red-500 text-white text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full whitespace-nowrap">
+            Rupture
+        </span>
+    );
+}
+
+function NewBubble() {
+    return (
+        <span className="absolute top-0 left-3 -translate-y-1/2 z-30 bg-[#F5A524] text-[#4A2E00] text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full whitespace-nowrap">
+            Nouveau
         </span>
     );
 }
 
 function BadgesBubble({ tags, certs }: {
-    tags: NonNullable<MenuItemData['tags']>;
-    certs: NonNullable<MenuItemData['certifications']>;
+    tags: NonNullable<MenuItemData['dish']>['tags'];
+    certs: NonNullable<MenuItemData['dish']>['certifications'];
 }) {
     const hasTags = tags.length > 0;
     const hasCerts = certs.length > 0;
@@ -72,20 +78,17 @@ function BadgesBubble({ tags, certs }: {
     );
 }
 
-export function MobileItemCard({ item, categoryColor, isHighlighted, imagePosition = 'right', onTap }: MobileItemCardProps) {
+export function MobileItemCard({ item, categoryColor, isHighlighted, imagePosition = 'right', isNew = false, onTap }: MobileItemCardProps) {
     const [imgLoaded, setImgLoaded] = useState(false);
 
     const isOutOfStock = item.is_out_of_stock ?? false;
-    const hasReplacement = isOutOfStock && !!item.replacement_label;
-    const certs = item.certifications ?? [];
-    const tags = item.tags ?? [];
-    const firstImage = item.images?.[0]?.url;
-
-    const displayName = hasReplacement ? item.replacement_label! : item.name;
-    const isStrikethrough = isOutOfStock && !hasReplacement;
+    const dishName = item.dish?.name ?? '';
+    const certs = item.dish?.certifications ?? [];
+    const tags = item.dish?.tags ?? [];
+    const dishImage = item.dish?.image_url ?? undefined;
 
     if (isHighlighted) {
-        const showImage = !!firstImage;
+        const showImage = !!dishImage;
 
         return (
             <div className="relative">
@@ -101,8 +104,8 @@ export function MobileItemCard({ item, categoryColor, isHighlighted, imagePositi
                                 <div className="absolute inset-0 rounded-2xl animate-pulse bg-gray-200" />
                             )}
                             <img
-                                src={firstImage}
-                                alt={item.name}
+                                src={dishImage}
+                                alt={dishName}
                                 className={`w-full h-full object-cover transition-opacity duration-200 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
                                 onLoad={() => setImgLoaded(true)}
                             />
@@ -117,16 +120,14 @@ export function MobileItemCard({ item, categoryColor, isHighlighted, imagePositi
                             borderBottom: `4px solid ${categoryColor.border}`,
                         }}
                     >
-                        {isOutOfStock && (
-                            <StockBubble type={hasReplacement ? 'nouveau' : 'rupture'} />
-                        )}
+                        {isOutOfStock && <StockBubble />}
+                        {isNew && <NewBubble />}
                         <p
-                            className={`text-base font-bold line-clamp-2 leading-snug ${isStrikethrough ? 'line-through opacity-60' : ''}`}
+                            className={`text-base font-bold line-clamp-2 leading-snug ${isOutOfStock ? 'line-through opacity-60' : ''}`}
                             style={{ color: categoryColor.label }}
                         >
-                            {displayName}
+                            {dishName}
                         </p>
-                        {/* Bulles tags (gauche) et certifications (droite) */}
                         <BadgesBubble tags={tags} certs={certs} />
                     </div>
 
@@ -137,8 +138,8 @@ export function MobileItemCard({ item, categoryColor, isHighlighted, imagePositi
                                 <div className="absolute inset-0 rounded-2xl animate-pulse bg-gray-200" />
                             )}
                             <img
-                                src={firstImage}
-                                alt={item.name}
+                                src={dishImage}
+                                alt={dishName}
                                 className={`w-full h-full object-cover transition-opacity duration-200 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
                                 onLoad={() => setImgLoaded(true)}
                             />
@@ -163,18 +164,16 @@ export function MobileItemCard({ item, categoryColor, isHighlighted, imagePositi
                     paddingBottom: '10px',
                 }}
             >
-                {isOutOfStock && (
-                    <StockBubble type={hasReplacement ? 'nouveau' : 'rupture'} />
-                )}
+                {isOutOfStock && <StockBubble />}
+                {isNew && <NewBubble />}
                 <p
-                    className={`text-sm font-bold line-clamp-1 leading-tight w-full ${isStrikethrough ? 'line-through opacity-60' : ''}`}
+                    className={`text-sm font-bold line-clamp-1 leading-tight w-full ${isOutOfStock ? 'line-through opacity-60' : ''}`}
                     style={{ color: categoryColor.label }}
                 >
-                    {displayName}
+                    {dishName}
                 </p>
             </button>
 
-            {/* Bulles tags (gauche) et certifications (droite) */}
             <BadgesBubble tags={tags} certs={certs} />
         </div>
     );

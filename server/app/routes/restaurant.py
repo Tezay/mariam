@@ -13,8 +13,6 @@ Admin endpoints:
 - POST /v1/restaurants       Create a restaurant
 - PUT  /v1/restaurants/<id>  Update a restaurant
 """
-from functools import wraps
-
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_smorest import Blueprint
@@ -22,31 +20,16 @@ from flask_smorest import Blueprint
 from ..extensions import db
 from ..models import AuditLog, Certification, DietaryTag, Restaurant, RestaurantServiceHours, User
 from ..models.category import MenuCategory
+from ..models.restaurant_calendar import RestaurantCalendarSettings
 from ..schemas.common import ErrorSchema
 from ..schemas.restaurant import RestaurantSchema, RestaurantUpdateSchema
 from ..security import get_client_ip, limiter
+from .helpers import admin_required
 
 restaurant_bp = Blueprint(
     'restaurant', __name__,
     description='Restaurant — Public info, settings and management'
 )
-
-
-# ============================================================
-# HELPERS
-# ============================================================
-
-def admin_required(f):
-    """Décorateur : accès réservé aux administrateurs."""
-    @wraps(f)
-    @jwt_required()
-    def decorated_function(*args, **kwargs):
-        current_user_id = int(get_jwt_identity())
-        user = User.query.get(current_user_id)
-        if not user or not user.is_admin():
-            return jsonify({'error': 'Accès réservé aux administrateurs'}), 403
-        return f(*args, **kwargs)
-    return decorated_function
 
 
 # ============================================================
@@ -315,3 +298,69 @@ def update_restaurant(data, restaurant_id):
     db.session.commit()
 
     return jsonify({'message': 'Restaurant mis à jour', 'restaurant': restaurant.to_dict()}), 200
+
+
+# ============================================================
+# CALENDAR SETTINGS
+# ============================================================
+
+@restaurant_bp.route('/restaurant/calendar-settings', methods=['GET'])
+@jwt_required()
+@restaurant_bp.response(200, RestaurantSchema)
+def get_calendar_settings():
+    """Retourne les paramètres calendrier du restaurant actif."""
+    user = User.query.get(int(get_jwt_identity()))
+    if not user:
+        return jsonify({'error': 'Non authentifié'}), 401
+
+    restaurant_id = user.restaurant_id
+    if not restaurant_id:
+        r = Restaurant.query.filter_by(is_active=True).first()
+        restaurant_id = r.id if r else None
+    if not restaurant_id:
+        return jsonify({'error': 'Aucun restaurant'}), 404
+
+    settings = RestaurantCalendarSettings.query.filter_by(restaurant_id=restaurant_id).first()
+    if not settings:
+        return jsonify({
+            'show_public_holidays': True,
+            'show_school_vacations': False,
+            'school_vacation_zone': None,
+        }), 200
+
+    return jsonify(settings.to_dict()), 200
+
+
+@restaurant_bp.route('/restaurant/calendar-settings', methods=['PUT'])
+@jwt_required()
+@restaurant_bp.response(200, RestaurantSchema)
+@admin_required
+def update_calendar_settings():
+    """Met à jour les paramètres calendrier du restaurant actif (admin only)."""
+    data = request.get_json(silent=True) or {}
+    user = User.query.get(int(get_jwt_identity()))
+    if not user:
+        return jsonify({'error': 'Non authentifié'}), 401
+
+    restaurant_id = user.restaurant_id
+    if not restaurant_id:
+        r = Restaurant.query.filter_by(is_active=True).first()
+        restaurant_id = r.id if r else None
+    if not restaurant_id:
+        return jsonify({'error': 'Aucun restaurant'}), 404
+
+    settings = RestaurantCalendarSettings.query.filter_by(restaurant_id=restaurant_id).first()
+    if not settings:
+        settings = RestaurantCalendarSettings(restaurant_id=restaurant_id)
+        db.session.add(settings)
+
+    if 'show_public_holidays' in data:
+        settings.show_public_holidays = bool(data['show_public_holidays'])
+    if 'show_school_vacations' in data:
+        settings.show_school_vacations = bool(data['show_school_vacations'])
+    if 'school_vacation_zone' in data:
+        zone = data['school_vacation_zone']
+        settings.school_vacation_zone = zone if zone in ('A', 'B', 'C') else None
+
+    db.session.commit()
+    return jsonify(settings.to_dict()), 200

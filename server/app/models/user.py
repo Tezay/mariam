@@ -43,6 +43,9 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)
 
+    # Préférences de notifications in-app
+    notification_preferences = db.Column(db.JSON, nullable=True, default=None)
+
     # Passkeys WebAuthn
     passkeys = db.relationship('Passkey', back_populates='user', lazy='dynamic', cascade='all, delete-orphan')
     
@@ -113,6 +116,15 @@ class User(db.Model):
         """Vérifie si l'utilisateur peut gérer les autres utilisateurs."""
         return self.role == self.ROLE_ADMIN
     
+    def get_notification_preferences(self) -> dict:
+        defaults = {
+            'notify_menu_unpublished': True,
+            'notify_menu_during_service': True,
+            'notify_holiday_approaching': True,
+            'holiday_alert_days_before': 5,
+        }
+        return {**defaults, **(self.notification_preferences or {})}
+
     def update_last_login(self):
         """Met à jour la date de dernière connexion."""
         self.last_login = datetime.utcnow()

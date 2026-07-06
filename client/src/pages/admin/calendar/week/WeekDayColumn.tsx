@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
+import { useDroppable } from '@dnd-kit/core';
 import { CalendarOff, Pencil } from 'lucide-react';
-import type { Event, MenuCategory, MenuItem } from '@/lib/api';
+import type { DishCatalogItem, Event, MenuCategory, MenuItem } from '@/lib/api';
 import type { DayData } from '../useCalendarData';
 import { EventCard } from '../EventCard';
 import { useMenuEditor } from '../day/useMenuEditor';
 import { WeekCategoryBox } from './WeekCategoryBox';
 import { AddMenuCTA } from './AddMenuCTA';
+import { DayImportCsv } from '../day/DayImportCsv';
 import { cn } from '@/lib/utils';
+import { SelectionCheckbox } from '../selection/SelectionCheckbox';
+import { ChefNotePopover } from '../day/ChefNotePopover';
 import type { UseSelectionReturn } from '../selection/useSelection';
 import { CLOSURE_HATCH_STYLE } from '../closure/closureStyle';
 import { ClosureEditor } from '../closure/ClosureEditor';
@@ -26,9 +30,13 @@ interface WeekDayColumnProps {
     canEdit: boolean;
     categories: MenuCategory[];
     selection: UseSelectionReturn;
-    onNavigateDay: (date: string) => void;
+    onStartOnboarding: (date: string) => void;
     onReload: () => void;
     onDirtyChange: (date: string, dirty: boolean, save: () => Promise<void>, reset: () => void) => void;
+    onRegisterDrop?: (fn: (categoryId: number, dishId: number, dish?: DishCatalogItem) => void) => void;
+    onRegisterRemove?: (fn: (itemId: number) => void) => void;
+    onRegisterUpdateItem?: (fn: (itemId: number, changes: Partial<MenuItem>) => void) => void;
+    onRegisterGetItems?: (fn: () => MenuItem[]) => void;
     onEditEvent?: (event: Event) => void;
 }
 
@@ -40,23 +48,56 @@ export function WeekDayColumn({
     canEdit,
     categories,
     selection,
-    onNavigateDay,
+    onStartOnboarding,
     onReload,
     onDirtyChange,
+    onRegisterDrop,
+    onRegisterRemove,
+    onRegisterUpdateItem,
+    onRegisterGetItems,
     onEditEvent,
 }: WeekDayColumnProps) {
     const dayNum = parseInt(date.split('-')[2], 10);
     const closure = dayData?.closure ?? null;
     const menu = dayData?.menu ?? null;
     const [closureEditorOpen, setClosureEditorOpen] = useState(false);
+    const [importMode, setImportMode] = useState<'csv' | null>(null);
 
     const editor = useMenuEditor({ date, menu, restaurantId });
+
+    const { setNodeRef: setDropRef, isOver } = useDroppable({
+        id: `week-col-drop-${date}`,
+        data: { date },
+    });
 
     // Keep latest save/reset in refs so the effect closure stays stable
     const saveRef = useRef(editor.save);
     const resetRef = useRef(editor.reset);
     useEffect(() => { saveRef.current = editor.save; }, [editor.save]);
     useEffect(() => { resetRef.current = editor.reset; }, [editor.reset]);
+
+    // Expose addItem/removeItem to WeekView for cross-day drops (MOVE semantics)
+    useEffect(() => {
+        onRegisterDrop?.((categoryId, dishId, dish) => editor.addItem(categoryId, dishId, dish));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [onRegisterDrop]);
+
+    useEffect(() => {
+        onRegisterRemove?.((itemId) => editor.removeItem(itemId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [onRegisterRemove]);
+
+    useEffect(() => {
+        onRegisterUpdateItem?.((itemId, changes) => editor.updateItem(itemId, changes));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [onRegisterUpdateItem]);
+
+    // Accesseur d'items vivants : lit toujours l'état courant de l'éditeur (ref).
+    const itemsRef = useRef(editor.items);
+    itemsRef.current = editor.items;
+    useEffect(() => {
+        onRegisterGetItems?.(() => itemsRef.current);
+    }, [onRegisterGetItems]);
 
     useEffect(() => {
         onDirtyChange(date, editor.isDirty, () => saveRef.current(), () => resetRef.current());
@@ -75,12 +116,6 @@ export function WeekDayColumn({
         })
         .filter(({ items }) => items.length > 0);
 
-    const isSelected = (itemId: number) =>
-        selection.isSelected({ type: 'item', itemId, date, categoryId: 0 });
-
-    const toggleItem = (item: MenuItem) =>
-        selection.toggleItem({ type: 'item', itemId: item.id!, date, categoryId: item.category_id });
-
     return (
         <div
             className={cn(
@@ -88,57 +123,94 @@ export function WeekDayColumn({
                 isToday && !closure && 'bg-primary/5',
             )}
             style={closure ? CLOSURE_HATCH_STYLE : undefined}
+            data-day-date={date}
+            data-day-menu-id={menu?.id}
         >
             {/* Header */}
             <div className={cn(
-                'relative px-2 py-2.5 text-center border-b border-border',
-                closure ? 'bg-white/60' : 'bg-card',
-                isToday && !closure && 'bg-primary/5',
+                'sticky top-0 z-20 flex items-center justify-center px-2 min-h-[40px] border-b border-border',
+                closure ? 'bg-card/95 backdrop-blur-sm' : 'bg-card',
+                isToday && !closure && 'bg-primary/5 backdrop-blur-sm',
             )}>
-                <p className={cn(
-                    'text-[10px] font-semibold uppercase tracking-wide',
-                    closure ? 'text-gray-400' : 'text-muted-foreground',
-                )}>
-                    {getDayOfWeekLabel(date)}
-                </p>
-                <p className={cn(
-                    'text-lg font-bold mt-0.5 w-7 h-7 flex items-center justify-center rounded-full mx-auto',
-                    isToday && !closure ? 'bg-primary text-white' : closure ? 'text-gray-400' : 'text-foreground',
-                )}>
-                    {dayNum}
-                </p>
-                {canEdit && editor.menuStatus !== null && !closure && (
-                    <button
-                        type="button"
-                        onClick={editor.menuStatus === 'published' ? editor.unpublishMenu : editor.publishMenu}
-                        disabled={editor.isPublishing}
-                        className={cn(
-                            'absolute top-1.5 right-1 text-[9px] font-semibold rounded-full px-1.5 py-0.5 border transition-colors',
-                            editor.menuStatus === 'published'
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                                : 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100',
-                        )}
-                    >
-                        {editor.isPublishing ? '…' : editor.menuStatus === 'published' ? 'Publié' : 'Brouillon'}
-                    </button>
+                {/* Checkbox sélection du jour */}
+                {selection.selectionMode && editor.items.length > 0 && (
+                    <div className="absolute left-2 top-1/2 -translate-y-1/2">
+                        <SelectionCheckbox
+                            state={selection.getGroupState(date, editor.items)}
+                            onToggle={() => selection.toggleGroup(date, editor.items)}
+                            aria-label={`Sélectionner ${getDayOfWeekLabel(date)} ${dayNum}`}
+                        />
+                    </div>
                 )}
+
+                {/* Note du chef (même emplacement que la checkbox, hors mode sélection) */}
+                {!selection.selectionMode && canEdit && !closure && editor.items.length > 0 && (
+                    <div className="absolute left-1.5 top-1/2 -translate-y-1/2">
+                        <ChefNotePopover editor={editor} compact side="bottom" align="start" />
+                    </div>
+                )}
+
+                {/* Titre du jour */}
+                <p className={cn(
+                    'text-xs font-bold truncate text-center px-8',
+                    closure ? 'text-muted-foreground' : isToday && !closure ? 'text-primary' : 'text-foreground',
+                )}>
+                    {getDayOfWeekLabel(date).toUpperCase()} {dayNum}
+                </p>
+
+                {/* Contrôle publier/retirer (hors mode sélection) */}
+                {canEdit && !closure && !selection.selectionMode && (() => {
+                    const isEmpty = editor.items.length === 0;
+                    const showPublished = editor.menuStatus === 'published' && !isEmpty;
+                    const locked = editor.menuStatus === null || isEmpty || editor.isDirty || editor.isPublishing;
+                    const title = isEmpty
+                        ? 'Menu vide — ajoutez des plats pour publier'
+                        : editor.isDirty
+                            ? 'Enregistrez le menu avant de publier'
+                            : showPublished
+                                ? 'Menu publié — cliquer pour dépublier'
+                                : 'Brouillon — cliquer pour publier';
+                    return (
+                        <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                            <span className={cn(
+                                'w-1.5 h-1.5 rounded-full shrink-0',
+                                showPublished ? 'bg-emerald-500' : 'bg-muted-foreground/40',
+                            )} />
+                            <button
+                                type="button"
+                                disabled={locked}
+                                onClick={showPublished ? editor.unpublishMenu : editor.publishMenu}
+                                title={title}
+                                className={cn(
+                                    'text-[10px] font-semibold px-1.5 py-0.5 rounded-lg transition-colors',
+                                    'disabled:opacity-40 disabled:cursor-not-allowed',
+                                    showPublished
+                                        ? 'text-muted-foreground hover:bg-muted'
+                                        : 'bg-primary text-white hover:bg-primary/90 disabled:bg-input disabled:text-muted-foreground',
+                                )}
+                            >
+                                {showPublished ? 'Retirer' : 'Publier'}
+                            </button>
+                        </div>
+                    );
+                })()}
             </div>
 
             {/* Body */}
             {closure ? (
-                <div className="flex-1 flex flex-col items-center justify-center gap-3 p-4 text-center bg-white/40">
-                    <CalendarOff className="w-8 h-8 text-gray-400" />
-                    <p className="text-xs text-gray-600 font-medium leading-snug">
+                <div className="flex-1 flex flex-col items-center justify-center gap-3 p-4 text-center bg-card/50">
+                    <CalendarOff className="w-8 h-8 text-muted-foreground/60" />
+                    <p className="text-xs text-foreground font-medium leading-snug">
                         {closure.reason ?? 'Fermeture exceptionnelle'}
                     </p>
                     {closure.description && (
-                        <p className="text-[10px] text-gray-500 leading-snug">{closure.description}</p>
+                        <p className="text-[10px] text-muted-foreground leading-snug">{closure.description}</p>
                     )}
                     {canEdit && (
                         <button
                             type="button"
                             onClick={() => setClosureEditorOpen(true)}
-                            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 border border-gray-300 bg-white rounded-lg px-2.5 py-1.5 transition-colors"
+                            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border bg-card rounded-xl px-2.5 py-1.5 transition-colors"
                         >
                             <Pencil className="w-3 h-3" />
                             Modifier
@@ -154,7 +226,13 @@ export function WeekDayColumn({
                     )}
                 </div>
             ) : (
-                <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                <div
+                    ref={setDropRef}
+                    className={cn(
+                        'flex-1 p-2 space-y-2 transition-colors',
+                        isOver && 'ring-1 ring-inset ring-primary/30 bg-primary/5',
+                    )}
+                >
                     {(dayData?.events ?? []).map(event => (
                         <EventCard key={event.id} event={event} compact onEdit={onEditEvent} />
                     ))}
@@ -167,16 +245,30 @@ export function WeekDayColumn({
                                 editor={editor}
                                 canEdit={canEdit}
                                 selectionMode={selection.selectionMode}
-                                isSelected={isSelected}
-                                onToggleItem={toggleItem}
+                                selection={selection}
                                 date={date}
+                                substitutions={editor.substitutions}
                             />
                         ))
                     ) : (
                         canEdit
-                            ? <AddMenuCTA onAdd={() => onNavigateDay(date)} />
+                            ? <AddMenuCTA
+                                date={date}
+                                restaurantId={restaurantId}
+                                onStartOnboarding={() => onStartOnboarding(date)}
+                                onImportCsv={() => setImportMode('csv')}
+                                onImported={onReload}
+                              />
                             : <p className="text-xs text-muted-foreground text-center py-4">Pas de menu</p>
                     )}
+                    <DayImportCsv
+                        open={importMode === 'csv'}
+                        targetDate={date}
+                        restaurantId={restaurantId}
+                        categories={categories}
+                        onClose={() => setImportMode(null)}
+                        onImported={() => { setImportMode(null); onReload(); }}
+                    />
                 </div>
             )}
         </div>

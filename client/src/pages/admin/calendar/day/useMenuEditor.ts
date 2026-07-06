@@ -1,13 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { galleryApi, menuItemImagesApi, menusApi } from '@/lib/api';
-import type { GalleryImage, Menu, MenuItem, MenuItemImageLink } from '@/lib/api';
-
-// ─── Pending image ops ────────────────────────────────────────────────────────
-
-type PendingImageOp =
-    | { kind: 'link-gallery'; itemId: number; galleryImageId: number }
-    | { kind: 'upload-file'; itemId: number; file: File; dishName: string }
-    | { kind: 'unlink'; itemId: number; linkId: number };
+import { menusApi } from '@/lib/api';
+import type { Menu, MenuItem, DishCatalogItem } from '@/lib/api';
+import { notify } from '@/lib/toast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -17,9 +11,13 @@ export interface UseMenuEditorOptions {
     restaurantId: number | undefined;
 }
 
+// substitutions: categoryId (number) -> ordered list of dishes
+export type SubstitutionMap = Record<number, DishCatalogItem[]>;
+
 export interface UseMenuEditorReturn {
     items: MenuItem[];
     chefNote: string;
+    substitutions: SubstitutionMap;
     isDirty: boolean;
     isSaving: boolean;
     isPublishing: boolean;
@@ -28,14 +26,12 @@ export interface UseMenuEditorReturn {
     menuId: number | undefined;
     restaurantId: number | undefined;
     updateItem(localId: number, patch: Partial<MenuItem>): void;
-    addItem(categoryId: number, name?: string): void;
+    addItem(categoryId: number, dishId: number, dish?: DishCatalogItem): void;
     removeItem(localId: number): void;
     reorderItems(categoryId: number, fromIdx: number, toIdx: number): void;
     setChefNote(note: string): void;
-    queueSetGalleryImage(localItemId: number, galleryImage: GalleryImage): void;
-    queueSetFileImage(localItemId: number, file: File): void;
-    queueRemoveImage(localItemId: number): void;
-    save(): Promise<void>;
+    updateSubstitutions(categoryId: number, dishes: DishCatalogItem[]): void;
+    save(options?: { silent?: boolean }): Promise<void>;
     publishMenu(): Promise<void>;
     unpublishMenu(): Promise<void>;
     reset(): void;
@@ -51,20 +47,22 @@ function itemsFromMenu(menu: Menu | null): MenuItem[] {
     }));
 }
 
+function subsFromMenu(menu: Menu | null): SubstitutionMap {
+    const raw = menu?.substitutions ?? {};
+    const result: SubstitutionMap = {};
+    for (const [catId, entries] of Object.entries(raw)) {
+        result[Number(catId)] = entries.map(e => e.dish);
+    }
+    return result;
+}
+
 function serializeItem(item: MenuItem): string {
     return JSON.stringify({
         id: item.id,
-        name: item.name,
+        dish_id: item.dish_id,
         category_id: item.category_id,
         is_out_of_stock: item.is_out_of_stock ?? false,
-        replacement_label: item.replacement_label ?? null,
-        tags: (item.tags ?? []).map(t => t.id).sort(),
-        certifications: (item.certifications ?? []).map(c => c.id).sort(),
     });
-}
-
-function makeFakeImageLink(url: string): MenuItemImageLink {
-    return { id: -1, menu_item_id: -1, gallery_image_id: -1, url, display_order: 0 };
 }
 
 export function useMenuEditor({ date, menu, restaurantId: restaurantIdProp }: UseMenuEditorOptions): UseMenuEditorReturn {
@@ -76,43 +74,59 @@ export function useMenuEditor({ date, menu, restaurantId: restaurantIdProp }: Us
     const [isPublishing, setIsPublishing] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
     const [menuStatus, setMenuStatus] = useState<'draft' | 'published' | null>(menu?.status ?? null);
-    const [pendingImageOps, setPendingImageOps] = useState<PendingImageOp[]>([]);
-    const objectUrlsRef = useRef<string[]>([]);
+    const [substitutions, setSubstitutions] = useState<SubstitutionMap>(() => subsFromMenu(menu));
+    const [originalSubstitutions, setOriginalSubstitutions] = useState<SubstitutionMap>(() => subsFromMenu(menu));
+    // ID créé par save() au démarrage sans menu ; la ref évite les closures périmées.
+    const [savedMenuId, setSavedMenuId] = useState<number | undefined>(menu?.id);
+    const savedMenuIdRef = useRef<number | undefined>(menu?.id);
+
+    const menuId = menu?.id ?? savedMenuId;
 
     const isDirty = useMemo(() => {
-        if (pendingImageOps.length > 0) return true;
         if (chefNote !== originalChefNote) return true;
         if (items.length !== originalItems.length) return true;
-        return items.some((item, i) => serializeItem(item) !== serializeItem(originalItems[i]));
-    }, [items, originalItems, chefNote, originalChefNote, pendingImageOps]);
+        if (items.some((item, i) => serializeItem(item) !== serializeItem(originalItems[i]))) return true;
+        // Vérifier si les substitutions ont changé
+        const allCatIds = new Set([
+            ...Object.keys(substitutions).map(Number),
+            ...Object.keys(originalSubstitutions).map(Number),
+        ]);
+        for (const catId of allCatIds) {
+            const curr = (substitutions[catId] ?? []).map(d => d.id).sort().join(',');
+            const orig = (originalSubstitutions[catId] ?? []).map(d => d.id).sort().join(',');
+            if (curr !== orig) return true;
+        }
+        return false;
+    }, [items, originalItems, chefNote, originalChefNote, substitutions, originalSubstitutions]);
 
     // Reset when menu changes from outside (e.g. after reload)
     useEffect(() => {
         const loaded = itemsFromMenu(menu);
+        const subs = subsFromMenu(menu);
         setItems(loaded);
         setChefNoteState(menu?.chef_note ?? '');
         setOriginalItems(loaded);
         setOriginalChefNote(menu?.chef_note ?? '');
         setMenuStatus(menu?.status ?? null);
+        setSubstitutions(subs);
+        setOriginalSubstitutions(subs);
+        setSavedMenuId(menu?.id);
+        savedMenuIdRef.current = menu?.id;
         setSaveError(null);
-        objectUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
-        objectUrlsRef.current = [];
-        setPendingImageOps([]);
     }, [menu]);
 
     const updateItem = useCallback((localId: number, patch: Partial<MenuItem>) => {
         setItems(prev => prev.map(it => it.id === localId ? { ...it, ...patch } : it));
     }, []);
 
-    const addItem = useCallback((categoryId: number, name = 'Nouveau plat') => {
+    const addItem = useCallback((categoryId: number, dishId: number, dish?: DishCatalogItem) => {
         const newItem: MenuItem = {
             id: nextTempId(),
             category_id: categoryId,
-            name,
+            dish_id: dishId,
             order: 999,
             is_out_of_stock: false,
-            tags: [],
-            certifications: [],
+            dish: dish,
         };
         setItems(prev => [...prev, newItem]);
     }, []);
@@ -136,42 +150,8 @@ export function useMenuEditor({ date, menu, restaurantId: restaurantIdProp }: Us
         setChefNoteState(note);
     }, []);
 
-    // ─── Image queue methods ──────────────────────────────────────────────────
-
-    const queueSetGalleryImage = useCallback((localItemId: number, galleryImage: GalleryImage) => {
-        setPendingImageOps(prev => [
-            ...prev.filter(op => op.itemId !== localItemId),
-            { kind: 'link-gallery', itemId: localItemId, galleryImageId: galleryImage.id },
-        ]);
-        setItems(prev => prev.map(it => it.id === localItemId
-            ? { ...it, images: [{ id: -1, menu_item_id: localItemId, gallery_image_id: galleryImage.id, url: galleryImage.url, display_order: 0 }] }
-            : it
-        ));
-    }, []);
-
-    const queueSetFileImage = useCallback((localItemId: number, file: File) => {
-        const objectUrl = URL.createObjectURL(file);
-        objectUrlsRef.current.push(objectUrl);
-        setPendingImageOps(prev => [
-            ...prev.filter(op => op.itemId !== localItemId),
-            { kind: 'upload-file', itemId: localItemId, file, dishName: '' },
-        ]);
-        setItems(prev => prev.map(it => it.id === localItemId
-            ? { ...it, images: [makeFakeImageLink(objectUrl)] }
-            : it
-        ));
-    }, []);
-
-    const queueRemoveImage = useCallback((localItemId: number) => {
-        setItems(prev => {
-            const item = prev.find(it => it.id === localItemId);
-            const linkId = item?.images?.[0]?.id ?? -1;
-            setPendingImageOps(ops => [
-                ...ops.filter(op => op.itemId !== localItemId),
-                { kind: 'unlink', itemId: localItemId, linkId },
-            ]);
-            return prev.map(it => it.id === localItemId ? { ...it, images: [] } : it);
-        });
+    const updateSubstitutions = useCallback((categoryId: number, dishes: DishCatalogItem[]) => {
+        setSubstitutions(prev => ({ ...prev, [categoryId]: dishes }));
     }, []);
 
     // ─── Save ─────────────────────────────────────────────────────────────────
@@ -182,99 +162,96 @@ export function useMenuEditor({ date, menu, restaurantId: restaurantIdProp }: Us
             return { ...rest, id };
         }) as MenuItem[];
 
-    const save = useCallback(async () => {
+    const save = useCallback(async (options?: { silent?: boolean }) => {
         setIsSaving(true);
         setSaveError(null);
         try {
             const savedMenu = await menusApi.save(date, buildSaveItems(items), restaurantIdProp ?? undefined, chefNote);
-            const ops = pendingImageOps;
-            for (const op of ops) {
-                if (op.kind === 'link-gallery') {
-                    await menuItemImagesApi.add(savedMenu.id, op.itemId, op.galleryImageId, 0);
-                } else if (op.kind === 'upload-file') {
-                    const item = items.find(it => it.id === op.itemId);
-                    const g = await galleryApi.upload(op.file, { restaurant_id: restaurantIdProp, dish_name: item?.name ?? op.dishName });
-                    await menuItemImagesApi.add(savedMenu.id, op.itemId, g.id, 0);
-                } else if (op.kind === 'unlink') {
-                    await menuItemImagesApi.remove(savedMenu.id, op.itemId, op.linkId);
+            setSavedMenuId(savedMenu.id);
+            savedMenuIdRef.current = savedMenu.id;
+            // Sauvegarder les substitutions modifiées
+            for (const [catId, dishes] of Object.entries(substitutions)) {
+                const catIdNum = Number(catId);
+                const origIds = (originalSubstitutions[catIdNum] ?? []).map(d => d.id).sort().join(',');
+                const currIds = dishes.map(d => d.id).sort().join(',');
+                if (origIds !== currIds) {
+                    await menusApi.updateSubstitutions(savedMenu.id, catIdNum, dishes.map(d => d.id));
                 }
             }
-            setPendingImageOps([]);
-            objectUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
-            objectUrlsRef.current = [];
-            // Update items from saved menu (images will be refreshed by onReload caller)
             const savedItems = itemsFromMenu(savedMenu);
             setItems(savedItems);
             setOriginalItems(savedItems);
             setOriginalChefNote(savedMenu?.chef_note ?? chefNote);
+            setOriginalSubstitutions({ ...substitutions });
             if (savedMenu?.status) setMenuStatus(savedMenu.status);
+            if (!options?.silent) notify.success('Menu sauvegardé');
         } catch (err) {
             setSaveError('Erreur lors de la sauvegarde.');
+            notify.error('Erreur lors de la sauvegarde');
             throw err;
         } finally {
             setIsSaving(false);
         }
-    }, [date, items, restaurantIdProp, chefNote, pendingImageOps]);
+    }, [date, items, restaurantIdProp, chefNote, substitutions, originalSubstitutions]);
 
-    // publish/unpublish are independent from save — they only change the menu status
     const publishMenu = useCallback(async () => {
-        if (!menu) return;
+        const id = menu?.id ?? savedMenuIdRef.current;
+        if (!id || items.length === 0) return;
         setIsPublishing(true);
         setSaveError(null);
         try {
-            await menusApi.publish(menu.id);
+            await menusApi.publish(id);
             setMenuStatus('published');
+            notify.success('Menu publié');
         } catch {
             setSaveError('Erreur lors de la publication.');
+            notify.error('Erreur lors de la publication');
         } finally {
             setIsPublishing(false);
         }
-    }, [menu]);
+    }, [menu, items.length]);
 
     const unpublishMenu = useCallback(async () => {
-        if (!menu) return;
+        const id = menu?.id ?? savedMenuIdRef.current;
+        if (!id) return;
         setIsPublishing(true);
         setSaveError(null);
         try {
-            await menusApi.unpublish(menu.id);
+            await menusApi.unpublish(id);
             setMenuStatus('draft');
+            notify.success('Menu dépublié');
         } catch {
             setSaveError('Erreur lors du retrait de publication.');
+            notify.error('Erreur lors du retrait de publication');
         } finally {
             setIsPublishing(false);
         }
     }, [menu]);
 
     const reset = useCallback(() => {
-        const loaded = itemsFromMenu(menu);
-        setItems(loaded);
-        setChefNoteState(menu?.chef_note ?? '');
-        setOriginalItems(loaded);
-        setOriginalChefNote(menu?.chef_note ?? '');
+        setItems([...originalItems]);
+        setChefNoteState(originalChefNote);
+        setSubstitutions({ ...originalSubstitutions });
         setSaveError(null);
-        setPendingImageOps([]);
-        objectUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
-        objectUrlsRef.current = [];
-    }, [menu]);
+    }, [originalItems, originalChefNote, originalSubstitutions]);
 
     return {
         items,
         chefNote,
+        substitutions,
         isDirty,
         isSaving,
         isPublishing,
         saveError,
         menuStatus,
-        menuId: menu?.id,
+        menuId,
         restaurantId: restaurantIdProp,
         updateItem,
         addItem,
         removeItem,
         reorderItems,
         setChefNote,
-        queueSetGalleryImage,
-        queueSetFileImage,
-        queueRemoveImage,
+        updateSubstitutions,
         save,
         publishMenu,
         unpublishMenu,

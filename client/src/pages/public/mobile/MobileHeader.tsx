@@ -41,7 +41,7 @@ export function MobileHeader({ restaurant, activeClosure }: MobileHeaderProps) {
         <header className="bg-white shrink-0" style={{ boxShadow: '0 1px 0 0 #f0f0f0' }}>
             <div className="h-1 w-full bg-mariam-blue" />
 
-            {/* Ligne principale — entièrement cliquable */}
+            {/* Ligne principale */}
             <div
                 className="px-4 py-3 flex items-center gap-3 cursor-pointer"
                 onClick={() => setExpanded(prev => !prev)}

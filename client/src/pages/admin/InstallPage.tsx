@@ -26,7 +26,7 @@ import {
     SquarePlus,
 } from 'lucide-react';
 
-const INSTALL_DONE_KEY = 'mariam_pwa_install_done';
+const INSTALL_DONE_KEY = 'mariam-pwa-install-done';
 
 function markDone() {
     localStorage.setItem(INSTALL_DONE_KEY, '1');

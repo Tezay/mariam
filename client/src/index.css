@@ -50,6 +50,10 @@
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+  /* Hachures des jours de fermeture */
+  --closure-hatch-a: 220 14% 96%;
+  --closure-hatch-b: 220 13% 82%;
 }
 
 /* ========================================
@@ -73,6 +77,8 @@
   --accent-foreground: 220 14% 96%;
   --popover: 220 18% 14%;
   --popover-foreground: 220 14% 96%;
+  --closure-hatch-a: 220 18% 16%;
+  --closure-hatch-b: 220 14% 27%;
 }
 
 /* ========================================

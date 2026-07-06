@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { menusApi, eventsApi, closuresApi, Menu, Event, ExceptionalClosure } from '@/lib/api';
 import { parisToday, addDays } from '@/lib/date-utils';
 
@@ -66,6 +66,8 @@ interface UseCalendarDataResult {
     storageConfigured: boolean;
 }
 
+const CACHE_TTL = 60_000; // 60 secondes
+
 export function useCalendarData(rangeStart: string, rangeEnd: string): UseCalendarDataResult {
     const [data, setData] = useState<CalendarData>({});
     const [isLoading, setIsLoading] = useState(true);
@@ -74,7 +76,15 @@ export function useCalendarData(rangeStart: string, rangeEnd: string): UseCalend
     const [serviceDays, setServiceDays] = useState<number[]>([]);
     const [storageConfigured, setStorageConfigured] = useState(false);
 
+    // Caches pour éviter de re-fetcher à chaque navigation
+    const eventsCache = useRef<{ data: Event[]; ts: number } | null>(null);
+    const closuresCache = useRef<{ data: ExceptionalClosure[]; ts: number } | null>(null);
+    const weekCache = useRef<Record<number, { data: unknown; ts: number }>>({});
+    // Compteur de génération pour ignorer les réponses stale (navigation rapide)
+    const generationRef = useRef(0);
+
     const load = useCallback(async () => {
+        const gen = ++generationRef.current;
         setIsLoading(true);
         setError(null);
         try {
@@ -84,14 +94,33 @@ export function useCalendarData(rangeStart: string, rangeEnd: string): UseCalend
             // saturating the backend with 50+ simultaneous requests.
             const skipMenus = weekOffsets.length > 8;
 
+            const now = Date.now();
+            const cachedEvents = eventsCache.current && now - eventsCache.current.ts < CACHE_TTL
+                ? eventsCache.current.data : null;
+            const cachedClosures = closuresCache.current && now - closuresCache.current.ts < CACHE_TTL
+                ? closuresCache.current.data : null;
+
+            const fetchWeek = (o: number) => {
+                const cached = weekCache.current[o];
+                if (cached && Date.now() - cached.ts < CACHE_TTL) return Promise.resolve(cached.data);
+                return menusApi.getWeek(o).then(data => {
+                    weekCache.current[o] = { data, ts: Date.now() };
+                    return data;
+                });
+            };
+
             const [weekDataArr, events, closuresResp, storageStatus] = await Promise.all([
                 skipMenus
                     ? Promise.resolve([])
-                    : Promise.all(weekOffsets.map(o => menusApi.getWeek(o))),
-                eventsApi.list(false, undefined, true),
-                closuresApi.list(false, undefined, true),
+                    : Promise.all(weekOffsets.map(fetchWeek)),
+                cachedEvents ? Promise.resolve(cachedEvents) : eventsApi.list(false, undefined, true),
+                cachedClosures ? Promise.resolve(cachedClosures) : closuresApi.list(false, undefined, true),
                 eventsApi.storageStatus().catch(() => false),
             ]);
+
+            // Mettre à jour les caches si on a fetché
+            if (!cachedEvents) eventsCache.current = { data: events as Event[], ts: Date.now() };
+            if (!cachedClosures) closuresCache.current = { data: closuresResp as ExceptionalClosure[], ts: Date.now() };
 
             const result: CalendarData = {};
             let rid: number | undefined;
@@ -99,9 +128,9 @@ export function useCalendarData(rangeStart: string, rangeEnd: string): UseCalend
 
             if (skipMenus) {
                 // Fetch restaurant config from a single week call to get service_days
-                const baseWeek = await menusApi.getWeek(0);
-                rid = baseWeek.restaurant_id;
-                sdays = (baseWeek.service_days as number[]).map((d: number) => d);
+                const baseWeek = await fetchWeek(0);
+                rid = (baseWeek as { restaurant_id?: number }).restaurant_id;
+                sdays = ((baseWeek as { service_days?: number[] }).service_days ?? []).map((d: number) => d);
             }
 
             // Menus depuis les semaines
@@ -152,14 +181,17 @@ export function useCalendarData(rangeStart: string, rangeEnd: string): UseCalend
                 }
             }
 
+            // Ignorer les réponses stale si une navigation plus récente a déjà lancé un load
+            if (generationRef.current !== gen) return;
             setData(result);
             setRestaurantId(rid);
             setServiceDays(sdays);
             setStorageConfigured(storageStatus as boolean);
         } catch (err) {
+            if (generationRef.current !== gen) return;
             setError(err);
         } finally {
-            setIsLoading(false);
+            if (generationRef.current === gen) setIsLoading(false);
         }
     }, [rangeStart, rangeEnd]);
 
@@ -168,5 +200,12 @@ export function useCalendarData(rangeStart: string, rangeEnd: string): UseCalend
         return () => clearTimeout(id);
     }, [load]);
 
-    return { data, isLoading, error, reload: load, restaurantId, serviceDays, storageConfigured };
+    const reload = useCallback(() => {
+        closuresCache.current = null;
+        eventsCache.current = null;
+        weekCache.current = {};
+        load();
+    }, [load]);
+
+    return { data, isLoading, error, reload, restaurantId, serviceDays, storageConfigured };
 }

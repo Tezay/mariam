@@ -1,4 +1,4 @@
-from marshmallow import EXCLUDE, Schema, fields
+from marshmallow import EXCLUDE, Schema, fields, validate
 
 
 class ColumnMappingSchema(Schema):
@@ -50,3 +50,60 @@ class ImportConfirmSchema(Schema):
     duplicate_action = fields.Str(description="'skip', 'replace', or 'merge'")
     auto_publish = fields.Bool()
     restaurant_id = fields.Int(allow_none=True)
+
+
+# ============================================================
+# IMPORT CATALOGUE — liste de plats
+# ============================================================
+
+class CatalogImportUploadSchema(Schema):
+    """Réponse d'upload : colonnes détectées + suggestion de colonne nom."""
+    class Meta:
+        unknown = EXCLUDE
+    file_id = fields.Str(dump_only=True)
+    filename = fields.Str(dump_only=True)
+    columns = fields.List(fields.Str())
+    preview_rows = fields.List(fields.Dict())
+    row_count = fields.Int()
+    delimiter = fields.Str(allow_none=True)
+    suggested_name_column = fields.Str(allow_none=True)
+
+
+class CatalogImportPreviewSchema(Schema):
+    """Paramètres de prévisualisation/confirmation d'un import catalogue."""
+    class Meta:
+        unknown = EXCLUDE
+    file_id = fields.Str(required=True)
+    name_column = fields.Str(required=True, description="Colonne contenant le nom du plat")
+    tag_columns = fields.List(fields.Str(), load_default=[], description="Colonnes scannées pour les tags/labels")
+    category_id = fields.Int(required=True, validate=validate.Range(min=1))
+    auto_detect_tags = fields.Bool(load_default=True)
+
+
+class CatalogImportPreviewDishSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+    name = fields.Str()
+    tags = fields.List(fields.Str())
+    certifications = fields.List(fields.Str())
+    is_duplicate = fields.Bool()
+
+
+class CatalogImportPreviewResultSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+    dishes = fields.List(fields.Nested(CatalogImportPreviewDishSchema))
+    total = fields.Int()
+    new_count = fields.Int()
+    duplicate_count = fields.Int()
+
+
+# Confirmation : mêmes paramètres que la prévisualisation
+CatalogImportConfirmSchema = CatalogImportPreviewSchema
+
+
+class CatalogImportResultSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+    created_count = fields.Int()
+    skipped_count = fields.Int()

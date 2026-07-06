@@ -3,15 +3,17 @@ Modèles MARIAM - Exports centralisés.
 """
 from .activation_link import ActivationLink
 from .audit_log import AuditLog
+from .catalog import CategorySubstitution, DishCatalog, dish_certifications, dish_dietary_tags
 from .category import MenuCategory
 from .event import Event, EventImage
 from .exceptional_closure import ExceptionalClosure
-from .gallery import GalleryImage, GalleryImageTag, MenuItemImage
 from .import_session import ImportSession
 from .menu import Menu, MenuImage, MenuItem
+from .notification import Notification
 from .passkey import Passkey
 from .push_subscription import PushSubscription
 from .restaurant import Restaurant, RestaurantServiceHours
+from .restaurant_calendar import RestaurantCalendarSettings
 from .taxonomy import (
     Certification,
     CertificationCategory,
@@ -19,8 +21,6 @@ from .taxonomy import (
     DietaryTag,
     DietaryTagCategory,
     DietaryTagKeyword,
-    menu_item_certifications,
-    menu_item_dietary_tags,
     restaurant_certifications,
     restaurant_dietary_tags,
 )
@@ -31,16 +31,19 @@ __all__ = [
     'Passkey',
     'Restaurant',
     'RestaurantServiceHours',
+    'RestaurantCalendarSettings',
     'MenuCategory',
     'Menu',
     'MenuItem',
     'MenuImage',
+    'Notification',
+    'DishCatalog',
+    'CategorySubstitution',
+    'dish_dietary_tags',
+    'dish_certifications',
     'Event',
     'EventImage',
     'ExceptionalClosure',
-    'GalleryImage',
-    'GalleryImageTag',
-    'MenuItemImage',
     'ActivationLink',
     'AuditLog',
     'ImportSession',
@@ -53,6 +56,4 @@ __all__ = [
     'CertificationKeyword',
     'restaurant_dietary_tags',
     'restaurant_certifications',
-    'menu_item_dietary_tags',
-    'menu_item_certifications',
 ]

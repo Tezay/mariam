@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, CalendarOff } from 'lucide-react';
 import { closuresApi } from '@/lib/api';
 import type { ExceptionalClosure } from '@/lib/api';
 import {
@@ -9,6 +9,13 @@ import {
     DialogTitle,
     DialogFooter,
 } from '@/components/ui/dialog';
+import {
+    Drawer,
+    DrawerContent,
+    DrawerHeader,
+    DrawerTitle,
+    DrawerFooter,
+} from '@/components/ui/drawer';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -20,6 +27,7 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface ClosureEditorProps {
     open: boolean;
@@ -46,8 +54,20 @@ const EMPTY: FormData = {
     description: '',
 };
 
+function useIsMobile(breakpoint = 640): boolean {
+    const [isMobile, setIsMobile] = useState(() =>
+        typeof window !== 'undefined' && window.innerWidth < breakpoint);
+    useEffect(() => {
+        const handler = () => setIsMobile(window.innerWidth < breakpoint);
+        window.addEventListener('resize', handler);
+        return () => window.removeEventListener('resize', handler);
+    }, [breakpoint]);
+    return isMobile;
+}
+
 export function ClosureEditor({ open, closure, prefillStart, prefillEnd, onClose, onSaved }: ClosureEditorProps) {
     const isEditing = !!closure;
+    const isMobile = useIsMobile();
     const [form, setForm] = useState<FormData>(EMPTY);
     const [error, setError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -124,104 +144,136 @@ export function ClosureEditor({ open, closure, prefillStart, prefillEnd, onClose
     };
 
     const busy = isSaving || isDeleting;
+    const inputClass = 'w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary';
+
+    // ── Corps du formulaire ───────────────────────
+    const body = (
+        <div className="space-y-4">
+            {/* Jour / Plage — segmented control */}
+            <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted/50 p-1">
+                {([
+                    { value: true, label: 'Un seul jour' },
+                    { value: false, label: 'Plage de dates' },
+                ] as const).map(opt => (
+                    <button
+                        key={String(opt.value)}
+                        type="button"
+                        onClick={() => set('isSingleDay', opt.value)}
+                        className={cn(
+                            'py-2 rounded-lg text-sm font-medium transition-colors',
+                            form.isSingleDay === opt.value
+                                ? 'bg-card text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground',
+                        )}
+                    >
+                        {opt.label}
+                    </button>
+                ))}
+            </div>
+
+            <div className={cn('grid gap-3', !form.isSingleDay && 'grid-cols-2')}>
+                <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1.5">
+                        {form.isSingleDay ? 'Date' : 'Début'}
+                    </label>
+                    <input
+                        type="date"
+                        value={form.start_date}
+                        onChange={e => set('start_date', e.target.value)}
+                        className={inputClass}
+                    />
+                </div>
+                {!form.isSingleDay && (
+                    <div>
+                        <label className="text-xs font-medium text-muted-foreground block mb-1.5">Fin</label>
+                        <input
+                            type="date"
+                            value={form.end_date}
+                            min={form.start_date}
+                            onChange={e => set('end_date', e.target.value)}
+                            className={inputClass}
+                        />
+                    </div>
+                )}
+            </div>
+
+            <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Motif (optionnel)</label>
+                <input
+                    type="text"
+                    value={form.reason}
+                    onChange={e => set('reason', e.target.value)}
+                    placeholder="Ex : Vacances scolaires, Travaux…"
+                    className={inputClass}
+                />
+            </div>
+
+            <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Description (optionnel)</label>
+                <textarea
+                    value={form.description}
+                    onChange={e => set('description', e.target.value)}
+                    placeholder="Informations complémentaires…"
+                    rows={3}
+                    className={cn(inputClass, 'resize-none')}
+                />
+            </div>
+
+            {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+    );
+
+    // ── Actions (partagées) ──────────────────────────────────────────────────
+    const actions = (
+        <>
+            {isEditing && (
+                <Button
+                    variant="ghost"
+                    onClick={() => setDeleteConfirmOpen(true)}
+                    disabled={busy}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10 order-last sm:order-first sm:mr-auto"
+                >
+                    <Trash2 className="w-4 h-4 mr-1.5" />
+                    Supprimer
+                </Button>
+            )}
+            <Button variant="ghost" onClick={onClose} disabled={busy} className="w-full sm:w-auto">
+                Annuler
+            </Button>
+            <Button onClick={handleSave} disabled={busy} className="w-full sm:w-auto">
+                {isSaving ? 'Enregistrement…' : 'Enregistrer'}
+            </Button>
+        </>
+    );
 
     return (
-        <Dialog open={open} onOpenChange={o => { if (!o && !busy) onClose(); }}>
-            <DialogContent className="max-w-md">
-                <DialogHeader>
-                    <DialogTitle>
-                        {isEditing ? 'Modifier la fermeture' : 'Nouvelle fermeture exceptionnelle'}
-                    </DialogTitle>
-                </DialogHeader>
-
-                <div className="space-y-4 py-2">
-                    {/* Jour / Plage toggle */}
-                    <div className="flex gap-2">
-                        <button
-                            type="button"
-                            onClick={() => set('isSingleDay', true)}
-                            className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${form.isSingleDay ? 'bg-primary text-white border-primary' : 'border-border text-muted-foreground hover:bg-muted'}`}
-                        >
-                            Un seul jour
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => set('isSingleDay', false)}
-                            className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${!form.isSingleDay ? 'bg-primary text-white border-primary' : 'border-border text-muted-foreground hover:bg-muted'}`}
-                        >
-                            Plage de dates
-                        </button>
-                    </div>
-
-                    <div className="space-y-3">
-                        <div>
-                            <label className="text-xs font-medium text-muted-foreground block mb-1">
-                                {form.isSingleDay ? 'Date' : 'Date de début'}
-                            </label>
-                            <input
-                                type="date"
-                                value={form.start_date}
-                                onChange={e => set('start_date', e.target.value)}
-                                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                            />
-                        </div>
-                        {!form.isSingleDay && (
-                            <div>
-                                <label className="text-xs font-medium text-muted-foreground block mb-1">Date de fin</label>
-                                <input
-                                    type="date"
-                                    value={form.end_date}
-                                    min={form.start_date}
-                                    onChange={e => set('end_date', e.target.value)}
-                                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                                />
-                            </div>
-                        )}
-                        <div>
-                            <label className="text-xs font-medium text-muted-foreground block mb-1">Motif (optionnel)</label>
-                            <input
-                                type="text"
-                                value={form.reason}
-                                onChange={e => set('reason', e.target.value)}
-                                placeholder="Ex : Vacances scolaires, Travaux..."
-                                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs font-medium text-muted-foreground block mb-1">Description (optionnel)</label>
-                            <textarea
-                                value={form.description}
-                                onChange={e => set('description', e.target.value)}
-                                placeholder="Informations complémentaires..."
-                                rows={3}
-                                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-                            />
-                        </div>
-                    </div>
-
-                    {error && <p className="text-sm text-destructive">{error}</p>}
-                </div>
-
-                <DialogFooter className="gap-2">
-                    {isEditing && (
-                        <Button
-                            variant="ghost"
-                            onClick={() => setDeleteConfirmOpen(true)}
-                            disabled={busy}
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10 mr-auto"
-                        >
-                            <Trash2 className="w-4 h-4 mr-1.5" />
-                            Supprimer
-                        </Button>
-                    )}
-                    <Button variant="ghost" onClick={onClose} disabled={busy}>
-                        Annuler
-                    </Button>
-                    <Button onClick={handleSave} disabled={busy}>
-                        {isSaving ? 'Enregistrement…' : 'Enregistrer'}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
+        <>
+            {isMobile ? (
+                <Drawer open={open} onOpenChange={o => { if (!o && !busy) onClose(); }}>
+                    <DrawerContent className="max-h-[92vh]">
+                        <DrawerHeader>
+                            <DrawerTitle className="flex items-center gap-2">
+                                <CalendarOff className="w-4 h-4 text-muted-foreground" />
+                                {isEditing ? 'Modifier la fermeture' : 'Nouvelle fermeture'}
+                            </DrawerTitle>
+                        </DrawerHeader>
+                        <div className="overflow-y-auto px-4">{body}</div>
+                        <DrawerFooter className="flex-col gap-2 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+                            {actions}
+                        </DrawerFooter>
+                    </DrawerContent>
+                </Drawer>
+            ) : (
+                <Dialog open={open} onOpenChange={o => { if (!o && !busy) onClose(); }}>
+                    <DialogContent className="max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>{isEditing ? 'Modifier la fermeture' : 'Nouvelle fermeture exceptionnelle'}</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-2">{body}</div>
+                        <DialogFooter className="gap-2 sm:items-center">{actions}</DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
 
             <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
                 <AlertDialogContent>
@@ -243,6 +295,6 @@ export function ClosureEditor({ open, closure, prefillStart, prefillEnd, onClose
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </Dialog>
+        </>
     );
 }

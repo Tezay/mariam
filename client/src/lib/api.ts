@@ -5,8 +5,17 @@
  * Gère l'authentification JWT et le refresh automatique.
  */
 
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError, InternalAxiosRequestConfig, isAxiosError } from 'axios';
 import { parisToday } from './date-utils';
+
+/** Extrait le message d'erreur d'une réponse API, avec message de repli. */
+export function getApiErrorMessage(error: unknown, fallback: string): string {
+    if (isAxiosError(error)) {
+        const message = (error.response?.data as { error?: string } | undefined)?.error;
+        if (message) return message;
+    }
+    return fallback;
+}
 
 // Déclaration du type pour la config runtime (injectée par docker-entrypoint.sh)
 declare global {
@@ -486,28 +495,116 @@ export const authApi = {
 };
 
 // ========================================
+// CATALOGUE DE PLATS
+// ========================================
+
+export interface DishCatalogItem {
+    id: number;
+    restaurant_id: number;
+    category_id: number | null;
+    name: string;
+    image_url: string | null;
+    usage_count: number;
+    tags: DietaryTag[];
+    certifications: CertificationItem[];
+    created_at?: string;
+}
+
+export interface CategorySubstitution {
+    id: number;
+    menu_id: number;
+    category_id: number;
+    dish: DishCatalogItem;
+    order: number;
+}
+
+export interface JourFerie {
+    date: string;
+    description: string;
+}
+
+export interface CatalogListResponse {
+    dishes: DishCatalogItem[];
+    total: number;
+    page: number;
+    per_page: number;
+    has_more: boolean;
+}
+
+export const catalogApi = {
+    list: async (params?: { category_id?: number; q?: string; sort?: 'usage' | 'name' | 'recent' }) => {
+        const response = await api.get('/catalog', { params });
+        return response.data.dishes as DishCatalogItem[];
+    },
+
+    listPaginated: async (params: { category_id?: number; q?: string; sort?: 'usage' | 'name' | 'recent'; page: number; per_page?: number }) => {
+        const response = await api.get('/catalog', { params });
+        return response.data as CatalogListResponse;
+    },
+
+    create: async (data: { name: string; category_id?: number | null; tag_ids?: string[]; certification_ids?: string[] }) => {
+        const response = await api.post('/catalog', data);
+        return response.data.dish as DishCatalogItem;
+    },
+
+    get: async (dishId: number) => {
+        const response = await api.get(`/catalog/${dishId}`);
+        return response.data.dish as DishCatalogItem;
+    },
+
+    update: async (dishId: number, data: { name?: string; category_id?: number | null; tag_ids?: string[]; certification_ids?: string[] }) => {
+        const response = await api.put(`/catalog/${dishId}`, data);
+        return response.data.dish as DishCatalogItem;
+    },
+
+    delete: async (dishId: number) => {
+        await api.delete(`/catalog/${dishId}`);
+    },
+
+    uploadImage: async (dishId: number, file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await api.post(`/catalog/${dishId}/image`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 30000,
+        });
+        return response.data.dish as DishCatalogItem;
+    },
+
+    removeImage: async (dishId: number) => {
+        const response = await api.delete(`/catalog/${dishId}/image`);
+        return response.data;
+    },
+
+    getStats: async (dishId: number): Promise<DishStats> => {
+        const response = await api.get(`/catalog/${dishId}/stats`);
+        return response.data as DishStats;
+    },
+
+};
+
+export interface DishStats {
+    week: number;
+    month: number;
+    semester: number;
+    year: number;
+    history: { week: string; count: number }[];
+    category_rank: number | null;
+    similar_dishes: { id: number; name: string; month_count: number }[];
+}
+
+// ========================================
 // API MENUS
 // ========================================
-export interface MenuItemImageLink {
-    id: number;
-    menu_item_id: number;
-    gallery_image_id: number;
-    display_order: number;
-    url: string;
-    filename?: string;
-}
 
 export interface MenuItem {
     id?: number;
     menu_id?: number;
     category_id: number;
-    name: string;
+    dish_id: number;
+    dish?: DishCatalogItem;
     order?: number;
-    replacement_label?: string | null;
     is_out_of_stock?: boolean;
-    tags?: DietaryTag[];
-    certifications?: CertificationItem[];
-    images?: MenuItemImageLink[];
 }
 
 export interface Menu {
@@ -516,17 +613,9 @@ export interface Menu {
     date: string;
     status: 'draft' | 'published';
     items: MenuItem[];
-    images?: MenuImage[];
     chef_note?: string;
     published_at?: string;
-}
-
-export interface MenuImage {
-    id: number;
-    menu_id: number;
-    url: string;
-    filename?: string;
-    order: number;
+    substitutions?: Record<string, Array<{ dish: DishCatalogItem; order: number }>>;
 }
 
 export const menusApi = {
@@ -537,14 +626,19 @@ export const menusApi = {
         return response.data;
     },
 
-    getByDate: async (date: string, restaurantId?: number) => {
+    getByDate: async (date: string, restaurantId?: number): Promise<Menu | null> => {
         const params: Record<string, number> = {};
         if (restaurantId) params.restaurant_id = restaurantId;
         const response = await api.get(`/menus/by-date/${date}`, { params });
-        return response.data;
+        return response.data.menu ?? null;
     },
 
-    save: async (date: string, items: MenuItem[], restaurantId?: number, chefNote?: string) => {
+    save: async (
+        date: string,
+        items: Array<MenuItem | { category_id: number; dish_id?: number; name?: string; tag_ids?: string[]; certification_ids?: string[]; order?: number }>,
+        restaurantId?: number,
+        chefNote?: string
+    ) => {
         const payload: Record<string, unknown> = { date, items, restaurant_id: restaurantId };
         if (chefNote !== undefined) payload.chef_note = chefNote;
         const response = await api.post('/menus', payload);
@@ -573,28 +667,6 @@ export const menusApi = {
         return response.data;
     },
 
-    // Images du menu (photos du jour)
-    uploadImage: async (menuId: number, file: File) => {
-        const formData = new FormData();
-        formData.append('file', file);
-        const response = await api.post(`/menus/${menuId}/images`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            timeout: 30000,
-        });
-        return response.data.image as MenuImage;
-    },
-
-    deleteImage: async (menuId: number, imageId: number) => {
-        await api.delete(`/menus/${menuId}/images/${imageId}`);
-    },
-
-    reorderImages: async (menuId: number, imageIds: number[]) => {
-        const response = await api.put(`/menus/${menuId}/images/reorder`, {
-            image_ids: imageIds,
-        });
-        return response.data.images as MenuImage[];
-    },
-
     updateChefNote: async (menuId: number, chefNote: string | null) => {
         const response = await api.put(`/menus/${menuId}/chef-note`, {
             chef_note: chefNote,
@@ -607,6 +679,21 @@ export const menusApi = {
             is_out_of_stock: isOutOfStock,
         });
         return response.data.item as MenuItem;
+    },
+
+    getSubstitutions: async (menuId: number) => {
+        const response = await api.get(`/menus/${menuId}/substitutions`);
+        return response.data.substitutions as Record<string, Array<{ dish: DishCatalogItem; order: number }>>;
+    },
+
+    updateSubstitutions: async (menuId: number, categoryId: number, dishIds: number[]) => {
+        const response = await api.put(`/menus/${menuId}/substitutions/${categoryId}`, { dish_ids: dishIds });
+        return response.data.substitutions as Record<string, Array<{ dish: DishCatalogItem; order: number }>>;
+    },
+
+    getJoursFeries: async (year: number): Promise<JourFerie[]> => {
+        const response = await publicAxios.get(`/menus/jours-feries/${year}`, { timeout: PUBLIC_API_TIMEOUT_MS });
+        return response.data.jours_feries as JourFerie[];
     },
 
     // ——— Affichage public (sans auth) ———
@@ -657,11 +744,20 @@ export interface DateConfig {
     auto_detect_tags?: boolean;
 }
 
+/** Item construit depuis le CSV */
+export interface CsvPreviewItem {
+    category_id: number;
+    name: string;
+    order: number;
+    tags: string[];
+    certifications: string[];
+}
+
 export interface ImportPreviewResponse {
     menus: {
         date: string;
         date_display: string;
-        items: MenuItem[];
+        items: CsvPreviewItem[];
         has_duplicate: boolean;
         existing_menu?: {
             id: number;
@@ -721,6 +817,68 @@ export const csvImportApi = {
         const response = await api.post('/imports/menus/confirm', request);
         return response.data;
     }
+};
+
+// ========================================
+// IMPORT CATALOGUE (liste de plats)
+// ========================================
+export interface CatalogImportUploadResponse {
+    file_id: string;
+    filename: string;
+    columns: string[];
+    preview_rows: Record<string, string>[];
+    row_count: number;
+    delimiter: string | null;
+    suggested_name_column: string | null;
+}
+
+export interface CatalogImportPreviewDish {
+    name: string;
+    tags: string[];            // IDs des tags alimentaires détectés
+    certifications: string[];  // IDs des certifications détectées
+    is_duplicate: boolean;
+}
+
+export interface CatalogImportPreviewResponse {
+    dishes: CatalogImportPreviewDish[];
+    total: number;
+    new_count: number;
+    duplicate_count: number;
+}
+
+export interface CatalogImportParams {
+    file_id: string;
+    name_column: string;
+    tag_columns: string[];
+    category_id: number;
+    auto_detect_tags: boolean;
+}
+
+export interface CatalogImportResult {
+    created_count: number;
+    skipped_count: number;
+}
+
+export const catalogImportApi = {
+    upload: async (file: File): Promise<CatalogImportUploadResponse> => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await api.post('/imports/catalog/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 30000,
+        });
+        return response.data;
+    },
+
+    preview: async (params: CatalogImportParams): Promise<CatalogImportPreviewResponse> => {
+        const response = await api.post('/imports/catalog/preview', params);
+        return response.data;
+    },
+
+    confirm: async (params: CatalogImportParams): Promise<CatalogImportResult> => {
+        const response = await api.post('/imports/catalog/confirm', params);
+        return response.data;
+    },
 };
 
 // ========================================
@@ -895,91 +1053,6 @@ export const closuresApi = {
     },
 };
 
-// ========================================
-// API GALERIE DE PHOTOS
-// ========================================
-export interface GalleryImageTag {
-    id: number;
-    gallery_image_id: number;
-    name: string;
-    tag_type: 'dish' | 'category' | 'manual';
-    category_id?: number;  // MenuCategory.id (integer)
-}
-
-export interface GalleryImage {
-    id: number;
-    restaurant_id: number;
-    url: string;
-    filename?: string;
-    file_size?: number;
-    mime_type?: string;
-    created_at?: string;
-    tags: GalleryImageTag[];
-    usage_count?: number;
-    usages?: MenuItemImageLink[];
-}
-
-export interface GalleryListResponse {
-    images: GalleryImage[];
-    total: number;
-    page: number;
-    per_page: number;
-    pages: number;
-}
-
-export const galleryApi = {
-    list: async (params?: {
-        q?: string;
-        category?: number;     // MenuCategory.id (integer)
-        page?: number;
-        per_page?: number;
-        sort?: 'recent' | 'oldest' | 'usage';
-        restaurant_id?: number;
-    }): Promise<GalleryListResponse> => {
-        const response = await api.get('/gallery', { params });
-        return response.data;
-    },
-
-    get: async (id: number): Promise<GalleryImage> => {
-        const response = await api.get(`/gallery/${id}`);
-        return response.data.image;
-    },
-
-    upload: async (
-        file: File,
-        opts?: { dish_name?: string; category_id?: number; category_label?: string; restaurant_id?: number }
-    ): Promise<GalleryImage> => {
-        const formData = new FormData();
-        formData.append('file', file);
-        if (opts?.dish_name) formData.append('dish_name', opts.dish_name);
-        if (opts?.category_id) formData.append('category_id', String(opts.category_id));
-        if (opts?.category_label) formData.append('category_label', opts.category_label);
-        if (opts?.restaurant_id) formData.append('restaurant_id', String(opts.restaurant_id));
-        const response = await api.post('/gallery', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            timeout: 30000,
-        });
-        return response.data.image;
-    },
-
-    delete: async (id: number) => {
-        await api.delete(`/gallery/${id}`);
-    },
-
-    updateTags: async (id: number, tags: Array<{ name: string; tag_type: 'dish' | 'manual' }>) => {
-        const response = await api.put(`/gallery/${id}/tags`, { tags });
-        return response.data.image as GalleryImage;
-    },
-
-    addTag: async (id: number, name: string) => {
-        const response = await api.post(`/gallery/${id}/tags`, { name });
-        return response.data.tag as GalleryImageTag;
-    },
-
-    deleteTag: async (imageId: number, tagId: number) => {
-        await api.delete(`/gallery/${imageId}/tags/${tagId}`);
-    },
-};
 
 // ========================================
 // API CATÉGORIES DE MENU
@@ -1009,22 +1082,6 @@ export const categoriesApi = {
     },
 };
 
-// ========================================
-// API MENU — Item Images (galerie)
-// ========================================
-export const menuItemImagesApi = {
-    add: async (menuId: number, itemId: number, galleryImageId: number, displayOrder = 0) => {
-        const response = await api.post(`/menus/${menuId}/items/${itemId}/images`, {
-            gallery_image_id: galleryImageId,
-            display_order: displayOrder,
-        });
-        return response.data.link as MenuItemImageLink;
-    },
-
-    remove: async (menuId: number, itemId: number, linkId: number) => {
-        await api.delete(`/menus/${menuId}/items/${itemId}/images/${linkId}`);
-    },
-};
 
 // ========================================
 // API ADMIN
@@ -1144,6 +1201,21 @@ export const adminApi = {
         const response = await api.put('/settings', data);
         return response.data.restaurant;
     },
+
+    getCalendarSettings: async (): Promise<CalendarSettings> => {
+        const response = await api.get('/restaurant/calendar-settings');
+        return response.data as CalendarSettings;
+    },
+
+    updateCalendarSettings: async (settings: Partial<CalendarSettings>): Promise<CalendarSettings> => {
+        const response = await api.put('/restaurant/calendar-settings', settings);
+        return response.data as CalendarSettings;
+    },
+
+    getVacancesScolaires: async (year: number, zone: 'A' | 'B' | 'C'): Promise<VacanceScolaire[]> => {
+        const response = await api.get(`/menus/vacances-scolaires/${year}`, { params: { zone } });
+        return response.data.vacances as VacanceScolaire[];
+    },
 };
 
 // ========================================
@@ -1248,6 +1320,85 @@ export interface RestaurantWithConfig {
     service_hours: ServiceHours;
     config: RestaurantConfig;
 }
+
+// ========================================
+// API INBOX (notifications in-app)
+// ========================================
+export interface InboxNotification {
+    id: number;
+    type: 'business_alert' | 'user_action' | string;
+    title: string;
+    body?: string | null;
+    is_read: boolean;
+    meta?: Record<string, unknown> | null;
+    created_at: string;
+    user_id?: number | null;
+}
+
+export interface CalendarSettings {
+    show_public_holidays: boolean;
+    show_school_vacations: boolean;
+    school_vacation_zone: 'A' | 'B' | 'C' | null;
+}
+
+export interface VacanceScolaire {
+    start_date: string;
+    end_date: string;
+    description: string;
+}
+
+export interface NotifPreferences {
+    notify_menu_unpublished: boolean;
+    notify_menu_during_service: boolean;
+    notify_holiday_approaching: boolean;
+    holiday_alert_days_before: number;
+}
+
+export interface LiveAlert {
+    key: string;
+    title: string;
+    body: string;
+    severity: 'error' | 'warning' | 'info';
+}
+
+export const inboxApi = {
+    list: async (): Promise<InboxNotification[]> => {
+        const response = await api.get('/inbox');
+        return response.data.notifications as InboxNotification[];
+    },
+
+    unreadCount: async (): Promise<number> => {
+        const response = await api.get('/inbox/unread-count');
+        return response.data.count as number;
+    },
+
+    markRead: async (id: number): Promise<void> => {
+        await api.put(`/inbox/${id}/read`);
+    },
+
+    markAllRead: async (): Promise<void> => {
+        await api.put('/inbox/read-all');
+    },
+
+    delete: async (id: number): Promise<void> => {
+        await api.delete(`/inbox/${id}`);
+    },
+
+    getNotifPreferences: async (): Promise<NotifPreferences> => {
+        const response = await api.get('/inbox/notification-preferences');
+        return response.data as NotifPreferences;
+    },
+
+    updateNotifPreferences: async (prefs: Partial<NotifPreferences>): Promise<NotifPreferences> => {
+        const response = await api.put('/inbox/notification-preferences', prefs);
+        return response.data as NotifPreferences;
+    },
+
+    getLiveAlerts: async (): Promise<LiveAlert[]> => {
+        const response = await api.get('/inbox/live-alerts');
+        return response.data.alerts as LiveAlert[];
+    },
+};
 
 // ── Base Adresse Nationale (IGN Géoplateforme) ──────────────────────────────
 

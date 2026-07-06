@@ -133,6 +133,15 @@ def make_restaurant(app, name='RU Test', code='RU_TEST'):
     return restaurant.id
 
 
+def make_category(app, restaurant_id, label='Plat principal', order=0):
+    """Crée une catégorie de menu en base."""
+    from app.models import MenuCategory
+    category = MenuCategory(restaurant_id=restaurant_id, label=label, order=order)
+    _db.session.add(category)
+    _db.session.commit()
+    return category.id
+
+
 def get_token(client, email=None, password=None):
     """Authentifie un utilisateur et retourne son access token."""
     res = client.post('/v1/auth/login', json={

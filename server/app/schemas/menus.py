@@ -1,5 +1,7 @@
 from marshmallow import EXCLUDE, Schema, fields
 
+from .catalog import DishCatalogSchema
+
 
 class MenuCategorySchema(Schema):
     class Meta:
@@ -43,14 +45,12 @@ class MenuItemSchema(Schema):
     class Meta:
         unknown = EXCLUDE
     id = fields.Int(dump_only=True)
+    menu_id = fields.Int(dump_only=True)
     category_id = fields.Int(description="MenuCategory.id")
-    name = fields.Str(description="Dish name")
+    dish_id = fields.Int(description="DishCatalog.id")
+    dish = fields.Nested(DishCatalogSchema, allow_none=True, dump_only=True)
     order = fields.Int()
-    replacement_label = fields.Str(allow_none=True, description="Replacement dish name if out of stock")
     is_out_of_stock = fields.Bool()
-    tags = fields.List(fields.Dict(), description="Dietary tags")
-    certifications = fields.List(fields.Dict(), description="Certifications")
-    images = fields.List(fields.Dict(), description="Gallery images linked to this item", dump_only=True)
 
 
 class MenuSchema(Schema):
@@ -61,6 +61,10 @@ class MenuSchema(Schema):
     date = fields.Str(description="Menu date (YYYY-MM-DD)")
     status = fields.Str(description="'draft' or 'published'")
     items = fields.List(fields.Nested(MenuItemSchema))
+    substitutions = fields.Dict(
+        dump_only=True,
+        description="Map of category_id -> [{dish, order}] substitution dishes",
+    )
     images = fields.List(fields.Dict())
     chef_note = fields.Str(allow_none=True)
     published_at = fields.Str(allow_none=True)
@@ -95,19 +99,6 @@ class MenuItemStockSchema(Schema):
 
 
 # Public display schemas (no auth required)
-class PublicMenuItemSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-    id = fields.Int()
-    name = fields.Str()
-    category_id = fields.Int()
-    replacement_label = fields.Str(allow_none=True)
-    is_out_of_stock = fields.Bool()
-    tags = fields.List(fields.Dict())
-    certifications = fields.List(fields.Dict())
-    images = fields.List(fields.Dict())
-
-
 class PublicDayMenuSchema(Schema):
     class Meta:
         unknown = EXCLUDE

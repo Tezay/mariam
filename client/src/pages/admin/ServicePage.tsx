@@ -1,32 +1,27 @@
 /**
- * MARIAM - Page Service en cours
+ * MARIAM — Page « Service en cours »
  *
- * Vue opérationnelle dédiée au service :
- * - Aperçu du menu du jour avec gestion des ruptures (Switch par item)
- * - Note du chef éditable avec sauvegarde automatique au blur
- * - Édition rapide inline par item (nom, tags, label de remplacement)
- * - Accès au MenuEditor complet si besoin
+ * Vue opérationnelle du jour : suivi des ruptures (Switch par item),
+ * note du chef (autosave), statut de service et actions rapides.
+ * Layout 2 colonnes sur desktop (menu + rail récapitulatif), empilé sur mobile.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     menusApi, categoriesApi, publicApi,
-    Menu, MenuItem, MenuCategory, DietaryTag, ServiceHours,
+    Menu, MenuItem, MenuCategory, ServiceHours,
 } from '@/lib/api';
 import { isInServiceHours } from '@/lib/utils';
 import { parisToday } from '@/lib/date-utils';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { MenuEditor } from '@/components/MenuEditor';
 import { DynamicIcon as Icon } from 'lucide-react/dynamic';
 import type { IconName } from 'lucide-react/dynamic';
 import {
-    ChefHat, Clock, Pencil, ChevronRight, AlertTriangle, CalendarDays,
+    ChefHat, Clock, Pencil, AlertTriangle, CalendarDays,
+    Maximize2, Minimize2, ExternalLink, PackageX,
 } from 'lucide-react';
 
 const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
@@ -49,7 +44,7 @@ function nextServiceSlot(serviceHours: ServiceHours): string | null {
         const [oh, om] = slot.open.split(':').map(Number);
         const openMin = oh * 60 + om;
         if (offset > 0 || curMin < openMin) {
-            const dayLabel = offset === 0 ? 'aujourd\'hui' : offset === 1 ? 'demain' : DAY_NAMES[(dayIdx + 1) % 7].toLowerCase();
+            const dayLabel = offset === 0 ? "aujourd'hui" : offset === 1 ? 'demain' : DAY_NAMES[(dayIdx + 1) % 7].toLowerCase();
             return `Prochain service : ${dayLabel} à ${slot.open}`;
         }
     }
@@ -57,180 +52,168 @@ function nextServiceSlot(serviceHours: ServiceHours): string | null {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Dialogue d'édition rapide d'un item
-// ────────────────────────────────────────────────────────────────────────────
-
-interface ItemEditDialogProps {
-    item: MenuItem;
-    availableTags: DietaryTag[];
-    onClose: () => void;
-    onSave: (patch: Pick<MenuItem, 'name' | 'replacement_label' | 'tags'>) => Promise<void>;
-}
-
-function ItemEditDialog({ item, availableTags, onClose, onSave }: ItemEditDialogProps) {
-    const [name, setName] = useState(item.name);
-    const [replacement, setReplacement] = useState(item.replacement_label ?? '');
-    const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
-        (item.tags ?? []).map(t => t.id)
-    );
-    const [saving, setSaving] = useState(false);
-
-    const toggleTag = (id: string) => {
-        setSelectedTagIds(prev =>
-            prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
-        );
-    };
-
-    const handleSave = async () => {
-        if (!name.trim()) return;
-        setSaving(true);
-        try {
-            const patchedTags = availableTags.filter(t => selectedTagIds.includes(t.id));
-            await onSave({
-                name: name.trim(),
-                replacement_label: replacement.trim() || null,
-                tags: patchedTags,
-            });
-            onClose();
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    return (
-        <Dialog open onOpenChange={onClose}>
-            <DialogContent className="max-w-sm">
-                <DialogHeader>
-                    <DialogTitle>Modifier le plat</DialogTitle>
-                </DialogHeader>
-
-                <div className="space-y-4 py-2">
-                    <div>
-                        <Label htmlFor="item-name">Nom du plat</Label>
-                        <Input
-                            id="item-name"
-                            value={name}
-                            onChange={e => setName(e.target.value)}
-                            autoFocus
-                        />
-                    </div>
-
-                    <div>
-                        <Label htmlFor="item-replacement">Label de remplacement</Label>
-                        <Input
-                            id="item-replacement"
-                            value={replacement}
-                            onChange={e => setReplacement(e.target.value)}
-                            placeholder="Affiché si rupture (ex: Poulet rôti)"
-                        />
-                    </div>
-
-                    {availableTags.length > 0 && (
-                        <div>
-                            <Label className="mb-2 block">Tags</Label>
-                            <div className="flex flex-wrap gap-1.5">
-                                {availableTags.map(tag => {
-                                    const active = selectedTagIds.includes(tag.id);
-                                    return (
-                                        <button
-                                            key={tag.id}
-                                            type="button"
-                                            onClick={() => toggleTag(tag.id)}
-                                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium transition-colors ${
-                                                active
-                                                    ? 'border-transparent bg-primary text-primary-foreground'
-                                                    : 'border-border text-muted-foreground hover:border-muted-foreground'
-                                            }`}
-                                        >
-                                            <Icon name={tag.icon as IconName} className="w-3 h-3" />
-                                            {tag.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                <DialogFooter>
-                    <Button variant="outline" onClick={onClose} disabled={saving}>
-                        Annuler
-                    </Button>
-                    <Button onClick={handleSave} disabled={saving || !name.trim()}>
-                        {saving ? 'Enregistrement…' : 'Enregistrer'}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// Ligne d'item
+// Ligne d'item — Switch de rupture
 // ────────────────────────────────────────────────────────────────────────────
 
 interface ItemRowProps {
     item: MenuItem;
     isToggling: boolean;
     onToggle: () => void;
-    onEdit: () => void;
 }
 
-function ItemRow({ item, isToggling, onToggle, onEdit }: ItemRowProps) {
+function ItemRow({ item, isToggling, onToggle }: ItemRowProps) {
     const isOut = !!item.is_out_of_stock;
+    const dishName = item.dish?.name ?? '';
+    const tags = item.dish?.tags ?? [];
 
     return (
-        <div className={`flex items-start gap-3 px-3 py-3.5 min-h-[56px] rounded-lg border transition-colors ${
+        <div className={`flex items-start gap-3 px-3 py-3 min-h-[52px] rounded-xl border transition-colors ${
             isOut
                 ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800/30'
-                : 'bg-muted/30 border-transparent'
+                : 'bg-card border-border'
         }`}>
             <Switch
                 checked={!isOut}
                 onCheckedChange={onToggle}
                 disabled={isToggling}
-                className={isOut ? 'data-[state=unchecked]:bg-amber-400' : ''}
+                className={isOut ? 'data-[state=unchecked]:bg-amber-400 mt-0.5' : 'mt-0.5'}
                 aria-label={isOut ? 'Remettre en stock' : 'Signaler rupture'}
             />
-
             <div className="flex-1 min-w-0">
                 <p className={`text-sm font-medium leading-snug ${isOut ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-                    {item.name}
+                    {dishName || <span className="italic text-muted-foreground">Plat sans nom</span>}
                 </p>
-                {(item.tags ?? []).length > 0 && (
+                {tags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1">
-                        {(item.tags ?? []).map(tag => (
-                            <Badge
-                                key={tag.id}
-                                variant="outline"
-                                className="text-[10px] px-1.5 py-0 gap-1 font-normal"
-                            >
+                        {tags.map(tag => (
+                            <Badge key={tag.id} variant="outline" className="text-[10px] px-1.5 py-0 gap-1 font-normal">
                                 <Icon name={tag.icon as IconName} className="w-2.5 h-2.5" />
                                 {tag.label}
                             </Badge>
                         ))}
                     </div>
                 )}
-                {isOut && item.replacement_label && (
-                    <div className="flex items-center gap-1 mt-1">
-                        <ChevronRight className="w-3 h-3 text-amber-600 shrink-0" />
-                        <p className="text-xs text-amber-700 dark:text-amber-400">{item.replacement_label}</p>
-                    </div>
-                )}
-                {isOut && !item.replacement_label && (
-                    <p className="text-xs text-amber-600/70 dark:text-amber-500/70 mt-0.5">Aucun remplacement défini</p>
+            </div>
+            {isOut && (
+                <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                    <PackageX className="w-3 h-3" />
+                    Épuisé
+                </span>
+            )}
+        </div>
+    );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Rail récapitulatif
+// ────────────────────────────────────────────────────────────────────────────
+
+interface SummaryCardProps {
+    lastUpdated: Date | null;
+    duringService: boolean;
+    serviceHours: ServiceHours;
+    outOfStockCount: number;
+    totalCount: number;
+    hasMenu: boolean;
+}
+
+function SummaryCard({ lastUpdated, duringService, serviceHours, outOfStockCount, totalCount, hasMenu }: SummaryCardProps) {
+    return (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <div>
+                <p className="text-sm font-semibold text-foreground">{formatTodayLabel(new Date())}</p>
+                {lastUpdated && (
+                    <p className="text-xs text-muted-foreground/70 mt-0.5">
+                        Mis à jour à {lastUpdated.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
                 )}
             </div>
 
-            <button
-                type="button"
-                onClick={onEdit}
-                className="shrink-0 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                title="Modifier ce plat"
-                aria-label="Modifier ce plat"
-            >
-                <Pencil className="w-4 h-4" />
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+                <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
+                    duringService
+                        ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                        : 'bg-muted text-muted-foreground'
+                }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${duringService ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground/50'}`} />
+                    {duringService ? 'En service' : 'Hors service'}
+                </span>
+                {hasMenu && totalCount > 0 && (
+                    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
+                        outOfStockCount > 0
+                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                            : 'bg-muted text-muted-foreground'
+                    }`}>
+                        <AlertTriangle className="w-3 h-3" />
+                        {outOfStockCount} / {totalCount} rupture{outOfStockCount > 1 ? 's' : ''}
+                    </span>
+                )}
+            </div>
+
+            {!duringService && (
+                <div className="flex items-start gap-2 rounded-lg bg-muted/50 px-3 py-2">
+                    <Clock className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                    <p className="text-xs text-muted-foreground">
+                        {nextServiceSlot(serviceHours) ?? 'Aucun créneau de service configuré.'}
+                    </p>
+                </div>
+            )}
+        </div>
+    );
+}
+
+interface ChefNoteCardProps {
+    value: string;
+    saving: boolean;
+    onChange: (v: string) => void;
+    onBlur: () => void;
+}
+
+function ChefNoteCard({ value, saving, onChange, onBlur }: ChefNoteCardProps) {
+    return (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+            <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                    <ChefHat className="w-4 h-4 text-muted-foreground" />
+                    Note du chef
+                </span>
+                {saving && <span className="text-xs text-muted-foreground">Enregistrement…</span>}
+            </div>
+            <textarea
+                rows={3}
+                value={value}
+                onChange={e => onChange(e.target.value)}
+                onBlur={onBlur}
+                placeholder="Message affiché sur l'écran public…"
+                maxLength={300}
+                className="w-full text-sm rounded-lg border border-border bg-background px-2.5 py-2 outline-none resize-none focus:ring-2 focus:ring-primary transition-shadow"
+            />
+            <p className="text-[10px] text-muted-foreground text-right">{value.length}/300</p>
+        </div>
+    );
+}
+
+interface ActionsCardProps {
+    isFullscreen: boolean;
+    onToggleFullscreen: () => void;
+    onOpenEditor: () => void;
+}
+
+function ActionsCard({ isFullscreen, onToggleFullscreen, onOpenEditor }: ActionsCardProps) {
+    return (
+        <div className="rounded-xl border border-border bg-card p-2 space-y-1">
+            <Button variant="ghost" className="w-full justify-start gap-2.5 h-9" onClick={() => window.open('/menu', '_blank')}>
+                <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                Aperçu écran public
+            </Button>
+            <Button variant="ghost" className="w-full justify-start gap-2.5 h-9" onClick={onToggleFullscreen}>
+                {isFullscreen ? <Minimize2 className="w-4 h-4 text-muted-foreground" /> : <Maximize2 className="w-4 h-4 text-muted-foreground" />}
+                {isFullscreen ? 'Quitter le plein écran' : 'Plein écran'}
+            </Button>
+            <Button variant="ghost" className="w-full justify-start gap-2.5 h-9" onClick={onOpenEditor}>
+                <Pencil className="w-4 h-4 text-muted-foreground" />
+                Ouvrir l'éditeur complet
+            </Button>
         </div>
     );
 }
@@ -245,19 +228,28 @@ export function ServicePage() {
 
     const [menu, setMenu] = useState<Menu | null>(null);
     const [categories, setCategories] = useState<MenuCategory[]>([]);
-    const [availableTags, setAvailableTags] = useState<DietaryTag[]>([]);
     const [serviceHours, setServiceHours] = useState<ServiceHours>({});
     const [loading, setLoading] = useState(true);
 
     const [togglingId, setTogglingId] = useState<number | null>(null);
-    const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
     const [chefNote, setChefNote] = useState('');
     const [chefNoteSaving, setChefNoteSaving] = useState(false);
-    const [showMenuEditor, setShowMenuEditor] = useState(false);
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     const duringService = isInServiceHours(serviceHours);
     const outOfStockCount = (menu?.items ?? []).filter(i => i.is_out_of_stock).length;
     const totalCount = (menu?.items ?? []).length;
+    const published = !!menu && menu.status === 'published';
+
+    const loadMenu = useCallback(async () => {
+        try {
+            const menuRes = await menusApi.getByDate(today).catch(() => null);
+            setMenu(menuRes ?? null);
+            setChefNote(prev => menuRes?.chef_note ?? prev);
+            setLastUpdated(new Date());
+        } catch { /* ignore polling errors */ }
+    }, [today]);
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -267,27 +259,33 @@ export function ServicePage() {
                 categoriesApi.list().catch(() => ({ categories: [] })),
                 publicApi.getRestaurant().catch(() => null),
             ]);
-
-            const loadedMenu: Menu | null = menuRes?.menu ?? menuRes ?? null;
-            setMenu(loadedMenu);
-            setChefNote(loadedMenu?.chef_note ?? '');
+            setMenu(menuRes ?? null);
+            setChefNote(menuRes?.chef_note ?? '');
             setCategories(catRes.categories ?? []);
-
-            const hours = restaurantRes?.config?.service_hours ?? {};
-            setServiceHours(hours);
-
-            const tags: DietaryTag[] = restaurantRes?.config?.dietary_tags ?? [];
-            setAvailableTags(tags);
+            setServiceHours(restaurantRes?.config?.service_hours ?? {});
+            setLastUpdated(new Date());
         } finally {
             setLoading(false);
         }
     }, [today]);
 
-    useEffect(() => {
-        loadData();
-    }, [loadData]);
+    useEffect(() => { loadData(); }, [loadData]);
 
-    // ── Rupture ─────────────────────────────────────────────────────────────
+    useEffect(() => {
+        const id = setInterval(loadMenu, 60_000);
+        return () => clearInterval(id);
+    }, [loadMenu]);
+
+    useEffect(() => {
+        const handler = () => setIsFullscreen(!!document.fullscreenElement);
+        document.addEventListener('fullscreenchange', handler);
+        return () => document.removeEventListener('fullscreenchange', handler);
+    }, []);
+
+    const toggleFullscreen = async () => {
+        if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+        else await document.exitFullscreen();
+    };
 
     const handleToggleStock = async (item: MenuItem) => {
         if (!menu?.id || !item.id || togglingId === item.id) return;
@@ -298,13 +296,10 @@ export function ServicePage() {
                 ...prev,
                 items: prev.items.map(i => i.id === item.id ? { ...i, ...updated } : i),
             } : prev);
-        } catch {
-        } finally {
+        } catch { /* ignore */ } finally {
             setTogglingId(null);
         }
     };
-
-    // ── Note du chef ────────────────────────────────────────────────────────
 
     const handleChefNoteBlur = async () => {
         if (!menu?.id || chefNote === (menu.chef_note ?? '')) return;
@@ -317,47 +312,32 @@ export function ServicePage() {
         }
     };
 
-    // ── Édition rapide inline ────────────────────────────────────────────────
-
-    const handleItemSave = async (patch: Pick<MenuItem, 'name' | 'replacement_label' | 'tags'>) => {
-        if (!menu || !editingItem) return;
-        const updatedItems = menu.items.map(i =>
-            i.id === editingItem.id ? { ...i, ...patch } : i
-        );
-        await menusApi.save(today, updatedItems, menu.restaurant_id);
-        await loadData();
-    };
-
-    // ── Rendu catégories ────────────────────────────────────────────────────
-
+    // ── Rendu des catégories (colonne principale) ────────────────────────────
     const renderLeafItems = (category: MenuCategory) => {
         const items = (menu?.items ?? [])
             .filter(i => i.category_id === category.id)
             .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
         if (items.length === 0) return null;
 
         return (
             <div key={category.id} className="space-y-2">
-                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    {category.label}
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{category.label}</p>
+                <div className="space-y-1.5">
+                    {items.map(item => (
+                        <ItemRow
+                            key={item.id}
+                            item={item}
+                            isToggling={togglingId === item.id}
+                            onToggle={() => handleToggleStock(item)}
+                        />
+                    ))}
                 </div>
-                {items.map(item => (
-                    <ItemRow
-                        key={item.id}
-                        item={item}
-                        isToggling={togglingId === item.id}
-                        onToggle={() => handleToggleStock(item)}
-                        onEdit={() => setEditingItem(item)}
-                    />
-                ))}
             </div>
         );
     };
 
     const renderCategory = (cat: MenuCategory) => {
         const hasSubs = (cat.subcategories?.length ?? 0) > 0;
-
         if (hasSubs) {
             const subContent = cat.subcategories!
                 .sort((a, b) => a.order - b.order)
@@ -366,151 +346,92 @@ export function ServicePage() {
             if (subContent.length === 0) return null;
             return (
                 <div key={cat.id} className="space-y-4">
-                    <div className="flex items-center gap-2">
-                        <h3 className="font-medium text-foreground">{cat.label}</h3>
-                    </div>
+                    <h3 className="font-semibold text-foreground">{cat.label}</h3>
                     <div className="pl-4 border-l-2 border-border space-y-4">{subContent}</div>
                 </div>
             );
         }
-
         return renderLeafItems(cat);
     };
 
-    // ── Render ───────────────────────────────────────────────────────────────
-
+    // ── Render ────────────────────────────────────────────────────────────────
     if (loading) {
         return (
-            <div className="container-mariam py-8 flex justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+            <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-6">
+                <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+                    <div className="space-y-6 order-2 lg:order-1">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                            <div key={i} className="space-y-2">
+                                <Skeleton className="h-3.5 w-20" />
+                                {Array.from({ length: i === 0 ? 3 : 2 }).map((_, j) => (
+                                    <Skeleton key={j} className="h-14 w-full rounded-xl" />
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+                    <div className="space-y-4 order-1 lg:order-2">
+                        <Skeleton className="h-28 w-full rounded-xl" />
+                        <Skeleton className="h-32 w-full rounded-xl" />
+                    </div>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="container-mariam py-6 max-w-2xl">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-6">
 
-            {/* En-tête */}
-            <div className="flex items-start justify-between mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-foreground mb-1">Service en cours</h1>
-                    <p className="text-muted-foreground">{formatTodayLabel(new Date())}</p>
-                </div>
-                <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
-                        duringService
-                            ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                            : 'bg-muted text-muted-foreground'
-                    }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${duringService ? 'bg-green-500' : 'bg-muted-foreground/50'}`} />
-                        {duringService ? 'En service' : 'Hors service'}
-                    </span>
-                    {menu && totalCount > 0 && outOfStockCount > 0 && (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                            <AlertTriangle className="w-3 h-3" />
-                            {outOfStockCount} rupture{outOfStockCount > 1 ? 's' : ''}
-                        </span>
+            <div className="grid gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
+                {/* Colonne principale — menu */}
+                <div className="min-w-0 order-2 lg:order-1">
+                    {!published ? (
+                        <div className="flex flex-col items-center justify-center py-16 text-center gap-4 rounded-xl border border-dashed border-border">
+                            <CalendarDays className="w-10 h-10 text-muted-foreground/40" />
+                            <div>
+                                <p className="font-medium text-foreground">Aucun menu publié aujourd'hui</p>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                    Publiez le menu du jour depuis le calendrier.
+                                </p>
+                            </div>
+                            <Button variant="outline" onClick={() => navigate(`/admin/calendar?date=${today}`)}>
+                                Aller au calendrier
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            {[...categories]
+                                .sort((a, b) => a.order - b.order)
+                                .map(cat => renderCategory(cat))
+                                .filter(Boolean)}
+                        </div>
                     )}
                 </div>
-            </div>
 
-            {/* Bannière hors service */}
-            {!duringService && (
-                <div className="mb-6 flex items-start gap-3 p-4 rounded-lg border border-border bg-muted/40">
-                    <Clock className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-                    <div>
-                        <p className="text-sm font-medium text-foreground">Hors service</p>
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                            {nextServiceSlot(serviceHours) ?? 'Aucun créneau de service configuré.'}
-                        </p>
-                    </div>
-                </div>
-            )}
-
-            {/* Aucun menu publié */}
-            {!menu || menu.status !== 'published' ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
-                    <CalendarDays className="w-10 h-10 text-muted-foreground/40" />
-                    <div>
-                        <p className="font-medium text-foreground">Aucun menu publié aujourd'hui</p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                            Publiez le menu du jour depuis le planificateur hebdomadaire.
-                        </p>
-                    </div>
-                    <Button variant="outline" onClick={() => navigate('/admin/menus')}>
-                        Aller au planificateur
-                    </Button>
-                </div>
-            ) : (
-                <div className="space-y-6">
-
-                    {/* Note du chef */}
-                    <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                            <Label htmlFor="chef-note" className="flex items-center gap-1.5 text-sm font-medium">
-                                <ChefHat className="w-4 h-4 text-muted-foreground" />
-                                Note du chef
-                            </Label>
-                            {chefNoteSaving && (
-                                <span className="text-xs text-muted-foreground">Enregistrement…</span>
-                            )}
-                        </div>
-                        <Textarea
-                            id="chef-note"
-                            rows={2}
+                {/* Rail récapitulatif */}
+                <aside className="order-1 lg:order-2 lg:sticky lg:top-6 self-start space-y-4">
+                    <SummaryCard
+                        lastUpdated={lastUpdated}
+                        duringService={duringService}
+                        serviceHours={serviceHours}
+                        outOfStockCount={outOfStockCount}
+                        totalCount={totalCount}
+                        hasMenu={published}
+                    />
+                    {published && (
+                        <ChefNoteCard
                             value={chefNote}
-                            onChange={e => setChefNote(e.target.value)}
+                            saving={chefNoteSaving}
+                            onChange={setChefNote}
                             onBlur={handleChefNoteBlur}
-                            placeholder="Message affiché sur l'écran public…"
-                            maxLength={300}
-                            className="resize-none bg-muted/40"
                         />
-                        <p className="text-xs text-muted-foreground text-right">{chefNote.length}/300</p>
-                    </div>
-
-                    {/* Items par catégorie */}
-                    <div className="space-y-6">
-                        {[...categories]
-                            .sort((a, b) => a.order - b.order)
-                            .map(cat => renderCategory(cat))
-                            .filter(Boolean)
-                        }
-                    </div>
-
-                    {/* Bouton éditeur complet */}
-                    <div className="pt-2 border-t border-border">
-                        <Button
-                            variant="outline"
-                            className="w-full gap-2"
-                            onClick={() => setShowMenuEditor(true)}
-                        >
-                            <Pencil className="w-4 h-4" />
-                            Ouvrir l'éditeur complet
-                        </Button>
-                    </div>
-                </div>
-            )}
-
-            {/* Dialog édition rapide */}
-            {editingItem && (
-                <ItemEditDialog
-                    item={editingItem}
-                    availableTags={availableTags}
-                    onClose={() => setEditingItem(null)}
-                    onSave={handleItemSave}
-                />
-            )}
-
-            {/* MenuEditor complet */}
-            {showMenuEditor && menu && (
-                <MenuEditor
-                    date={today}
-                    restaurantId={menu.restaurant_id}
-                    menu={menu}
-                    onClose={() => setShowMenuEditor(false)}
-                    onSave={loadData}
-                />
-            )}
+                    )}
+                    <ActionsCard
+                        isFullscreen={isFullscreen}
+                        onToggleFullscreen={toggleFullscreen}
+                        onOpenEditor={() => navigate(`/admin/calendar?date=${today}`)}
+                    />
+                </aside>
+            </div>
         </div>
     );
 }

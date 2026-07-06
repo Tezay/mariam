@@ -11,14 +11,13 @@ Editor endpoints (JWT required):
 - DELETE /v1/closures/<id>      Delete a closure
 """
 from datetime import datetime
-from functools import wraps
 
 from flask import jsonify, request
-from flask_jwt_extended import get_jwt_identity, jwt_required, verify_jwt_in_request
+from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 from flask_smorest import Blueprint
 
 from ..extensions import db
-from ..models import AuditLog, ExceptionalClosure, Restaurant, User
+from ..models import AuditLog, ExceptionalClosure, User
 from ..schemas.closures import (
     ClosureCreateSchema,
     ClosureSchema,
@@ -28,6 +27,7 @@ from ..schemas.closures import (
 from ..schemas.common import ErrorSchema, MessageSchema
 from ..security import get_client_ip
 from ..utils.time import paris_today
+from .helpers import editor_required, get_default_restaurant
 
 closures_bp = Blueprint(
     'closures', __name__,
@@ -38,23 +38,6 @@ closures_bp = Blueprint(
 # ============================================================
 # HELPERS
 # ============================================================
-
-def editor_required(f):
-    """Décorateur : accès réservé aux éditeurs (role editor ou admin)."""
-    @wraps(f)
-    @jwt_required()
-    def decorated_function(*args, **kwargs):
-        current_user_id = int(get_jwt_identity())
-        user = User.query.get(current_user_id)
-        if not user or not user.is_editor():
-            return jsonify({'error': 'Accès réservé aux éditeurs'}), 403
-        return f(*args, **kwargs)
-    return decorated_function
-
-
-def get_default_restaurant():
-    return Restaurant.query.filter_by(is_active=True).first()
-
 
 def parse_date(date_str, field_name='date'):
     try:

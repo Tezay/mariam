@@ -9,7 +9,8 @@
  * - Réinitialiser le MFA
  */
 import { useState, useEffect } from 'react';
-import { adminApi, User } from '@/lib/api';
+import { adminApi, getApiErrorMessage, User } from '@/lib/api';
+import { notify } from '@/lib/toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -73,8 +74,8 @@ export function UsersPage() {
             setUsers(usersData);
             // Filter active invitations (not used AND still valid)
             setInvitations(invitationsData.filter((inv: Invitation) => !inv.is_used && inv.is_valid));
-        } catch (error) {
-            console.error('Erreur chargement:', error);
+        } catch {
+            notify.error('Erreur lors du chargement des utilisateurs');
         } finally {
             setIsLoading(false);
         }
@@ -99,9 +100,9 @@ export function UsersPage() {
         try {
             await adminApi.deleteUser(user.id);
             setUsers(users.filter(u => u.id !== user.id));
-        } catch (error) {
-            console.error('Erreur suppression:', error);
-            alert('Erreur lors de la suppression');
+            notify.success(`Utilisateur ${user.email} supprimé`);
+        } catch {
+            notify.error('Erreur lors de la suppression');
         }
     };
 
@@ -110,12 +111,11 @@ export function UsersPage() {
         if (!confirm(`Réinitialiser le MFA de ${user.email} ? L'utilisateur devra reconfigurer son authentificateur.`)) return;
 
         try {
-            const result = await adminApi.resetUserMfa(user.id);
-            alert(`MFA réinitialisé. Nouveau lien d'activation envoyé.\nToken: ${result.activation_link.token}`);
+            await adminApi.resetUserMfa(user.id);
+            notify.success('MFA réinitialisé. Nouveau lien d\'activation envoyé.');
             loadData();
-        } catch (error) {
-            console.error('Erreur reset MFA:', error);
-            alert('Erreur lors de la réinitialisation');
+        } catch {
+            notify.error('Erreur lors de la réinitialisation');
         }
     };
 
@@ -301,8 +301,8 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
         try {
             const invitation = await adminApi.createInvitation(email, role);
             setResult({ token: invitation.token });
-        } catch (err: any) {
-            setError(err.response?.data?.error || 'Erreur lors de la création');
+        } catch (err) {
+            setError(getApiErrorMessage(err, 'Erreur lors de la création'));
         } finally {
             setIsLoading(false);
         }
@@ -417,8 +417,8 @@ function EditUserModal({ user, onClose, onSuccess }: { user: User; onClose: () =
         try {
             await adminApi.updateUser(user.id, { role, is_active: isActive });
             onSuccess();
-        } catch (err: any) {
-            setError(err.response?.data?.error || 'Erreur lors de la modification');
+        } catch (err) {
+            setError(getApiErrorMessage(err, 'Erreur lors de la modification'));
         } finally {
             setIsLoading(false);
         }

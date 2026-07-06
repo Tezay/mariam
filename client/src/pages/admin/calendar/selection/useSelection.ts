@@ -1,15 +1,17 @@
 import { useState, useCallback } from 'react';
 import type { MenuItem } from '@/lib/api';
 
-export type SelectionEntry =
-    | { type: 'item'; itemId: number; date: string; categoryId: number }
-    | { type: 'category'; categoryId: number; date: string }
-    | { type: 'day'; date: string };
+export interface SelectionEntry {
+    type: 'item';
+    itemId: number;
+    date: string;
+    categoryId: number;
+}
 
-function entryKey(e: SelectionEntry): string {
-    if (e.type === 'item') return `item:${e.date}:${e.itemId}`;
-    if (e.type === 'category') return `cat:${e.date}:${e.categoryId}`;
-    return `day:${e.date}`;
+export type GroupState = 'none' | 'some' | 'all';
+
+function key(date: string, itemId: number): string {
+    return `${date}:${itemId}`;
 }
 
 export interface UseSelectionReturn {
@@ -17,9 +19,10 @@ export interface UseSelectionReturn {
     selection: SelectionEntry[];
     toggleSelectionMode(): void;
     toggleItem(entry: SelectionEntry): void;
-    isSelected(entry: SelectionEntry): boolean;
-    selectCategory(categoryId: number, date: string, items: MenuItem[]): void;
-    selectDay(date: string, allItems: MenuItem[]): void;
+    isItemSelected(itemId: number, date: string): boolean;
+    getGroupState(date: string, items: MenuItem[]): GroupState;
+    toggleGroup(date: string, items: MenuItem[]): void;
+    selectMultiple(entries: SelectionEntry[]): void;
     clearSelection(): void;
     selectedItemCount: number;
 }
@@ -36,73 +39,60 @@ export function useSelection(): UseSelectionReturn {
     }, []);
 
     const toggleItem = useCallback((entry: SelectionEntry) => {
-        const key = entryKey(entry);
         setSelection(prev => {
-            const exists = prev.some(e => entryKey(e) === key);
-            return exists ? prev.filter(e => entryKey(e) !== key) : [...prev, entry];
+            const exists = prev.some(e => e.date === entry.date && e.itemId === entry.itemId);
+            return exists
+                ? prev.filter(e => !(e.date === entry.date && e.itemId === entry.itemId))
+                : [...prev, entry];
         });
     }, []);
 
-    const isSelected = useCallback((entry: SelectionEntry): boolean => {
-        const key = entryKey(entry);
-        return selection.some(e => entryKey(e) === key);
+    const isItemSelected = useCallback(
+        (itemId: number, date: string) => selection.some(e => e.date === date && e.itemId === itemId),
+        [selection],
+    );
+
+    const getGroupState = useCallback((date: string, items: MenuItem[]): GroupState => {
+        const withId = items.filter(i => i.id != null);
+        if (withId.length === 0) return 'none';
+        const selected = withId.filter(it => selection.some(e => e.date === date && e.itemId === it.id)).length;
+        if (selected === 0) return 'none';
+        return selected === withId.length ? 'all' : 'some';
     }, [selection]);
 
-    const selectCategory = useCallback((categoryId: number, date: string, items: MenuItem[]) => {
-        const catEntry: SelectionEntry = { type: 'category', categoryId, date };
-        const itemEntries: SelectionEntry[] = items.map(item => ({
-            type: 'item',
-            itemId: item.id!,
-            date,
-            categoryId,
-        }));
+    const toggleGroup = useCallback((date: string, items: MenuItem[]) => {
+        const entries: SelectionEntry[] = items
+            .filter(i => i.id != null)
+            .map(i => ({ type: 'item', itemId: i.id!, date, categoryId: i.category_id }));
         setSelection(prev => {
-            const catKey = entryKey(catEntry);
-            const alreadySelected = prev.some(e => entryKey(e) === catKey);
-            if (alreadySelected) {
-                const catItemKeys = new Set(itemEntries.map(entryKey));
-                return prev.filter(e => entryKey(e) !== catKey && !catItemKeys.has(entryKey(e)));
+            const allSelected = entries.length > 0
+                && entries.every(en => prev.some(e => e.date === en.date && e.itemId === en.itemId));
+            if (allSelected) {
+                const toRemove = new Set(entries.map(e => key(e.date, e.itemId)));
+                return prev.filter(e => !toRemove.has(key(e.date, e.itemId)));
             }
-            const existingKeys = new Set(prev.map(entryKey));
-            const newEntries = [catEntry, ...itemEntries].filter(e => !existingKeys.has(entryKey(e)));
-            return [...prev, ...newEntries];
-        });
-    }, []);
-
-    const selectDay = useCallback((date: string, allItems: MenuItem[]) => {
-        const dayEntry: SelectionEntry = { type: 'day', date };
-        const itemEntries: SelectionEntry[] = allItems.map(item => ({
-            type: 'item',
-            itemId: item.id!,
-            date,
-            categoryId: item.category_id,
-        }));
-        setSelection(prev => {
-            const dayKey = entryKey(dayEntry);
-            const alreadySelected = prev.some(e => entryKey(e) === dayKey);
-            if (alreadySelected) {
-                const allKeys = new Set([dayEntry, ...itemEntries].map(entryKey));
-                return prev.filter(e => !allKeys.has(entryKey(e)));
-            }
-            const existingKeys = new Set(prev.map(entryKey));
-            const newEntries = [dayEntry, ...itemEntries].filter(e => !existingKeys.has(entryKey(e)));
-            return [...prev, ...newEntries];
+            const existing = new Set(prev.map(e => key(e.date, e.itemId)));
+            return [...prev, ...entries.filter(e => !existing.has(key(e.date, e.itemId)))];
         });
     }, []);
 
     const clearSelection = useCallback(() => setSelection([]), []);
 
-    const selectedItemCount = selection.filter(e => e.type === 'item').length;
+    const selectMultiple = useCallback((entries: SelectionEntry[]) => {
+        setSelectionMode(true);
+        setSelection(entries);
+    }, []);
 
     return {
         selectionMode,
         selection,
         toggleSelectionMode,
         toggleItem,
-        isSelected,
-        selectCategory,
-        selectDay,
+        isItemSelected,
+        getGroupState,
+        toggleGroup,
+        selectMultiple,
         clearSelection,
-        selectedItemCount,
+        selectedItemCount: selection.length,
     };
 }

@@ -19,14 +19,13 @@ Editor endpoints (JWT required):
 - PUT    /v1/events/<id>/images/reorder    Reorder images
 """
 from datetime import datetime, timedelta
-from functools import wraps
 
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required, verify_jwt_in_request
 from flask_smorest import Blueprint
 
 from ..extensions import db
-from ..models import AuditLog, Event, EventImage, Restaurant, User
+from ..models import AuditLog, Event, EventImage, User
 from ..schemas.common import ErrorSchema, MessageSchema
 from ..schemas.events import (
     EventCreateSchema,
@@ -37,6 +36,7 @@ from ..schemas.events import (
 from ..security import get_client_ip
 from ..services.storage import storage
 from ..utils.time import paris_today
+from .helpers import editor_required, get_default_restaurant
 
 events_bp = Blueprint(
     'events', __name__,
@@ -47,24 +47,6 @@ events_bp = Blueprint(
 # ============================================================
 # HELPERS
 # ============================================================
-
-def editor_required(f):
-    """Décorateur : accès réservé aux éditeurs (role editor ou admin)."""
-    @wraps(f)
-    @jwt_required()
-    def decorated_function(*args, **kwargs):
-        current_user_id = int(get_jwt_identity())
-        user = User.query.get(current_user_id)
-        if not user or not user.is_editor():
-            return jsonify({'error': 'Accès réservé aux éditeurs'}), 403
-        return f(*args, **kwargs)
-    return decorated_function
-
-
-def get_default_restaurant():
-    """Retourne le premier restaurant actif."""
-    return Restaurant.query.filter_by(is_active=True).first()
-
 
 # ============================================================
 # LISTE DES ÉVÉNEMENTS — route unifiée public/éditeur

@@ -14,14 +14,13 @@ from .extensions import db, jwt, migrate
 from .models import (
     ActivationLink,
     AuditLog,
+    CategorySubstitution,
+    DishCatalog,
     Event,
     EventImage,
-    GalleryImage,
-    GalleryImageTag,
     ImportSession,
     Menu,
     MenuItem,
-    MenuItemImage,
     PushSubscription,
     Restaurant,
     User,
@@ -54,8 +53,20 @@ def create_app(config_class=None):
         'pool_recycle': int(os.environ.get('DB_POOL_RECYCLE', 1800)),
     }
     
-    # Configuration JWT - Sessions courtes pour sécurité (postes partagés)
+    # Configuration JWT
     app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'jwt-secret-key-change-in-production')
+
+    # Garde-fou
+    _dev_defaults = {'dev-secret-key-change-in-production', 'jwt-secret-key-change-in-production'}
+    _is_dev = (
+        os.environ.get('FLASK_DEBUG') == '1'
+        or os.environ.get('FLASK_ENV') == 'development'
+    )
+    if not _is_dev and _dev_defaults & {app.config['SECRET_KEY'], app.config['JWT_SECRET_KEY']}:
+        raise RuntimeError(
+            'SECRET_KEY et JWT_SECRET_KEY doivent être définis en production '
+            '(valeurs par défaut de développement détectées).'
+        )
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(
         minutes=int(os.environ.get('JWT_ACCESS_TOKEN_MINUTES', 30))
     )
@@ -208,11 +219,12 @@ def create_app(config_class=None):
 
     from .routes.audit import audit_bp
     from .routes.auth import auth_bp
+    from .routes.catalog import catalog_bp
     from .routes.categories import categories_bp
     from .routes.closures import closures_bp
     from .routes.events import events_bp
-    from .routes.gallery import gallery_bp
     from .routes.imports import imports_bp
+    from .routes.inbox import inbox_bp
     from .routes.menus import menus_bp
     from .routes.notifications import notifications_bp
     from .routes.restaurant import restaurant_bp
@@ -223,13 +235,14 @@ def create_app(config_class=None):
     api.register_blueprint(categories_bp,    url_prefix='/v1')
     api.register_blueprint(auth_bp,          url_prefix='/v1/auth')
     api.register_blueprint(events_bp,        url_prefix='/v1/events')
-    api.register_blueprint(gallery_bp,       url_prefix='/v1/gallery')
+    api.register_blueprint(catalog_bp,       url_prefix='/v1/catalog')
     api.register_blueprint(restaurant_bp,    url_prefix='/v1')
     api.register_blueprint(taxonomy_bp,      url_prefix='/v1/taxonomy')
     api.register_blueprint(users_bp,         url_prefix='/v1/users')
     api.register_blueprint(audit_bp,         url_prefix='/v1/audit-logs')
-    api.register_blueprint(imports_bp,       url_prefix='/v1/imports/menus')
+    api.register_blueprint(imports_bp,       url_prefix='/v1/imports')
     api.register_blueprint(notifications_bp, url_prefix='/v1/notifications')
+    api.register_blueprint(inbox_bp,         url_prefix='/v1/inbox')
     api.register_blueprint(closures_bp,      url_prefix='/v1/closures')
 
     @app.route('/health')
@@ -258,7 +271,6 @@ Disallow: /v1/auth/
 Disallow: /v1/users/
 Disallow: /v1/audit-logs/
 Disallow: /v1/imports/
-Disallow: /v1/gallery/
 
 User-agent: GPTBot
 Allow: /v1/menus/
@@ -333,22 +345,47 @@ Disallow: /v1/users/
     
     @app.cli.command('init-restaurant')
     def init_restaurant():
-        """Initialise un restaurant par défaut."""
+        """Initialise un restaurant par défaut avec ses catégories."""
         import click
-        
+
+        from .routes.restaurant import _create_default_categories
+
         existing = Restaurant.query.first()
         if existing:
             click.echo(f"ℹ️  Restaurant existant : {existing.name} ({existing.code})")
             return
-        
+
         restaurant = Restaurant(
             name="Restaurant Universitaire",
             code="RU_DEFAULT"
         )
         db.session.add(restaurant)
+        db.session.flush()
+
+        _create_default_categories(restaurant.id)
         db.session.commit()
-        
+
         click.echo(f"✅ Restaurant créé : {restaurant.name} (ID: {restaurant.id})")
+        click.echo("✅ Catégories par défaut créées.")
+
+    @app.cli.command('seed-categories')
+    def seed_categories_cmd():
+        """Crée les catégories par défaut si le restaurant n'en a pas encore. Idempotent."""
+        import click
+
+        from .models.category import MenuCategory
+        from .routes.restaurant import _create_default_categories
+
+        restaurant = Restaurant.query.filter_by(is_active=True).first()
+        if not restaurant:
+            click.echo("❌ Aucun restaurant actif trouvé.")
+            return
+        if MenuCategory.query.filter_by(restaurant_id=restaurant.id).count() > 0:
+            click.echo(f"ℹ️  {restaurant.name} a déjà des catégories — rien à faire.")
+            return
+        _create_default_categories(restaurant.id)
+        db.session.commit()
+        click.echo(f"✅ Catégories par défaut créées pour : {restaurant.name}")
 
     @app.cli.command('create-password-reset-link')
     def create_password_reset_link_cmd():
@@ -446,12 +483,14 @@ def _start_notification_scheduler(app):
         scheduler.add_job(
             func=check_and_send_notifications,
             trigger='cron',
-            minute='*',  # Toutes les minutes
+            minute='*',
             args=[app],
             id='push_notifications',
             name='Envoi des notifications push planifiées',
             replace_existing=True,
+            misfire_grace_time=60,
         )
+
         scheduler.start()
         app.logger.info("✅ Scheduler de notifications push démarré (toutes les minutes)")
         

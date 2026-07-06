@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { PlusCircle, FileUp, Table2, ChefHat, MoreHorizontal, Trash2 } from 'lucide-react';
+import { PlusCircle, FileUp, Table2, ChefHat, MoreHorizontal, Trash2, Copy } from 'lucide-react';
 import { menusApi } from '@/lib/api';
 import type { Event, Menu, MenuCategory } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -18,8 +18,10 @@ import {
 import { useMenuEditor } from './useMenuEditor';
 import type { UseMenuEditorReturn } from './useMenuEditor';
 import { AdminCategorySection } from './AdminCategorySection';
-import { ImportFromDayPanel } from './ImportFromDayPanel';
+import { ChefNotePopover } from './ChefNotePopover';
+import { consumeSwipeHint } from './swipeHint';
 import { DayImportCsv } from './DayImportCsv';
+import { MenuCopyPopover } from '../selection/MenuCopyPopover';
 import { EventCard } from '../EventCard';
 
 interface AdminDayDisplayProps {
@@ -35,7 +37,60 @@ interface AdminDayDisplayProps {
     onStartOnboarding?: (date: string) => void;
 }
 
-type Mode = 'view' | 'import-day' | 'import-csv';
+type Mode = 'view' | 'import-csv';
+
+// ─── PublishControl ───────────────────────────────────────────────────────────
+
+function PublishControl({ editor }: { editor: UseMenuEditorReturn }) {
+    const { menuStatus, isPublishing, isDirty, publishMenu, unpublishMenu } = editor;
+    if (menuStatus === null) return null;
+
+    const isEmpty = editor.items.length === 0;
+
+    if (menuStatus === 'published' && !isEmpty) {
+        return (
+            <div className="flex items-center gap-2">
+                <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                    Publié
+                </span>
+                <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={unpublishMenu}
+                    disabled={isPublishing || isDirty}
+                    title={isDirty ? 'Enregistrez le menu avant de modifier sa publication' : undefined}
+                    className="h-7 rounded-xl text-xs text-muted-foreground hover:text-foreground"
+                >
+                    {isPublishing ? '…' : 'Retirer'}
+                </Button>
+            </div>
+        );
+    }
+
+    const title = isEmpty
+        ? 'Ajoutez des plats pour publier'
+        : isDirty
+            ? 'Enregistrez le menu avant de publier'
+            : undefined;
+
+    return (
+        <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground hidden sidebar:inline">
+                {isEmpty ? 'Menu vide' : 'Non visible'}
+            </span>
+            <Button
+                size="sm"
+                onClick={publishMenu}
+                disabled={isPublishing || isEmpty || isDirty}
+                title={title}
+                className="h-7 rounded-xl text-xs"
+            >
+                {isPublishing ? '…' : 'Publier'}
+            </Button>
+        </div>
+    );
+}
 
 // ─── MenuEditToolbar ──────────────────────────────────────────────────────────
 
@@ -44,17 +99,19 @@ interface MenuEditToolbarProps {
     onSave: () => Promise<void>;
     onReset: () => void;
     onDelete: () => void;
+    onDuplicate: (anchor: { x: number; y: number }) => void;
     isDeletingMenu: boolean;
 }
 
-function MenuEditToolbar({ editor, onSave, onReset, onDelete, isDeletingMenu }: MenuEditToolbarProps) {
-    const { menuStatus, isDirty, isSaving, isPublishing, publishMenu, unpublishMenu, saveError } = editor;
-    const busy = isSaving || isPublishing;
+function MenuEditToolbar({ editor, onSave, onReset, onDelete, onDuplicate, isDeletingMenu }: MenuEditToolbarProps) {
+    const { isDirty, isSaving, saveError } = editor;
+    const busy = isSaving || editor.isPublishing;
     const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
     return (
         <>
-            <div className="shrink-0 flex items-center gap-2 px-4 py-2 border-b border-border bg-card/80 backdrop-blur-sm">
+            <div className="fixed bottom-0 left-0 right-0 z-20 flex items-center gap-2 px-4 pt-2.5 pb-[5.75rem] rounded-t-2xl border-t border-border bg-card/95 backdrop-blur-sm shadow-[0_-4px_16px_-8px_rgba(0,0,0,0.12)] sidebar:static sidebar:z-auto sidebar:bottom-auto sidebar:left-auto sidebar:right-auto sidebar:rounded-none sidebar:shadow-none sidebar:border-t-0 sidebar:border-b sidebar:pt-2 sidebar:pb-3.5 sidebar:bg-card/80 sidebar:shrink-0">
+                <ChefNotePopover editor={editor} />
                 {isDirty && (
                     <Button
                         size="sm"
@@ -68,7 +125,7 @@ function MenuEditToolbar({ editor, onSave, onReset, onDelete, isDeletingMenu }: 
                 )}
                 {isDirty && (
                     <Button size="sm" onClick={onSave} disabled={busy} className="rounded-xl text-xs">
-                        {isSaving ? 'Enregistrement…' : 'Mettre à jour'}
+                        {isSaving ? 'Enregistrement…' : 'Enregistrer'}
                     </Button>
                 )}
 
@@ -76,21 +133,7 @@ function MenuEditToolbar({ editor, onSave, onReset, onDelete, isDeletingMenu }: 
 
                 {saveError && <span className="text-xs text-destructive">{saveError}</span>}
 
-                {menuStatus !== null && (
-                    <button
-                        type="button"
-                        onClick={menuStatus === 'published' ? unpublishMenu : publishMenu}
-                        disabled={busy}
-                        className={cn(
-                            'rounded-full px-3 py-1 text-xs font-semibold border transition-colors',
-                            menuStatus === 'published'
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                                : 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100',
-                        )}
-                    >
-                        {isPublishing ? '…' : menuStatus === 'published' ? 'Publié' : 'Brouillon'}
-                    </button>
-                )}
+                <PublishControl editor={editor} />
 
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -99,11 +142,9 @@ function MenuEditToolbar({ editor, onSave, onReset, onDelete, isDeletingMenu }: 
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuItem disabled className="text-muted-foreground text-xs">
+                        <DropdownMenuItem onClick={(e) => onDuplicate({ x: e.clientX, y: e.clientY })} className="text-xs gap-2">
+                            <Copy className="w-3.5 h-3.5" />
                             Dupliquer
-                        </DropdownMenuItem>
-                        <DropdownMenuItem disabled className="text-muted-foreground text-xs">
-                            Partager
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -147,6 +188,8 @@ export function AdminDayDisplay({ date, menu, restaurantId, canEdit, categories,
     const [mode, setMode] = useState<Mode>('view');
     const [isDeletingMenu, setIsDeletingMenu] = useState(false);
     const [deleteMenuConfirmOpen, setDeleteMenuConfirmOpen] = useState(false);
+    const [dupeOpen, setDupeOpen] = useState(false);
+    const [dupeAnchor, setDupeAnchor] = useState<{ x: number; y: number } | null>(null);
 
     const editor = useMenuEditor({ date, menu, restaurantId });
 
@@ -181,65 +224,13 @@ export function AdminDayDisplay({ date, menu, restaurantId, canEdit, categories,
         })
         .filter(({ items }) => items.length > 0 || canEdit);
 
-    const hasMenu = !!menu || editor.items.length > 0;
+    const hasMenu = editor.items.length > 0 || editor.isDirty;
 
-    if (!hasMenu && mode === 'view') {
-        if (!canEdit) {
-            return (
-                <div className="flex-1 flex flex-col items-center justify-center gap-2 p-8 text-center">
-                    <p className="text-sm text-muted-foreground">Aucun menu pour ce jour.</p>
-                </div>
-            );
-        }
-        return (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8">
-                <p className="text-sm font-medium text-muted-foreground mb-2">Que souhaitez-vous faire ?</p>
-                <button
-                    type="button"
-                    onClick={() => onStartOnboarding?.(date)}
-                    className="w-full max-w-xs flex items-center gap-3 p-4 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 hover:border-primary hover:bg-primary/10 transition-colors text-left"
-                >
-                    <PlusCircle className="w-5 h-5 text-primary shrink-0" />
-                    <div>
-                        <p className="text-sm font-semibold text-primary">Créer un nouveau menu</p>
-                        <p className="text-xs text-muted-foreground">Saisir les plats catégorie par catégorie</p>
-                    </div>
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setMode('import-day')}
-                    className="w-full max-w-xs flex items-center gap-3 p-4 rounded-2xl border border-border hover:bg-muted/50 transition-colors text-left"
-                >
-                    <FileUp className="w-5 h-5 text-muted-foreground shrink-0" />
-                    <div>
-                        <p className="text-sm font-medium text-foreground">Importer depuis un autre jour</p>
-                        <p className="text-xs text-muted-foreground">Copier le menu d'une date existante</p>
-                    </div>
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setMode('import-csv')}
-                    className="w-full max-w-xs flex items-center gap-3 p-4 rounded-2xl border border-border hover:bg-muted/50 transition-colors text-left"
-                >
-                    <Table2 className="w-5 h-5 text-muted-foreground shrink-0" />
-                    <div>
-                        <p className="text-sm font-medium text-foreground">Importer depuis un fichier</p>
-                        <p className="text-xs text-muted-foreground">Charger un fichier CSV</p>
-                    </div>
-                </button>
-            </div>
-        );
-    }
+    const [showSwipeHint] = useState(consumeSwipeHint);
+    const firstItemsCatId = categoriesWithItems.find(c => c.items.length > 0)?.category.id;
 
     return (
         <div className="flex flex-col flex-1 overflow-hidden">
-            <ImportFromDayPanel
-                open={mode === 'import-day'}
-                targetDate={date}
-                restaurantId={restaurantId}
-                onClose={() => setMode('view')}
-                onImported={() => { setMode('view'); onReload(); }}
-            />
             <DayImportCsv
                 open={mode === 'import-csv'}
                 targetDate={date}
@@ -248,56 +239,111 @@ export function AdminDayDisplay({ date, menu, restaurantId, canEdit, categories,
                 onClose={() => setMode('view')}
                 onImported={() => { setMode('view'); onReload(); }}
             />
+            <MenuCopyPopover
+                direction="export"
+                open={dupeOpen}
+                onOpenChange={setDupeOpen}
+                anchorPoint={dupeAnchor}
+                sourceItems={editor.items}
+                restaurantId={restaurantId}
+                onDone={() => { setDupeOpen(false); onReload(); }}
+            />
 
             {canEdit && hasMenu && (
                 <MenuEditToolbar
                     editor={editor}
                     onSave={handleSave}
                     onReset={editor.reset}
-                    onDelete={() => setDeleteMenuConfirmOpen(true)}
+                    onDelete={() => requestAnimationFrame(() => setDeleteMenuConfirmOpen(true))}
+                    onDuplicate={(anchor) => { setDupeAnchor(anchor); requestAnimationFrame(() => setDupeOpen(true)); }}
                     isDeletingMenu={isDeletingMenu}
                 />
             )}
 
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto pb-36 sidebar:pb-4">
                 <div className="p-4 space-y-4 max-w-2xl mx-auto">
+                    {/* Événements : toujours affichés, qu'il y ait un menu ou non */}
                     {events.map(event => (
                         <EventCard key={event.id} event={event} onEdit={onEditEvent} />
                     ))}
 
-                    {canEdit && (
-                        <div className={cn(
-                            'flex items-start gap-2 rounded-2xl px-4 py-3 transition-colors',
-                            editor.chefNote ? 'bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800' : 'bg-muted/30',
-                        )}>
-                            <ChefHat className="w-4 h-4 mt-0.5 shrink-0 text-amber-700" />
-                            <textarea
-                                value={editor.chefNote}
-                                onChange={e => editor.setChefNote(e.target.value)}
-                                placeholder="Ajouter une note du chef…"
-                                rows={editor.chefNote ? 2 : 1}
-                                className="flex-1 bg-transparent border-none outline-none text-sm text-amber-900 dark:text-amber-100 placeholder:text-amber-700/50 resize-none"
-                            />
-                        </div>
-                    )}
-                    {!canEdit && menu?.chef_note && (
-                        <div className="flex items-start gap-2 rounded-2xl px-4 py-3 bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800">
-                            <ChefHat className="w-4 h-4 mt-0.5 shrink-0 text-amber-700" />
-                            <p className="text-sm text-amber-900 dark:text-amber-100">{menu.chef_note}</p>
-                        </div>
+                    {/* État sans menu */}
+                    {!hasMenu && mode === 'view' && (
+                        canEdit ? (
+                            <div className={cn("flex flex-col items-center gap-3", events.length > 0 ? "pt-2" : "pt-8")}>
+                                <p className="text-sm font-medium text-muted-foreground mb-2">Que souhaitez-vous faire ?</p>
+                                <button
+                                    type="button"
+                                    onClick={() => onStartOnboarding?.(date)}
+                                    className="w-full max-w-xs flex items-center gap-3 p-4 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 hover:border-primary hover:bg-primary/10 transition-colors text-left"
+                                >
+                                    <PlusCircle className="w-5 h-5 text-primary shrink-0" />
+                                    <div>
+                                        <p className="text-sm font-semibold text-primary">Créer un nouveau menu</p>
+                                        <p className="text-xs text-muted-foreground">Saisir les plats catégorie par catégorie</p>
+                                    </div>
+                                </button>
+                                <MenuCopyPopover
+                                    direction="import"
+                                    targetDate={date}
+                                    restaurantId={restaurantId}
+                                    onDone={() => onReload()}
+                                    align="start"
+                                >
+                                    <button
+                                        type="button"
+                                        className="w-full max-w-xs flex items-center gap-3 p-4 rounded-2xl border border-border hover:bg-muted/50 transition-colors text-left"
+                                    >
+                                        <FileUp className="w-5 h-5 text-muted-foreground shrink-0" />
+                                        <div>
+                                            <p className="text-sm font-medium text-foreground">Importer depuis un autre jour</p>
+                                            <p className="text-xs text-muted-foreground">Copier le menu d'une date existante</p>
+                                        </div>
+                                    </button>
+                                </MenuCopyPopover>
+                                <button
+                                    type="button"
+                                    onClick={() => setMode('import-csv')}
+                                    className="w-full max-w-xs flex items-center gap-3 p-4 rounded-2xl border border-border hover:bg-muted/50 transition-colors text-left"
+                                >
+                                    <Table2 className="w-5 h-5 text-muted-foreground shrink-0" />
+                                    <div>
+                                        <p className="text-sm font-medium text-foreground">Importer depuis un fichier</p>
+                                        <p className="text-xs text-muted-foreground">Charger un fichier CSV</p>
+                                    </div>
+                                </button>
+                            </div>
+                        ) : events.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+                                <p className="text-sm text-muted-foreground">Aucun menu pour ce jour.</p>
+                            </div>
+                        ) : null
                     )}
 
-                    {categoriesWithItems.map(({ category, items }) => (
-                        items.length > 0 || canEdit ? (
-                            <AdminCategorySection
-                                key={category.id}
-                                category={category}
-                                items={items}
-                                editor={editor}
-                                canEdit={canEdit}
-                            />
-                        ) : null
-                    ))}
+                    {/* Contenu du menu */}
+                    {hasMenu && (
+                        <>
+                            {!canEdit && menu?.chef_note && (
+                                <div className="flex items-start gap-2 rounded-2xl px-4 py-3 bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800">
+                                    <ChefHat className="w-4 h-4 mt-0.5 shrink-0 text-amber-700" />
+                                    <p className="text-sm text-amber-900 dark:text-amber-100">{menu.chef_note}</p>
+                                </div>
+                            )}
+
+                            {categoriesWithItems.map(({ category, items }) => (
+                                items.length > 0 || canEdit ? (
+                                    <AdminCategorySection
+                                        key={category.id}
+                                        category={category}
+                                        items={items}
+                                        editor={editor}
+                                        canEdit={canEdit}
+                                        hint={showSwipeHint && category.id === firstItemsCatId}
+                                    />
+                                ) : null
+                            ))}
+                        </>
+                    )}
                 </div>
             </div>
 

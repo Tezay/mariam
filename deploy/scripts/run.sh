@@ -35,7 +35,7 @@ case "$COMMAND" in
         echo ""
         echo "📍 Accès :"
         echo "   - Application : http://localhost (ou IP de votre serveur)"
-        echo "   - Santé API   : http://localhost/api/health"
+        echo "   - Santé API   : http://localhost/health"
         echo ""
         echo "💡 Si c'est le premier démarrage, exécutez :"
         echo "   ./scripts/init.sh"

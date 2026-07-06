@@ -9,11 +9,10 @@ Endpoints:
 """
 import csv
 from datetime import datetime
-from functools import wraps
 from io import StringIO
 
 from flask import jsonify, make_response, request
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import get_jwt_identity
 from flask_smorest import Blueprint
 from sqlalchemy.orm import joinedload
 
@@ -21,6 +20,7 @@ from ..extensions import db
 from ..models import AuditLog, User
 from ..schemas.common import ErrorSchema
 from ..security import get_client_ip
+from .helpers import admin_required
 
 audit_bp = Blueprint(
     'audit', __name__,
@@ -31,19 +31,6 @@ audit_bp = Blueprint(
 # ============================================================
 # HELPERS
 # ============================================================
-
-def admin_required(f):
-    """Décorateur : accès réservé aux administrateurs."""
-    @wraps(f)
-    @jwt_required()
-    def decorated_function(*args, **kwargs):
-        current_user_id = int(get_jwt_identity())
-        user = User.query.get(current_user_id)
-        if not user or not user.is_admin():
-            return jsonify({'error': 'Accès réservé aux administrateurs'}), 403
-        return f(*args, **kwargs)
-    return decorated_function
-
 
 def _apply_audit_filters(query):
     """Applique les filtres communs action/user_id/start_date/end_date à une requête AuditLog."""

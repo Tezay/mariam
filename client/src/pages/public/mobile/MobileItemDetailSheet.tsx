@@ -1,5 +1,3 @@
-import { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import type { MenuItemData } from '../menu-types';
 import type { DietaryTag, CertificationItem } from '@/lib/api';
@@ -76,14 +74,12 @@ interface MobileItemDetailSheetProps {
 }
 
 export function MobileItemDetailSheet({ item, open, onClose }: MobileItemDetailSheetProps) {
-    const [imgIndex, setImgIndex] = useState(0);
-
-    const images = item?.images ?? [];
-    const tags = item?.tags ?? [];
-    const certs = item?.certifications ?? [];
+    const dishName = item?.dish?.name ?? '';
+    const dishImage = item?.dish?.image_url ?? null;
+    const tags = item?.dish?.tags ?? [];
+    const certs = item?.dish?.certifications ?? [];
     const isOutOfStock = item?.is_out_of_stock ?? false;
 
-    // Grouper les tags par category_id
     const tagsByCategory: Record<string, DietaryTag[]> = {};
     tags.forEach(tag => {
         if (!tagsByCategory[tag.category_id]) tagsByCategory[tag.category_id] = [];
@@ -97,53 +93,24 @@ export function MobileItemDetailSheet({ item, open, onClose }: MobileItemDetailS
                     <>
                         <DrawerHeader className="px-5 pt-2 pb-3 shrink-0">
                             <DrawerTitle className="text-xl font-bold text-left leading-snug pr-8">
-                                {item.replacement_label ?? item.name}
+                                {dishName}
                             </DrawerTitle>
-
-                            {isOutOfStock && !item.replacement_label && (
+                            {isOutOfStock && (
                                 <p className="text-sm text-red-600 mt-1">Cet article est actuellement en rupture de service.</p>
-                            )}
-                            {isOutOfStock && item.replacement_label && (
-                                <p className="text-sm text-amber-600 mt-1">Remplace : {item.name}</p>
                             )}
                         </DrawerHeader>
 
                         <div className="flex-1 overflow-y-auto px-5 pb-8 space-y-5">
-                            {/* Galerie images */}
-                            {images.length > 0 && (
-                                <div className="relative rounded-2xl overflow-hidden bg-gray-100">
+                            {/* Image du plat */}
+                            {dishImage && (
+                                <div className="rounded-2xl overflow-hidden bg-gray-100">
                                     <div className="aspect-[4/3] w-full">
                                         <img
-                                            src={images[imgIndex].url}
-                                            alt={item.name}
+                                            src={dishImage}
+                                            alt={dishName}
                                             className="w-full h-full object-cover"
                                         />
                                     </div>
-                                    {images.length > 1 && (
-                                        <>
-                                            <button
-                                                onClick={() => setImgIndex(prev => (prev - 1 + images.length) % images.length)}
-                                                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white p-1.5 rounded-full"
-                                            >
-                                                <ChevronLeft className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => setImgIndex(prev => (prev + 1) % images.length)}
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white p-1.5 rounded-full"
-                                            >
-                                                <ChevronRight className="w-4 h-4" />
-                                            </button>
-                                            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-                                                {images.map((_, i) => (
-                                                    <button
-                                                        key={i}
-                                                        onClick={() => setImgIndex(i)}
-                                                        className={`w-2 h-2 rounded-full transition-all ${i === imgIndex ? 'bg-white scale-125' : 'bg-white/50'}`}
-                                                    />
-                                                ))}
-                                            </div>
-                                        </>
-                                    )}
                                 </div>
                             )}
 

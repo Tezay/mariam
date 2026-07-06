@@ -40,7 +40,8 @@ scripts/
 # ========================================
 # TESTS / COUVERTURE
 # ========================================
-server/.coverage
+server/.coverage*
+server/htmlcov/
 server/test_out.txt
 client/coverage/
 

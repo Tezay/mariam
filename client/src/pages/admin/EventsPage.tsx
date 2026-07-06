@@ -9,11 +9,12 @@
  * - Création via dialog EventEditor
  */
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { eventsApi, Event } from '@/lib/api';
+import { notify } from '@/lib/toast';
 import { parisToday } from '@/lib/date-utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateEventPalette } from '@/lib/color-utils';
-import { EventEditor } from '@/components/EventEditor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -43,17 +44,13 @@ type FilterMode = 'upcoming' | 'past' | 'all';
 
 export function EventsPage() {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const canEdit = user?.role === 'admin' || user?.role === 'editor';
 
     const [events, setEvents] = useState<Event[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<unknown>(null);
     const [filter, setFilter] = useState<FilterMode>('upcoming');
-
-    // Editor state
-    const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-    const [isCreating, setIsCreating] = useState(false);
-    const [storageConfigured, setStorageConfigured] = useState(false);
 
     // Confirm delete
     const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -93,12 +90,6 @@ export function EventsPage() {
 
     useEffect(() => { loadEvents(); }, [loadEvents]);
 
-    // Vérifier si S3 est configuré
-    useEffect(() => {
-        eventsApi.storageStatus()
-            .then(configured => setStorageConfigured(configured))
-            .catch(() => setStorageConfigured(false));
-    }, []);
 
     // ------------------------------------------------------------------
     // Actions
@@ -108,8 +99,9 @@ export function EventsPage() {
         try {
             await eventsApi.delete(id);
             await loadEvents();
-        } catch (err) {
-            console.error('Erreur suppression:', err);
+            notify.success('Événement supprimé');
+        } catch {
+            notify.error('Erreur lors de la suppression de l\'événement');
         } finally {
             setDeletingId(null);
         }
@@ -119,22 +111,25 @@ export function EventsPage() {
         try {
             await eventsApi.duplicate(event.id);
             await loadEvents();
-        } catch (err) {
-            console.error('Erreur duplication:', err);
+            notify.success('Événement dupliqué');
+        } catch {
+            notify.error('Erreur lors de la duplication');
         }
     };
 
     const handleTogglePublish = async (event: Event) => {
         try {
-            if (event.status === 'published') {
+            const wasPublished = event.status === 'published';
+            if (wasPublished) {
                 await eventsApi.unpublish(event.id);
             } else {
                 await eventsApi.publish(event.id);
                 window.umami?.track('event-publish');
             }
             await loadEvents();
-        } catch (err) {
-            console.error('Erreur publication:', err);
+            notify.success(wasPublished ? 'Événement dépublié' : 'Événement publié');
+        } catch {
+            notify.error('Erreur lors de la publication');
         }
     };
 
@@ -210,7 +205,7 @@ export function EventsPage() {
                     ${today ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}
                     ${past ? 'opacity-60' : ''}
                 `}
-                onClick={() => canEdit && setSelectedEvent(event)}
+                onClick={() => canEdit && navigate(`/admin/events/${event.id}/edit`)}
             >
                 {/* Bande de couleur en haut */}
                 <div className="h-2" style={{ backgroundColor: event.color || '#3498DB' }} />
@@ -239,7 +234,7 @@ export function EventsPage() {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={e => { e.stopPropagation(); setSelectedEvent(event); }}>
+                                        <DropdownMenuItem onClick={e => { e.stopPropagation(); navigate(`/admin/events/${event.id}/edit`); }}>
                                             <Pencil className="w-4 h-4 mr-2" /> Modifier
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={e => { e.stopPropagation(); handleTogglePublish(event); }}>
@@ -360,7 +355,7 @@ export function EventsPage() {
 
                     {/* Bouton créer */}
                     {canEdit && (
-                        <Button onClick={() => setIsCreating(true)} className="gap-2">
+                        <Button onClick={() => navigate('/admin/events/new')} className="gap-2">
                             <Plus className="w-4 h-4" />
                             <span className="hidden sm:inline">Nouvel événement</span>
                             <span className="sm:hidden">Nouveau</span>
@@ -409,7 +404,7 @@ export function EventsPage() {
                         {canEdit ? 'Créez votre premier événement pour animer le restaurant' : "Aucun événement n'a été programmé"}
                     </p>
                     {canEdit && (
-                        <Button onClick={() => setIsCreating(true)} className="gap-2">
+                        <Button onClick={() => navigate('/admin/events/new')} className="gap-2">
                             <Plus className="w-4 h-4" /> Créer un événement
                         </Button>
                     )}
@@ -444,22 +439,6 @@ export function EventsPage() {
                 </div>
             )}
 
-            {/* Editor dialog */}
-            {(isCreating || selectedEvent) && (
-                <EventEditor
-                    event={selectedEvent}
-                    storageConfigured={storageConfigured}
-                    onClose={() => {
-                        setSelectedEvent(null);
-                        setIsCreating(false);
-                    }}
-                    onSave={async () => {
-                        await loadEvents();
-                        setSelectedEvent(null);
-                        setIsCreating(false);
-                    }}
-                />
-            )}
         </div>
     );
 }
