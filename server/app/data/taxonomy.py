@@ -6,6 +6,7 @@ CE FICHIER EST LA SOURCE DE VÉRITÉ.
 Les tables DB sont peuplées à partir de ces données lors de la migration
 initiale. Elles servent ensuite de référentiel pour les FK.
 """
+from typing import Any
 
 # ──────────────────────────────────────────────────────────────────────
 #  CATÉGORIES DE TAGS ALIMENTAIRES
@@ -42,7 +43,7 @@ DIETARY_TAG_CATEGORIES = [
 #  TAGS ALIMENTAIRES (déclaratifs, pas de certification externe)
 # ──────────────────────────────────────────────────────────────────────
 
-DIETARY_TAGS = [
+DIETARY_TAGS: list[dict[str, Any]] = [
     # ── Régime / composition ──
     {"id": "vegetarian",      "label": "Végétarien",           "icon": "leaf",         "color": "green",  "category_id": "regime_composition", "sort_order": 1},
     {"id": "vegan",           "label": "Vegan",                "icon": "sprout",       "color": "green",  "category_id": "regime_composition", "sort_order": 2},
@@ -110,7 +111,7 @@ CERTIFICATION_CATEGORIES = [
 #  CERTIFICATIONS  (preuves requises, logos officiels)
 # ──────────────────────────────────────────────────────────────────────
 
-CERTIFICATIONS = [
+CERTIFICATIONS: list[dict[str, Any]] = [
     # ── Labels officiels publics (État / UE) ──
     {
         "id": "ab",

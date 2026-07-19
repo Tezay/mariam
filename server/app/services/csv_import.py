@@ -45,7 +45,7 @@ def detect_delimiter(sample: str) -> str:
 
 def parse_csv_content(content: str, delimiter: str) -> tuple[list[str], list[dict]]:
     reader = csv.DictReader(io.StringIO(content), delimiter=delimiter)
-    columns = reader.fieldnames or []
+    columns = list(reader.fieldnames or [])
     rows = list(reader)
     return columns, rows
 

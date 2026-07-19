@@ -11,6 +11,7 @@ Usage:
 import secrets
 import string
 from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
 import click
 from werkzeug.security import generate_password_hash
@@ -108,7 +109,7 @@ def _ensure_demo_restaurant() -> Restaurant:
 #  Menu categories
 # ──────────────────────────────────────────────────────────────────────
 
-_CATEGORY_TREE = [
+_CATEGORY_TREE: list[dict[str, Any]] = [
     {
         'label': 'Entrées',
         'order': 1,

@@ -14,6 +14,7 @@ Endpoints (editor role required):
 import re
 import uuid
 from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
 from flask import current_app, jsonify, request
 from flask_jwt_extended import get_jwt_identity
@@ -99,7 +100,7 @@ def parse_date(date_str: str, date_format: str | None = None) -> date | None:
 
 def suggest_column_mapping(columns: list[str], restaurant_id: int | None = None) -> dict:
     """Auto-mappe les colonnes CSV aux catégories DB par label (insensible à la casse/accents)."""
-    mapping = {}
+    mapping: dict[str, Any] = {}
     date_patterns = ['date', 'jour', 'day', 'fecha']
 
     # Charger toutes les catégories du restaurant (principales + sous-catégories)
