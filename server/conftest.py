@@ -107,9 +107,22 @@ def clean_db(app):
 # Helpers partagés entre les suites
 # ---------------------------------------------------------------------------
 
-def make_user(app, email='admin@mariam.app', role='admin', restaurant_id=None):
-    """Crée un utilisateur en base sans MFA (pour tests directs)."""
-    from app.models import User
+# Sentinel: distinguishes "auto-attach" from an explicit None.
+_AUTO_RESTAURANT = object()
+
+
+def make_user(app, email='admin@mariam.app', role='admin', restaurant_id=_AUTO_RESTAURANT):
+    """
+    Crée un utilisateur en base sans MFA (pour tests directs).
+    """
+    from app.models import Restaurant, User
+    if restaurant_id is _AUTO_RESTAURANT:
+        restaurant = Restaurant.query.order_by(Restaurant.id).first()
+        if restaurant is None:
+            restaurant = Restaurant(name='RU Test Auto', code='RU_AUTO', is_active=True)
+            _db.session.add(restaurant)
+            _db.session.commit()
+        restaurant_id = restaurant.id
     user = User(
         email=email,
         password_hash=TEST_PASSWORD_HASH,

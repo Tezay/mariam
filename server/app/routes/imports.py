@@ -49,7 +49,6 @@ from ..services.csv_import import (
 from ..utils.time import paris_today
 from .helpers import (
     editor_required,
-    get_default_restaurant,
     get_or_create_dish,
     get_user_and_restaurant,
     normalize_dish_name,
@@ -243,11 +242,9 @@ def upload_file():
         db.session.add(session)
         db.session.commit()
 
-        upload_restaurant_id = request.form.get('restaurant_id', type=int)
-        if not upload_restaurant_id:
-            default_restaurant = get_default_restaurant()
-            if default_restaurant:
-                upload_restaurant_id = default_restaurant.id
+        # Restaurant derived from the account, never from the form (multi-tenant).
+        _, _caller_restaurant = get_user_and_restaurant()
+        upload_restaurant_id = _caller_restaurant.id if _caller_restaurant else None
         auto_mapping = suggest_column_mapping(columns, upload_restaurant_id)
 
         detected_date_format = None
@@ -293,7 +290,6 @@ def preview_import(data):
     file_id = data.get('file_id')
     column_mapping = data.get('column_mapping', [])
     date_config = data.get('date_config', {})
-    restaurant_id = data.get('restaurant_id')
 
     current_user_id = int(get_jwt_identity())
     session = ImportSession.get_valid(file_id, current_user_id)
@@ -302,10 +298,10 @@ def preview_import(data):
 
     rows = session.get_rows()
 
+    _, _caller_restaurant = get_user_and_restaurant()
+    restaurant_id = _caller_restaurant.id if _caller_restaurant else None
     if not restaurant_id:
-        restaurant = get_default_restaurant()
-        if restaurant:
-            restaurant_id = restaurant.id
+        return jsonify({'error': 'Aucun restaurant associé à votre compte'}), 400
 
     try:
         menus = build_menus_from_rows(rows, column_mapping, date_config, restaurant_id)
@@ -354,7 +350,7 @@ def confirm_import(data):
     date_config = data.get('date_config', {})
     duplicate_action = data.get('duplicate_action', 'skip')
     auto_publish = data.get('auto_publish', False)
-    restaurant_id = data.get('restaurant_id')
+    # restaurant_id: ignored here, derived from the account below (multi-tenant)
 
     session = ImportSession.get_valid(file_id, current_user_id)
     if not session:
@@ -362,10 +358,11 @@ def confirm_import(data):
 
     rows = session.get_rows()
 
+    # Restaurant derived from the account, never from the body (multi-tenant).
+    _, _caller_restaurant = get_user_and_restaurant()
+    restaurant_id = _caller_restaurant.id if _caller_restaurant else None
     if not restaurant_id:
-        restaurant = get_default_restaurant()
-        if restaurant:
-            restaurant_id = restaurant.id
+        return jsonify({'error': 'Aucun restaurant associé à votre compte'}), 400
     if not restaurant_id:
         return jsonify({'error': 'Aucun restaurant configuré'}), 400
 

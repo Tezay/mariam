@@ -14,13 +14,14 @@ from io import StringIO
 from flask import jsonify, make_response, request
 from flask_jwt_extended import get_jwt_identity
 from flask_smorest import Blueprint
+from sqlalchemy import false, or_
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
 from ..models import AuditLog, User
 from ..schemas.common import ErrorSchema
 from ..security import get_client_ip
-from .helpers import admin_required
+from .helpers import accessible_restaurant_ids, admin_required, get_current_user
 
 audit_bp = Blueprint(
     'audit', __name__,
@@ -31,6 +32,23 @@ audit_bp = Blueprint(
 # ============================================================
 # HELPERS
 # ============================================================
+
+def _tenant_scope_filter():
+    """Filter restricting logs to the caller's tenant.
+
+    Keeps logs attached to an accessible restaurant OR produced by a user of that
+    tenant (covers older logs without a restaurant_id). An org_admin sees its
+    whole organization.
+    """
+    ids = accessible_restaurant_ids(get_current_user())
+    if not ids:
+        return false()
+    user_ids = [
+        row[0] for row in
+        User.query.filter(User.restaurant_id.in_(ids)).with_entities(User.id).all()
+    ]
+    return or_(AuditLog.restaurant_id.in_(ids), AuditLog.user_id.in_(user_ids))
+
 
 def _apply_audit_filters(query):
     """Applique les filtres communs action/user_id/start_date/end_date à une requête AuditLog."""
@@ -83,6 +101,7 @@ def export_audit_logs():
         }), 403
 
     query = _apply_audit_filters(AuditLog.query.options(joinedload(AuditLog.user)))
+    query = query.filter(_tenant_scope_filter())
     logs = query.order_by(AuditLog.created_at.desc()).limit(10000).all()
 
     output = StringIO()
@@ -150,6 +169,7 @@ def get_audit_logs():
     per_page = min(request.args.get('per_page', 50, type=int), 100)
 
     query = _apply_audit_filters(AuditLog.query)
+    query = query.filter(_tenant_scope_filter())
     query = query.order_by(AuditLog.created_at.desc())
     paginated = query.paginate(page=page, per_page=per_page, error_out=False)
 

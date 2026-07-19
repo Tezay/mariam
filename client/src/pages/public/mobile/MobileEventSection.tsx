@@ -5,8 +5,17 @@ import type { EventData } from '../menu-types';
 
 // ─── Utilitaires ────────────────────────────────────────────────────────────
 
-function formatEventDescription(text: string): string {
+// Escape raw HTML before markdown rendering, since the result is injected via
+// dangerouslySetInnerHTML — prevents stored XSS from event descriptions.
+function escapeHtml(text: string): string {
     return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function formatEventDescription(text: string): string {
+    return escapeHtml(text)
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.+?)\*/g, '<em>$1</em>')
         .replace(/^### (.+)$/gm, '<h3 class="text-lg font-bold mt-4 mb-1">$1</h3>')

@@ -34,6 +34,17 @@ class Restaurant(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # Multi-tenant: link to an organization
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey('organizations.id'), nullable=True, index=True
+    )
+    # URL-safe slug, unique within an organization; carries the public path
+    slug = db.Column(db.String(63), nullable=True, index=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('organization_id', 'slug', name='uq_restaurant_org_slug'),
+    )
+
     # Adresse vérifiée (Base Adresse Nationale — IGN Géoplateforme)
     address_label = db.Column(db.String(300), nullable=True)
     address_lat = db.Column(db.Float, nullable=True)

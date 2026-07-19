@@ -24,7 +24,7 @@ from ..models.restaurant_calendar import RestaurantCalendarSettings
 from ..schemas.common import ErrorSchema
 from ..schemas.restaurant import RestaurantSchema, RestaurantUpdateSchema
 from ..security import get_client_ip, limiter
-from .helpers import admin_required
+from .helpers import accessible_restaurant_ids, admin_required, get_current_user
 
 restaurant_bp = Blueprint(
     'restaurant', __name__,
@@ -75,15 +75,11 @@ def get_settings():
     Includes complete configuration: service days, categories,
     enabled dietary tags, certifications, etc.
     """
-    current_user_id = int(get_jwt_identity())
-    user = User.query.get(current_user_id)
+    user = get_current_user()
     if not user:
         return jsonify({'error': 'Utilisateur introuvable'}), 401
 
-    if user.restaurant_id:
-        restaurant = Restaurant.query.get(user.restaurant_id)
-    else:
-        restaurant = Restaurant.query.filter_by(is_active=True).first()
+    restaurant = Restaurant.query.get(user.restaurant_id) if user.restaurant_id else None
     if not restaurant:
         return jsonify({'error': 'Aucun restaurant configuré'}), 404
 
@@ -103,7 +99,8 @@ def update_settings(data):
     `menu_categories`, `dietary_tags` (list of IDs), `certifications` (list of IDs).
     """
     current_user_id = int(get_jwt_identity())
-    restaurant = Restaurant.query.filter_by(is_active=True).first()
+    user = get_current_user()
+    restaurant = Restaurant.query.get(user.restaurant_id) if user and user.restaurant_id else None
     if not restaurant:
         return jsonify({'error': 'Aucun restaurant configuré'}), 404
 
@@ -187,6 +184,7 @@ def update_settings(data):
     AuditLog.log(
         action='settings_update',
         user_id=current_user_id,
+        restaurant_id=restaurant.id,
         target_type='restaurant',
         target_id=restaurant.id,
         details={'updated_fields': list(data.keys())},
@@ -238,8 +236,12 @@ def _create_default_categories(restaurant_id: int) -> None:
 @restaurant_bp.response(200, RestaurantSchema(many=True))
 @admin_required
 def list_restaurants():
-    """List all restaurants (admin only)."""
-    restaurants = Restaurant.query.order_by(Restaurant.name).all()
+    """List restaurants of the caller's organization (admin only)."""
+    ids = accessible_restaurant_ids(get_current_user())
+    restaurants = (
+        Restaurant.query.filter(Restaurant.id.in_(ids)).order_by(Restaurant.name).all()
+        if ids else []
+    )
     return jsonify({'restaurants': [r.to_dict() for r in restaurants]}), 200
 
 
@@ -250,7 +252,14 @@ def list_restaurants():
 @restaurant_bp.alt_response(409, schema=ErrorSchema, description="Code already in use")
 @admin_required
 def create_restaurant(data):
-    """Create a new restaurant."""
+    """Create a new restaurant (site) within the caller's organization.
+
+    Restricted to the organization director (org_admin).
+    """
+    caller = get_current_user()
+    if not caller.is_org_admin() or not caller.organization_id:
+        return jsonify({'error': "Réservé au directeur d'organisation"}), 403
+
     name = data.get('name')
     code = data.get('code')
 
@@ -260,16 +269,32 @@ def create_restaurant(data):
     if Restaurant.query.filter_by(code=code).first():
         return jsonify({'error': 'Ce code est déjà utilisé'}), 409
 
+    # Basic slug, unique within the organization.
+    slug = (data.get('slug') or code).strip().lower().replace('_', '-').replace(' ', '-')
+    if Restaurant.query.filter_by(organization_id=caller.organization_id, slug=slug).first():
+        return jsonify({'error': 'Ce slug est déjà utilisé dans votre organisation'}), 409
+
     restaurant = Restaurant(
         name=name,
         code=code,
-        address=data.get('address'),
+        slug=slug,
+        organization_id=caller.organization_id,
         logo_url=data.get('logo_url'),
     )
     db.session.add(restaurant)
     db.session.flush()  # get restaurant.id without committing
 
     _create_default_categories(restaurant.id)
+
+    AuditLog.log(
+        action='restaurant_create',
+        user_id=caller.id,
+        restaurant_id=restaurant.id,
+        target_type='restaurant',
+        target_id=restaurant.id,
+        details={'name': name, 'code': code, 'slug': slug},
+        ip_address=get_client_ip(),
+    )
     db.session.commit()
 
     return jsonify({'message': 'Restaurant créé', 'restaurant': restaurant.to_dict()}), 201
@@ -281,20 +306,31 @@ def create_restaurant(data):
 @restaurant_bp.alt_response(404, schema=ErrorSchema, description="Restaurant not found")
 @admin_required
 def update_restaurant(data, restaurant_id):
-    """Update an existing restaurant."""
+    """Update an existing restaurant (within the caller's organization)."""
+    caller = get_current_user()
     restaurant = Restaurant.query.get(restaurant_id)
-    if not restaurant:
+    if not restaurant or restaurant.id not in accessible_restaurant_ids(caller):
         return jsonify({'error': 'Restaurant non trouvé'}), 404
 
     if 'name' in data:
         restaurant.name = data['name']
-    if 'address' in data:
-        restaurant.address = data['address']
     if 'logo_url' in data:
         restaurant.logo_url = data['logo_url']
     if 'is_active' in data:
+        # Activating/deactivating a site is restricted to the organization director.
+        if not caller.is_org_admin():
+            return jsonify({'error': "Seul un directeur d'organisation peut activer/désactiver un site"}), 403
         restaurant.is_active = data['is_active']
 
+    AuditLog.log(
+        action='restaurant_update',
+        user_id=caller.id,
+        restaurant_id=restaurant.id,
+        target_type='restaurant',
+        target_id=restaurant.id,
+        details={'updated_fields': list(data.keys())},
+        ip_address=get_client_ip(),
+    )
     db.session.commit()
 
     return jsonify({'message': 'Restaurant mis à jour', 'restaurant': restaurant.to_dict()}), 200
@@ -314,9 +350,6 @@ def get_calendar_settings():
         return jsonify({'error': 'Non authentifié'}), 401
 
     restaurant_id = user.restaurant_id
-    if not restaurant_id:
-        r = Restaurant.query.filter_by(is_active=True).first()
-        restaurant_id = r.id if r else None
     if not restaurant_id:
         return jsonify({'error': 'Aucun restaurant'}), 404
 
@@ -343,9 +376,6 @@ def update_calendar_settings():
         return jsonify({'error': 'Non authentifié'}), 401
 
     restaurant_id = user.restaurant_id
-    if not restaurant_id:
-        r = Restaurant.query.filter_by(is_active=True).first()
-        restaurant_id = r.id if r else None
     if not restaurant_id:
         return jsonify({'error': 'Aucun restaurant'}), 404
 

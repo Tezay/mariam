@@ -37,25 +37,73 @@ def admin_required(f):
 
 
 def get_default_restaurant():
-    """Retourne le premier restaurant actif."""
+    """Return the first active restaurant.
+
+    Only for resolving which restaurant to display to an anonymous public
+    visitor (single-tenant). NEVER use it as a fallback on an authenticated
+    path: the tenant must always come from the current user.
+    """
     return Restaurant.query.filter_by(is_active=True).first()
 
 
-def get_user_and_restaurant():
-    """Retourne (user, restaurant) pour l'utilisateur JWT courant.
+def get_current_user():
+    """Return the user for the current JWT identity, or None."""
+    identity = get_jwt_identity()
+    if not identity:
+        return None
+    return User.query.get(int(identity))
 
-    Si l'utilisateur n'a pas de restaurant_id (comptes historiques),
-    retombe sur le premier restaurant actif.
-    Retourne (None, None) si l'utilisateur est introuvable.
+
+def get_user_and_restaurant():
+    """Return (user, restaurant) for the current JWT user.
+
+    The restaurant is the one the user belongs to, with no fallback to a default
+    restaurant. Returns (user, None) if the user has no restaurant, and
+    (None, None) if the user cannot be found.
     """
-    user = User.query.get(int(get_jwt_identity()))
+    user = get_current_user()
     if not user:
         return None, None
-    if user.restaurant_id:
-        restaurant = Restaurant.query.get(user.restaurant_id)
-    else:
-        restaurant = get_default_restaurant()
+    restaurant = Restaurant.query.get(user.restaurant_id) if user.restaurant_id else None
     return user, restaurant
+
+
+def accessible_restaurant_ids(user):
+    """Return the set of restaurant ids the user may act on.
+
+    - org_admin: every restaurant of its organization.
+    - admin / editor / reader: only its own restaurant.
+    - unassigned: empty set (no access).
+    """
+    if user is None:
+        return set()
+    if user.is_org_admin() and user.organization_id:
+        rows = Restaurant.query.filter_by(
+            organization_id=user.organization_id
+        ).with_entities(Restaurant.id).all()
+        return {row[0] for row in rows}
+    if user.restaurant_id:
+        return {user.restaurant_id}
+    return set()
+
+
+def user_can_access_restaurant(user, restaurant_id):
+    """Return True if the user may act on this restaurant."""
+    return restaurant_id is not None and restaurant_id in accessible_restaurant_ids(user)
+
+
+def scoped_get(model, resource_id):
+    """Return a model row by id only if it belongs to a restaurant accessible to
+    the current user, otherwise None.
+
+    The model must expose a `restaurant_id` column.
+    """
+    ids = accessible_restaurant_ids(get_current_user())
+    if not ids:
+        return None
+    return model.query.filter(
+        model.id == resource_id, model.restaurant_id.in_(ids)
+    ).first()
 
 
 def normalize_dish_name(name: str) -> str:

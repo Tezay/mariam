@@ -26,6 +26,9 @@ class ActivationLink(db.Model):
     used_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=True)
     
     # Relation
     created_by = db.relationship('User', backref='created_activation_links', foreign_keys=[created_by_id])
@@ -49,7 +52,8 @@ class ActivationLink(db.Model):
         )
     
     @classmethod
-    def create_invite_link(cls, email, role='editor', created_by_id=None, expires_hours=72):
+    def create_invite_link(cls, email, role='editor', created_by_id=None,
+                           expires_hours=72, restaurant_id=None, organization_id=None):
         """Crée un lien d'invitation pour un nouvel utilisateur."""
         return cls(
             token=cls.generate_token(),
@@ -57,7 +61,9 @@ class ActivationLink(db.Model):
             link_type='invite',
             role=role,
             expires_at=datetime.utcnow() + timedelta(hours=expires_hours),
-            created_by_id=created_by_id
+            created_by_id=created_by_id,
+            restaurant_id=restaurant_id,
+            organization_id=organization_id,
         )
 
     @classmethod

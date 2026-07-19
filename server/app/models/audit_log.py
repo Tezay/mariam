@@ -20,6 +20,9 @@ class AuditLog(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    restaurant_id = db.Column(
+        db.Integer, db.ForeignKey('restaurants.id'), nullable=True, index=True
+    )
     action = db.Column(db.String(50), nullable=False, index=True)
     target_type = db.Column(db.String(50), nullable=True)  # user, menu, event, etc.
     target_id = db.Column(db.Integer, nullable=True)
@@ -67,11 +70,12 @@ class AuditLog(db.Model):
     ACTION_DISH_IMAGE_DELETE = 'dish_image_delete'
     
     @classmethod
-    def log(cls, action, user_id=None, target_type=None, target_id=None, 
-            details=None, ip_address=None, user_agent=None):
+    def log(cls, action, user_id=None, target_type=None, target_id=None,
+            details=None, ip_address=None, user_agent=None, restaurant_id=None):
         """Crée une nouvelle entrée de journal."""
         log_entry = cls(
             user_id=user_id,
+            restaurant_id=restaurant_id,
             action=action,
             target_type=target_type,
             target_id=target_id,

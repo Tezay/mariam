@@ -21,7 +21,7 @@ from ..models import ActivationLink, AuditLog, User
 from ..schemas.common import ErrorSchema, MessageSchema
 from ..schemas.users import InvitationSchema, InviteSchema, UserAdminSchema, UserUpdateSchema
 from ..security import get_client_ip
-from .helpers import admin_required
+from .helpers import accessible_restaurant_ids, admin_required, get_current_user
 
 users_bp = Blueprint(
     'users', __name__,
@@ -32,6 +32,22 @@ users_bp = Blueprint(
 # ============================================================
 # HELPERS
 # ============================================================
+
+def _scoped_user(user_id):
+    """Return the target user only if within the caller's scope (same restaurant,
+    or same organization for an org_admin), otherwise None. A site admin cannot
+    manage an org_admin.
+    """
+    caller = get_current_user()
+    ids = accessible_restaurant_ids(caller)
+    if not ids:
+        return None
+    target = User.query.filter(User.id == user_id, User.restaurant_id.in_(ids)).first()
+    if not target:
+        return None
+    if target.is_org_admin() and not caller.is_org_admin():
+        return None
+    return target
 
 # ============================================================
 # ROUTES STATIQUES — avant /<int:user_id>
@@ -50,6 +66,7 @@ def create_invitation(data):
     their account and MFA via `/activate/<token>`.
     """
     current_user_id = int(get_jwt_identity())
+    inviter = get_current_user()
 
     email = data.get('email')
     role = data.get('role', 'editor')
@@ -60,19 +77,28 @@ def create_invitation(data):
     if role not in User.VALID_ROLES:
         return jsonify({'error': f'Rôle invalide. Valeurs possibles: {User.VALID_ROLES}'}), 400
 
+    if role == User.ROLE_ORG_ADMIN and not inviter.is_org_admin():
+        return jsonify({'error': "Seul un directeur d'organisation peut inviter à ce rôle"}), 403
+
+    if not inviter.restaurant_id:
+        return jsonify({'error': 'Aucun restaurant associé à votre compte'}), 400
+
     if User.query.filter_by(email=email).first():
         return jsonify({'error': 'Cet email est déjà utilisé'}), 409
 
     link = ActivationLink.create_invite_link(
         email=email,
         role=role,
-        created_by_id=current_user_id
+        created_by_id=current_user_id,
+        restaurant_id=inviter.restaurant_id,
+        organization_id=inviter.organization_id,
     )
     db.session.add(link)
 
     AuditLog.log(
         action=AuditLog.ACTION_ACTIVATION_LINK_CREATE,
         user_id=current_user_id,
+        restaurant_id=inviter.restaurant_id,
         details={'email': email, 'role': role},
         ip_address=get_client_ip()
     )
@@ -94,10 +120,15 @@ def create_invitation(data):
 @users_bp.response(200, InvitationSchema(many=True))
 @admin_required
 def list_invitations():
-    """List pending invitations (50 most recent)."""
-    links = ActivationLink.query.filter_by(link_type='invite').order_by(
-        ActivationLink.created_at.desc()
-    ).limit(50).all()
+    """List pending invitations of the caller's tenant (50 most recent)."""
+    ids = accessible_restaurant_ids(get_current_user())
+    links = (
+        ActivationLink.query.filter(
+            ActivationLink.link_type == 'invite',
+            ActivationLink.restaurant_id.in_(ids),
+        ).order_by(ActivationLink.created_at.desc()).limit(50).all()
+        if ids else []
+    )
 
     return jsonify({'invitations': [link.to_dict(include_token=True) for link in links]}), 200
 
@@ -110,8 +141,13 @@ def list_invitations():
 @users_bp.response(200, UserAdminSchema(many=True))
 @admin_required
 def list_users():
-    """List all users (admin only)."""
-    users = User.query.order_by(User.created_at.desc()).all()
+    """List users of the caller's tenant (admin only)."""
+    ids = accessible_restaurant_ids(get_current_user())
+    users = (
+        User.query.filter(User.restaurant_id.in_(ids))
+        .order_by(User.created_at.desc()).all()
+        if ids else []
+    )
     return jsonify({'users': [user.to_dict(include_sensitive=True) for user in users]}), 200
 
 
@@ -121,7 +157,7 @@ def list_users():
 @admin_required
 def get_user(user_id):
     """Get user details."""
-    user = User.query.get(user_id)
+    user = _scoped_user(user_id)
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
     return jsonify({'user': user.to_dict(include_sensitive=True)}), 200
@@ -137,7 +173,7 @@ def get_user(user_id):
 def update_user(data, user_id):
     """Update a user (role, active status, restaurant, username)."""
     current_user_id = int(get_jwt_identity())
-    user = User.query.get(user_id)
+    user = _scoped_user(user_id)
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
 
@@ -147,8 +183,12 @@ def update_user(data, user_id):
     if 'username' in data:
         user.username = data['username']
 
+    caller = get_current_user()
+
     if 'role' in data and data['role'] in User.VALID_ROLES:
-        if user.id == current_user_id and data['role'] != 'admin':
+        if data['role'] == User.ROLE_ORG_ADMIN and not caller.is_org_admin():
+            return jsonify({'error': "Seul un directeur d'organisation peut attribuer ce rôle"}), 403
+        if user.id == current_user_id and data['role'] not in (User.ROLE_ADMIN, User.ROLE_ORG_ADMIN):
             return jsonify({'error': 'Vous ne pouvez pas retirer vos propres droits admin'}), 400
         user.role = data['role']
 
@@ -158,6 +198,8 @@ def update_user(data, user_id):
         user.is_active = data['is_active']
 
     if 'restaurant_id' in data:
+        if data['restaurant_id'] not in accessible_restaurant_ids(caller):
+            return jsonify({'error': 'Restaurant hors de votre périmètre'}), 403
         user.restaurant_id = data['restaurant_id']
 
     AuditLog.log(
@@ -183,7 +225,7 @@ def update_user(data, user_id):
 def delete_user(user_id):
     """Delete a user."""
     current_user_id = int(get_jwt_identity())
-    user = User.query.get(user_id)
+    user = _scoped_user(user_id)
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
 
@@ -219,24 +261,28 @@ def reset_user_mfa(user_id):
     activation link (valid 72 h) to send to the user.
     """
     current_user_id = int(get_jwt_identity())
-    user = User.query.get(user_id)
+    user = _scoped_user(user_id)
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
 
     user.disable_mfa()
     user.is_active = False
+    user.revoke_tokens()
 
     link = ActivationLink.create_invite_link(
         email=user.email,
         role=user.role,
         created_by_id=current_user_id,
-        expires_hours=72
+        expires_hours=72,
+        restaurant_id=user.restaurant_id,
+        organization_id=user.organization_id,
     )
     db.session.add(link)
 
     AuditLog.log(
         action=AuditLog.ACTION_USER_UPDATE,
         user_id=current_user_id,
+        restaurant_id=user.restaurant_id,
         target_type='user',
         target_id=user.id,
         details={'action': 'reset_mfa'},

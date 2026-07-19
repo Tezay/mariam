@@ -226,7 +226,13 @@ def activate_account(data):
     if User.query.filter_by(email=email).first():
         return jsonify({'error': 'Cet email est déjà utilisé'}), 409
 
-    user = User(email=email, username=username, role=link.role)
+    user = User(
+        email=email,
+        username=username,
+        role=link.role,
+        restaurant_id=link.restaurant_id,
+        organization_id=link.organization_id,
+    )
     user.set_password(password)
 
     mfa_secret = pyotp.random_base32()
@@ -239,6 +245,7 @@ def activate_account(data):
     AuditLog.log(
         action=AuditLog.ACTION_ACCOUNT_ACTIVATE,
         user_id=None,
+        restaurant_id=link.restaurant_id,
         target_type='user',
         details={'email': email, 'role': link.role, 'link_type': link.link_type},
         ip_address=get_client_ip()
@@ -635,11 +642,13 @@ def reset_password(data):
         }), 400
 
     user.set_password(new_password)
+    user.revoke_tokens()
     link.mark_as_used()
 
     AuditLog.log(
         action=AuditLog.ACTION_PASSWORD_RESET,
         user_id=user.id,
+        restaurant_id=user.restaurant_id,
         details={'success': True, 'method': 'reset_link'},
         ip_address=get_client_ip()
     )
@@ -704,10 +713,12 @@ def change_password(data):
         }), 400
 
     user.set_password(new_password)
+    user.revoke_tokens()
 
     AuditLog.log(
         action=AuditLog.ACTION_PASSWORD_CHANGE,
         user_id=user.id,
+        restaurant_id=user.restaurant_id,
         details={'success': True},
         ip_address=get_client_ip()
     )
