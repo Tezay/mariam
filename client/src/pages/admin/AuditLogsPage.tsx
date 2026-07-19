@@ -1,6 +1,6 @@
 /**
  * MARIAM - Audit Logs Page
- * 
+ *
  * Page sécurisée (admin) pour consulter les logs d'audit.
  */
 import { useState, useEffect } from 'react';
@@ -14,364 +14,390 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Shield, Download, ChevronLeft, ChevronRight, AlertTriangle, Search, X } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Shield,
+  Download,
+  ChevronLeft,
+  ChevronRight,
+  AlertTriangle,
+  Search,
+  X,
+} from 'lucide-react';
 
 interface AuditLog {
-    id: number;
-    user_id: number | null;
-    user_email: string | null;
-    action: string;
-    target_type: string | null;
-    target_id: number | null;
-    details: Record<string, unknown> | null;
-    ip_address: string | null;
-    created_at: string;
+  id: number;
+  user_id: number | null;
+  user_email: string | null;
+  action: string;
+  target_type: string | null;
+  target_id: number | null;
+  details: Record<string, unknown> | null;
+  ip_address: string | null;
+  created_at: string;
 }
 
 interface AuditLogsResponse {
-    logs: AuditLog[];
-    total: number;
-    page: number;
-    per_page: number;
-    pages: number;
+  logs: AuditLog[];
+  total: number;
+  page: number;
+  per_page: number;
+  pages: number;
 }
 
 // Action labels fr
 const ACTION_LABELS: Record<string, string> = {
-    'login': 'Connexion',
-    'login_failed': 'Échec connexion',
-    'logout': 'Déconnexion',
-    'mfa_setup': 'Config. A2F',
-    'mfa_disabled': 'Désactivation A2F',
-    'user_create': 'Création utilisateur',
-    'user_update': 'Modif. utilisateur',
-    'user_delete': 'Suppr. utilisateur',
-    'menu_create': 'Création menu',
-    'menu_update': 'Modif. menu',
-    'menu_publish': 'Publication menu',
-    'event_create': 'Création événement',
-    'event_update': 'Modif. événement',
-    'event_delete': 'Suppr. événement',
-    'activation_link_create': 'Création lien activation',
-    'account_activate': 'Activation compte',
-    'audit_logs_access': 'Accès logs',
-    'audit_logs_export': 'Export logs',
-    'settings_update': 'Modif. paramètres',
-    'password_change': 'Changement mot de passe',
-    'password_reset_request': 'Demande réinit. mot de passe',
-    'password_reset': 'Réinit. mot de passe',
-    'passkey_registered': 'Enregistrement passkey',
-    'passkey_setup': 'Activation passkey (compte)',
-    'passkey_renamed': 'Renommage passkey',
-    'passkey_deleted': 'Suppr. passkey',
-    'dish_create': 'Création plat',
-    'dish_update': 'Modif. plat',
-    'dish_delete': 'Suppr. plat',
-    'dish_image_upload': 'Upload image plat',
-    'dish_image_delete': 'Suppr. image plat',
+  login: 'Connexion',
+  login_failed: 'Échec connexion',
+  logout: 'Déconnexion',
+  mfa_setup: 'Config. A2F',
+  mfa_disabled: 'Désactivation A2F',
+  user_create: 'Création utilisateur',
+  user_update: 'Modif. utilisateur',
+  user_delete: 'Suppr. utilisateur',
+  menu_create: 'Création menu',
+  menu_update: 'Modif. menu',
+  menu_publish: 'Publication menu',
+  event_create: 'Création événement',
+  event_update: 'Modif. événement',
+  event_delete: 'Suppr. événement',
+  activation_link_create: 'Création lien activation',
+  account_activate: 'Activation compte',
+  audit_logs_access: 'Accès logs',
+  audit_logs_export: 'Export logs',
+  settings_update: 'Modif. paramètres',
+  password_change: 'Changement mot de passe',
+  password_reset_request: 'Demande réinit. mot de passe',
+  password_reset: 'Réinit. mot de passe',
+  passkey_registered: 'Enregistrement passkey',
+  passkey_setup: 'Activation passkey (compte)',
+  passkey_renamed: 'Renommage passkey',
+  passkey_deleted: 'Suppr. passkey',
+  dish_create: 'Création plat',
+  dish_update: 'Modif. plat',
+  dish_delete: 'Suppr. plat',
+  dish_image_upload: 'Upload image plat',
+  dish_image_delete: 'Suppr. image plat',
 };
 
 // Couleurs des badges par catégorie d'action
-const getActionBadgeVariant = (action: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
-    if (action.includes('delete') || action.includes('failed')) return 'destructive';
-    if (action.includes('login') || action.includes('logout')) return 'outline';
-    if (action.includes('create')) return 'default';
-    return 'secondary';
+const getActionBadgeVariant = (
+  action: string
+): 'default' | 'secondary' | 'destructive' | 'outline' => {
+  if (action.includes('delete') || action.includes('failed')) return 'destructive';
+  if (action.includes('login') || action.includes('logout')) return 'outline';
+  if (action.includes('create')) return 'default';
+  return 'secondary';
 };
 
 export function AuditLogsPage() {
-    const { user } = useAuth();
-    const navigate = useNavigate();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
-    const [logs, setLogs] = useState<AuditLog[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [mfaRequired, setMfaRequired] = useState(false);
-    const [isExporting, setIsExporting] = useState(false);
-    const [selectedDetails, setSelectedDetails] = useState<Record<string, unknown> | null>(null);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [selectedDetails, setSelectedDetails] = useState<Record<string, unknown> | null>(null);
 
-    // Pagination
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [total, setTotal] = useState(0);
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
-    // Filtres
-    const [actionFilter, setActionFilter] = useState('');
-    const [searchTerm, setSearchTerm] = useState('');
+  // Filtres
+  const [actionFilter, setActionFilter] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
-    // Charger logs
-    const loadLogs = async () => {
-        setIsLoading(true);
-        try {
-            const response: AuditLogsResponse = await adminApi.getAuditLogs({
-                page,
-                per_page: 50,
-                action: actionFilter || undefined
-            });
+  // Charger logs
+  const loadLogs = async () => {
+    setIsLoading(true);
+    try {
+      const response: AuditLogsResponse = await adminApi.getAuditLogs({
+        page,
+        per_page: 50,
+        action: actionFilter || undefined,
+      });
 
-            setLogs(response.logs);
-            setTotal(response.total);
-            setTotalPages(response.pages);
-            setMfaRequired(false);
-        } catch (error) {
-            if (isAxiosError(error) && error.response?.data?.error === 'MFA_REQUIRED') {
-                setMfaRequired(true);
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        if (user?.role !== 'admin') {
-            navigate('/admin/menus');
-            return;
-        }
-        loadLogs();
-    }, [user, page, actionFilter]);
-
-    // Export
-    const handleExport = async () => {
-        setIsExporting(true);
-        try {
-            await adminApi.exportAuditLogs({
-                action: actionFilter || undefined
-            });
-        } catch {
-            notify.error("Erreur lors de l'export CSV");
-        } finally {
-            setIsExporting(false);
-        }
-    };
-
-    // Filtre local par recherche
-    const filteredLogs = logs.filter(log =>
-        !searchTerm ||
-        log.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.ip_address?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    // Ecran de MFA requis
-    if (mfaRequired) {
-        return (
-            <div className="container-mariam py-12 max-w-2xl">
-                <Card className="border-amber-500/30 bg-amber-500/5">
-                    <CardHeader>
-                        <div className="flex items-center gap-3">
-                            <Shield className="w-8 h-8 text-amber-600 dark:text-amber-400" />
-                            <div>
-                                <CardTitle className="text-amber-900 dark:text-amber-300">Authentification à deux facteurs requise</CardTitle>
-                                <CardDescription className="text-amber-700 dark:text-amber-400">
-                                    L'accès aux logs d'audit nécessite l'activation de l'A2F pour des raisons de sécurité.
-                                </CardDescription>
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-amber-800 dark:text-amber-300 mb-4">
-                            Les logs d'audit contiennent des informations sensibles (adresses IP, actions utilisateurs, etc.).
-                            Pour y accéder, vous devez d'abord activer l'authentification à deux facteurs sur votre compte.
-                        </p>
-                        <Button onClick={() => navigate('/admin/users')} className="gap-2">
-                            <Shield className="w-4 h-4" />
-                            Configurer l'A2F
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
-        );
+      setLogs(response.logs);
+      setTotal(response.total);
+      setTotalPages(response.pages);
+      setMfaRequired(false);
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data?.error === 'MFA_REQUIRED') {
+        setMfaRequired(true);
+      }
+    } finally {
+      setIsLoading(false);
     }
+  };
 
+  useEffect(() => {
+    if (user?.role !== 'admin') {
+      navigate('/admin/menus');
+      return;
+    }
+    loadLogs();
+  }, [user, page, actionFilter]);
+
+  // Export
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      await adminApi.exportAuditLogs({
+        action: actionFilter || undefined,
+      });
+    } catch {
+      notify.error("Erreur lors de l'export CSV");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Filtre local par recherche
+  const filteredLogs = logs.filter(
+    (log) =>
+      !searchTerm ||
+      log.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.ip_address?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Ecran de MFA requis
+  if (mfaRequired) {
     return (
-        <div className="container-mariam py-6">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                <div>
-                    <div className="flex items-center gap-2">
-                        <Shield className="w-6 h-6 text-primary" />
-                        <h1 className="text-2xl font-bold text-foreground">Logs d'audit</h1>
-                    </div>
-                    <p className="text-muted-foreground">
-                        Historique des actions sensibles et événements de sécurité
-                    </p>
-                </div>
-
-                <Button
-                    onClick={handleExport}
-                    disabled={isExporting}
-                    variant="outline"
-                    className="gap-2"
-                >
-                    <Download className="w-4 h-4" />
-                    {isExporting ? 'Export...' : 'Exporter CSV'}
-                </Button>
+      <div className="container-mariam max-w-2xl py-12">
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <Shield className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+              <div>
+                <CardTitle className="text-amber-900 dark:text-amber-300">
+                  Authentification à deux facteurs requise
+                </CardTitle>
+                <CardDescription className="text-amber-700 dark:text-amber-400">
+                  L'accès aux logs d'audit nécessite l'activation de l'A2F pour des raisons de
+                  sécurité.
+                </CardDescription>
+              </div>
             </div>
-
-            {/* Filters */}
-            <Card className="mb-6">
-                <CardContent className="pt-6">
-                    <div className="flex flex-col md:flex-row gap-4">
-                        <div className="flex-1">
-                            <Label htmlFor="search">Rechercher</Label>
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <Input
-                                    id="search"
-                                    placeholder="Email, action, IP..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-10"
-                                />
-                            </div>
-                        </div>
-                        <div className="md:w-64">
-                            <Label htmlFor="action-filter">Filtrer par action</Label>
-                            <select
-                                id="action-filter"
-                                value={actionFilter}
-                                onChange={(e) => {
-                                    setActionFilter(e.target.value);
-                                    setPage(1);
-                                }}
-                                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm text-foreground"
-                            >
-                                <option value="">Toutes les actions</option>
-                                {Object.entries(ACTION_LABELS).map(([key, label]) => (
-                                    <option key={key} value={key}>{label}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Table */}
-            {isLoading ? (
-                <div className="flex justify-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                </div>
-            ) : logs.length === 0 ? (
-                <Card>
-                    <CardContent className="py-12 text-center text-muted-foreground">
-                        <AlertTriangle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>Aucun log trouvé</p>
-                    </CardContent>
-                </Card>
-            ) : (
-                <>
-                    <Card>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-[180px]">Date</TableHead>
-                                    <TableHead>Utilisateur</TableHead>
-                                    <TableHead>Action</TableHead>
-                                    <TableHead>Cible</TableHead>
-                                    <TableHead>IP</TableHead>
-                                    <TableHead className="w-[100px]">Détails</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredLogs.map((log) => (
-                                    <TableRow key={log.id}>
-                                        <TableCell className="text-sm text-muted-foreground">
-                                            {new Date(log.created_at).toLocaleString('fr-FR', {
-                                                day: '2-digit',
-                                                month: '2-digit',
-                                                year: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            })}
-                                        </TableCell>
-                                        <TableCell className="font-medium">
-                                            {log.user_email || <span className="text-muted-foreground italic">Système</span>}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant={getActionBadgeVariant(log.action)}>
-                                                {ACTION_LABELS[log.action] || log.action}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-sm text-muted-foreground">
-                                            {log.target_type ? (
-                                                <span>{log.target_type}:{log.target_id}</span>
-                                            ) : (
-                                                <span className="text-muted-foreground/50">—</span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-sm font-mono text-muted-foreground">
-                                            {log.ip_address || <span className="text-muted-foreground/50">—</span>}
-                                        </TableCell>
-                                        <TableCell>
-                                            {log.details && (
-                                                <button
-                                                    className="text-xs text-primary hover:underline"
-                                                    onClick={() => setSelectedDetails(log.details)}
-                                                >
-                                                    Voir
-                                                </button>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </Card>
-
-                    {/* Pagination */}
-                    <div className="flex items-center justify-between mt-6">
-                        <p className="text-sm text-muted-foreground">
-                            {total} log{total > 1 ? 's' : ''} au total
-                        </p>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setPage(p => Math.max(1, p - 1))}
-                                disabled={page === 1}
-                                className="gap-1"
-                            >
-                                <ChevronLeft className="w-4 h-4" /> Précédent
-                            </Button>
-                            <span className="text-sm text-muted-foreground">
-                                Page {page} / {totalPages}
-                            </span>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                disabled={page === totalPages}
-                                className="gap-1"
-                            >
-                                Suivant <ChevronRight className="w-4 h-4" />
-                            </Button>
-                        </div>
-                    </div>
-                </>
-            )}
-
-            {/* Détails d'un log */}
-            {selectedDetails && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelectedDetails(null)}>
-                    <div
-                        className="bg-card rounded-lg p-6 max-w-lg w-full max-h-[80vh] flex flex-col border border-border shadow-xl"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div className="flex items-center justify-between mb-3 shrink-0">
-                            <h3 className="font-semibold text-foreground">Détails du log</h3>
-                            <button
-                                onClick={() => setSelectedDetails(null)}
-                                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-                        <pre className="flex-1 overflow-auto text-xs text-foreground bg-muted p-3 rounded-lg font-mono">
-                            {JSON.stringify(selectedDetails, null, 2)}
-                        </pre>
-                    </div>
-                </div>
-            )}
-        </div>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-4 text-sm text-amber-800 dark:text-amber-300">
+              Les logs d'audit contiennent des informations sensibles (adresses IP, actions
+              utilisateurs, etc.). Pour y accéder, vous devez d'abord activer l'authentification à
+              deux facteurs sur votre compte.
+            </p>
+            <Button onClick={() => navigate('/admin/users')} className="gap-2">
+              <Shield className="h-4 w-4" />
+              Configurer l'A2F
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     );
+  }
+
+  return (
+    <div className="container-mariam py-6">
+      {/* Header */}
+      <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div>
+          <div className="flex items-center gap-2">
+            <Shield className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl font-bold text-foreground">Logs d'audit</h1>
+          </div>
+          <p className="text-muted-foreground">
+            Historique des actions sensibles et événements de sécurité
+          </p>
+        </div>
+
+        <Button onClick={handleExport} disabled={isExporting} variant="outline" className="gap-2">
+          <Download className="h-4 w-4" />
+          {isExporting ? 'Export...' : 'Exporter CSV'}
+        </Button>
+      </div>
+
+      {/* Filters */}
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <div className="flex flex-col gap-4 md:flex-row">
+            <div className="flex-1">
+              <Label htmlFor="search">Rechercher</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+                <Input
+                  id="search"
+                  placeholder="Email, action, IP..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="md:w-64">
+              <Label htmlFor="action-filter">Filtrer par action</Label>
+              <select
+                id="action-filter"
+                value={actionFilter}
+                onChange={(e) => {
+                  setActionFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+              >
+                <option value="">Toutes les actions</option>
+                {Object.entries(ACTION_LABELS).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Table */}
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
+        </div>
+      ) : logs.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            <AlertTriangle className="mx-auto mb-4 h-12 w-12 opacity-50" />
+            <p>Aucun log trouvé</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[180px]">Date</TableHead>
+                  <TableHead>Utilisateur</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Cible</TableHead>
+                  <TableHead>IP</TableHead>
+                  <TableHead className="w-[100px]">Détails</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredLogs.map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(log.created_at).toLocaleString('fr-FR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {log.user_email || (
+                        <span className="italic text-muted-foreground">Système</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getActionBadgeVariant(log.action)}>
+                        {ACTION_LABELS[log.action] || log.action}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {log.target_type ? (
+                        <span>
+                          {log.target_type}:{log.target_id}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/50">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono text-sm text-muted-foreground">
+                      {log.ip_address || <span className="text-muted-foreground/50">—</span>}
+                    </TableCell>
+                    <TableCell>
+                      {log.details && (
+                        <button
+                          className="text-xs text-primary hover:underline"
+                          onClick={() => setSelectedDetails(log.details)}
+                        >
+                          Voir
+                        </button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+
+          {/* Pagination */}
+          <div className="mt-6 flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {total} log{total > 1 ? 's' : ''} au total
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="gap-1"
+              >
+                <ChevronLeft className="h-4 w-4" /> Précédent
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Page {page} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="gap-1"
+              >
+                Suivant <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Détails d'un log */}
+      {selectedDetails && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setSelectedDetails(null)}
+        >
+          <div
+            className="flex max-h-[80vh] w-full max-w-lg flex-col rounded-lg border border-border bg-card p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex shrink-0 items-center justify-between">
+              <h3 className="font-semibold text-foreground">Détails du log</h3>
+              <button
+                onClick={() => setSelectedDetails(null)}
+                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <pre className="flex-1 overflow-auto rounded-lg bg-muted p-3 font-mono text-xs text-foreground">
+              {JSON.stringify(selectedDetails, null, 2)}
+            </pre>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

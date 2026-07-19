@@ -4,56 +4,60 @@ import { MobileStandardCategory } from './MobileStandardCategory';
 import { MobileHighlightedCategory } from './MobileHighlightedCategory';
 
 interface MobileCategorySectionProps {
-    categories: DisplayCategory[];
-    onItemTap: (item: MenuItemData) => void;
-    /** Substitutions par category_id ; affichées si une catégorie a un item en rupture. */
-    substitutions?: Record<string, CategorySubstitutionData[]>;
+  categories: DisplayCategory[];
+  onItemTap: (item: MenuItemData) => void;
+  /** Substitutions par category_id ; affichées si une catégorie a un item en rupture. */
+  substitutions?: Record<string, CategorySubstitutionData[]>;
 }
 
 /** Orchestre l'affichage de toutes les catégories top-level.
  *  - highlight : MobileHighlightedCategory (pleine largeur, image alternée)
  *  - standard  : MobileStandardCategory (grille 2 colonnes, couleur palette)
  */
-export function MobileCategorySection({ categories, onItemTap, substitutions }: MobileCategorySectionProps) {
-    let standardColorIndex = 0;
+export function MobileCategorySection({
+  categories,
+  onItemTap,
+  substitutions,
+}: MobileCategorySectionProps) {
+  let standardColorIndex = 0;
 
-    return (
-        <div className="flex flex-col gap-6 py-4">
-            {categories.map(category => {
-                // Ignorer les catégories vides (ni items directs, ni sous-catégories avec items)
-                const hasItems = (category.items ?? []).length > 0;
-                const hasSubs = (category.subcategories ?? []).some(s => (s.items ?? []).length > 0);
-                if (!hasItems && !hasSubs) return null;
+  return (
+    <div className="flex flex-col gap-6 py-4">
+      {categories.map((category) => {
+        // Ignorer les catégories vides (ni items directs, ni sous-catégories avec items)
+        const hasItems = (category.items ?? []).length > 0;
+        const hasSubs = (category.subcategories ?? []).some((s) => (s.items ?? []).length > 0);
+        if (!hasItems && !hasSubs) return null;
 
-                if (category.is_highlighted || (category.subcategories?.length ?? 0) > 0) {
-                    const result = (
-                        <MobileHighlightedCategory
-                            key={category.id}
-                            category={category}
-                            onItemTap={onItemTap}
-                            subColorBaseIndex={standardColorIndex}
-                            substitutions={substitutions}
-                        />
-                    );
-                    // Incrémente l'index couleur selon le nombre de sous-catégories non-highlight
-                    const nonHighlightSubs = (category.subcategories ?? []).filter(s => !s.is_highlighted);
-                    standardColorIndex += nonHighlightSubs.length;
-                    return result;
-                }
+        if (category.is_highlighted || (category.subcategories?.length ?? 0) > 0) {
+          const result = (
+            <MobileHighlightedCategory
+              key={category.id}
+              category={category}
+              onItemTap={onItemTap}
+              subColorBaseIndex={standardColorIndex}
+              substitutions={substitutions}
+            />
+          );
+          // Incrémente l'index couleur selon le nombre de sous-catégories non-highlight
+          const nonHighlightSubs = (category.subcategories ?? []).filter((s) => !s.is_highlighted);
+          standardColorIndex += nonHighlightSubs.length;
+          return result;
+        }
 
-                const color = getCategoryColor(category.color_key, standardColorIndex);
-                standardColorIndex += 1;
+        const color = getCategoryColor(category.color_key, standardColorIndex);
+        standardColorIndex += 1;
 
-                return (
-                    <MobileStandardCategory
-                        key={category.id}
-                        category={category}
-                        color={color}
-                        onItemTap={onItemTap}
-                        substitutions={substitutions}
-                    />
-                );
-            })}
-        </div>
-    );
+        return (
+          <MobileStandardCategory
+            key={category.id}
+            category={category}
+            color={color}
+            onItemTap={onItemTap}
+            substitutions={substitutions}
+          />
+        );
+      })}
+    </div>
+  );
 }

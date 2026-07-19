@@ -7,34 +7,34 @@ import type { DishCatalogItem } from '@/lib/api';
 import type { CategoryColor } from '@/lib/category-colors';
 
 interface SuggestionListProps {
-    dishes: DishCatalogItem[];
-    color: CategoryColor;
-    onSelect: (dish: DishCatalogItem, sourceEl: HTMLElement) => void;
+  dishes: DishCatalogItem[];
+  color: CategoryColor;
+  onSelect: (dish: DishCatalogItem, sourceEl: HTMLElement) => void;
 }
 
 export function SuggestionList({ dishes, color, onSelect }: SuggestionListProps) {
-    return (
-        <div className="flex flex-wrap gap-2 content-start">
-            {dishes.map(dish => (
-                <button
-                    key={dish.id}
-                    type="button"
-                    onClick={e => onSelect(dish, e.currentTarget)}
-                    className="flex items-center gap-1.5 max-w-full rounded-xl border border-border bg-card pl-1.5 pr-2.5 py-1.5 text-sm font-medium text-foreground hover:border-primary/40 hover:bg-primary/5 transition-colors active:scale-[0.97]"
-                >
-                    {dish.image_url ? (
-                        <img src={dish.image_url} alt="" className="w-6 h-6 rounded-lg object-cover shrink-0" />
-                    ) : (
-                        <span
-                            className="w-6 h-6 rounded-lg shrink-0 flex items-center justify-center text-[10px] font-bold"
-                            style={{ backgroundColor: `${color.bg}22`, color: color.sectionLabel }}
-                        >
-                            {dish.name.charAt(0).toUpperCase()}
-                        </span>
-                    )}
-                    <span className="truncate">{dish.name}</span>
-                </button>
-            ))}
-        </div>
-    );
+  return (
+    <div className="flex flex-wrap content-start gap-2">
+      {dishes.map((dish) => (
+        <button
+          key={dish.id}
+          type="button"
+          onClick={(e) => onSelect(dish, e.currentTarget)}
+          className="flex max-w-full items-center gap-1.5 rounded-xl border border-border bg-card py-1.5 pl-1.5 pr-2.5 text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 active:scale-[0.97]"
+        >
+          {dish.image_url ? (
+            <img src={dish.image_url} alt="" className="h-6 w-6 shrink-0 rounded-lg object-cover" />
+          ) : (
+            <span
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold"
+              style={{ backgroundColor: `${color.bg}22`, color: color.sectionLabel }}
+            >
+              {dish.name.charAt(0).toUpperCase()}
+            </span>
+          )}
+          <span className="truncate">{dish.name}</span>
+        </button>
+      ))}
+    </div>
+  );
 }

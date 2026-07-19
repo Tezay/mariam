@@ -1,6 +1,6 @@
 /**
  * MARIAM - Application principale
- * 
+ *
  * Routes :
  * - / : Redirection vers /menu (public) ou /admin (si connecté)
  * - /menu : Affichage public du menu (TV/Mobile)
@@ -33,13 +33,13 @@ import { CalendarPage } from './pages/admin/calendar/CalendarPage';
 
 // Pages chargées à la demande
 const EventEditPage = lazy(() =>
-    import('./pages/admin/EventEditPage').then(m => ({ default: m.EventEditPage }))
+  import('./pages/admin/EventEditPage').then((m) => ({ default: m.EventEditPage }))
 );
 const CataloguePage = lazy(() =>
-    import('./pages/admin/CataloguePage').then(m => ({ default: m.CataloguePage }))
+  import('./pages/admin/CataloguePage').then((m) => ({ default: m.CataloguePage }))
 );
 const DishDetailPage = lazy(() =>
-    import('./pages/admin/catalogue/DishDetailPage').then(m => ({ default: m.DishDetailPage }))
+  import('./pages/admin/catalogue/DishDetailPage').then((m) => ({ default: m.DishDetailPage }))
 );
 
 // Error pages
@@ -47,176 +47,259 @@ import { NotFound, Forbidden } from './pages/errors';
 
 // Spinner plein écran (attente de l'état d'authentification)
 function FullScreenSpinner() {
-    return (
-        <div className="flex h-screen items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
-    );
+  return (
+    <div className="flex h-screen items-center justify-center">
+      <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
+    </div>
+  );
 }
 
 // Route protégée pour l'admin (authentification requise)
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-    const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
-    if (isLoading) {
-        return <FullScreenSpinner />;
-    }
+  if (isLoading) {
+    return <FullScreenSpinner />;
+  }
 
-    if (!isAuthenticated) {
-        return <Navigate to="/login" replace />;
-    }
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
 
-    return <>{children}</>;
+  return <>{children}</>;
 }
 
 // Route admin-only (rôle admin requis)
 function AdminRoute({ children }: { children: React.ReactNode }) {
-    const { user, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
 
-    if (isLoading) {
-        return <FullScreenSpinner />;
-    }
+  if (isLoading) {
+    return <FullScreenSpinner />;
+  }
 
-    if (user?.role !== 'admin') {
-        return <Forbidden />;
-    }
+  if (user?.role !== 'admin') {
+    return <Forbidden />;
+  }
 
-    return <>{children}</>;
+  return <>{children}</>;
 }
 
 // Route éditeur (rôle admin ou editor requis)
 function EditorRoute({ children }: { children: React.ReactNode }) {
-    const { user, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
 
-    if (isLoading) {
-        return <FullScreenSpinner />;
-    }
+  if (isLoading) {
+    return <FullScreenSpinner />;
+  }
 
-    if (user?.role !== 'admin' && user?.role !== 'editor') {
-        return <Forbidden />;
-    }
+  if (user?.role !== 'admin' && user?.role !== 'editor') {
+    return <Forbidden />;
+  }
 
-    return <>{children}</>;
+  return <>{children}</>;
 }
 
 // Route publique (redirige si déjà connecté)
 function PublicRoute({ children }: { children: React.ReactNode }) {
-    const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
-    if (isLoading) {
-        return <FullScreenSpinner />;
-    }
+  if (isLoading) {
+    return <FullScreenSpinner />;
+  }
 
-    if (isAuthenticated) {
-        return <Navigate to="/admin" replace />;
-    }
+  if (isAuthenticated) {
+    return <Navigate to="/admin" replace />;
+  }
 
-    return <>{children}</>;
+  return <>{children}</>;
 }
 
 function ResponsiveToaster() {
-    const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
-    useEffect(() => {
-        const handler = () => setIsMobile(window.innerWidth < 1024);
-        window.addEventListener('resize', handler);
-        return () => window.removeEventListener('resize', handler);
-    }, []);
-    return <Toaster position={isMobile ? 'top-center' : 'bottom-right'} richColors closeButton />;
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return <Toaster position={isMobile ? 'top-center' : 'bottom-right'} richColors closeButton />;
 }
 
 function App() {
-    return (
-        <PwaInstallProvider>
-            <ResponsiveToaster />
-            <Routes>
-                {/* Page d'accueil - Affiche le menu public */}
-                <Route path="/" element={<Navigate to="/menu" replace />} />
+  return (
+    <PwaInstallProvider>
+      <ResponsiveToaster />
+      <Routes>
+        {/* Page d'accueil - Affiche le menu public */}
+        <Route path="/" element={<Navigate to="/menu" replace />} />
 
-                {/* Menu public (TV/Mobile) */}
-                <Route path="/menu" element={<MenuDisplay />} />
+        {/* Menu public (TV/Mobile) */}
+        <Route path="/menu" element={<MenuDisplay />} />
 
-                {/* Notifications push (public) */}
-                <Route path="/notifications" element={<NotificationsPage />} />
+        {/* Notifications push (public) */}
+        <Route path="/notifications" element={<NotificationsPage />} />
 
-                {/* Authentification */}
-                <Route
-                    path="/login"
-                    element={
-                        <PublicRoute>
-                            <Login />
-                        </PublicRoute>
-                    }
-                />
+        {/* Authentification */}
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          }
+        />
 
-                {/* Activation de compte */}
-                <Route path="/activate/:token" element={<Activate />} />
+        {/* Activation de compte */}
+        <Route path="/activate/:token" element={<Activate />} />
 
-                {/* Réinitialisation de mot de passe */}
-                <Route path="/reset-password/:token" element={<ResetPassword />} />
+        {/* Réinitialisation de mot de passe */}
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-                {/* Onboarding installation PWA (admin/editor, affiché une seule fois) */}
-                <Route
-                    path="/admin/install"
-                    element={
-                        <ProtectedRoute>
-                            <InstallPage />
-                        </ProtectedRoute>
-                    }
-                />
+        {/* Onboarding installation PWA (admin/editor, affiché une seule fois) */}
+        <Route
+          path="/admin/install"
+          element={
+            <ProtectedRoute>
+              <InstallPage />
+            </ProtectedRoute>
+          }
+        />
 
-                {/* Réception du transfert de session cross-device */}
-                <Route path="/admin/setup" element={<SetupTransferPage />} />
+        {/* Réception du transfert de session cross-device */}
+        <Route path="/admin/setup" element={<SetupTransferPage />} />
 
-                {/* Interface Admin */}
-                <Route
-                    path="/admin"
-                    element={
-                        <ProtectedRoute>
-                            <AdminLayout />
-                        </ProtectedRoute>
-                    }
-                >
-                    {/* Dashboard = Calendrier unifié (admin ou editor) */}
-                    <Route index element={<EditorRoute><CalendarPage /></EditorRoute>} />
-                    <Route path="calendar" element={<EditorRoute><CalendarPage /></EditorRoute>} />
+        {/* Interface Admin */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          {/* Dashboard = Calendrier unifié (admin ou editor) */}
+          <Route
+            index
+            element={
+              <EditorRoute>
+                <CalendarPage />
+              </EditorRoute>
+            }
+          />
+          <Route
+            path="calendar"
+            element={
+              <EditorRoute>
+                <CalendarPage />
+              </EditorRoute>
+            }
+          />
 
-                    {/* Anciennes routes — redirigent vers le calendrier */}
-                    <Route path="menus" element={<Navigate to="/admin/calendar" replace />} />
+          {/* Anciennes routes — redirigent vers le calendrier */}
+          <Route path="menus" element={<Navigate to="/admin/calendar" replace />} />
 
-                    {/* Mon compte (tous les utilisateurs authentifiés) */}
-                    <Route path="account" element={<AccountPage />} />
+          {/* Mon compte (tous les utilisateurs authentifiés) */}
+          <Route path="account" element={<AccountPage />} />
 
-                    {/* Service en cours (admin ou editor) */}
-                    <Route path="service" element={<EditorRoute><ServicePage /></EditorRoute>} />
+          {/* Service en cours (admin ou editor) */}
+          <Route
+            path="service"
+            element={
+              <EditorRoute>
+                <ServicePage />
+              </EditorRoute>
+            }
+          />
 
-                    {/* Événements (admin ou editor) */}
-                    <Route path="events" element={<EditorRoute><EventsPage /></EditorRoute>} />
-                    <Route path="events/new" element={<EditorRoute><EventEditPage /></EditorRoute>} />
-                    <Route path="events/:id/edit" element={<EditorRoute><EventEditPage /></EditorRoute>} />
+          {/* Événements (admin ou editor) */}
+          <Route
+            path="events"
+            element={
+              <EditorRoute>
+                <EventsPage />
+              </EditorRoute>
+            }
+          />
+          <Route
+            path="events/new"
+            element={
+              <EditorRoute>
+                <EventEditPage />
+              </EditorRoute>
+            }
+          />
+          <Route
+            path="events/:id/edit"
+            element={
+              <EditorRoute>
+                <EventEditPage />
+              </EditorRoute>
+            }
+          />
 
-                    {/* Fermetures exceptionnelles (admin ou editor) */}
-                    <Route path="closures" element={<EditorRoute><ClosuresPage /></EditorRoute>} />
+          {/* Fermetures exceptionnelles (admin ou editor) */}
+          <Route
+            path="closures"
+            element={
+              <EditorRoute>
+                <ClosuresPage />
+              </EditorRoute>
+            }
+          />
 
-                    {/* Catalogue de plats (admin ou editor) */}
-                    <Route path="catalogue" element={<EditorRoute><CataloguePage /></EditorRoute>} />
-                    <Route path="catalogue/:id" element={<EditorRoute><DishDetailPage /></EditorRoute>} />
+          {/* Catalogue de plats (admin ou editor) */}
+          <Route
+            path="catalogue"
+            element={
+              <EditorRoute>
+                <CataloguePage />
+              </EditorRoute>
+            }
+          />
+          <Route
+            path="catalogue/:id"
+            element={
+              <EditorRoute>
+                <DishDetailPage />
+              </EditorRoute>
+            }
+          />
 
-                    {/* Gestion des utilisateurs (admin only) */}
-                    <Route path="users" element={<AdminRoute><UsersPage /></AdminRoute>} />
+          {/* Gestion des utilisateurs (admin only) */}
+          <Route
+            path="users"
+            element={
+              <AdminRoute>
+                <UsersPage />
+              </AdminRoute>
+            }
+          />
 
-                    {/* Paramètres du restaurant (admin only) */}
-                    <Route path="settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+          {/* Paramètres du restaurant (admin only) */}
+          <Route
+            path="settings"
+            element={
+              <AdminRoute>
+                <SettingsPage />
+              </AdminRoute>
+            }
+          />
 
-                    {/* Logs d'audit (admin only) */}
-                    <Route path="audit-logs" element={<AdminRoute><AuditLogsPage /></AdminRoute>} />
-                </Route>
+          {/* Logs d'audit (admin only) */}
+          <Route
+            path="audit-logs"
+            element={
+              <AdminRoute>
+                <AuditLogsPage />
+              </AdminRoute>
+            }
+          />
+        </Route>
 
-                {/* 404 Catch-all - Doit être en dernier */}
-                <Route path="*" element={<NotFound />} />
-            </Routes>
-        </PwaInstallProvider>
-    );
+        {/* 404 Catch-all - Doit être en dernier */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </PwaInstallProvider>
+  );
 }
-
 
 export default App;
