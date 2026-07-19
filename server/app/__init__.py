@@ -105,6 +105,22 @@ def create_app(config_class=None):
     app.config['OPENAPI_SWAGGER_UI_URL'] = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist/'
     
     # ========================================
+    # ERROR TRACKING (Sentry) — no-op when SENTRY_DSN is unset
+    # ========================================
+    sentry_dsn = os.environ.get('SENTRY_DSN')
+    if sentry_dsn:
+        import sentry_sdk
+        from sentry_sdk.integrations.flask import FlaskIntegration
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            integrations=[FlaskIntegration()],
+            environment=os.environ.get('SENTRY_ENVIRONMENT', 'production'),
+            release=os.environ.get('APP_VERSION'),
+            traces_sample_rate=float(os.environ.get('SENTRY_TRACES_SAMPLE_RATE', '0')),
+            send_default_pii=False,
+        )
+
+    # ========================================
     # INITIALISATION DES EXTENSIONS
     # ========================================
     db.init_app(app)
@@ -265,12 +281,45 @@ def create_app(config_class=None):
     @app.route('/health')
     @limiter.exempt
     def health_check():
+        # Liveness: the process is up. Used by the container healthcheck; must
+        # stay shallow so a DB/Redis outage does not trigger container restarts.
         return {
             'status': 'healthy',
             'message': 'MARIAM API is running',
-            'version': '0.13.0',
-            'docs': '/docs'
+            'version': os.environ.get('APP_VERSION', 'dev'),
+            'docs': '/docs',
         }
+
+    @app.route('/health/ready')
+    @limiter.exempt
+    def health_ready():
+        # Readiness: checks the critical dependencies (DB, Redis). Meant for the
+        # external uptime monitor; returns 503 when a dependency is unavailable.
+        from sqlalchemy import text
+
+        from .security import _get_blacklist_redis
+        checks = {'db': False, 'redis': None}
+        healthy = True
+
+        try:
+            db.session.execute(text('SELECT 1'))
+            checks['db'] = True
+        except Exception:
+            healthy = False
+
+        redis_client = _get_blacklist_redis()
+        if redis_client is not None:  # None in dev (no REDIS_URL) — not required
+            try:
+                redis_client.ping()
+                checks['redis'] = True
+            except Exception:
+                checks['redis'] = False
+                healthy = False
+
+        return (
+            {'status': 'ready' if healthy else 'degraded', 'checks': checks},
+            200 if healthy else 503,
+        )
 
     # ========================================
     # ROBOTS.TXT — Contrôle d'accès crawlers & IA
@@ -483,17 +532,21 @@ Disallow: /v1/users/
 
 
 def _start_notification_scheduler(app):
+    """Start APScheduler for scheduled push notifications (every minute).
+
+    Runs only in the dedicated scheduler process (ENABLE_SCHEDULER=1); the web
+    (gunicorn) workers never start it, which prevents duplicate sends.
     """
-    Démarre APScheduler pour envoyer les notifications push planifiées.
-    Exécute check_and_send_notifications() toutes les minutes.
-    """
+    if os.environ.get('ENABLE_SCHEDULER') != '1':
+        return
+
     vapid_key = os.environ.get('VAPID_PRIVATE_KEY', '')
     if not vapid_key:
-        app.logger.info("ℹ️  VAPID_PRIVATE_KEY non définie — scheduler de notifications désactivé")
+        app.logger.info("VAPID_PRIVATE_KEY unset — notification scheduler disabled")
         return
-    
-    # Empêche le scheduler de se lancer deux fois en mode debug (reloader de Flask)
-    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true' and app.debug:
+
+    # Under the Flask dev reloader, only the child process should start it.
+    if app.debug and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
         return
     
     try:

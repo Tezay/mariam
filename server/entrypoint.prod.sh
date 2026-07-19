@@ -57,4 +57,14 @@ fi
 # 4. Démarrer Gunicorn
 # ========================================
 echo "✅ Starting Gunicorn server..."
-exec gunicorn -w 2 -b 0.0.0.0:5000 --access-logfile - run:app
+exec gunicorn \
+  --worker-class gthread \
+  --workers "${GUNICORN_WORKERS:-3}" \
+  --threads "${GUNICORN_THREADS:-4}" \
+  --timeout "${GUNICORN_TIMEOUT:-60}" \
+  --graceful-timeout 30 \
+  --max-requests 1000 \
+  --max-requests-jitter 100 \
+  --access-logfile - \
+  -b 0.0.0.0:5000 \
+  run:app
