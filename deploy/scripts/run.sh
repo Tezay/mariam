@@ -27,11 +27,16 @@ fi
 COMMAND=${1:-up}
 
 case "$COMMAND" in
-    up|start)
-        echo "🚀 Démarrage de MARIAM (production)..."
-        docker compose up -d --build
+    up|start|deploy)
+        # Pull the tagged images from GHCR, build the local backup image, then
+        # recreate changed containers in place (no full down = near-zero downtime).
+        # Pin/rollback a release by setting MARIAM_TAG in .env (e.g. MARIAM_TAG=0.15.0).
+        echo "🚀 Déploiement de MARIAM (production, tag=${MARIAM_TAG:-latest})..."
+        docker compose pull db backend frontend
+        docker compose build backup
+        docker compose up -d
         echo ""
-        echo "✅ Application démarrée !"
+        echo "✅ Application déployée !"
         echo ""
         echo "📍 Accès :"
         echo "   - Application : http://localhost (ou IP de votre serveur)"
@@ -40,18 +45,19 @@ case "$COMMAND" in
         echo "💡 Si c'est le premier démarrage, exécutez :"
         echo "   ./scripts/init.sh"
         ;;
-        
+
     down|stop)
         echo "🛑 Arrêt de MARIAM..."
         docker compose down
         echo "✅ Application arrêtée"
         ;;
-        
+
     restart)
-        echo "🔄 Redémarrage de MARIAM..."
-        docker compose down
-        docker compose up -d --build
-        echo "✅ Application redémarrée"
+        echo "🔄 Redéploiement de MARIAM (sans coupure complète)..."
+        docker compose pull db backend frontend
+        docker compose build backup
+        docker compose up -d
+        echo "✅ Redéployé"
         ;;
         
     logs)

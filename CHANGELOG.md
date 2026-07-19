@@ -17,10 +17,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Organization → Restaurant hierarchy**: new `Organization` entity and `org_admin` (director) role; restaurants gain `organization_id` and a URL-safe `slug`.
+- **Automated off-site backups**: daily Postgres `pg_dump` to a dedicated S3 bucket with retention, plus a `restore.sh` script.
+- **Error tracking (Sentry)** for backend and frontend, enabled via environment.
+- **Readiness probe** `GET /health/ready` (checks DB and Redis) for external uptime monitoring.
 
 ### Changed
 
 - Users are bound to a restaurant/organization at activation; unassigned accounts no longer fall back to a default restaurant.
+- **Production deploys pinned GHCR images** (rollback via `MARIAM_TAG`) instead of building on the server; near-zero-downtime redeploys.
+- **Push scheduler** runs as a single dedicated service instead of inside every web worker, preventing duplicate notifications.
+- Gunicorn tuned (threaded workers, timeouts); container logs rotated and per-service resource limits set; nginx security headers added.
+- CI quality gate now runs on `main` and tags, and image publishing is gated on passing tests.
+
+### Fixed
+
+- Image uploads larger than 1 MB were rejected: nginx `client_max_body_size` is aligned with the 32 MB backend limit.
+- nginx rate limiting now keys on the real visitor IP behind Cloudflare instead of the Cloudflare edge IP.
 
 ## [0.13.0] - 2026-07-06
 

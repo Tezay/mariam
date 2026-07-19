@@ -40,6 +40,8 @@ dependencies = [
     "chardet>=5.0.0",
     # WSGI
     "gunicorn==21.2.0",
+    # Error tracking
+    "sentry-sdk[flask]>=2.0.0",
 ]
 
 [dependency-groups]

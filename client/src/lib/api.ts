@@ -23,6 +23,8 @@ declare global {
         __RUNTIME_CONFIG__?: {
             API_URL?: string;
             UMAMI_WEBSITE_ID?: string;
+            SENTRY_DSN?: string;
+            SENTRY_ENVIRONMENT?: string;
         };
         umami?: {
             track: (event: string, data?: Record<string, unknown>) => void;

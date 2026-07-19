@@ -1,21 +1,55 @@
 # MARIAM - Production Docker Compose
 # ========================================
-# Orchestration pour l'environnement de production
+# Consumes the images published to GHCR by CI on each version tag.
 #
 # Usage:
-#   ./scripts/run.sh          # Démarre l'application
-#   ./scripts/run.sh logs     # Voir les logs
-#   ./scripts/run.sh down     # Arrêter l'application
-#   ./scripts/init.sh         # Initialiser (premier démarrage)
+#   ./scripts/run.sh          # pull images and (re)start
+#   ./scripts/run.sh logs     # view logs
+#   ./scripts/run.sh down     # stop
+#   ./scripts/init.sh         # first-time setup
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# Shared runtime env for the backend and the scheduler (same app, same config).
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql://${POSTGRES_USER:-mariam}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-mariam_db}
+  SECRET_KEY: ${SECRET_KEY:?Définissez SECRET_KEY dans .env}
+  JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Définissez JWT_SECRET_KEY dans .env}
+  JWT_ACCESS_TOKEN_MINUTES: ${JWT_ACCESS_TOKEN_MINUTES:-30}
+  MFA_ISSUER_NAME: ${MFA_ISSUER_NAME:-MARIAM}
+  FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+  S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:?Définissez S3_ENDPOINT_URL dans .env}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?Définissez S3_ACCESS_KEY_ID dans .env}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?Définissez S3_SECRET_ACCESS_KEY dans .env}
+  S3_BUCKET_NAME: ${S3_BUCKET_NAME:-mariam-uploads}
+  S3_REGION: ${S3_REGION:-fr-par}
+  S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
+  VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:?Définissez VAPID_PUBLIC_KEY dans .env}
+  VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:?Définissez VAPID_PRIVATE_KEY dans .env}
+  VAPID_CONTACT_EMAIL: ${VAPID_CONTACT_EMAIL:-contact@mariam.app}
+  REDIS_URL: ${REDIS_URL:?Définissez REDIS_URL dans .env (Upstash)}
+  WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:?Définissez WEBAUTHN_RP_ID dans .env (ex. mariam.app)}
+  WEBAUTHN_RP_NAME: ${WEBAUTHN_RP_NAME:-MARIAM}
+  WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:?Définissez WEBAUTHN_ORIGIN dans .env (ex. https://mariam.app)}
+  APP_VERSION: ${MARIAM_TAG:-dev}
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
 
 services:
   # ========================================
-  # BASE DE DONNÉES
+  # DATABASE
   # ========================================
   db:
     image: postgres:15-alpine
     container_name: mariam_db_prod
     restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 512m
+    cpus: 1.0
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-mariam}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Définissez POSTGRES_PASSWORD dans .env}
@@ -34,35 +68,17 @@ services:
   # BACKEND (Flask + Gunicorn)
   # ========================================
   backend:
-    build:
-      context: ../server
-      dockerfile: Dockerfile.prod
+    image: ${BACKEND_IMAGE:-ghcr.io/tezay/mariam-backend}:${MARIAM_TAG:-latest}
     container_name: mariam_backend_prod
     restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 512m
+    cpus: 1.0
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-mariam}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-mariam_db}
-      SECRET_KEY: ${SECRET_KEY:?Définissez SECRET_KEY dans .env}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Définissez JWT_SECRET_KEY dans .env}
-      JWT_ACCESS_TOKEN_MINUTES: ${JWT_ACCESS_TOKEN_MINUTES:-30}
-      MFA_ISSUER_NAME: ${MFA_ISSUER_NAME:-MARIAM}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
-      # S3 / Scaleway Object Storage
-      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:?Définissez S3_ENDPOINT_URL dans .env}
-      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?Définissez S3_ACCESS_KEY_ID dans .env}
-      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?Définissez S3_SECRET_ACCESS_KEY dans .env}
-      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-mariam-uploads}
-      S3_REGION: ${S3_REGION:-fr-par}
-      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
-      # Web Push / VAPID (notifications)
-      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:?Définissez VAPID_PUBLIC_KEY dans .env}
-      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:?Définissez VAPID_PRIVATE_KEY dans .env}
-      VAPID_CONTACT_EMAIL: ${VAPID_CONTACT_EMAIL:-contact@mariam.app}
-      # Redis (Upstash) — blacklist JWT, rate limiting partagé, cache
-      REDIS_URL: ${REDIS_URL:?Définissez REDIS_URL dans .env (Upstash)}
-      # WebAuthn / Passkeys — doit correspondre au domaine public
-      WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:?Définissez WEBAUTHN_RP_ID dans .env (ex. mariam.app)}
-      WEBAUTHN_RP_NAME: ${WEBAUTHN_RP_NAME:-MARIAM}
-      WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:?Définissez WEBAUTHN_ORIGIN dans .env (ex. https://mariam.app)}
+      <<: *backend-env
+      ENABLE_SCHEDULER: "0"  # the dedicated scheduler service runs jobs
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
+      GUNICORN_THREADS: ${GUNICORN_THREADS:-4}
     depends_on:
       db:
         condition: service_healthy
@@ -76,19 +92,39 @@ services:
       - mariam_network
 
   # ========================================
+  # SCHEDULER (APScheduler — single instance)
+  # ========================================
+  scheduler:
+    image: ${BACKEND_IMAGE:-ghcr.io/tezay/mariam-backend}:${MARIAM_TAG:-latest}
+    container_name: mariam_scheduler_prod
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 256m
+    cpus: 0.5
+    entrypoint: ["python", "scheduler.py"]
+    environment:
+      <<: *backend-env
+      ENABLE_SCHEDULER: "1"
+    depends_on:
+      backend:
+        condition: service_healthy  # ensures migrations have run
+    networks:
+      - mariam_network
+
+  # ========================================
   # FRONTEND (Nginx + React build)
   # ========================================
   frontend:
-    build:
-      context: ../client
-      dockerfile: Dockerfile.prod
-      args:
-        VITE_API_URL: /v1
+    image: ${FRONTEND_IMAGE:-ghcr.io/tezay/mariam-frontend}:${MARIAM_TAG:-latest}
     container_name: mariam_frontend_prod
     restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 128m
+    cpus: 0.5
     environment:
-      # Injecté au démarrage dans index.html (voir client/docker-entrypoint.sh)
       UMAMI_WEBSITE_ID: ${UMAMI_WEBSITE_ID:-}
+      SENTRY_DSN: ${FRONTEND_SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
@@ -99,9 +135,37 @@ services:
     networks:
       - mariam_network
 
+  # ========================================
+  # BACKUP (Postgres dump -> S3 bucket)
+  # ========================================
+  backup:
+    build:
+      context: ./backup
+    image: mariam-backup:local
+    container_name: mariam_backup_prod
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 256m
+    cpus: 0.5
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-mariam}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-mariam_db}
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:?Définissez BACKUP_S3_ENDPOINT dans .env}
+      BACKUP_S3_ACCESS_KEY: ${BACKUP_S3_ACCESS_KEY:?Définissez BACKUP_S3_ACCESS_KEY dans .env}
+      BACKUP_S3_SECRET_KEY: ${BACKUP_S3_SECRET_KEY:?Définissez BACKUP_S3_SECRET_KEY dans .env}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:?Définissez BACKUP_S3_BUCKET dans .env}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - mariam_network
+
 volumes:
   postgres_data_prod:
-
 
 networks:
   mariam_network:

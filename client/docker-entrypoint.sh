@@ -12,6 +12,8 @@ CONFIG_FILE="/usr/share/nginx/html/config.js"
 # Default to /api if API_URL is not set (for docker-compose with nginx proxy)
 API_URL="${API_URL:-/v1}"
 UMAMI_WEBSITE_ID="${UMAMI_WEBSITE_ID:-}"
+SENTRY_DSN="${SENTRY_DSN:-}"
+SENTRY_ENVIRONMENT="${SENTRY_ENVIRONMENT:-production}"
 
 echo "🔧 Injecting runtime configuration..."
 echo "   API_URL: $API_URL"
@@ -22,7 +24,9 @@ cat > "$CONFIG_FILE" << EOF
 // Runtime configuration - generated at container startup
 window.__RUNTIME_CONFIG__ = {
   API_URL: "$API_URL",
-  UMAMI_WEBSITE_ID: "$UMAMI_WEBSITE_ID"
+  UMAMI_WEBSITE_ID: "$UMAMI_WEBSITE_ID",
+  SENTRY_DSN: "$SENTRY_DSN",
+  SENTRY_ENVIRONMENT: "$SENTRY_ENVIRONMENT"
 };
 EOF
 
