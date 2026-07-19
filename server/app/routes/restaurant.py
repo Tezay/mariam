@@ -24,6 +24,7 @@ from ..models.restaurant_calendar import RestaurantCalendarSettings
 from ..schemas.common import ErrorSchema
 from ..schemas.restaurant import RestaurantSchema, RestaurantUpdateSchema
 from ..security import get_client_ip, limiter
+from ..utils.slug import is_valid_slug, normalize_slug
 from .helpers import accessible_restaurant_ids, admin_required, get_current_user
 
 restaurant_bp = Blueprint(
@@ -269,8 +270,10 @@ def create_restaurant(data):
     if Restaurant.query.filter_by(code=code).first():
         return jsonify({'error': 'Ce code est déjà utilisé'}), 409
 
-    # Basic slug, unique within the organization.
-    slug = (data.get('slug') or code).strip().lower().replace('_', '-').replace(' ', '-')
+    # URL slug, unique within the organization (defaults to the code).
+    slug = normalize_slug(data.get('slug') or code)
+    if not is_valid_slug(slug):
+        return jsonify({'error': 'Slug invalide ou réservé'}), 400
     if Restaurant.query.filter_by(organization_id=caller.organization_id, slug=slug).first():
         return jsonify({'error': 'Ce slug est déjà utilisé dans votre organisation'}), 409
 

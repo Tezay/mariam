@@ -56,6 +56,7 @@ services:
       FLASK_ENV: development
       FLASK_DEBUG: 1
       ENABLE_SCHEDULER: 1
+      DEFAULT_ORG_SLUG: demo
       DATABASE_URL: postgresql://mariam:mariam_secret@db:5432/mariam_db
       JWT_SECRET_KEY: dev-jwt-secret-key-change-in-production
       JWT_ACCESS_TOKEN_MINUTES: 30
