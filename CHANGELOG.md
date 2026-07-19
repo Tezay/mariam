@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+
+- **Multi-tenant isolation enforced** on events, closures, users, settings, audit logs and imports (scoped to the caller's restaurant/organization); the "first active restaurant" fallback is removed and cross-tenant access now returns 404.
+- **Token revocation on credential changes**: password change/reset and MFA reset invalidate all outstanding tokens; changing your own password requires re-login.
+- **Stored-XSS fixed** on the public event display (descriptions escaped before markdown rendering).
+- **Privilege-escalation guards** on role assignment and cross-scope user reassignment.
+
+### Added
+
+- **Organization → Restaurant hierarchy**: new `Organization` entity and `org_admin` (director) role; restaurants gain `organization_id` and a URL-safe `slug`.
+
+### Changed
+
+- Users are bound to a restaurant/organization at activation; unassigned accounts no longer fall back to a default restaurant.
+
 ## [0.13.0] - 2026-07-06
 
 ### Added

@@ -21,6 +21,7 @@ from .models import (
     ImportSession,
     Menu,
     MenuItem,
+    Organization,
     PushSubscription,
     Restaurant,
     User,
@@ -157,6 +158,22 @@ def create_app(config_class=None):
             or jwt_payload.get('setup_phase')
         ):
             return True
+
+        # Epoch-based revocation: any token (access or refresh) issued before
+        # user.tokens_valid_after is rejected — set on password change/reset and
+        # MFA reset (invalidates stolen sessions).
+        sub = jwt_payload.get('sub')
+        iat = jwt_payload.get('iat')
+        if sub and iat:
+            from datetime import UTC
+
+            from .models import User
+            user = User.query.get(int(sub))
+            if user and user.tokens_valid_after:
+                cutoff = user.tokens_valid_after.replace(tzinfo=UTC).timestamp()
+                if iat < cutoff:
+                    return True
+
         jti = jwt_payload.get('jti')
         if not jti:
             return False
@@ -327,8 +344,13 @@ Disallow: /v1/users/
             click.echo("❌ Un administrateur existe déjà. Utilisez l'interface admin pour inviter des utilisateurs.")
             return
         
-        # Créer le lien d'activation
         link = ActivationLink.create_first_admin_link(expires_hours=24)
+        # Bind the first admin to the seeded restaurant so the account is never
+        # left without a tenant (the default-restaurant fallback was removed).
+        restaurant = Restaurant.query.first()
+        if restaurant:
+            link.restaurant_id = restaurant.id
+            link.organization_id = restaurant.organization_id
         db.session.add(link)
         db.session.commit()
         

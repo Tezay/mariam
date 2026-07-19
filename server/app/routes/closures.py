@@ -27,7 +27,12 @@ from ..schemas.closures import (
 from ..schemas.common import ErrorSchema, MessageSchema
 from ..security import get_client_ip
 from ..utils.time import paris_today
-from .helpers import editor_required, get_default_restaurant
+from .helpers import (
+    accessible_restaurant_ids,
+    editor_required,
+    get_default_restaurant,
+    scoped_get,
+)
 
 closures_bp = Blueprint(
     'closures', __name__,
@@ -75,19 +80,25 @@ def list_closures():
     except Exception:
         pass
 
-    if not restaurant_id:
-        if is_editor and user and user.restaurant_id:
-            restaurant_id = user.restaurant_id
-        else:
+    if is_editor:
+        allowed_ids = accessible_restaurant_ids(user)
+        if restaurant_id is None:
+            restaurant_id = user.restaurant_id if user.restaurant_id else (
+                next(iter(allowed_ids)) if allowed_ids else None
+            )
+        if restaurant_id is None or restaurant_id not in allowed_ids:
+            return jsonify({'closures': []}), 200
+    else:
+        # Anonymous public view: requested restaurant, else the default (single-tenant).
+        if not restaurant_id:
             restaurant = get_default_restaurant()
-            if restaurant:
-                restaurant_id = restaurant.id
-            else:
+            if not restaurant:
                 return jsonify({
                     'current_closure': None,
                     'upcoming_closures': [],
                     'closures': [],
                 }), 200
+            restaurant_id = restaurant.id
 
     today = paris_today()
 
@@ -154,16 +165,9 @@ def create_closure(data):
     if end_date < start_date:
         return jsonify({'error': 'end_date doit être >= start_date'}), 400
 
-    restaurant_id = data.get('restaurant_id')
+    restaurant_id = current_user.restaurant_id if current_user else None
     if not restaurant_id:
-        if current_user and current_user.restaurant_id:
-            restaurant_id = current_user.restaurant_id
-        else:
-            restaurant = get_default_restaurant()
-            if restaurant:
-                restaurant_id = restaurant.id
-            else:
-                return jsonify({'error': 'Aucun restaurant configuré'}), 400
+        return jsonify({'error': 'Aucun restaurant associé à votre compte'}), 400
 
     closure = ExceptionalClosure(
         restaurant_id=restaurant_id,
@@ -202,7 +206,7 @@ def update_closure(data, closure_id):
     """Update an existing exceptional closure."""
     current_user_id = int(get_jwt_identity())
     today = paris_today()
-    closure = ExceptionalClosure.query.get(closure_id)
+    closure = scoped_get(ExceptionalClosure, closure_id)
     if not closure:
         return jsonify({'error': 'Fermeture non trouvée'}), 404
 
@@ -259,7 +263,7 @@ def update_closure(data, closure_id):
 def delete_closure(closure_id):
     """Delete an exceptional closure."""
     current_user_id = int(get_jwt_identity())
-    closure = ExceptionalClosure.query.get(closure_id)
+    closure = scoped_get(ExceptionalClosure, closure_id)
     if not closure:
         return jsonify({'error': 'Fermeture non trouvée'}), 404
 

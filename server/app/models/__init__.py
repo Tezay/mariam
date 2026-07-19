@@ -10,6 +10,7 @@ from .exceptional_closure import ExceptionalClosure
 from .import_session import ImportSession
 from .menu import Menu, MenuImage, MenuItem
 from .notification import Notification
+from .organization import Organization
 from .passkey import Passkey
 from .push_subscription import PushSubscription
 from .restaurant import Restaurant, RestaurantServiceHours
@@ -29,6 +30,7 @@ from .user import User
 __all__ = [
     'User',
     'Passkey',
+    'Organization',
     'Restaurant',
     'RestaurantServiceHours',
     'RestaurantCalendarSettings',

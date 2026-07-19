@@ -36,7 +36,12 @@ from ..schemas.events import (
 from ..security import get_client_ip
 from ..services.storage import storage
 from ..utils.time import paris_today
-from .helpers import editor_required, get_default_restaurant
+from .helpers import (
+    accessible_restaurant_ids,
+    editor_required,
+    get_default_restaurant,
+    scoped_get,
+)
 
 events_bp = Blueprint(
     'events', __name__,
@@ -81,19 +86,26 @@ def list_events():
     except Exception:
         pass
 
-    if not restaurant_id:
-        if is_editor and user and user.restaurant_id:
-            restaurant_id = user.restaurant_id
-        else:
+    if is_editor:
+        # Editor view: strictly limited to accessible restaurants.
+        allowed_ids = accessible_restaurant_ids(user)
+        if restaurant_id is None:
+            restaurant_id = user.restaurant_id if user.restaurant_id else (
+                next(iter(allowed_ids)) if allowed_ids else None
+            )
+        if restaurant_id is None or restaurant_id not in allowed_ids:
+            return jsonify({'events': []}), 200
+    else:
+        # Anonymous public view: requested restaurant, else the default (single-tenant).
+        if not restaurant_id:
             restaurant = get_default_restaurant()
-            if restaurant:
-                restaurant_id = restaurant.id
-            else:
+            if not restaurant:
                 return jsonify({
                     'today_event': None,
                     'upcoming_events': [],
                     'events': [],
                 }), 200
+            restaurant_id = restaurant.id
 
     if is_editor:
         # Vue gestion : tous les événements avec filtres
@@ -174,16 +186,9 @@ def create_event(data):
     except ValueError:
         return jsonify({'error': 'Format de date invalide (YYYY-MM-DD)'}), 400
 
-    restaurant_id = data.get('restaurant_id')
+    restaurant_id = current_user.restaurant_id if current_user else None
     if not restaurant_id:
-        if current_user and current_user.restaurant_id:
-            restaurant_id = current_user.restaurant_id
-        else:
-            restaurant = get_default_restaurant()
-            if restaurant:
-                restaurant_id = restaurant.id
-            else:
-                return jsonify({'error': 'Aucun restaurant configuré'}), 400
+        return jsonify({'error': 'Aucun restaurant associé à votre compte'}), 400
 
     visibility = data.get('visibility', 'all')
     if visibility not in Event.VALID_VISIBILITY:
@@ -245,7 +250,7 @@ def storage_status():
 @editor_required
 def get_event(event_id):
     """Get an event by ID with its images."""
-    event = Event.query.get(event_id)
+    event = scoped_get(Event, event_id)
     if not event:
         return jsonify({'error': 'Événement non trouvé'}), 404
     return jsonify({'event': event.to_dict()}), 200
@@ -260,7 +265,7 @@ def get_event(event_id):
 def update_event(data, event_id):
     """Update an existing event."""
     current_user_id = int(get_jwt_identity())
-    event = Event.query.get(event_id)
+    event = scoped_get(Event, event_id)
     if not event:
         return jsonify({'error': 'Événement non trouvé'}), 404
 
@@ -321,7 +326,7 @@ def update_event(data, event_id):
 def delete_event(event_id):
     """Delete an event and its S3 images."""
     current_user_id = int(get_jwt_identity())
-    event = Event.query.get(event_id)
+    event = scoped_get(Event, event_id)
     if not event:
         return jsonify({'error': 'Événement non trouvé'}), 404
 
@@ -351,7 +356,7 @@ def delete_event(event_id):
 def publish_event(event_id):
     """Publish an event (draft to published)."""
     current_user_id = int(get_jwt_identity())
-    event = Event.query.get(event_id)
+    event = scoped_get(Event, event_id)
     if not event:
         return jsonify({'error': 'Événement non trouvé'}), 404
 
@@ -377,7 +382,7 @@ def publish_event(event_id):
 @editor_required
 def unpublish_event(event_id):
     """Revert a published event to draft."""
-    event = Event.query.get(event_id)
+    event = scoped_get(Event, event_id)
     if not event:
         return jsonify({'error': 'Événement non trouvé'}), 404
 
@@ -398,7 +403,7 @@ def duplicate_event(event_id):
     If omitted, the date is shifted 7 days from the original.
     """
     current_user_id = int(get_jwt_identity())
-    event = Event.query.get(event_id)
+    event = scoped_get(Event, event_id)
     if not event:
         return jsonify({'error': 'Événement non trouvé'}), 404
 
@@ -452,7 +457,7 @@ def upload_event_image(event_id):
     Limit: 6 images per event, 5 MB per image.
     Accepted formats: JPEG, PNG, WebP, HEIC (converted to JPEG).
     """
-    event = Event.query.get(event_id)
+    event = scoped_get(Event, event_id)
     if not event:
         return jsonify({'error': 'Événement non trouvé'}), 404
 
@@ -508,6 +513,9 @@ def upload_event_image(event_id):
 @editor_required
 def delete_event_image(event_id, image_id):
     """Delete an event image from S3 storage and database."""
+    # First check the event belongs to the caller's tenant.
+    if not scoped_get(Event, event_id):
+        return jsonify({'error': 'Événement non trouvé'}), 404
     image = EventImage.query.filter_by(id=image_id, event_id=event_id).first()
     if not image:
         return jsonify({'error': 'Image non trouvée'}), 404
@@ -530,7 +538,7 @@ def reorder_event_images(event_id):
     JSON body: `{ "image_ids": [3, 1, 2] }`
     Array order defines the new display order.
     """
-    event = Event.query.get(event_id)
+    event = scoped_get(Event, event_id)
     if not event:
         return jsonify({'error': 'Événement non trouvé'}), 404
 
