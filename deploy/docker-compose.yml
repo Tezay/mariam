@@ -38,6 +38,8 @@ x-backend-env: &backend-env
   APP_VERSION: ${MARIAM_TAG:-dev}
   SENTRY_DSN: ${SENTRY_DSN:-}
   SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+  BASE_DOMAIN: ${BASE_DOMAIN:-mariam.app}
+  DEFAULT_ORG_SLUG: ${DEFAULT_ORG_SLUG:-}
 
 services:
   # ========================================

@@ -260,6 +260,7 @@ def create_app(config_class=None):
     from .routes.inbox import inbox_bp
     from .routes.menus import menus_bp
     from .routes.notifications import notifications_bp
+    from .routes.public import public_bp
     from .routes.restaurant import restaurant_bp
     from .routes.taxonomy import taxonomy_bp
     from .routes.users import users_bp
@@ -277,6 +278,7 @@ def create_app(config_class=None):
     api.register_blueprint(notifications_bp, url_prefix='/v1/notifications')
     api.register_blueprint(inbox_bp,         url_prefix='/v1/inbox')
     api.register_blueprint(closures_bp,      url_prefix='/v1/closures')
+    api.register_blueprint(public_bp,        url_prefix='/v1/public')
 
     @app.route('/health')
     @limiter.exempt
@@ -426,9 +428,19 @@ Disallow: /v1/users/
             click.echo(f"ℹ️  Restaurant existant : {existing.name} ({existing.code})")
             return
 
+        # Default organization (its slug is the public subdomain).
+        org_slug = os.environ.get('DEFAULT_ORG_SLUG', 'demo')
+        org = Organization.query.filter_by(slug=org_slug).first()
+        if not org:
+            org = Organization(name="Organisation par défaut", slug=org_slug)
+            db.session.add(org)
+            db.session.flush()
+
         restaurant = Restaurant(
             name="Restaurant Universitaire",
-            code="RU_DEFAULT"
+            code="RU_DEFAULT",
+            slug="ru-default",
+            organization_id=org.id,
         )
         db.session.add(restaurant)
         db.session.flush()
