@@ -117,30 +117,29 @@ body {
    CLASSES UTILITAIRES MARIAM
    ======================================== */
 @layer components {
-
   /* Conteneur principal */
   .container-mariam {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
   }
 
   /* Cartes */
   .card-mariam {
-    @apply bg-card rounded-lg border border-border shadow-sm;
+    @apply rounded-lg border border-border bg-card shadow-sm;
   }
 
   /* Badges de statut */
   .badge-published {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
     @apply bg-green-500/10 text-green-700 dark:text-green-400;
   }
 
   .badge-draft {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
     @apply bg-yellow-500/10 text-yellow-700 dark:text-yellow-400;
   }
 
   .badge-empty {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
     @apply bg-muted text-muted-foreground;
   }
 }
@@ -186,7 +185,6 @@ body {
 
 /* Animation douce pour TV */
 @keyframes tv-fade {
-
   0%,
   100% {
     opacity: 1;
@@ -205,10 +203,10 @@ body {
    VAUL DRAWER — VITESSE D'ANIMATION
    ======================================== */
 [data-vaul-drawer] {
-    transition-duration: 0.3s !important;
+  transition-duration: 0.3s !important;
 }
 [data-vaul-overlay] {
-    transition-duration: 0.3s !important;
+  transition-duration: 0.3s !important;
 }
 
 /* ========================================
@@ -216,7 +214,6 @@ body {
    ======================================== */
 /* Mobile first, puis desktop, puis TV */
 @media (min-width: 1920px) {
-
   /* Écrans TV / Large displays */
   .tv-auto {
     font-size: 1.25rem;
@@ -224,7 +221,6 @@ body {
 }
 
 @media (min-width: 2560px) {
-
   /* Écrans 4K */
   .tv-auto {
     font-size: 1.5rem;
