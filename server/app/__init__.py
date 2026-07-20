@@ -282,6 +282,11 @@ def create_app(config_class=None):
     api.register_blueprint(public_bp,        url_prefix='/v1/public')
     api.register_blueprint(org_bp,           url_prefix='/v1/org')
 
+    # Public HTML shell (SEO) + sitemap — a plain Flask blueprint on the app so it
+    # serves raw HTML/XML at the root, outside the /v1 OpenAPI namespace.
+    from .routes.seo import seo_bp
+    app.register_blueprint(seo_bp)
+
     @app.route('/health')
     @limiter.exempt
     def health_check():

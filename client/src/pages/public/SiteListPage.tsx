@@ -5,9 +5,15 @@
 import { Link } from 'react-router-dom';
 import { ChevronRight, UtensilsCrossed } from 'lucide-react';
 import { useTenant } from '@/contexts/TenantContext';
+import { useDocumentMeta } from '@/lib/use-document-meta';
 
 export function SiteListPage() {
   const { organization, sites } = useTenant();
+
+  useDocumentMeta({
+    title: organization ? `${organization.name} — Nos restaurants` : undefined,
+    description: organization ? `Découvrez les menus des restaurants de ${organization.name}.` : undefined,
+  });
 
   return (
     <div className="flex min-h-screen flex-col items-center bg-slate-50 px-4 py-10 font-sans">
