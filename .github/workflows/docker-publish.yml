@@ -82,7 +82,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push Backend
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./server
           file: ./server/Dockerfile.prod
@@ -125,7 +125,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push Frontend
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./client
           file: ./client/Dockerfile.prod
