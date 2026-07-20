@@ -6,12 +6,23 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { registerSW } from 'virtual:pwa-register';
 import { toast } from 'sonner';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as Sentry from '@sentry/react';
 import './index.css';
 import App from './App.tsx';
 import { AuthProvider } from './contexts/AuthContext.tsx';
 import { ThemeProvider } from './contexts/ThemeProvider.tsx';
 import { ErrorBoundary, AppErrorFallback } from './components/ErrorBoundary.tsx';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 // Error tracking — no-op when no DSN is injected at runtime.
 const sentryDsn = window.__RUNTIME_CONFIG__?.SENTRY_DSN;
@@ -50,13 +61,15 @@ const updateSW = registerSW({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary fallback={<AppErrorFallback />}>
-      <BrowserRouter>
-        <AuthProvider>
-          <ThemeProvider>
-            <App />
-          </ThemeProvider>
-        </AuthProvider>
-      </BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AuthProvider>
+            <ThemeProvider>
+              <App />
+            </ThemeProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
     </ErrorBoundary>
   </StrictMode>
 );

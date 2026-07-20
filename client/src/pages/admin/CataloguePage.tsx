@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import {
   catalogApi,
   categoriesApi,
@@ -549,19 +550,28 @@ const PER_PAGE = 24;
 export function CataloguePage() {
   const navigate = useNavigate();
 
-  // Metadata (loaded once)
-  const [categories, setCategories] = useState<MenuCategory[]>([]);
-  const [allTags, setAllTags] = useState<DietaryTag[]>([]);
-  const [allCerts, setAllCerts] = useState<CertificationItem[]>([]);
-  const [metaLoaded, setMetaLoaded] = useState(false);
+  const queryClient = useQueryClient();
 
-  // Paginated dishes
-  const [allDishes, setAllDishes] = useState<DishCatalogItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  // Metadata (categories + taxonomy) — cached across mounts.
+  const { data: meta } = useQuery({
+    queryKey: ['catalogue-meta'],
+    queryFn: async () => {
+      const [catData, taxonomy] = await Promise.all([
+        categoriesApi.list(),
+        publicApi.getTaxonomy(),
+      ]);
+      return {
+        categories: catData.categories,
+        allTags: taxonomy.dietary_tag_categories.flatMap((c) => c.tags),
+        allCerts: taxonomy.certification_categories.flatMap((c) => c.certifications),
+      };
+    },
+    staleTime: 5 * 60_000,
+  });
+  const categories = meta?.categories ?? [];
+  const allTags = meta?.allTags ?? [];
+  const allCerts = meta?.allCerts ?? [];
+  const metaLoaded = !!meta;
 
   // Filters
   const [search, setSearch] = useState('');
@@ -572,7 +582,6 @@ export function CataloguePage() {
   // UI
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(
     () => (localStorage.getItem('mariam-catalogue-view') as 'grid' | 'list') ?? 'grid'
   );
@@ -583,103 +592,63 @@ export function CataloguePage() {
     localStorage.setItem('mariam-catalogue-view', mode);
   };
 
-  // Load metadata once
-  useEffect(() => {
-    Promise.all([categoriesApi.list(), publicApi.getTaxonomy()]).then(([catData, taxonomy]) => {
-      setCategories(catData.categories);
-      setAllTags(taxonomy.dietary_tag_categories.flatMap((c) => c.tags));
-      setAllCerts(taxonomy.certification_categories.flatMap((c) => c.certifications));
-      setMetaLoaded(true);
-    });
-  }, []);
-
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Reset pagination when filters change (or after a bulk import)
-  useEffect(() => {
-    setAllDishes([]);
-    setPage(1);
-    setHasMore(true);
-    setTotal(0);
-    setLoading(true);
-  }, [debouncedSearch, sort, categoryFilter, reloadKey]);
+  // Paginated dishes — infinite scroll. Changing a filter changes the query key,
+  // so React Query resets and refetches automatically.
+  const { data, isPending, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
+    queryKey: ['catalogue', debouncedSearch.trim(), sort, categoryFilter],
+    queryFn: ({ pageParam }) =>
+      catalogApi.listPaginated({
+        q: debouncedSearch.trim() || undefined,
+        category_id: categoryFilter || undefined,
+        sort,
+        page: pageParam,
+        per_page: PER_PAGE,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, pages) => (lastPage.has_more ? pages.length + 1 : undefined),
+  });
 
-  // Fetch page
-  useEffect(() => {
-    let cancelled = false;
+  const allDishes = useMemo(() => data?.pages.flatMap((p) => p.dishes) ?? [], [data]);
+  const total = data?.pages[0]?.total ?? 0;
+  const loading = isPending;
+  const isFetchingMore = isFetchingNextPage;
 
-    const fetchPage = async () => {
-      if (page > 1) setIsFetchingMore(true);
-
-      try {
-        const result = await catalogApi.listPaginated({
-          q: debouncedSearch.trim() || undefined,
-          category_id: categoryFilter || undefined,
-          sort,
-          page,
-          per_page: PER_PAGE,
-        });
-        if (!cancelled) {
-          setAllDishes((prev) => (page === 1 ? result.dishes : [...prev, ...result.dishes]));
-          setTotal(result.total);
-          setHasMore(result.has_more);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-          setIsFetchingMore(false);
-        }
-      }
-    };
-
-    fetchPage();
-    return () => {
-      cancelled = true;
-    };
-  }, [page, debouncedSearch, sort, categoryFilter, reloadKey]);
-
-  // IntersectionObserver sentinel
+  // IntersectionObserver sentinel — load the next page when it scrolls into view.
   const setupObserver = useCallback(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel || !hasMore || loading || isFetchingMore) return;
+    if (!sentinel || !hasNextPage || isPending || isFetchingNextPage) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) setPage((p) => p + 1);
+        if (entries[0].isIntersecting) fetchNextPage();
       },
       { threshold: 0.1 }
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMore, loading, isFetchingMore]);
+  }, [hasNextPage, isPending, isFetchingNextPage, fetchNextPage]);
 
   useEffect(setupObserver, [setupObserver]);
+
+  const invalidateDishes = () => queryClient.invalidateQueries({ queryKey: ['catalogue'] });
 
   const flatCats = flattenCategories(categories);
   const openEdit = (dish: DishCatalogItem) => navigate(`/admin/catalogue/${dish.id}`);
 
   const handleSaved = (saved: DishCatalogItem) => {
-    setAllDishes((prev) => {
-      const idx = prev.findIndex((d) => d.id === saved.id);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = saved;
-        return next;
-      }
-      setTotal((t) => t + 1);
-      return [saved, ...prev];
-    });
+    invalidateDishes();
     setDrawerOpen(false);
     navigate(`/admin/catalogue/${saved.id}`);
   };
 
-  const handleDeleted = (id: number) => {
-    setAllDishes((prev) => prev.filter((d) => d.id !== id));
-    setTotal((t) => Math.max(0, t - 1));
+  const handleDeleted = () => {
+    invalidateDishes();
     setDrawerOpen(false);
   };
 
@@ -743,7 +712,7 @@ export function CataloguePage() {
         allTags={allTags}
         allCerts={allCerts}
         onClose={() => setImportOpen(false)}
-        onImported={() => setReloadKey((k) => k + 1)}
+        onImported={invalidateDishes}
       />
 
       {/* Filters */}
@@ -861,14 +830,14 @@ export function CataloguePage() {
       )}
 
       {/* Infinite scroll sentinel + spinner */}
-      {!loading && hasMore && (
+      {!loading && hasNextPage && (
         <div ref={sentinelRef} className="flex justify-center py-6">
           {isFetchingMore && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
         </div>
       )}
 
       {/* Results count when searching */}
-      {!loading && !hasMore && isFiltered && allDishes.length > 0 && (
+      {!loading && !hasNextPage && isFiltered && allDishes.length > 0 && (
         <p className="mt-4 text-center text-xs text-muted-foreground">
           {total} résultat{total !== 1 ? 's' : ''} pour «{' '}
           {debouncedSearch || flatCats.find((c) => c.id === categoryFilter)?.label} »

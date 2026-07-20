@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useMemo } from 'react';
+import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query';
 import { menusApi, eventsApi, closuresApi, Menu, Event, ExceptionalClosure } from '@/lib/api';
 import { parisToday, addDays } from '@/lib/date-utils';
 
@@ -54,6 +55,13 @@ function computeWeekOffsets(rangeStart: string, rangeEnd: string): number[] {
   return offsets;
 }
 
+// menusApi.getWeek returns a payload keyed by date with the restaurant config.
+interface WeekPayload {
+  restaurant_id?: number;
+  service_days?: number[];
+  menus: Record<string, Menu | null>;
+}
+
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 interface UseCalendarDataResult {
@@ -66,86 +74,68 @@ interface UseCalendarDataResult {
   storageConfigured: boolean;
 }
 
-const CACHE_TTL = 60_000; // 60 secondes
+const STALE_TIME = 60_000; // 60 secondes — remplace les caches maison précédents
 
 export function useCalendarData(rangeStart: string, rangeEnd: string): UseCalendarDataResult {
-  const [data, setData] = useState<CalendarData>({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<unknown>(null);
-  const [restaurantId, setRestaurantId] = useState<number | undefined>(undefined);
-  const [serviceDays, setServiceDays] = useState<number[]>([]);
-  const [storageConfigured, setStorageConfigured] = useState(false);
+  const queryClient = useQueryClient();
 
-  // Caches pour éviter de re-fetcher à chaque navigation
-  const eventsCache = useRef<{ data: Event[]; ts: number } | null>(null);
-  const closuresCache = useRef<{ data: ExceptionalClosure[]; ts: number } | null>(null);
-  const weekCache = useRef<Record<number, { data: unknown; ts: number }>>({});
-  // Compteur de génération pour ignorer les réponses stale (navigation rapide)
-  const generationRef = useRef(0);
+  const weekOffsets = useMemo(
+    () => computeWeekOffsets(rangeStart, rangeEnd),
+    [rangeStart, rangeEnd]
+  );
 
-  const load = useCallback(async () => {
-    const gen = ++generationRef.current;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const weekOffsets = computeWeekOffsets(rangeStart, rangeEnd);
+  // Large ranges (year view) would fire 50+ week requests; fetch only week 0 for
+  // the restaurant config and skip per-week menus.
+  const skipMenus = weekOffsets.length > 8;
+  const fetchedOffsets = skipMenus ? [0] : weekOffsets;
 
-      // For large ranges (year view), skip per-week menu fetching to avoid
-      // saturating the backend with 50+ simultaneous requests.
-      const skipMenus = weekOffsets.length > 8;
+  const weekResults = useQueries({
+    queries: fetchedOffsets.map((offset) => ({
+      queryKey: ['calendar-week', offset],
+      queryFn: () => menusApi.getWeek(offset) as Promise<WeekPayload>,
+      staleTime: STALE_TIME,
+    })),
+  });
 
-      const now = Date.now();
-      const cachedEvents =
-        eventsCache.current && now - eventsCache.current.ts < CACHE_TTL
-          ? eventsCache.current.data
-          : null;
-      const cachedClosures =
-        closuresCache.current && now - closuresCache.current.ts < CACHE_TTL
-          ? closuresCache.current.data
-          : null;
+  const eventsQuery = useQuery({
+    queryKey: ['calendar-events'],
+    queryFn: () => eventsApi.list(false, undefined, true) as Promise<Event[]>,
+    staleTime: STALE_TIME,
+  });
 
-      const fetchWeek = (o: number) => {
-        const cached = weekCache.current[o];
-        if (cached && Date.now() - cached.ts < CACHE_TTL) return Promise.resolve(cached.data);
-        return menusApi.getWeek(o).then((data) => {
-          weekCache.current[o] = { data, ts: Date.now() };
-          return data;
-        });
-      };
+  const closuresQuery = useQuery({
+    queryKey: ['calendar-closures'],
+    queryFn: () => closuresApi.list(false, undefined, true) as Promise<ExceptionalClosure[]>,
+    staleTime: STALE_TIME,
+  });
 
-      const [weekDataArr, events, closuresResp, storageStatus] = await Promise.all([
-        skipMenus ? Promise.resolve([]) : Promise.all(weekOffsets.map(fetchWeek)),
-        cachedEvents ? Promise.resolve(cachedEvents) : eventsApi.list(false, undefined, true),
-        cachedClosures ? Promise.resolve(cachedClosures) : closuresApi.list(false, undefined, true),
-        eventsApi.storageStatus().catch(() => false),
-      ]);
+  const storageQuery = useQuery({
+    queryKey: ['storage-status'],
+    queryFn: () => eventsApi.storageStatus().catch(() => false),
+    staleTime: 5 * 60_000,
+  });
 
-      // Mettre à jour les caches si on a fetché
-      if (!cachedEvents) eventsCache.current = { data: events as Event[], ts: Date.now() };
-      if (!cachedClosures)
-        closuresCache.current = {
-          data: closuresResp as ExceptionalClosure[],
-          ts: Date.now(),
-        };
+  // Signature that changes only when the underlying query data changes, so the
+  // assembled result keeps a stable reference across unrelated re-renders.
+  const weekSignature = weekResults.map((r) => r.dataUpdatedAt).join('|');
 
-      const result: CalendarData = {};
-      let rid: number | undefined;
-      let sdays: number[] = [];
+  const { data, restaurantId, serviceDays } = useMemo(() => {
+    const weekPayloads = weekResults.map((r) => r.data).filter(Boolean) as WeekPayload[];
+    const events = eventsQuery.data ?? [];
+    const closures = closuresQuery.data ?? [];
+    const result: CalendarData = {};
+    let rid: number | undefined;
+    let sdays: number[] = [];
 
-      if (skipMenus) {
-        // Fetch restaurant config from a single week call to get service_days
-        const baseWeek = await fetchWeek(0);
-        rid = (baseWeek as { restaurant_id?: number }).restaurant_id;
-        sdays = ((baseWeek as { service_days?: number[] }).service_days ?? []).map(
-          (d: number) => d
-        );
-      }
+    // Config (restaurant id + service days) from the fetched weeks.
+    for (const wp of weekPayloads) {
+      if (rid === undefined) rid = wp.restaurant_id;
+      if (!sdays.length && wp.service_days) sdays = wp.service_days.map((d) => d);
+    }
 
-      // Menus depuis les semaines
-      for (const wd of weekDataArr) {
-        if (!rid) rid = wd.restaurant_id;
-        if (!sdays.length) sdays = (wd.service_days as number[]).map((d) => d); // 0=Lun
-        for (const [date, menu] of Object.entries(wd.menus as Record<string, Menu | null>)) {
+    if (!skipMenus) {
+      for (const wp of weekPayloads) {
+        for (const [date, menu] of Object.entries(wp.menus ?? {})) {
           result[date] = {
             date,
             menu: menu ?? null,
@@ -155,10 +145,25 @@ export function useCalendarData(rangeStart: string, rangeEnd: string): UseCalend
           };
         }
       }
+    }
 
-      // Événements
-      for (const event of events) {
-        const d = event.event_date;
+    for (const event of events) {
+      const d = event.event_date;
+      if (!result[d]) {
+        result[d] = {
+          date: d,
+          menu: null,
+          events: [],
+          closure: null,
+          isServiceDay: sdays.includes(dateToMariamDay(d)),
+        };
+      }
+      result[d].events.push(event);
+    }
+
+    for (const closure of closures) {
+      let d = closure.start_date;
+      while (d <= closure.end_date) {
         if (!result[d]) {
           result[d] = {
             date: d,
@@ -168,52 +173,35 @@ export function useCalendarData(rangeStart: string, rangeEnd: string): UseCalend
             isServiceDay: sdays.includes(dateToMariamDay(d)),
           };
         }
-        result[d].events.push(event);
+        if (!result[d].closure) result[d].closure = closure;
+        d = addDays(d, 1);
       }
-
-      // Fermetures (couvrent des plages)
-      for (const closure of closuresResp) {
-        let d = closure.start_date;
-        while (d <= closure.end_date) {
-          if (!result[d]) {
-            result[d] = {
-              date: d,
-              menu: null,
-              events: [],
-              closure: null,
-              isServiceDay: sdays.includes(dateToMariamDay(d)),
-            };
-          }
-          if (!result[d].closure) result[d].closure = closure;
-          d = addDays(d, 1);
-        }
-      }
-
-      // Ignorer les réponses stale si une navigation plus récente a déjà lancé un load
-      if (generationRef.current !== gen) return;
-      setData(result);
-      setRestaurantId(rid);
-      setServiceDays(sdays);
-      setStorageConfigured(storageStatus as boolean);
-    } catch (err) {
-      if (generationRef.current !== gen) return;
-      setError(err);
-    } finally {
-      if (generationRef.current === gen) setIsLoading(false);
     }
-  }, [rangeStart, rangeEnd]);
 
-  useEffect(() => {
-    const id = setTimeout(() => load(), 300);
-    return () => clearTimeout(id);
-  }, [load]);
+    return { data: result, restaurantId: rid, serviceDays: sdays };
+    // Query data is tracked via the *UpdatedAt signatures, keeping the result stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekSignature, eventsQuery.dataUpdatedAt, closuresQuery.dataUpdatedAt, skipMenus]);
 
-  const reload = useCallback(() => {
-    closuresCache.current = null;
-    eventsCache.current = null;
-    weekCache.current = {};
-    load();
-  }, [load]);
+  const isLoading =
+    weekResults.some((r) => r.isPending) || eventsQuery.isPending || closuresQuery.isPending;
+  const error =
+    weekResults.find((r) => r.error)?.error ?? eventsQuery.error ?? closuresQuery.error ?? null;
 
-  return { data, isLoading, error, reload, restaurantId, serviceDays, storageConfigured };
+  const reload = () => {
+    queryClient.invalidateQueries({ queryKey: ['calendar-week'] });
+    queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+    queryClient.invalidateQueries({ queryKey: ['calendar-closures'] });
+    queryClient.invalidateQueries({ queryKey: ['storage-status'] });
+  };
+
+  return {
+    data,
+    isLoading,
+    error,
+    reload,
+    restaurantId,
+    serviceDays,
+    storageConfigured: (storageQuery.data as boolean) ?? false,
+  };
 }

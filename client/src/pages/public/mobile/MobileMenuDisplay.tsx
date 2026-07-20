@@ -3,12 +3,13 @@
  *
  * Gère le fetch des données et orchestre tous les composants mobiles.
  */
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { Zap, CalendarOff } from 'lucide-react';
-import { menusApi, eventsApi, publicApi, closuresApi, ExceptionalClosure } from '@/lib/api';
+import { ExceptionalClosure } from '@/lib/api';
 import { InlineError, getErrorType } from '@/components/InlineError';
 import { jsDayToMariamDay, getNextOpeningDate } from '@/lib/service-utils';
 import { parisToday, addDays, parisDayOfWeek } from '@/lib/date-utils';
+import { usePublicMenu } from '../use-public-menu';
 import { MobileHeader } from './MobileHeader';
 import { MobileChefNote } from './MobileChefNote';
 import { MobileDayToggle } from './MobileDayToggle';
@@ -17,11 +18,7 @@ import { MobileItemDetailSheet } from './MobileItemDetailSheet';
 import { MobileEventSection, MobileTodayEvent } from './MobileEventSection';
 import { MobileClosureSection } from './MobileClosureSection';
 import { MobileMenuSkeleton } from './MobileMenuSkeleton';
-import type { MenuData, MenuItemData, EventData, RestaurantPublic } from '../menu-types';
-
-const LOADING_SPINNER_DELAY_MS = 3000;
-const ERROR_GRACE_PERIOD_MS = 20000;
-const RETRY_INTERVAL_MS = 500;
+import type { MenuItemData } from '../menu-types';
 
 function ActiveClosureMessage({ closure }: { closure: ExceptionalClosure }) {
   const formatRange = (start: string, end: string) => {
@@ -63,127 +60,28 @@ function filterUpcomingClosures(closures: ExceptionalClosure[]): ExceptionalClos
 
 export function MobileMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
   const [selectedDay, setSelectedDay] = useState<'today' | 'tomorrow'>('today');
-  const [todayData, setTodayData] = useState<MenuData | null>(null);
-  const [tomorrowData, setTomorrowData] = useState<MenuData | null>(null);
-  const [todayEvent, setTodayEvent] = useState<EventData | null>(null);
-  const [upcomingEvents, setUpcomingEvents] = useState<EventData[]>([]);
-  const [activeClosure, setActiveClosure] = useState<ExceptionalClosure | null>(null);
-  const [upcomingClosures, setUpcomingClosures] = useState<ExceptionalClosure[]>([]);
-  const [restaurant, setRestaurant] = useState<RestaurantPublic | null>(null);
   const [selectedItem, setSelectedItem] = useState<MenuItemData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<unknown>(null);
-  const [showError, setShowError] = useState(false);
-  const [showSkeleton, setShowSkeleton] = useState(false);
 
-  const loadStartRef = useRef<number>(0);
-  const requestIdRef = useRef(0);
-  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const skeletonTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const restaurantRef = useRef<RestaurantPublic | null>(null);
+  const { data, isPending, isError, error, refetch } = usePublicMenu(restaurantSlug, 'mobile');
 
-  const clearTimers = () => {
-    if (errorTimerRef.current) {
-      clearTimeout(errorTimerRef.current);
-      errorTimerRef.current = null;
-    }
-    if (skeletonTimerRef.current) {
-      clearTimeout(skeletonTimerRef.current);
-      skeletonTimerRef.current = null;
-    }
-    if (retryTimerRef.current) {
-      clearTimeout(retryTimerRef.current);
-      retryTimerRef.current = null;
-    }
-  };
-
-  const attemptLoad = async (requestId: number) => {
-    setIsLoading(true);
-    try {
-      const restaurantPromise = restaurantRef.current
-        ? Promise.resolve(restaurantRef.current)
-        : publicApi.getRestaurant(restaurantSlug);
-
-      const [today, tomorrow, eventsData, restaurantData, closuresData] = await Promise.all([
-        menusApi.getToday(restaurantSlug),
-        menusApi.getTomorrow(restaurantSlug),
-        eventsApi.getPublic(restaurantSlug, 'mobile'),
-        restaurantPromise,
-        closuresApi.getPublic(restaurantSlug),
-      ]);
-
-      if (requestId !== requestIdRef.current) return;
-
-      setTodayData(today);
-      setTomorrowData(tomorrow);
-      setTodayEvent(eventsData?.today_event || null);
-      setUpcomingEvents(eventsData?.upcoming_events || []);
-      setActiveClosure(closuresData?.current_closure || null);
-      setUpcomingClosures(closuresData?.upcoming_closures || []);
-
-      if (restaurantData && !restaurantRef.current) {
-        restaurantRef.current = restaurantData;
-        setRestaurant(restaurantData);
-      }
-
-      setError(null);
-      setShowError(false);
-      clearTimers();
-    } catch (err) {
-      if (requestId !== requestIdRef.current) return;
-      setError(err);
-      const elapsed = Date.now() - loadStartRef.current;
-      const remaining = ERROR_GRACE_PERIOD_MS - elapsed;
-      if (remaining <= 0) {
-        setShowError(true);
-        return;
-      }
-      errorTimerRef.current = setTimeout(() => setShowError(true), remaining);
-      retryTimerRef.current = setTimeout(
-        () => attemptLoad(requestId),
-        Math.min(RETRY_INTERVAL_MS, remaining)
-      );
-    } finally {
-      if (requestId === requestIdRef.current) setIsLoading(false);
-    }
-  };
-
-  const loadData = () => {
-    clearTimers();
-    const requestId = ++requestIdRef.current;
-    loadStartRef.current = Date.now();
-    setIsLoading(true);
-    setError(null);
-    setShowError(false);
-    setShowSkeleton(false);
-    skeletonTimerRef.current = setTimeout(() => setShowSkeleton(true), LOADING_SPINNER_DELAY_MS);
-    attemptLoad(requestId);
-  };
-
-  useEffect(() => {
-    restaurantRef.current = null;
-  }, [restaurantSlug]);
-
-  useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [restaurantSlug]);
-
-  useEffect(() => () => clearTimers(), []);
+  const todayData = data?.today ?? null;
+  const tomorrowData = data?.tomorrow ?? null;
+  const todayEvent = data?.todayEvent ?? null;
+  const upcomingEvents = data?.upcomingEvents ?? [];
+  const activeClosure = data?.activeClosure ?? null;
+  const restaurant = data?.restaurant ?? null;
 
   const currentData = selectedDay === 'today' ? todayData : tomorrowData;
-  const isPending = isLoading || (Boolean(error) && !showError);
   const visibleClosures = useMemo(
-    () => filterUpcomingClosures(upcomingClosures),
-    [upcomingClosures]
+    () => filterUpcomingClosures(data?.upcomingClosures ?? []),
+    [data?.upcomingClosures]
   );
 
-  if (error && showError) {
+  // Show the error screen only when there is no data at all to display.
+  if (isError && !data) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <InlineError type={getErrorType(error)} onRetry={loadData} showLogo={true} />
+        <InlineError type={getErrorType(error)} onRetry={() => refetch()} showLogo={true} />
       </div>
     );
   }
@@ -209,13 +107,7 @@ export function MobileMenuDisplay({ restaurantSlug }: { restaurantSlug: string }
       {/* Contenu scrollable */}
       <div className="flex-1 overflow-y-auto">
         {isPending ? (
-          showSkeleton ? (
-            <MobileMenuSkeleton />
-          ) : (
-            <div className="flex justify-center py-12">
-              <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-mariam-blue" />
-            </div>
-          )
+          <MobileMenuSkeleton />
         ) : (
           <>
             {/* Événement du jour — en tête de page, toujours mis en avant */}
