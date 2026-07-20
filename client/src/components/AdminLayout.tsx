@@ -3,10 +3,11 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { Logo } from '@/components/Logo';
-import { publicApi, ServiceHours } from '@/lib/api';
+import { restaurantApi, ServiceHours } from '@/lib/api';
 import { isInServiceHours } from '@/lib/utils';
 import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext';
 import { Sidebar, type SidebarNavItem } from '@/components/layout/Sidebar';
+import { SiteSelector } from '@/components/SiteSelector';
 import { Topbar } from '@/components/layout/Topbar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -47,7 +48,8 @@ function AdminLayoutContent() {
 
   // Redirect to PWA onboarding on first login
   useEffect(() => {
-    const isAdminOrEditor = user?.role === 'admin' || user?.role === 'editor';
+    const isAdminOrEditor =
+      user?.role === 'admin' || user?.role === 'editor' || user?.role === 'org_admin';
     const alreadyShown = !!localStorage.getItem('mariam-pwa-install-done');
     const isPwa =
       window.matchMedia('(display-mode: standalone)').matches ||
@@ -65,8 +67,8 @@ function AdminLayoutContent() {
   }, [user, location.pathname, navigate]);
 
   useEffect(() => {
-    publicApi
-      .getRestaurant()
+    restaurantApi
+      .getMine()
       .then((r) => setServiceHours(r?.config?.service_hours ?? {}))
       .catch(() => {});
   }, []);
@@ -121,7 +123,7 @@ function AdminLayoutContent() {
 
   const filteredNavItems = navItems.filter((item) => {
     const adminOnly = ['/admin/users', '/admin/settings', '/admin/audit-logs'].includes(item.to);
-    return !adminOnly || user?.role === 'admin';
+    return !adminOnly || user?.role === 'admin' || user?.role === 'org_admin';
   });
 
   // Bottom nav: pinned 4 routes (calendar, service, catalogue, settings)
@@ -139,6 +141,7 @@ function AdminLayoutContent() {
         {/* Content area */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <Topbar />
+          {user?.role === 'org_admin' && <SiteSelector />}
           <main className={cn('flex-1 overflow-auto', immersive ? 'pb-0' : 'pb-24 sidebar:pb-0')}>
             <Suspense fallback={<ContentSkeleton />}>
               <Outlet />

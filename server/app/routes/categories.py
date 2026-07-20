@@ -13,7 +13,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_smorest import Blueprint
 
 from ..extensions import db
-from ..models import AuditLog, Restaurant, User
+from ..models import AuditLog, User
 from ..models.category import MenuCategory
 from ..schemas.common import ErrorSchema, MessageSchema
 from ..schemas.menus import (
@@ -23,7 +23,7 @@ from ..schemas.menus import (
     MenuCategoryUpdateSchema,
 )
 from ..security import get_client_ip
-from .helpers import admin_required
+from .helpers import admin_required, get_active_restaurant
 
 categories_bp = Blueprint(
     'categories', __name__,
@@ -36,9 +36,7 @@ categories_bp = Blueprint(
 # ============================================================
 
 def _get_restaurant(user=None):
-    if user and user.restaurant_id:
-        return Restaurant.query.get(user.restaurant_id)
-    return Restaurant.query.filter_by(is_active=True).first()
+    return get_active_restaurant(user)
 
 
 # ============================================================

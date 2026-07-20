@@ -59,6 +59,7 @@ from ..services.storage import storage
 from ..utils.time import PARIS_TZ, paris_today
 from .helpers import (
     editor_required,
+    get_active_restaurant,
     get_default_restaurant,
     get_or_create_dish,
     get_user_and_restaurant,
@@ -306,10 +307,7 @@ def get_week_menu():
         pass
 
     if is_editor:
-        if user.restaurant_id:
-            restaurant = Restaurant.query.get(user.restaurant_id)
-        else:
-            restaurant = get_default_restaurant()
+        restaurant = get_active_restaurant(user)
         if not restaurant:
             return jsonify({'error': 'Aucun restaurant configuré', 'menus': {}}), 200
         restaurant_id = restaurant.id

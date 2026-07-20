@@ -227,3 +227,92 @@ class TestOrgAdminScope:
         assert client.get(f'/v1/events/{event_site2}', headers=auth_headers(token_dir)).status_code == 200
         # The site-1 admin does not see the site-2 event
         assert client.get(f'/v1/events/{event_site2}', headers=auth_headers(token_site)).status_code == 404
+
+
+class TestActiveRestaurant:
+    """An org_admin targets a specific site with the X-Restaurant-Id header,
+    validated against its organization."""
+
+    def _org_two_sites(self, org_slug, codes):
+        org = _make_org(slug=org_slug)
+        rids = []
+        for code in codes:
+            rid = make_restaurant(None, name=code, code=code)
+            Restaurant.query.get(rid).organization_id = org
+            rids.append(rid)
+        db.session.commit()
+        _make_user('dir@mariam.app', 'org_admin', restaurant_id=rids[0], organization_id=org)
+        return org, rids
+
+    def test_header_targets_site_within_org(self, app, client):
+        _, (rid1, rid2) = self._org_two_sites('multi-a', ['AS1', 'AS2'])
+        token = get_token(client, email='dir@mariam.app')
+        res = client.post(
+            '/v1/events',
+            json={'title': 'At S2', 'event_date': _today_iso()},
+            headers={**auth_headers(token), 'X-Restaurant-Id': str(rid2)},
+        )
+        assert res.status_code == 201
+        assert Event.query.filter_by(title='At S2').first().restaurant_id == rid2
+
+    def test_header_outside_org_is_ignored(self, app, client):
+        _, (rid1,) = self._org_two_sites('multi-b', ['BS1'])
+        outsider = make_restaurant(None, name='Outsider', code='BOUT')  # no organization
+        token = get_token(client, email='dir@mariam.app')
+        res = client.post(
+            '/v1/events',
+            json={'title': 'Fallback', 'event_date': _today_iso()},
+            headers={**auth_headers(token), 'X-Restaurant-Id': str(outsider)},
+        )
+        assert res.status_code == 201
+        # Out-of-org target ignored → falls back to the director's primary site.
+        assert Event.query.filter_by(title='Fallback').first().restaurant_id == rid1
+
+
+class TestOrgDashboard:
+    def _org(self, slug, codes, role='org_admin'):
+        org = _make_org(slug=slug)
+        rids = []
+        for code in codes:
+            rid = make_restaurant(None, name=code, code=code)
+            Restaurant.query.get(rid).organization_id = org
+            rids.append(rid)
+        db.session.commit()
+        _make_user('u@mariam.app', role, restaurant_id=rids[0], organization_id=org)
+        return org, rids
+
+    def test_sites_overview(self, app, client):
+        self._org('ov', ['OVA', 'OVB'])
+        token = get_token(client, email='u@mariam.app')
+        res = client.get('/v1/org/sites', headers=auth_headers(token))
+        assert res.status_code == 200
+        sites = res.get_json()['sites']
+        assert {s['name'] for s in sites} == {'OVA', 'OVB'}
+        assert all(
+            k in sites[0] for k in ('user_count', 'today_menu_published', 'upcoming_events', 'is_active')
+        )
+
+    def test_sites_overview_forbidden_for_site_admin(self, app, client):
+        self._org('ov2', ['OV2A'], role='admin')
+        token = get_token(client, email='u@mariam.app')
+        assert client.get('/v1/org/sites', headers=auth_headers(token)).status_code == 403
+
+    def test_org_admin_invites_onto_chosen_site(self, app, client):
+        _, (rid1, rid2) = self._org('ov3', ['OV3A', 'OV3B'])
+        token = get_token(client, email='u@mariam.app')
+        res = client.post(
+            '/v1/users/invite',
+            json={'email': 'newmgr@mariam.app', 'role': 'admin', 'restaurant_id': rid2},
+            headers=auth_headers(token),
+        )
+        assert res.status_code == 201
+        from app.models import ActivationLink
+        link = ActivationLink.query.filter_by(email='newmgr@mariam.app').first()
+        assert link.restaurant_id == rid2
+
+    def test_site_admin_does_not_see_org_admin(self, app, client):
+        org, (rid,) = self._org('vis', ['VIS'], role='admin')
+        _make_user('dir2@mariam.app', 'org_admin', restaurant_id=rid, organization_id=org)
+        token = get_token(client, email='u@mariam.app')
+        users = client.get('/v1/users', headers=auth_headers(token)).get_json()['users']
+        assert 'org_admin' not in {u['role'] for u in users}

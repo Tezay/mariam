@@ -1,20 +1,17 @@
 /**
  * MARIAM - Affichage public du menu
  *
- * Orchestrateur : détecte le mode TV (>= 1920px ou ?mode=tv)
- * et délègue à TvMenuDisplay ou MobileMenuDisplay.
+ * Orchestrateur : détecte le mode TV (>= 1920px ou ?mode=tv) et délègue à
+ * TvMenuDisplay ou MobileMenuDisplay pour le restaurant résolu (slug).
  */
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { TvMenuDisplay } from './tv/TvMenuDisplay';
 import { MobileMenuDisplay } from './mobile/MobileMenuDisplay';
 
-export function MenuDisplay() {
+export function MenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
   const [searchParams] = useSearchParams();
   const forceTvMode = searchParams.get('mode') === 'tv';
-  const restaurantId = searchParams.get('restaurant_id')
-    ? Number(searchParams.get('restaurant_id'))
-    : undefined;
   const [isTvMode, setIsTvMode] = useState(forceTvMode);
 
   useEffect(() => {
@@ -29,8 +26,8 @@ export function MenuDisplay() {
   }, [forceTvMode]);
 
   return isTvMode ? (
-    <TvMenuDisplay restaurantId={restaurantId} />
+    <TvMenuDisplay restaurantSlug={restaurantSlug} />
   ) : (
-    <MobileMenuDisplay restaurantId={restaurantId} />
+    <MobileMenuDisplay restaurantSlug={restaurantSlug} />
   );
 }

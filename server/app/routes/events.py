@@ -39,6 +39,7 @@ from ..utils.time import paris_today
 from .helpers import (
     accessible_restaurant_ids,
     editor_required,
+    get_active_restaurant,
     get_default_restaurant,
     scoped_get,
 )
@@ -90,9 +91,8 @@ def list_events():
         # Editor view: strictly limited to accessible restaurants.
         allowed_ids = accessible_restaurant_ids(user)
         if restaurant_id is None:
-            restaurant_id = user.restaurant_id if user.restaurant_id else (
-                next(iter(allowed_ids)) if allowed_ids else None
-            )
+            active = get_active_restaurant(user)
+            restaurant_id = active.id if active else None
         if restaurant_id is None or restaurant_id not in allowed_ids:
             return jsonify({'events': []}), 200
     else:
@@ -186,7 +186,8 @@ def create_event(data):
     except ValueError:
         return jsonify({'error': 'Format de date invalide (YYYY-MM-DD)'}), 400
 
-    restaurant_id = current_user.restaurant_id if current_user else None
+    active = get_active_restaurant(current_user)
+    restaurant_id = active.id if active else None
     if not restaurant_id:
         return jsonify({'error': 'Aucun restaurant associé à votre compte'}), 400
 

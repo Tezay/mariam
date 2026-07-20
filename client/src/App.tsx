@@ -17,7 +17,7 @@ import { PwaInstallProvider } from './contexts/PwaInstallContext';
 import { Login } from './pages/Login';
 import { Activate } from './pages/Activate';
 import { ResetPassword } from './pages/ResetPassword';
-import { MenuDisplay } from './pages/public/MenuDisplay';
+import { TenantLayout, PublicRoot, MonoMenu, SluggedMenu } from './pages/public/PublicRoutes';
 import { NotificationsPage } from './pages/public/NotificationsPage';
 import { AdminLayout } from './components/AdminLayout';
 import { UsersPage } from './pages/admin/UsersPage';
@@ -30,6 +30,13 @@ import { ServicePage } from './pages/admin/ServicePage';
 import { InstallPage } from './pages/admin/InstallPage';
 import { SetupTransferPage } from './pages/admin/SetupTransferPage';
 import { CalendarPage } from './pages/admin/calendar/CalendarPage';
+import { OrgLayout } from './pages/org/OrgLayout';
+import { OrgDashboardPage } from './pages/org/OrgDashboardPage';
+import { OrgSitesPage } from './pages/org/OrgSitesPage';
+import { OrgSiteNewPage } from './pages/org/OrgSiteNewPage';
+import { OrgSiteDetailPage } from './pages/org/OrgSiteDetailPage';
+import { OrgUsersPage } from './pages/org/OrgUsersPage';
+import { OrgAuditPage } from './pages/org/OrgAuditPage';
 
 // Pages chargées à la demande
 const EventEditPage = lazy(() =>
@@ -77,7 +84,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
     return <FullScreenSpinner />;
   }
 
-  if (user?.role !== 'admin') {
+  if (user?.role !== 'admin' && user?.role !== 'org_admin') {
     return <Forbidden />;
   }
 
@@ -92,7 +99,7 @@ function EditorRoute({ children }: { children: React.ReactNode }) {
     return <FullScreenSpinner />;
   }
 
-  if (user?.role !== 'admin' && user?.role !== 'editor') {
+  if (user?.role !== 'admin' && user?.role !== 'editor' && user?.role !== 'org_admin') {
     return <Forbidden />;
   }
 
@@ -101,14 +108,29 @@ function EditorRoute({ children }: { children: React.ReactNode }) {
 
 // Route publique (redirige si déjà connecté)
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   if (isLoading) {
     return <FullScreenSpinner />;
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/admin" replace />;
+    return <Navigate to={user?.role === 'org_admin' ? '/org' : '/admin'} replace />;
+  }
+
+  return <>{children}</>;
+}
+
+// Route directeur d'organisation (rôle org_admin requis)
+function OrgRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <FullScreenSpinner />;
+  }
+
+  if (user?.role !== 'org_admin') {
+    return <Forbidden />;
   }
 
   return <>{children}</>;
@@ -129,11 +151,12 @@ function App() {
     <PwaInstallProvider>
       <ResponsiveToaster />
       <Routes>
-        {/* Page d'accueil - Affiche le menu public */}
-        <Route path="/" element={<Navigate to="/menu" replace />} />
-
-        {/* Menu public (TV/Mobile) */}
-        <Route path="/menu" element={<MenuDisplay />} />
+        {/* Affichage public tenant-aware (org résolue par le Host) */}
+        <Route element={<TenantLayout />}>
+          <Route path="/" element={<PublicRoot />} />
+          <Route path="/menu" element={<MonoMenu />} />
+          <Route path="/:restaurantSlug/menu" element={<SluggedMenu />} />
+        </Route>
 
         {/* Notifications push (public) */}
         <Route path="/notifications" element={<NotificationsPage />} />
@@ -166,6 +189,25 @@ function App() {
 
         {/* Réception du transfert de session cross-device */}
         <Route path="/admin/setup" element={<SetupTransferPage />} />
+
+        {/* Interface Directeur d'organisation (org_admin) */}
+        <Route
+          path="/org"
+          element={
+            <ProtectedRoute>
+              <OrgRoute>
+                <OrgLayout />
+              </OrgRoute>
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<OrgDashboardPage />} />
+          <Route path="sites" element={<OrgSitesPage />} />
+          <Route path="sites/new" element={<OrgSiteNewPage />} />
+          <Route path="sites/:id" element={<OrgSiteDetailPage />} />
+          <Route path="users" element={<OrgUsersPage />} />
+          <Route path="audit" element={<OrgAuditPage />} />
+        </Route>
 
         {/* Interface Admin */}
         <Route
