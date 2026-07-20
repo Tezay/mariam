@@ -21,6 +21,8 @@ x-backend-env: &backend-env
   JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Définissez JWT_SECRET_KEY dans .env}
   JWT_ACCESS_TOKEN_MINUTES: ${JWT_ACCESS_TOKEN_MINUTES:-30}
   MFA_ISSUER_NAME: ${MFA_ISSUER_NAME:-MARIAM}
+  # Fernet key encrypting TOTP secrets at rest. Losing it = MFA reset for all users.
+  MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?Définissez MFA_ENCRYPTION_KEY dans .env}
   FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
   # Internal URL of the frontend container, used to fetch the SPA shell for
   # server-side SEO injection (see routes/seo.py).
@@ -41,6 +43,7 @@ x-backend-env: &backend-env
   APP_VERSION: ${MARIAM_TAG:-dev}
   SENTRY_DSN: ${SENTRY_DSN:-}
   SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
   BASE_DOMAIN: ${BASE_DOMAIN:-mariam.app}
   DEFAULT_ORG_SLUG: ${DEFAULT_ORG_SLUG:-}
 

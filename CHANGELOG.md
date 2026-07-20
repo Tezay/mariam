@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Token revocation on credential changes**: password change/reset and MFA reset invalidate all outstanding tokens; changing your own password requires re-login.
 - **Stored-XSS fixed** on the public event display (descriptions escaped before markdown rendering).
 - **Privilege-escalation guards** on role assignment and cross-scope user reassignment.
+- **MFA secrets encrypted at rest** (Fernet, `MFA_ENCRYPTION_KEY`, required in production).
+- **Hardened image uploads**: files are decoded and re-encoded through Pillow (rejects fake/polyglot images, strips EXIF) and the content type is derived server-side, not trusted from the client.
+- **Login anti-enumeration** (unknown email and wrong password are indistinguishable in message and timing); MFA login tokens are single-use; password reset is limited to 3/hour.
+- **Startup guard extended**: production refuses to boot without `MFA_ENCRYPTION_KEY`, `DATABASE_URL` and S3 credentials.
 
 ### Added
 
@@ -34,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Push scheduler** runs as a single dedicated service instead of inside every web worker, preventing duplicate notifications.
 - Gunicorn tuned (threaded workers, timeouts); container logs rotated and per-service resource limits set; nginx security headers added.
 - CI quality gate now runs on `main` and tags, and image publishing is gated on passing tests.
+- **Structured JSON logging** with a per-request `X-Request-ID` (level via `LOG_LEVEL`).
+- **Opt-in pagination** on the users and restaurants lists (`?page=`/`?per_page=`); the default response shape is unchanged.
+- Audit log now covers menu/event image upload and deletion and calendar-settings changes; added a `menu_items(menu_id, dish_id)` index.
 
 ### Fixed
 

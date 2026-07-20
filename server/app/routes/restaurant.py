@@ -30,6 +30,7 @@ from .helpers import (
     admin_required,
     get_active_restaurant,
     get_current_user,
+    paginated_response,
 )
 
 restaurant_bp = Blueprint(
@@ -244,11 +245,10 @@ def _create_default_categories(restaurant_id: int) -> None:
 def list_restaurants():
     """List restaurants of the caller's organization (admin only)."""
     ids = accessible_restaurant_ids(get_current_user())
-    restaurants = (
-        Restaurant.query.filter(Restaurant.id.in_(ids)).order_by(Restaurant.name).all()
-        if ids else []
-    )
-    return jsonify({'restaurants': [r.to_dict() for r in restaurants]}), 200
+    if not ids:
+        return jsonify({'restaurants': []}), 200
+    query = Restaurant.query.filter(Restaurant.id.in_(ids)).order_by(Restaurant.name)
+    return paginated_response(query, 'restaurants', lambda r: r.to_dict())
 
 
 @restaurant_bp.route('/restaurants', methods=['POST'])
@@ -402,5 +402,15 @@ def update_calendar_settings():
         zone = data['school_vacation_zone']
         settings.school_vacation_zone = zone if zone in ('A', 'B', 'C') else None
 
+    AuditLog.log(
+        action=AuditLog.ACTION_CALENDAR_SETTINGS_UPDATE,
+        user_id=user.id,
+        restaurant_id=restaurant_id,
+        details={
+            'show_public_holidays': settings.show_public_holidays,
+            'show_school_vacations': settings.show_school_vacations,
+            'school_vacation_zone': settings.school_vacation_zone,
+        },
+    )
     db.session.commit()
     return jsonify(settings.to_dict()), 200

@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..extensions import db
+from ..services.crypto import EncryptedSecret
 
 
 class User(db.Model):
@@ -28,8 +29,8 @@ class User(db.Model):
     # Roles: org_admin, admin, editor, reader
     role = db.Column(db.String(20), nullable=False, default='reader')
 
-    # MFA/TOTP
-    mfa_secret = db.Column(db.String(32), nullable=True)
+    # MFA/TOTP — encrypted at rest (see services/crypto.py). Never filter on it.
+    mfa_secret = db.Column(EncryptedSecret, nullable=True)
     mfa_enabled = db.Column(db.Boolean, default=False)
 
     # Statut du compte

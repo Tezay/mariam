@@ -32,7 +32,7 @@ Endpoints:
 import base64
 import io
 import json
-from datetime import UTC, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pyotp
 import qrcode
@@ -46,6 +46,7 @@ from flask_jwt_extended import (
     jwt_required,
 )
 from flask_smorest import Blueprint
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..extensions import db
 from ..models import ActivationLink, AuditLog, Passkey, User
@@ -68,6 +69,10 @@ auth_bp = Blueprint(
     description='Authentication — Login, MFA, password management'
 )
 
+# Precomputed hash used to equalize password-check timing for unknown emails,
+# so an attacker cannot distinguish "no such user" from "wrong password".
+_DUMMY_PASSWORD_HASH = generate_password_hash('mariam-timing-equalizer')
+
 
 @auth_bp.route('/login', methods=['POST'])
 @limiter.limit("5 per minute")
@@ -88,6 +93,10 @@ def login(data):
 
     user = User.query.filter_by(email=email).first()
 
+    if user is None:
+        # Burn a hash comparison so an unknown email takes as long as a wrong
+        # password (defeats timing-based user enumeration).
+        check_password_hash(_DUMMY_PASSWORD_HASH, password)
     if not user or not user.check_password(password):
         AuditLog.log(
             action=AuditLog.ACTION_LOGIN_FAILED,
@@ -147,6 +156,11 @@ def verify_mfa(data):
     except Exception:
         return jsonify({'error': 'Token MFA invalide ou expiré'}), 401
 
+    # Single-use: a consumed (or already revoked) MFA token cannot be replayed.
+    jti = decoded.get('jti')
+    if jti and is_token_blacklisted(jti):
+        return jsonify({'error': 'Token MFA invalide ou expiré'}), 401
+
     user = User.query.get(user_id)
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
@@ -162,11 +176,21 @@ def verify_mfa(data):
         db.session.commit()
         return jsonify({'error': 'Code MFA invalide'}), 401
 
+    # Consume the MFA token so it cannot be reused within its 10-minute window.
+    if jti:
+        exp = decoded.get('exp')
+        ttl = int(exp - datetime.now(UTC).timestamp()) if exp else 600
+        blacklist_token(jti, max(1, ttl))
+
     return complete_login(user)
 
 
 def complete_login(user):
     """Finalize login and return JWT tokens."""
+    # Re-check the account is still active
+    if not user.is_active:
+        return jsonify({'error': 'Ce compte est désactivé'}), 403
+
     user.update_last_login()
     AuditLog.log(
         action=AuditLog.ACTION_LOGIN,
@@ -582,7 +606,7 @@ def check_reset_link(token):
 
 
 @auth_bp.route('/reset-password', methods=['POST'])
-@limiter.limit("3 per minute")
+@limiter.limit("3 per hour")
 @auth_bp.arguments(ResetPasswordSchema)
 @auth_bp.response(200, MessageSchema)
 @auth_bp.alt_response(401, schema=ErrorSchema, description="Invalid MFA code")
