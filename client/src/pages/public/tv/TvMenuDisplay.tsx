@@ -3,8 +3,8 @@
  *
  * Optimisé pour grands écrans (salles à manger, cafétérias).
  */
-import { useState, useEffect, useRef } from 'react';
-import { menusApi, eventsApi, closuresApi, ExceptionalClosure, CertificationItem } from '@/lib/api';
+import { useState, useEffect } from 'react';
+import { ExceptionalClosure, CertificationItem } from '@/lib/api';
 import { generateEventPalette } from '@/lib/color-utils';
 import { DynamicIcon as Icon } from 'lucide-react/dynamic';
 import { InlineError, getErrorType } from '@/components/InlineError';
@@ -23,14 +23,11 @@ import type {
   MenuItemData,
   DisplayCategory,
   MenuResponse,
-  MenuData,
   EventData,
   CategorySubstitutionData,
 } from '../menu-types';
 import type { IconName } from 'lucide-react/dynamic';
-
-const ERROR_GRACE_PERIOD_MS = 20000;
-const RETRY_INTERVAL_MS = 500;
+import { usePublicMenu } from '../use-public-menu';
 
 // ─── Constantes badges ──────────────────────────────────────────────────────
 
@@ -370,89 +367,18 @@ function TvClosureDisplay({ closure }: { closure: ExceptionalClosure }) {
 // ─── TvMenuDisplay ──────────────────────────────────────────────────────────
 
 export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
-  const [todayData, setTodayData] = useState<MenuData | null>(null);
-  const [tomorrowData, setTomorrowData] = useState<MenuData | null>(null);
-  const [todayEvent, setTodayEvent] = useState<EventData | null>(null);
-  const [upcomingEvents, setUpcomingEvents] = useState<EventData[]>([]);
-  const [activeClosure, setActiveClosure] = useState<ExceptionalClosure | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<unknown>(null);
-  const [showError, setShowError] = useState(false);
   const [footerSlot, setFooterSlot] = useState(0);
   const [isRotated, setIsRotated] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [showControls, setShowControls] = useState(false);
 
-  const loadStartRef = useRef<number>(0);
-  const requestIdRef = useRef(0);
-  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { data, isPending, isError, error, refetch } = usePublicMenu(restaurantSlug, 'tv');
 
-  const clearTimers = () => {
-    if (errorTimerRef.current) {
-      clearTimeout(errorTimerRef.current);
-      errorTimerRef.current = null;
-    }
-    if (retryTimerRef.current) {
-      clearTimeout(retryTimerRef.current);
-      retryTimerRef.current = null;
-    }
-  };
-
-  const attemptLoad = async (requestId: number) => {
-    setIsLoading(true);
-    try {
-      const [today, tomorrow, eventsData, closuresData] = await Promise.all([
-        menusApi.getToday(restaurantSlug),
-        menusApi.getTomorrow(restaurantSlug),
-        eventsApi.getPublic(restaurantSlug, 'tv'),
-        closuresApi.getPublic(restaurantSlug),
-      ]);
-      if (requestId !== requestIdRef.current) return;
-      setTodayData(today);
-      setTomorrowData(tomorrow);
-      setTodayEvent(eventsData?.today_event || null);
-      setUpcomingEvents(eventsData?.upcoming_events || []);
-      setActiveClosure(closuresData?.current_closure || null);
-      setError(null);
-      setShowError(false);
-      clearTimers();
-    } catch (err) {
-      if (requestId !== requestIdRef.current) return;
-      setError(err);
-      const elapsed = Date.now() - loadStartRef.current;
-      const remaining = ERROR_GRACE_PERIOD_MS - elapsed;
-      if (remaining <= 0) {
-        setShowError(true);
-        return;
-      }
-      errorTimerRef.current = setTimeout(() => setShowError(true), remaining);
-      retryTimerRef.current = setTimeout(
-        () => attemptLoad(requestId),
-        Math.min(RETRY_INTERVAL_MS, remaining)
-      );
-    } finally {
-      if (requestId === requestIdRef.current) setIsLoading(false);
-    }
-  };
-
-  const loadData = async () => {
-    clearTimers();
-    const requestId = ++requestIdRef.current;
-    loadStartRef.current = Date.now();
-    setIsLoading(true);
-    setError(null);
-    setShowError(false);
-    await attemptLoad(requestId);
-  };
-
-  useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [restaurantSlug]);
-
-  useEffect(() => () => clearTimers(), []);
+  const todayData = data?.today ?? null;
+  const tomorrowData = data?.tomorrow ?? null;
+  const todayEvent = data?.todayEvent ?? null;
+  const upcomingEvents = data?.upcomingEvents ?? [];
+  const activeClosure = data?.activeClosure ?? null;
 
   // Rotation écran
   useEffect(() => {
@@ -521,8 +447,6 @@ export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
     return () => clearInterval(timer);
   }, [footerCount]);
 
-  const isPending = isLoading || (Boolean(error) && !showError);
-
   const tvColorClasses: Record<string, string> = {
     green: 'bg-green-100 text-green-800 border-green-200',
     teal: 'bg-teal-100 text-teal-800 border-teal-200',
@@ -567,10 +491,10 @@ export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
     ) : null;
   };
 
-  if (error && showError) {
+  if (isError && !data) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <InlineError type={getErrorType(error)} onRetry={loadData} showLogo={true} />
+        <InlineError type={getErrorType(error)} onRetry={() => refetch()} showLogo={true} />
       </div>
     );
   }

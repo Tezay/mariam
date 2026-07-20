@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gunicorn tuned (threaded workers, timeouts); container logs rotated and per-service resource limits set; nginx security headers added.
 - CI quality gate now runs on `main` and tags, and image publishing is gated on passing tests.
 - **Structured JSON logging** with a per-request `X-Request-ID` (level via `LOG_LEVEL`).
+- **Code-splitting**: the admin, organization and auth pages are now loaded on demand, so a public visitor no longer downloads the admin bundle (the public entry chunk roughly halved).
+- **Data fetching migrated to TanStack Query**: the public menu, the admin calendar and the dish catalogue now use React Query instead of hand-rolled caches and polling.
 - **Opt-in pagination** on the users and restaurants lists (`?page=`/`?per_page=`); the default response shape is unchanged.
 - Audit log now covers menu/event image upload and deletion and calendar-settings changes; added a `menu_items(menu_id, dish_id)` index.
 

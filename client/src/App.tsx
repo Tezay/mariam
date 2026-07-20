@@ -9,37 +9,79 @@
  * - /activate/:token : Activation de compte
  * - /admin/* : Interface d'administration (protégée)
  */
-import { useState, useEffect, lazy } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { useAuth } from './contexts/AuthContext';
 import { PwaInstallProvider } from './contexts/PwaInstallContext';
-import { Login } from './pages/Login';
-import { Activate } from './pages/Activate';
-import { ResetPassword } from './pages/ResetPassword';
+// Chemin public critique (menu) — chargé en eager pour un premier rendu rapide.
 import { TenantLayout, PublicRoot, MonoMenu, SluggedMenu } from './pages/public/PublicRoutes';
 import { ErrorBoundary, PublicErrorFallback } from './components/ErrorBoundary';
-import { NotificationsPage } from './pages/public/NotificationsPage';
-import { AdminLayout } from './components/AdminLayout';
-import { UsersPage } from './pages/admin/UsersPage';
-import { SettingsPage } from './pages/admin/SettingsPage';
-import { AuditLogsPage } from './pages/admin/AuditLogsPage';
-import { AccountPage } from './pages/admin/AccountPage';
-import { EventsPage } from './pages/admin/EventsPage';
-import { ClosuresPage } from './pages/admin/ClosuresPage';
-import { ServicePage } from './pages/admin/ServicePage';
-import { InstallPage } from './pages/admin/InstallPage';
-import { SetupTransferPage } from './pages/admin/SetupTransferPage';
-import { CalendarPage } from './pages/admin/calendar/CalendarPage';
-import { OrgLayout } from './pages/org/OrgLayout';
-import { OrgDashboardPage } from './pages/org/OrgDashboardPage';
-import { OrgSitesPage } from './pages/org/OrgSitesPage';
-import { OrgSiteNewPage } from './pages/org/OrgSiteNewPage';
-import { OrgSiteDetailPage } from './pages/org/OrgSiteDetailPage';
-import { OrgUsersPage } from './pages/org/OrgUsersPage';
-import { OrgAuditPage } from './pages/org/OrgAuditPage';
 
-// Pages chargées à la demande
+// Tout le reste (auth, admin, org, notifications) est chargé à la demande pour
+// garder le bundle du menu public léger (les étudiants ne téléchargent pas le JS admin).
+const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
+const Activate = lazy(() => import('./pages/Activate').then((m) => ({ default: m.Activate })));
+const ResetPassword = lazy(() =>
+  import('./pages/ResetPassword').then((m) => ({ default: m.ResetPassword }))
+);
+const NotificationsPage = lazy(() =>
+  import('./pages/public/NotificationsPage').then((m) => ({ default: m.NotificationsPage }))
+);
+const AdminLayout = lazy(() =>
+  import('./components/AdminLayout').then((m) => ({ default: m.AdminLayout }))
+);
+const UsersPage = lazy(() =>
+  import('./pages/admin/UsersPage').then((m) => ({ default: m.UsersPage }))
+);
+const SettingsPage = lazy(() =>
+  import('./pages/admin/SettingsPage').then((m) => ({ default: m.SettingsPage }))
+);
+const AuditLogsPage = lazy(() =>
+  import('./pages/admin/AuditLogsPage').then((m) => ({ default: m.AuditLogsPage }))
+);
+const AccountPage = lazy(() =>
+  import('./pages/admin/AccountPage').then((m) => ({ default: m.AccountPage }))
+);
+const EventsPage = lazy(() =>
+  import('./pages/admin/EventsPage').then((m) => ({ default: m.EventsPage }))
+);
+const ClosuresPage = lazy(() =>
+  import('./pages/admin/ClosuresPage').then((m) => ({ default: m.ClosuresPage }))
+);
+const ServicePage = lazy(() =>
+  import('./pages/admin/ServicePage').then((m) => ({ default: m.ServicePage }))
+);
+const InstallPage = lazy(() =>
+  import('./pages/admin/InstallPage').then((m) => ({ default: m.InstallPage }))
+);
+const SetupTransferPage = lazy(() =>
+  import('./pages/admin/SetupTransferPage').then((m) => ({ default: m.SetupTransferPage }))
+);
+const CalendarPage = lazy(() =>
+  import('./pages/admin/calendar/CalendarPage').then((m) => ({ default: m.CalendarPage }))
+);
+const OrgLayout = lazy(() =>
+  import('./pages/org/OrgLayout').then((m) => ({ default: m.OrgLayout }))
+);
+const OrgDashboardPage = lazy(() =>
+  import('./pages/org/OrgDashboardPage').then((m) => ({ default: m.OrgDashboardPage }))
+);
+const OrgSitesPage = lazy(() =>
+  import('./pages/org/OrgSitesPage').then((m) => ({ default: m.OrgSitesPage }))
+);
+const OrgSiteNewPage = lazy(() =>
+  import('./pages/org/OrgSiteNewPage').then((m) => ({ default: m.OrgSiteNewPage }))
+);
+const OrgSiteDetailPage = lazy(() =>
+  import('./pages/org/OrgSiteDetailPage').then((m) => ({ default: m.OrgSiteDetailPage }))
+);
+const OrgUsersPage = lazy(() =>
+  import('./pages/org/OrgUsersPage').then((m) => ({ default: m.OrgUsersPage }))
+);
+const OrgAuditPage = lazy(() =>
+  import('./pages/org/OrgAuditPage').then((m) => ({ default: m.OrgAuditPage }))
+);
 const EventEditPage = lazy(() =>
   import('./pages/admin/EventEditPage').then((m) => ({ default: m.EventEditPage }))
 );
@@ -147,206 +189,217 @@ function ResponsiveToaster() {
   return <Toaster position={isMobile ? 'top-center' : 'bottom-right'} richColors closeButton />;
 }
 
+/** Fallback shown while a lazy-loaded route chunk is fetched. */
+function PageLoader() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary" />
+    </div>
+  );
+}
+
 function App() {
   return (
     <PwaInstallProvider>
       <ResponsiveToaster />
-      <Routes>
-        {/* Affichage public tenant-aware (org résolue par le Host) */}
-        <Route
-          element={
-            <ErrorBoundary fallback={<PublicErrorFallback />}>
-              <TenantLayout />
-            </ErrorBoundary>
-          }
-        >
-          <Route path="/" element={<PublicRoot />} />
-          <Route path="/menu" element={<MonoMenu />} />
-          <Route path="/:restaurantSlug/menu" element={<SluggedMenu />} />
-        </Route>
-
-        {/* Notifications push (public) */}
-        <Route path="/notifications" element={<NotificationsPage />} />
-
-        {/* Authentification */}
-        <Route
-          path="/login"
-          element={
-            <PublicRoute>
-              <Login />
-            </PublicRoute>
-          }
-        />
-
-        {/* Activation de compte */}
-        <Route path="/activate/:token" element={<Activate />} />
-
-        {/* Réinitialisation de mot de passe */}
-        <Route path="/reset-password/:token" element={<ResetPassword />} />
-
-        {/* Onboarding installation PWA (admin/editor, affiché une seule fois) */}
-        <Route
-          path="/admin/install"
-          element={
-            <ProtectedRoute>
-              <InstallPage />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Réception du transfert de session cross-device */}
-        <Route path="/admin/setup" element={<SetupTransferPage />} />
-
-        {/* Interface Directeur d'organisation (org_admin) */}
-        <Route
-          path="/org"
-          element={
-            <ProtectedRoute>
-              <OrgRoute>
-                <OrgLayout />
-              </OrgRoute>
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<OrgDashboardPage />} />
-          <Route path="sites" element={<OrgSitesPage />} />
-          <Route path="sites/new" element={<OrgSiteNewPage />} />
-          <Route path="sites/:id" element={<OrgSiteDetailPage />} />
-          <Route path="users" element={<OrgUsersPage />} />
-          <Route path="audit" element={<OrgAuditPage />} />
-        </Route>
-
-        {/* Interface Admin */}
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute>
-              <AdminLayout />
-            </ProtectedRoute>
-          }
-        >
-          {/* Dashboard = Calendrier unifié (admin ou editor) */}
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Affichage public tenant-aware (org résolue par le Host) */}
           <Route
-            index
             element={
-              <EditorRoute>
-                <CalendarPage />
-              </EditorRoute>
+              <ErrorBoundary fallback={<PublicErrorFallback />}>
+                <TenantLayout />
+              </ErrorBoundary>
             }
-          />
+          >
+            <Route path="/" element={<PublicRoot />} />
+            <Route path="/menu" element={<MonoMenu />} />
+            <Route path="/:restaurantSlug/menu" element={<SluggedMenu />} />
+          </Route>
+
+          {/* Notifications push (public) */}
+          <Route path="/notifications" element={<NotificationsPage />} />
+
+          {/* Authentification */}
           <Route
-            path="calendar"
+            path="/login"
             element={
-              <EditorRoute>
-                <CalendarPage />
-              </EditorRoute>
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
             }
           />
 
-          {/* Anciennes routes — redirigent vers le calendrier */}
-          <Route path="menus" element={<Navigate to="/admin/calendar" replace />} />
+          {/* Activation de compte */}
+          <Route path="/activate/:token" element={<Activate />} />
 
-          {/* Mon compte (tous les utilisateurs authentifiés) */}
-          <Route path="account" element={<AccountPage />} />
+          {/* Réinitialisation de mot de passe */}
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-          {/* Service en cours (admin ou editor) */}
+          {/* Onboarding installation PWA (admin/editor, affiché une seule fois) */}
           <Route
-            path="service"
+            path="/admin/install"
             element={
-              <EditorRoute>
-                <ServicePage />
-              </EditorRoute>
-            }
-          />
-
-          {/* Événements (admin ou editor) */}
-          <Route
-            path="events"
-            element={
-              <EditorRoute>
-                <EventsPage />
-              </EditorRoute>
-            }
-          />
-          <Route
-            path="events/new"
-            element={
-              <EditorRoute>
-                <EventEditPage />
-              </EditorRoute>
-            }
-          />
-          <Route
-            path="events/:id/edit"
-            element={
-              <EditorRoute>
-                <EventEditPage />
-              </EditorRoute>
+              <ProtectedRoute>
+                <InstallPage />
+              </ProtectedRoute>
             }
           />
 
-          {/* Fermetures exceptionnelles (admin ou editor) */}
-          <Route
-            path="closures"
-            element={
-              <EditorRoute>
-                <ClosuresPage />
-              </EditorRoute>
-            }
-          />
+          {/* Réception du transfert de session cross-device */}
+          <Route path="/admin/setup" element={<SetupTransferPage />} />
 
-          {/* Catalogue de plats (admin ou editor) */}
+          {/* Interface Directeur d'organisation (org_admin) */}
           <Route
-            path="catalogue"
+            path="/org"
             element={
-              <EditorRoute>
-                <CataloguePage />
-              </EditorRoute>
+              <ProtectedRoute>
+                <OrgRoute>
+                  <OrgLayout />
+                </OrgRoute>
+              </ProtectedRoute>
             }
-          />
-          <Route
-            path="catalogue/:id"
-            element={
-              <EditorRoute>
-                <DishDetailPage />
-              </EditorRoute>
-            }
-          />
+          >
+            <Route index element={<OrgDashboardPage />} />
+            <Route path="sites" element={<OrgSitesPage />} />
+            <Route path="sites/new" element={<OrgSiteNewPage />} />
+            <Route path="sites/:id" element={<OrgSiteDetailPage />} />
+            <Route path="users" element={<OrgUsersPage />} />
+            <Route path="audit" element={<OrgAuditPage />} />
+          </Route>
 
-          {/* Gestion des utilisateurs (admin only) */}
+          {/* Interface Admin */}
           <Route
-            path="users"
+            path="/admin"
             element={
-              <AdminRoute>
-                <UsersPage />
-              </AdminRoute>
+              <ProtectedRoute>
+                <AdminLayout />
+              </ProtectedRoute>
             }
-          />
+          >
+            {/* Dashboard = Calendrier unifié (admin ou editor) */}
+            <Route
+              index
+              element={
+                <EditorRoute>
+                  <CalendarPage />
+                </EditorRoute>
+              }
+            />
+            <Route
+              path="calendar"
+              element={
+                <EditorRoute>
+                  <CalendarPage />
+                </EditorRoute>
+              }
+            />
 
-          {/* Paramètres du restaurant (admin only) */}
-          <Route
-            path="settings"
-            element={
-              <AdminRoute>
-                <SettingsPage />
-              </AdminRoute>
-            }
-          />
+            {/* Anciennes routes — redirigent vers le calendrier */}
+            <Route path="menus" element={<Navigate to="/admin/calendar" replace />} />
 
-          {/* Logs d'audit (admin only) */}
-          <Route
-            path="audit-logs"
-            element={
-              <AdminRoute>
-                <AuditLogsPage />
-              </AdminRoute>
-            }
-          />
-        </Route>
+            {/* Mon compte (tous les utilisateurs authentifiés) */}
+            <Route path="account" element={<AccountPage />} />
 
-        {/* 404 Catch-all - Doit être en dernier */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+            {/* Service en cours (admin ou editor) */}
+            <Route
+              path="service"
+              element={
+                <EditorRoute>
+                  <ServicePage />
+                </EditorRoute>
+              }
+            />
+
+            {/* Événements (admin ou editor) */}
+            <Route
+              path="events"
+              element={
+                <EditorRoute>
+                  <EventsPage />
+                </EditorRoute>
+              }
+            />
+            <Route
+              path="events/new"
+              element={
+                <EditorRoute>
+                  <EventEditPage />
+                </EditorRoute>
+              }
+            />
+            <Route
+              path="events/:id/edit"
+              element={
+                <EditorRoute>
+                  <EventEditPage />
+                </EditorRoute>
+              }
+            />
+
+            {/* Fermetures exceptionnelles (admin ou editor) */}
+            <Route
+              path="closures"
+              element={
+                <EditorRoute>
+                  <ClosuresPage />
+                </EditorRoute>
+              }
+            />
+
+            {/* Catalogue de plats (admin ou editor) */}
+            <Route
+              path="catalogue"
+              element={
+                <EditorRoute>
+                  <CataloguePage />
+                </EditorRoute>
+              }
+            />
+            <Route
+              path="catalogue/:id"
+              element={
+                <EditorRoute>
+                  <DishDetailPage />
+                </EditorRoute>
+              }
+            />
+
+            {/* Gestion des utilisateurs (admin only) */}
+            <Route
+              path="users"
+              element={
+                <AdminRoute>
+                  <UsersPage />
+                </AdminRoute>
+              }
+            />
+
+            {/* Paramètres du restaurant (admin only) */}
+            <Route
+              path="settings"
+              element={
+                <AdminRoute>
+                  <SettingsPage />
+                </AdminRoute>
+              }
+            />
+
+            {/* Logs d'audit (admin only) */}
+            <Route
+              path="audit-logs"
+              element={
+                <AdminRoute>
+                  <AuditLogsPage />
+                </AdminRoute>
+              }
+            />
+          </Route>
+
+          {/* 404 Catch-all - Doit être en dernier */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
     </PwaInstallProvider>
   );
 }
