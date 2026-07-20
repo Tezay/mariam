@@ -8,6 +8,14 @@ export function parisToday(): string {
 }
 
 /**
+ * Day of week (0=Sunday..6=Saturday) for the current date in Europe/Paris,
+ * independent of the viewer's own timezone.
+ */
+export function parisDayOfWeek(): number {
+  return new Date(`${parisToday()}T12:00:00`).getDay();
+}
+
+/**
  * Adds `days` to an ISO date string (YYYY-MM-DD) and returns the result as YYYY-MM-DD.
  */
 export function addDays(dateStr: string, days: number): string {

@@ -5,11 +5,13 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { registerSW } from 'virtual:pwa-register';
+import { toast } from 'sonner';
 import * as Sentry from '@sentry/react';
 import './index.css';
 import App from './App.tsx';
 import { AuthProvider } from './contexts/AuthContext.tsx';
 import { ThemeProvider } from './contexts/ThemeProvider.tsx';
+import { ErrorBoundary, AppErrorFallback } from './components/ErrorBoundary.tsx';
 
 // Error tracking — no-op when no DSN is injected at runtime.
 const sentryDsn = window.__RUNTIME_CONFIG__?.SENTRY_DSN;
@@ -31,29 +33,30 @@ if (umamiId && umamiId !== '__UMAMI_WEBSITE_ID__') {
   document.head.appendChild(script);
 }
 
-// Rechargement automatique lors d'une mise à jour du SW
-registerSW({
+// SW update
+const updateSW = registerSW({
   onNeedRefresh() {
-    window.location.reload();
+    toast('Nouvelle version disponible', {
+      description: 'Rechargez pour mettre à jour Mariam.',
+      duration: Infinity,
+      action: { label: 'Recharger', onClick: () => updateSW(true) },
+    });
   },
   onRegisterError(error) {
     console.error('[MARIAM] Échec enregistrement SW :', error);
   },
 });
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener('message', (event) => {
-    if (event.data?.type === 'SW_UPDATED') window.location.reload();
-  });
-}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <ThemeProvider>
-          <App />
-        </ThemeProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary fallback={<AppErrorFallback />}>
+      <BrowserRouter>
+        <AuthProvider>
+          <ThemeProvider>
+            <App />
+          </ThemeProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </StrictMode>
 );

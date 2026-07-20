@@ -46,6 +46,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Image uploads larger than 1 MB were rejected: nginx `client_max_body_size` is aligned with the 32 MB backend limit.
 - nginx rate limiting now keys on the real visitor IP behind Cloudflare instead of the Cloudflare edge IP.
+- **Error boundaries** replace the previous full white-screen on an unexpected UI error (global fallback + a friendly one on public menu pages), with the error reported to Sentry.
+- **Service-worker updates** now prompt with a toast instead of reloading the page automatically; an unsaved-changes warning guards the event editor.
+- **Public visitors are no longer bounced to `/login`**: push-notification calls use a dedicated best-effort HTTP client that never redirects on 401.
+- **Dark-mode flash (FOUC)** removed via an inline pre-paint theme script.
+- Image previews no longer leak object URLs (effect cleanup now runs) and use stable keys; the TV display uses `transform` instead of the non-standard `zoom` (Firefox), stable keys, and guards invalid dates.
+- Public menu day selection uses the Europe/Paris day of week regardless of the viewer's timezone.
+
+### Removed
+
+- Unused frontend dependencies dropped: `usehooks-ts`, `heic2any` (HEIC is now converted server-side), `@tanstack/react-virtual`.
 
 ## [0.13.0] - 2026-07-06
 

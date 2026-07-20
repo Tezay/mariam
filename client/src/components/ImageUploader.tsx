@@ -3,7 +3,7 @@
  *
  * Upload drag-and-drop avec prévisualisation, réordonnement et suppression.
  */
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, X, ArrowLeft, ArrowRight, AlertCircle } from 'lucide-react';
 import type { EventImage } from '@/lib/api';
 
@@ -211,7 +211,7 @@ export function ImageUploader({
           {/* Fichiers en attente (aperçu local) */}
           {pendingFiles.map((file, index) => (
             <PendingImagePreview
-              key={`pending-${index}`}
+              key={`pending-${file.name}-${file.size}-${file.lastModified}`}
               file={file}
               onRemove={() => onPendingRemove(index)}
               disabled={disabled}
@@ -273,12 +273,11 @@ function PendingImagePreview({
 }) {
   const [preview, setPreview] = useState<string | null>(null);
 
-  // Générer un aperçu
-  useState(() => {
+  useEffect(() => {
     const url = URL.createObjectURL(file);
     setPreview(url);
     return () => URL.revokeObjectURL(url);
-  });
+  }, [file]);
 
   return (
     <div className="group relative aspect-square overflow-hidden rounded-lg border-2 border-dashed border-primary/30 bg-primary/5">

@@ -6,7 +6,7 @@
  * - Enregistrement du Service Worker et souscription push (VAPID)
  * - Lecture / écriture des préférences de notification côté serveur
  */
-import api from './api';
+import { pushAxios as api } from './api';
 
 // ========================================
 // Types
