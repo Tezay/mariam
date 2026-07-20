@@ -64,6 +64,8 @@ jobs:
       SECRET_KEY: ci-secret-key
       JWT_SECRET_KEY: ci-jwt-secret-key
       FLASK_APP: run.py
+      # CI is a non-production environment: skip the prod startup guard
+      FLASK_ENV: development
     steps:
       - uses: actions/checkout@v4
 
