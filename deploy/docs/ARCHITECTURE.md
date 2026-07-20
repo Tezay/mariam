@@ -64,10 +64,11 @@ Documentation technique de l'infrastructure.
 
 Le fichier `deploy/nginx/nginx.conf` gère :
 
-1. **SPA Routing** : `try_files $uri /index.html` permet à React Router de fonctionner
-2. **Reverse Proxy** : `/api/*` → `backend:5000` (évite les CORS)
-3. **Cache** : Assets statiques cachés 1 an
-4. **Compression** : GZIP activé
+1. **Reverse Proxy** : `/v1/*` et `/health` → `backend:5000` (évite les CORS)
+2. **Routes privées** (`/admin`, `/org`, `/login`, `/activate`, `/reset-password`, `/notifications`) : SPA servie en statique (`try_files $uri /index.html`)
+3. **Pages publiques** (`/`, `/menu`, `/<slug>/menu`, `/sitemap.xml`) : proxifiées vers Flask (`@shell`) qui injecte les meta/JSON-LD SEO ; les fichiers réels (assets, manifest, favicons) restent servis en statique
+4. **Cache** : assets statiques cachés 1 an · **Compression** : GZIP activé
+5. **server_name `_`** : accepte tout sous-domaine `*.mariam.app` (le Host est transmis au backend pour résoudre l'organisation)
 
 ## Variables d'Environnement
 
@@ -81,6 +82,9 @@ Fichier : `deploy/.env`
 | `JWT_ACCESS_TOKEN_MINUTES` | Durée token (min) | `30` |
 | `MFA_ISSUER_NAME` | Nom dans app MFA | `MARIAM` |
 | `FRONTEND_URL` | URL du frontend | `https://mariam.univ.fr` |
+| `FRONTEND_ORIGIN` | URL interne du frontend (shell SEO) | `http://frontend` |
+| `BASE_DOMAIN` | Domaine racine (sous-domaine = organisation) | `mariam.app` |
+| `DEFAULT_ORG_SLUG` | Org par défaut si Host non résolu (vide = 404) | `crous-creteil` |
 | `PORT` | Port d'écoute | `80` |
 | `S3_ENDPOINT_URL` | Endpoint S3 | `https://s3.fr-par.scw.cloud` |
 | `S3_ACCESS_KEY_ID` | Clé d'accès S3 | *(secret)* |
@@ -91,6 +95,52 @@ Fichier : `deploy/.env`
 | `VAPID_PUBLIC_KEY` | Clé publique VAPID (Web Push) | *(générée)* |
 | `VAPID_PRIVATE_KEY` | Clé privée VAPID (Web Push) | *(secret)* |
 | `VAPID_CONTACT_EMAIL` | Email de contact VAPID | `contact@mariam.app` |
+
+## Multi-tenant, URLs & SEO
+
+### Résolution du tenant
+
+- **Organisation = sous-domaine**, **restaurant = chemin** :
+  `crous-creteil.mariam.app/efrei/menu`. Une organisation mono-site sert son
+  menu à la racine (`jules-ferry.mariam.app/menu`).
+- Le backend résout l'organisation depuis le header `Host`
+  (`org_slug_from_host`, `deploy` transmet `Host`), puis le restaurant depuis le
+  slug du chemin. Host non résolu → `DEFAULT_ORG_SLUG` (ou 404 si vide).
+
+### DNS & Cloudflare (wildcard)
+
+- Enregistrement DNS **wildcard** `*.mariam.app` (A/AAAA ou CNAME) **proxied
+  Cloudflare** (nuage orange).
+- `server_name _` dans nginx accepte tous les sous-domaines ; le Host est
+  transmis au backend.
+
+### SEO (shell serveur)
+
+- Les pages publiques sont proxifiées vers Flask (`routes/seo.py`) qui récupère
+  l'`index.html` du frontend (`FRONTEND_ORIGIN`, mis en cache) et injecte
+  `<title>`, description, Open Graph/Twitter, canonical et un JSON-LD Schema.org
+  `Restaurant` (+ menu du jour). Indispensable pour les aperçus de partage
+  (WhatsApp/Discord) et le référencement, car les scrapers n'exécutent pas le JS.
+- `sitemap.xml` est généré par host (les sites actifs de l'organisation) ;
+  `robots.txt` (nginx) autorise les pages publiques, bloque `/admin`, `/org`,
+  l'API, et référence le sitemap.
+
+### Onboarding d'un client
+
+Créer l'organisation puis inviter le directeur via la CLI — voir
+`deploy/docs/OPERATIONS.md` (« Provisionner un nouveau client »). Le directeur
+crée ensuite ses restaurants (et leurs slugs) depuis le dashboard `/org`.
+
+### Développement local (multi-tenant)
+
+Les navigateurs modernes résolvent `*.localhost` vers `127.0.0.1` sans config :
+
+```
+http://crous-creteil.localhost:5173/efrei/menu     # front (Vite)
+curl -H "Host: crous-creteil.localhost" http://localhost:5000/sitemap.xml
+```
+
+Alternative si besoin : `lvh.me` (résout aussi vers `127.0.0.1`).
 
 ## Sécurité
 

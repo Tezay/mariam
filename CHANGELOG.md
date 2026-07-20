@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Organization director site switcher**: an `org_admin` selects which site of its organization to manage; admin operations target it via a validated `X-Restaurant-Id` header. The `org_admin` role now has full admin/editor access in the frontend.
 - **Director dashboard** (`/org`): a dedicated cross-site overview for `org_admin` (KPIs, per-site status, site creation/rename/activation, org-wide users and audit log), separate from the per-site admin.
 - **CLI provisioning commands**: `flask create-org` (create a client organization) and `flask create-invite` (create an activation link for any role) to bootstrap a new tenant or its director in production.
+- **Server-rendered SEO** for public menu pages: per-restaurant `<title>`, description, Open Graph/Twitter tags and Schema.org JSON-LD (`Restaurant` + today's menu) injected into the shell so link previews and search engines work without running JavaScript. Adds a per-host `sitemap.xml`, updated `robots.txt`, and wildcard-host serving (`*.mariam.app`).
 
 ### Changed
 

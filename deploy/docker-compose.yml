@@ -22,6 +22,9 @@ x-backend-env: &backend-env
   JWT_ACCESS_TOKEN_MINUTES: ${JWT_ACCESS_TOKEN_MINUTES:-30}
   MFA_ISSUER_NAME: ${MFA_ISSUER_NAME:-MARIAM}
   FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+  # Internal URL of the frontend container, used to fetch the SPA shell for
+  # server-side SEO injection (see routes/seo.py).
+  FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://frontend}
   S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:?Définissez S3_ENDPOINT_URL dans .env}
   S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?Définissez S3_ACCESS_KEY_ID dans .env}
   S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?Définissez S3_SECRET_ACCESS_KEY dans .env}
