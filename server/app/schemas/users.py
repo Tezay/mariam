@@ -29,6 +29,9 @@ class InviteSchema(Schema):
         unknown = EXCLUDE
     email = fields.Email(required=True, description="Email address to invite")
     role = fields.Str(description="Role: 'admin', 'editor', or 'reader'")
+    restaurant_id = fields.Int(
+        required=False, description="Target site id (org_admin inviting onto a specific site)"
+    )
 
 
 class InvitationSchema(Schema):

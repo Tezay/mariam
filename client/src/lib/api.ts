@@ -93,13 +93,34 @@ const api = axios.create({
 });
 
 // ========================================
-// INTERCEPTOR - Ajout du token JWT
+// SITE ACTIF (org_admin) — préférence UI
+// ========================================
+let _activeRestaurantId: number | null = null;
+
+export function setActiveRestaurantId(id: number | null) {
+  _activeRestaurantId = id;
+  if (id != null) localStorage.setItem('mariam-active-site', String(id));
+  else localStorage.removeItem('mariam-active-site');
+}
+
+export function getActiveRestaurantId(): number | null {
+  if (_activeRestaurantId != null) return _activeRestaurantId;
+  const stored = localStorage.getItem('mariam-active-site');
+  return stored ? Number(stored) : null;
+}
+
+// ========================================
+// INTERCEPTOR - Ajout du token JWT (+ site actif)
 // ========================================
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    const activeSite = getActiveRestaurantId();
+    if (activeSite != null) {
+      config.headers['X-Restaurant-Id'] = String(activeSite);
     }
     return config;
   },
@@ -761,21 +782,15 @@ export const menusApi = {
 
   // ——— Affichage public (sans auth) ———
 
-  getToday: async (restaurantId?: number) => {
-    const params: Record<string, number> = {};
-    if (restaurantId) params.restaurant_id = restaurantId;
-    const response = await publicAxios.get('/menus/today', {
-      params,
+  getToday: async (restaurantSlug: string) => {
+    const response = await publicAxios.get(`/public/${restaurantSlug}/today`, {
       timeout: PUBLIC_API_TIMEOUT_MS,
     });
     return response.data;
   },
 
-  getTomorrow: async (restaurantId?: number) => {
-    const params: Record<string, number> = {};
-    if (restaurantId) params.restaurant_id = restaurantId;
-    const response = await publicAxios.get('/menus/tomorrow', {
-      params,
+  getTomorrow: async (restaurantSlug: string) => {
+    const response = await publicAxios.get(`/public/${restaurantSlug}/tomorrow`, {
       timeout: PUBLIC_API_TIMEOUT_MS,
     });
     return response.data;
@@ -1053,11 +1068,10 @@ export const eventsApi = {
 
   // ——— Affichage public (sans auth) ———
 
-  getPublic: async (visibility?: 'tv' | 'mobile', restaurantId?: number) => {
-    const params: Record<string, string | number> = {};
+  getPublic: async (restaurantSlug: string, visibility?: 'tv' | 'mobile') => {
+    const params: Record<string, string> = {};
     if (visibility) params.visibility = visibility;
-    if (restaurantId) params.restaurant_id = restaurantId;
-    const response = await publicAxios.get('/events', {
+    const response = await publicAxios.get(`/public/${restaurantSlug}/events`, {
       params,
       timeout: PUBLIC_API_TIMEOUT_MS,
     });
@@ -1113,11 +1127,8 @@ export const closuresApi = {
   },
 
   // ——— Affichage public (sans auth) ———
-  getPublic: async (restaurantId?: number) => {
-    const params: Record<string, number> = {};
-    if (restaurantId) params.restaurant_id = restaurantId;
-    const response = await publicAxios.get('/closures', {
-      params,
+  getPublic: async (restaurantSlug: string) => {
+    const response = await publicAxios.get(`/public/${restaurantSlug}/closures`, {
       timeout: PUBLIC_API_TIMEOUT_MS,
     });
     return response.data as {
@@ -1166,7 +1177,7 @@ export interface User {
   id: number;
   email: string;
   username?: string;
-  role: 'admin' | 'editor' | 'reader';
+  role: 'org_admin' | 'admin' | 'editor' | 'reader';
   mfa_enabled: boolean;
   is_active: boolean;
   restaurant_id?: number;
@@ -1205,8 +1216,16 @@ export const adminApi = {
   },
 
   // Invitations
-  createInvitation: async (email: string, role: 'admin' | 'editor' | 'reader') => {
-    const response = await api.post('/users/invite', { email, role });
+  createInvitation: async (
+    email: string,
+    role: 'org_admin' | 'admin' | 'editor' | 'reader',
+    restaurantId?: number
+  ) => {
+    const response = await api.post('/users/invite', {
+      email,
+      role,
+      restaurant_id: restaurantId,
+    });
     return response.data.invitation;
   },
 
@@ -1510,22 +1529,83 @@ export const banApi = {
 // ========================================
 // API PUBLIQUE (sans auth)
 // ========================================
+export interface AdminSite {
+  id: number;
+  name: string;
+  slug?: string | null;
+}
+
+// Authenticated: the current user's own restaurant, and (for org_admin) the
+// list of sites of its organization.
+export const restaurantApi = {
+  getMine: async () => {
+    const response = await api.get('/settings');
+    return response.data.restaurant;
+  },
+  list: async (): Promise<AdminSite[]> => {
+    const response = await api.get('/restaurants');
+    return (response.data.restaurants ?? []) as AdminSite[];
+  },
+  create: async (data: { name: string; code: string; slug?: string }) => {
+    const response = await api.post('/restaurants', data);
+    return response.data.restaurant as AdminSite;
+  },
+  setActive: async (id: number, isActive: boolean) => {
+    const response = await api.put(`/restaurants/${id}`, { is_active: isActive });
+    return response.data.restaurant as AdminSite;
+  },
+  update: async (id: number, data: { name?: string; logo_url?: string }) => {
+    const response = await api.put(`/restaurants/${id}`, data);
+    return response.data.restaurant as AdminSite;
+  },
+};
+
+export interface OrgSite {
+  id: number;
+  name: string;
+  slug?: string | null;
+  is_active: boolean;
+  user_count: number;
+  today_menu_published: boolean;
+  upcoming_events: number;
+}
+
+// Organization director dashboard (org_admin) — cross-site overview.
+export const orgApi = {
+  getSites: async (): Promise<OrgSite[]> => {
+    const response = await api.get('/org/sites');
+    return (response.data.sites ?? []) as OrgSite[];
+  },
+};
+
+export interface PublicSite {
+  slug: string;
+  name: string;
+  logo_url?: string | null;
+}
+
+export interface PublicOrg {
+  organization: { name: string; slug: string };
+  sites: PublicSite[];
+}
+
 export const publicApi = {
-  getWeekMenu: async (weekOffset = 0, restaurantId?: number) => {
-    const params: Record<string, number> = { week_offset: weekOffset };
-    if (restaurantId) params.restaurant_id = restaurantId;
-    const response = await publicAxios.get('/menus/week', {
-      params,
+  // Tenant bootstrap: the organization (resolved from the Host) and its sites.
+  getOrg: async (): Promise<PublicOrg> => {
+    const response = await publicAxios.get('/public/org', { timeout: PUBLIC_API_TIMEOUT_MS });
+    return response.data as PublicOrg;
+  },
+
+  getWeekMenu: async (restaurantSlug: string, weekOffset = 0) => {
+    const response = await publicAxios.get(`/public/${restaurantSlug}/week`, {
+      params: { week_offset: weekOffset },
       timeout: PUBLIC_API_TIMEOUT_MS,
     });
     return response.data;
   },
 
-  getRestaurant: async (restaurantId?: number) => {
-    const params: Record<string, number> = {};
-    if (restaurantId) params.restaurant_id = restaurantId;
-    const response = await publicAxios.get('/restaurant', {
-      params,
+  getRestaurant: async (restaurantSlug: string) => {
+    const response = await publicAxios.get(`/public/${restaurantSlug}/restaurant`, {
       timeout: PUBLIC_API_TIMEOUT_MS,
     });
     return response.data.restaurant;

@@ -2,7 +2,7 @@
 import re
 from functools import wraps
 
-from flask import jsonify
+from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from ..extensions import db
@@ -64,8 +64,27 @@ def get_user_and_restaurant():
     user = get_current_user()
     if not user:
         return None, None
-    restaurant = Restaurant.query.get(user.restaurant_id) if user.restaurant_id else None
-    return user, restaurant
+    return user, get_active_restaurant(user)
+
+
+def get_active_restaurant(user):
+    """Restaurant targeted by the current request.
+
+    An org_admin can act on any site of its organization by sending the
+    `X-Restaurant-Id` header (validated against its accessible sites). Any other
+    user acts on its own restaurant.
+    """
+    if user is None:
+        return None
+    header = request.headers.get('X-Restaurant-Id')
+    if header:
+        try:
+            target = int(header)
+        except (TypeError, ValueError):
+            target = None
+        if target is not None and target in accessible_restaurant_ids(user):
+            return Restaurant.query.get(target)
+    return Restaurant.query.get(user.restaurant_id) if user.restaurant_id else None
 
 
 def accessible_restaurant_ids(user):

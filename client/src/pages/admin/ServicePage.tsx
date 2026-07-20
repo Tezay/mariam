@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   menusApi,
   categoriesApi,
-  publicApi,
+  restaurantApi,
   Menu,
   MenuItem,
   MenuCategory,
@@ -325,7 +325,7 @@ export function ServicePage() {
       const [menuRes, catRes, restaurantRes] = await Promise.all([
         menusApi.getByDate(today).catch(() => null),
         categoriesApi.list().catch(() => ({ categories: [] })),
-        publicApi.getRestaurant().catch(() => null),
+        restaurantApi.getMine().catch(() => null),
       ]);
       setMenu(menuRes ?? null);
       setChefNote(menuRes?.chef_note ?? '');

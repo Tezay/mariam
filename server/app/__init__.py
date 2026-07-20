@@ -260,6 +260,7 @@ def create_app(config_class=None):
     from .routes.inbox import inbox_bp
     from .routes.menus import menus_bp
     from .routes.notifications import notifications_bp
+    from .routes.org import org_bp
     from .routes.public import public_bp
     from .routes.restaurant import restaurant_bp
     from .routes.taxonomy import taxonomy_bp
@@ -279,6 +280,7 @@ def create_app(config_class=None):
     api.register_blueprint(inbox_bp,         url_prefix='/v1/inbox')
     api.register_blueprint(closures_bp,      url_prefix='/v1/closures')
     api.register_blueprint(public_bp,        url_prefix='/v1/public')
+    api.register_blueprint(org_bp,           url_prefix='/v1/org')
 
     @app.route('/health')
     @limiter.exempt
@@ -384,11 +386,11 @@ Disallow: /v1/users/
     # ========================================
     # COMMANDES CLI
     # ========================================
+    import click
+
     @app.cli.command('create-activation-link')
     def create_activation_link():
         """Crée un lien d'activation pour le premier administrateur."""
-        import click
-        
         # Vérifier s'il existe déjà des utilisateurs admin
         existing_admin = User.query.filter_by(role='admin').first()
         if existing_admin:
@@ -419,8 +421,6 @@ Disallow: /v1/users/
     @app.cli.command('init-restaurant')
     def init_restaurant():
         """Initialise un restaurant par défaut avec ses catégories."""
-        import click
-
         from .routes.restaurant import _create_default_categories
 
         existing = Restaurant.query.first()
@@ -451,11 +451,59 @@ Disallow: /v1/users/
         click.echo(f"✅ Restaurant créé : {restaurant.name} (ID: {restaurant.id})")
         click.echo("✅ Catégories par défaut créées.")
 
+    @app.cli.command('create-org')
+    @click.option('--name', required=True, help="Nom de l'organisation")
+    @click.option('--slug', required=True, help='Slug URL (sous-domaine)')
+    def create_org(name, slug):
+        """Crée une organisation (client). Idempotent sur le slug."""
+        from .utils.slug import is_valid_slug, normalize_slug
+
+        slug = normalize_slug(slug)
+        if not is_valid_slug(slug):
+            click.echo('❌ Slug invalide ou réservé.')
+            return
+        if Organization.query.filter_by(slug=slug).first():
+            click.echo(f"ℹ️  L'organisation « {slug} » existe déjà.")
+            return
+        org = Organization(name=name, slug=slug)
+        db.session.add(org)
+        db.session.commit()
+        click.echo(f'✅ Organisation créée : {name} ({slug}), id={org.id}')
+
+    @app.cli.command('create-invite')
+    @click.option('--email', required=True, help="Email de l'invité")
+    @click.option('--role', required=True, help='org_admin | admin | editor | reader')
+    @click.option('--restaurant', required=True, help='Site cible (id ou slug)')
+    def create_invite(email, role, restaurant):
+        """Crée un lien d'activation pour un utilisateur de n'importe quel rôle."""
+        if role not in User.VALID_ROLES:
+            click.echo(f'❌ Rôle invalide. Valeurs : {User.VALID_ROLES}')
+            return
+        if User.query.filter_by(email=email).first():
+            click.echo(f'❌ Un utilisateur avec {email} existe déjà.')
+            return
+        target = Restaurant.query.get(int(restaurant)) if restaurant.isdigit() else None
+        if target is None:
+            target = Restaurant.query.filter_by(slug=restaurant).first()
+        if target is None:
+            click.echo(f'❌ Restaurant introuvable : {restaurant}')
+            return
+        link = ActivationLink.create_invite_link(
+            email=email,
+            role=role,
+            restaurant_id=target.id,
+            organization_id=target.organization_id,
+        )
+        db.session.add(link)
+        db.session.commit()
+        frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+        click.echo(f'✅ Invitation créée : {email} ({role}) → {target.name}')
+        click.echo(f'🔗 {frontend_url}/activate/{link.token}')
+        click.echo('⚠️  Expire dans 72 h, usage unique.')
+
     @app.cli.command('seed-categories')
     def seed_categories_cmd():
         """Crée les catégories par défaut si le restaurant n'en a pas encore. Idempotent."""
-        import click
-
         from .models.category import MenuCategory
         from .routes.restaurant import _create_default_categories
 
@@ -476,8 +524,6 @@ Disallow: /v1/users/
         Crée un lien de réinitialisation de mot de passe.
         Lit l'email depuis la variable d'environnement RESET_PASSWORD_EMAIL.
         """
-        import click
-
         email = os.environ.get('RESET_PASSWORD_EMAIL', '').strip()
         if not email:
             click.echo("❌ Variable d'environnement RESET_PASSWORD_EMAIL non définie.")

@@ -52,6 +52,29 @@ docker compose -f deploy/docker-compose.yml exec backend flask create-activation
 docker compose -f deploy/docker-compose.yml exec backend flask init-restaurant
 ```
 
+### Provisionner un nouveau client (organisation + directeur)
+
+Une **organisation** est un client (son slug est le sous-domaine public :
+`<slug>.mariam.app`). Un **directeur** (`org_admin`) gère tous les sites de son
+organisation depuis `/org` et crée lui-même les restaurants ensuite.
+
+```bash
+# 1. Créer l'organisation (idempotent sur le slug)
+docker compose -f deploy/docker-compose.yml exec backend \
+  flask create-org --name "CROUS de Créteil" --slug crous-creteil
+
+# 2. Créer un lien d'activation pour le directeur, rattaché à un site
+#    (--restaurant accepte un id ou un slug de restaurant existant)
+docker compose -f deploy/docker-compose.yml exec backend \
+  flask create-invite --email directeur@example.com --role org_admin --restaurant efrei
+```
+
+La commande affiche l'URL d'activation (`/activate/<token>`, valable 72 h, usage
+unique) à transmettre au directeur. `create-invite` fonctionne pour n'importe
+quel rôle (`org_admin`, `admin`, `editor`, `reader`) : c'est le moyen générique
+de créer un compte en production quand l'invitation depuis l'UI n'est pas
+possible (premier utilisateur d'une nouvelle organisation, par ex.).
+
 ### Réinitialiser le mot de passe d'un utilisateur
 
 Pour les environnements serverless (sans accès terminal), ajoutez la variable d'environnement suivante puis redéployez :

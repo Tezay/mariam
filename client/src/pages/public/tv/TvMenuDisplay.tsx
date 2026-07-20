@@ -369,7 +369,7 @@ function TvClosureDisplay({ closure }: { closure: ExceptionalClosure }) {
 
 // ─── TvMenuDisplay ──────────────────────────────────────────────────────────
 
-export function TvMenuDisplay({ restaurantId }: { restaurantId?: number }) {
+export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
   const [todayData, setTodayData] = useState<MenuData | null>(null);
   const [tomorrowData, setTomorrowData] = useState<MenuData | null>(null);
   const [todayEvent, setTodayEvent] = useState<EventData | null>(null);
@@ -403,10 +403,10 @@ export function TvMenuDisplay({ restaurantId }: { restaurantId?: number }) {
     setIsLoading(true);
     try {
       const [today, tomorrow, eventsData, closuresData] = await Promise.all([
-        menusApi.getToday(restaurantId),
-        menusApi.getTomorrow(restaurantId),
-        eventsApi.getPublic('tv', restaurantId),
-        closuresApi.getPublic(restaurantId),
+        menusApi.getToday(restaurantSlug),
+        menusApi.getTomorrow(restaurantSlug),
+        eventsApi.getPublic(restaurantSlug, 'tv'),
+        closuresApi.getPublic(restaurantSlug),
       ]);
       if (requestId !== requestIdRef.current) return;
       setTodayData(today);
@@ -450,7 +450,7 @@ export function TvMenuDisplay({ restaurantId }: { restaurantId?: number }) {
     loadData();
     const interval = setInterval(loadData, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [restaurantId]);
+  }, [restaurantSlug]);
 
   useEffect(() => () => clearTimers(), []);
 

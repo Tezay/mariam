@@ -80,7 +80,13 @@ def create_invitation(data):
     if role == User.ROLE_ORG_ADMIN and not inviter.is_org_admin():
         return jsonify({'error': "Seul un directeur d'organisation peut inviter à ce rôle"}), 403
 
-    if not inviter.restaurant_id:
+    # Target site: an org_admin may invite onto any site of its organization
+    # (from the body); otherwise the inviter's own restaurant is used.
+    target_restaurant_id = inviter.restaurant_id
+    body_rid = data.get('restaurant_id')
+    if body_rid and body_rid in accessible_restaurant_ids(inviter):
+        target_restaurant_id = body_rid
+    if not target_restaurant_id:
         return jsonify({'error': 'Aucun restaurant associé à votre compte'}), 400
 
     if User.query.filter_by(email=email).first():
@@ -90,7 +96,7 @@ def create_invitation(data):
         email=email,
         role=role,
         created_by_id=current_user_id,
-        restaurant_id=inviter.restaurant_id,
+        restaurant_id=target_restaurant_id,
         organization_id=inviter.organization_id,
     )
     db.session.add(link)
@@ -98,7 +104,7 @@ def create_invitation(data):
     AuditLog.log(
         action=AuditLog.ACTION_ACTIVATION_LINK_CREATE,
         user_id=current_user_id,
-        restaurant_id=inviter.restaurant_id,
+        restaurant_id=target_restaurant_id,
         details={'email': email, 'role': role},
         ip_address=get_client_ip()
     )
@@ -141,13 +147,20 @@ def list_invitations():
 @users_bp.response(200, UserAdminSchema(many=True))
 @admin_required
 def list_users():
-    """List users of the caller's tenant (admin only)."""
-    ids = accessible_restaurant_ids(get_current_user())
-    users = (
-        User.query.filter(User.restaurant_id.in_(ids))
-        .order_by(User.created_at.desc()).all()
-        if ids else []
-    )
+    """List users of the caller's tenant (admin only).
+
+    A site admin never sees organization directors; an org_admin sees everyone
+    in its organization.
+    """
+    caller = get_current_user()
+    ids = accessible_restaurant_ids(caller)
+    if ids:
+        query = User.query.filter(User.restaurant_id.in_(ids))
+        if not caller.is_org_admin():
+            query = query.filter(User.role != User.ROLE_ORG_ADMIN)
+        users = query.order_by(User.created_at.desc()).all()
+    else:
+        users = []
     return jsonify({'users': [user.to_dict(include_sensitive=True) for user in users]}), 200
 
 

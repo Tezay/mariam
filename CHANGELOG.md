@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Error tracking (Sentry)** for backend and frontend, enabled via environment.
 - **Readiness probe** `GET /health/ready` (checks DB and Redis) for external uptime monitoring.
 - **Slugged public API** (`/v1/public/<restaurant>/…`): tenant resolved from the request host (subdomain = organization) and the restaurant slug, with an `/v1/public/org` bootstrap endpoint. Legacy `?restaurant_id=` endpoints kept for compatibility.
+- **Multi-tenant public routing**: the tenant is resolved from the host; a single-site organization serves its menu at the root (`/menu`), a multi-site organization lists its sites (each menu at `/:slug/menu`). Public pages now use the slugged API.
+- **Organization director site switcher**: an `org_admin` selects which site of its organization to manage; admin operations target it via a validated `X-Restaurant-Id` header. The `org_admin` role now has full admin/editor access in the frontend.
+- **Director dashboard** (`/org`): a dedicated cross-site overview for `org_admin` (KPIs, per-site status, site creation/rename/activation, org-wide users and audit log), separate from the per-site admin.
+- **CLI provisioning commands**: `flask create-org` (create a client organization) and `flask create-invite` (create an activation link for any role) to bootstrap a new tenant or its director in production.
 
 ### Changed
 

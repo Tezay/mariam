@@ -147,24 +147,20 @@ def public_week(restaurant_slug):
     monday = paris_today() + timedelta(weeks=week_offset)
     monday = monday - timedelta(days=monday.weekday())
     week_dates = [monday + timedelta(days=i) for i in range(7)]
-    menus = {
-        m.date.isoformat(): m
-        for m in Menu.query.filter(
-            Menu.restaurant_id == restaurant.id,
-            Menu.status == 'published',
-            Menu.date.in_(week_dates),
-        ).all()
-    }
+    menus = {}
+    for i, d in enumerate(week_dates):
+        menu = Menu.query.filter_by(
+            restaurant_id=restaurant.id, date=d, status='published'
+        ).first()
+        menus[d.isoformat()] = {
+            'day_name': _DAY_NAMES[i],
+            'menu': _format_menu_for_display(menu),
+        }
     return jsonify({
+        'week_start': week_dates[0].isoformat(),
+        'week_end': week_dates[6].isoformat(),
         'restaurant': restaurant.to_dict(include_config=True),
-        'week': [
-            {
-                'date': d.isoformat(),
-                'day_name': _DAY_NAMES[d.weekday()],
-                'menu': _format_menu_for_display(menus.get(d.isoformat())),
-            }
-            for d in week_dates
-        ],
+        'menus': menus,
     }), 200
 
 

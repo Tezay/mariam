@@ -25,7 +25,12 @@ from ..schemas.common import ErrorSchema
 from ..schemas.restaurant import RestaurantSchema, RestaurantUpdateSchema
 from ..security import get_client_ip, limiter
 from ..utils.slug import is_valid_slug, normalize_slug
-from .helpers import accessible_restaurant_ids, admin_required, get_current_user
+from .helpers import (
+    accessible_restaurant_ids,
+    admin_required,
+    get_active_restaurant,
+    get_current_user,
+)
 
 restaurant_bp = Blueprint(
     'restaurant', __name__,
@@ -80,7 +85,7 @@ def get_settings():
     if not user:
         return jsonify({'error': 'Utilisateur introuvable'}), 401
 
-    restaurant = Restaurant.query.get(user.restaurant_id) if user.restaurant_id else None
+    restaurant = get_active_restaurant(user)
     if not restaurant:
         return jsonify({'error': 'Aucun restaurant configuré'}), 404
 
@@ -101,7 +106,7 @@ def update_settings(data):
     """
     current_user_id = int(get_jwt_identity())
     user = get_current_user()
-    restaurant = Restaurant.query.get(user.restaurant_id) if user and user.restaurant_id else None
+    restaurant = get_active_restaurant(user)
     if not restaurant:
         return jsonify({'error': 'Aucun restaurant configuré'}), 404
 
@@ -352,7 +357,8 @@ def get_calendar_settings():
     if not user:
         return jsonify({'error': 'Non authentifié'}), 401
 
-    restaurant_id = user.restaurant_id
+    active = get_active_restaurant(user)
+    restaurant_id = active.id if active else None
     if not restaurant_id:
         return jsonify({'error': 'Aucun restaurant'}), 404
 
@@ -378,7 +384,8 @@ def update_calendar_settings():
     if not user:
         return jsonify({'error': 'Non authentifié'}), 401
 
-    restaurant_id = user.restaurant_id
+    active = get_active_restaurant(user)
+    restaurant_id = active.id if active else None
     if not restaurant_id:
         return jsonify({'error': 'Aucun restaurant'}), 404
 

@@ -61,7 +61,7 @@ function filterUpcomingClosures(closures: ExceptionalClosure[]): ExceptionalClos
   return closures.filter((c) => c.start_date <= cutoff).slice(0, CLOSURE_MAX_COUNT);
 }
 
-export function MobileMenuDisplay({ restaurantId }: { restaurantId?: number }) {
+export function MobileMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
   const [selectedDay, setSelectedDay] = useState<'today' | 'tomorrow'>('today');
   const [todayData, setTodayData] = useState<MenuData | null>(null);
   const [tomorrowData, setTomorrowData] = useState<MenuData | null>(null);
@@ -103,14 +103,14 @@ export function MobileMenuDisplay({ restaurantId }: { restaurantId?: number }) {
     try {
       const restaurantPromise = restaurantRef.current
         ? Promise.resolve(restaurantRef.current)
-        : publicApi.getRestaurant(restaurantId);
+        : publicApi.getRestaurant(restaurantSlug);
 
       const [today, tomorrow, eventsData, restaurantData, closuresData] = await Promise.all([
-        menusApi.getToday(restaurantId),
-        menusApi.getTomorrow(restaurantId),
-        eventsApi.getPublic('mobile', restaurantId),
+        menusApi.getToday(restaurantSlug),
+        menusApi.getTomorrow(restaurantSlug),
+        eventsApi.getPublic(restaurantSlug, 'mobile'),
         restaurantPromise,
-        closuresApi.getPublic(restaurantId),
+        closuresApi.getPublic(restaurantSlug),
       ]);
 
       if (requestId !== requestIdRef.current) return;
@@ -163,13 +163,13 @@ export function MobileMenuDisplay({ restaurantId }: { restaurantId?: number }) {
 
   useEffect(() => {
     restaurantRef.current = null;
-  }, [restaurantId]);
+  }, [restaurantSlug]);
 
   useEffect(() => {
     loadData();
     const interval = setInterval(loadData, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [restaurantId]);
+  }, [restaurantSlug]);
 
   useEffect(() => () => clearTimers(), []);
 
