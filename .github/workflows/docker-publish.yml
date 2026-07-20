@@ -37,7 +37,7 @@ jobs:
       JWT_SECRET_KEY: ci-jwt-secret-key
       FLASK_APP: run.py
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install uv
         uses: astral-sh/setup-uv@v4
       - name: Install dependencies
@@ -59,7 +59,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -102,7 +102,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
