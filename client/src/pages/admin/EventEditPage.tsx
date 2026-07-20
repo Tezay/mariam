@@ -159,6 +159,17 @@ export function EventEditPage() {
   // Saved event id (set after creation)
   const [savedEventId, setSavedEventId] = useState<number | null>(id ? Number(id) : null);
 
+  // Warn before leaving (reload / close / external navigation) with unsaved edits.
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
   // Tiptap editor
   const editor = useEditor({
     extensions: [

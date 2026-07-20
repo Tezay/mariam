@@ -296,7 +296,7 @@ function TvCategoryCard({
       </h2>
       <ul className="flex-1 space-y-6">
         {items.map((item, i) => (
-          <li key={i} className="flex flex-col gap-2 text-gray-900">
+          <li key={item.id ?? item.dish?.id ?? i} className="flex flex-col gap-2 text-gray-900">
             <span
               className={`font-medium leading-tight ${isHighlighted ? 'text-5xl tracking-tight' : 'text-4xl'} ${item.is_out_of_stock ? 'text-gray-400 line-through' : ''}`}
             >
@@ -316,7 +316,7 @@ function TvCategoryCard({
           </li>
         ))}
         {subItems.map((item, i) => (
-          <li key={`sub-${i}`} className="flex flex-col gap-2 text-gray-900">
+          <li key={`sub-${item.dish?.id ?? i}`} className="flex flex-col gap-2 text-gray-900">
             <span
               className={`font-medium leading-tight ${isHighlighted ? 'text-5xl tracking-tight' : 'text-4xl'} flex flex-wrap items-center gap-3`}
             >
@@ -608,7 +608,7 @@ export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
 
       {/* Contenu avec Zoom */}
       <div
-        style={{ zoom: zoomLevel } as React.CSSProperties}
+        style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top center' }}
         className="flex h-full w-full flex-col"
       >
         {/* Header TV */}
@@ -627,10 +627,11 @@ export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
               </h1>
               <p className="mt-2 text-3xl font-light text-gray-500">
                 {todayData?.day_name}{' '}
-                {new Date(todayData?.date || '').toLocaleDateString('fr-FR', {
-                  day: 'numeric',
-                  month: 'long',
-                })}
+                {todayData?.date &&
+                  new Date(todayData.date + 'T12:00:00').toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'long',
+                  })}
               </p>
             </div>
           </div>

@@ -8,7 +8,7 @@ import { Zap, CalendarOff } from 'lucide-react';
 import { menusApi, eventsApi, publicApi, closuresApi, ExceptionalClosure } from '@/lib/api';
 import { InlineError, getErrorType } from '@/components/InlineError';
 import { jsDayToMariamDay, getNextOpeningDate } from '@/lib/service-utils';
-import { parisToday, addDays } from '@/lib/date-utils';
+import { parisToday, addDays, parisDayOfWeek } from '@/lib/date-utils';
 import { MobileHeader } from './MobileHeader';
 import { MobileChefNote } from './MobileChefNote';
 import { MobileDayToggle } from './MobileDayToggle';
@@ -190,7 +190,7 @@ export function MobileMenuDisplay({ restaurantSlug }: { restaurantSlug: string }
 
   // Détecter si le jour sélectionné est un jour de fermeture
   const serviceDays = restaurant?.config?.service_days ?? [];
-  const mariamToday = jsDayToMariamDay(new Date().getDay());
+  const mariamToday = jsDayToMariamDay(parisDayOfWeek());
   const mariamTomorrow = (mariamToday + 1) % 7;
   const selectedMariamDay = selectedDay === 'today' ? mariamToday : mariamTomorrow;
   const isClosedDay = serviceDays.length > 0 && !serviceDays.includes(selectedMariamDay);

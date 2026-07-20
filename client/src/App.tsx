@@ -18,6 +18,7 @@ import { Login } from './pages/Login';
 import { Activate } from './pages/Activate';
 import { ResetPassword } from './pages/ResetPassword';
 import { TenantLayout, PublicRoot, MonoMenu, SluggedMenu } from './pages/public/PublicRoutes';
+import { ErrorBoundary, PublicErrorFallback } from './components/ErrorBoundary';
 import { NotificationsPage } from './pages/public/NotificationsPage';
 import { AdminLayout } from './components/AdminLayout';
 import { UsersPage } from './pages/admin/UsersPage';
@@ -152,7 +153,13 @@ function App() {
       <ResponsiveToaster />
       <Routes>
         {/* Affichage public tenant-aware (org résolue par le Host) */}
-        <Route element={<TenantLayout />}>
+        <Route
+          element={
+            <ErrorBoundary fallback={<PublicErrorFallback />}>
+              <TenantLayout />
+            </ErrorBoundary>
+          }
+        >
           <Route path="/" element={<PublicRoot />} />
           <Route path="/menu" element={<MonoMenu />} />
           <Route path="/:restaurantSlug/menu" element={<SluggedMenu />} />
