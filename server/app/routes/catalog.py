@@ -427,9 +427,12 @@ def upload_dish_image(dish_id):
         return jsonify({'error': error_msg}), 400
 
     file_data = file.read()
-    file_data, filename, content_type = storage.process_image(
-        file_data, file.filename, file.content_type or 'application/octet-stream'
-    )
+    try:
+        file_data, filename, content_type = storage.process_image(
+            file_data, file.filename, file.content_type or 'application/octet-stream'
+        )
+    except ValueError as err:
+        return jsonify({'error': str(err)}), 400
 
     result = storage.upload_file(file_data, filename, prefix='catalog', content_type=content_type)
     if not result:

@@ -481,9 +481,12 @@ def upload_event_image(event_id):
     if len(file_data) > storage.MAX_FILE_SIZE:
         return jsonify({'error': 'Fichier trop volumineux (max 5 MB)'}), 400
 
-    file_data, filename, content_type = storage.process_image(
-        file_data, file.filename, file.content_type
-    )
+    try:
+        file_data, filename, content_type = storage.process_image(
+            file_data, file.filename, file.content_type
+        )
+    except ValueError as err:
+        return jsonify({'error': str(err)}), 400
 
     result = storage.upload_file(
         file_data=file_data,
@@ -503,6 +506,16 @@ def upload_event_image(event_id):
         order=current_count,
     )
     db.session.add(image)
+    db.session.flush()
+
+    AuditLog.log(
+        action=AuditLog.ACTION_EVENT_IMAGE_UPLOAD,
+        user_id=int(get_jwt_identity()),
+        restaurant_id=event.restaurant_id,
+        target_type='event_image',
+        target_id=image.id,
+        ip_address=get_client_ip(),
+    )
     db.session.commit()
 
     return jsonify({'message': 'Image uploadée', 'image': image.to_dict()}), 201
@@ -515,7 +528,8 @@ def upload_event_image(event_id):
 def delete_event_image(event_id, image_id):
     """Delete an event image from S3 storage and database."""
     # First check the event belongs to the caller's tenant.
-    if not scoped_get(Event, event_id):
+    event = scoped_get(Event, event_id)
+    if not event:
         return jsonify({'error': 'Événement non trouvé'}), 404
     image = EventImage.query.filter_by(id=image_id, event_id=event_id).first()
     if not image:
@@ -523,6 +537,15 @@ def delete_event_image(event_id, image_id):
 
     storage.delete_file(image.storage_key)
     db.session.delete(image)
+
+    AuditLog.log(
+        action=AuditLog.ACTION_EVENT_IMAGE_DELETE,
+        user_id=int(get_jwt_identity()),
+        restaurant_id=event.restaurant_id,
+        target_type='event_image',
+        target_id=image_id,
+        ip_address=get_client_ip(),
+    )
     db.session.commit()
 
     return jsonify({'message': 'Image supprimée'}), 200

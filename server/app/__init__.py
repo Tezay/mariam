@@ -35,7 +35,11 @@ def create_app(config_class=None):
     Factory function qui crée et configure l'application Flask.
     """
     app = Flask(__name__)
-    
+
+    # Structured JSON logging + per-request id (before anything logs).
+    from .logging_config import configure_logging
+    configure_logging(app)
+
     # ========================================
     # CONFIGURATION
     # ========================================
@@ -57,17 +61,29 @@ def create_app(config_class=None):
     # Configuration JWT
     app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'jwt-secret-key-change-in-production')
 
-    # Garde-fou
+    # Garde-fou production : refuse de démarrer si un secret/service requis
+    # manque (fail-closed). En dev (FLASK_DEBUG/FLASK_ENV), on laisse passer.
     _dev_defaults = {'dev-secret-key-change-in-production', 'jwt-secret-key-change-in-production'}
     _is_dev = (
         os.environ.get('FLASK_DEBUG') == '1'
         or os.environ.get('FLASK_ENV') == 'development'
     )
-    if not _is_dev and _dev_defaults & {app.config['SECRET_KEY'], app.config['JWT_SECRET_KEY']}:
-        raise RuntimeError(
-            'SECRET_KEY et JWT_SECRET_KEY doivent être définis en production '
-            '(valeurs par défaut de développement détectées).'
-        )
+    if not _is_dev:
+        missing = []
+        if _dev_defaults & {app.config['SECRET_KEY'], app.config['JWT_SECRET_KEY']}:
+            missing.append('SECRET_KEY/JWT_SECRET_KEY (valeurs par défaut de dev)')
+        if not os.environ.get('MFA_ENCRYPTION_KEY'):
+            missing.append('MFA_ENCRYPTION_KEY')
+        if not os.environ.get('DATABASE_URL'):
+            missing.append('DATABASE_URL')
+        if not all(os.environ.get(k) for k in
+                   ('S3_ENDPOINT_URL', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY')):
+            missing.append('S3_ENDPOINT_URL/S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY')
+        if missing:
+            raise RuntimeError(
+                'Variables requises en production manquantes ou par défaut : '
+                + ', '.join(missing)
+            )
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(
         minutes=int(os.environ.get('JWT_ACCESS_TOKEN_MINUTES', 30))
     )

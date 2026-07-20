@@ -12,7 +12,9 @@ export function SiteListPage() {
 
   useDocumentMeta({
     title: organization ? `${organization.name} — Nos restaurants` : undefined,
-    description: organization ? `Découvrez les menus des restaurants de ${organization.name}.` : undefined,
+    description: organization
+      ? `Découvrez les menus des restaurants de ${organization.name}.`
+      : undefined,
   });
 
   return (

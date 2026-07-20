@@ -105,6 +105,10 @@ class MenuItem(db.Model):
     order = db.Column(db.Integer, default=0)
     is_out_of_stock = db.Column(db.Boolean, nullable=False, default=False)
 
+    __table_args__ = (
+        db.Index('ix_menu_items_menu_id_dish_id', 'menu_id', 'dish_id'),
+    )
+
     dish = db.relationship('DishCatalog', lazy='joined')
 
     def to_dict(self):

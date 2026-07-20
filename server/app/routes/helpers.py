@@ -168,3 +168,25 @@ def get_or_create_dish(restaurant_id: int, item_data: dict) -> 'DishCatalog | No
     db.session.add(dish)
     db.session.flush()
     return dish
+
+
+def paginated_response(query, items_key, serialize, default_per_page=50):
+    """JSON envelope for a list endpoint: full list by default, DB-side paginated
+    when ``?page=`` is present.
+
+    Backward-compatible: without ``page`` the shape stays ``{items_key: [...]}``;
+    with it, ``total``/``page``/``per_page``/``has_more`` are added. ``per_page``
+    is capped at 200.
+    """
+    page = request.args.get('page', type=int)
+    if page is None:
+        return jsonify({items_key: [serialize(o) for o in query.all()]}), 200
+    per_page = min(request.args.get('per_page', default_per_page, type=int), 200)
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    return jsonify({
+        items_key: [serialize(o) for o in pagination.items],
+        'total': pagination.total,
+        'page': page,
+        'per_page': per_page,
+        'has_more': pagination.has_next,
+    }), 200

@@ -21,7 +21,12 @@ from ..models import ActivationLink, AuditLog, User
 from ..schemas.common import ErrorSchema, MessageSchema
 from ..schemas.users import InvitationSchema, InviteSchema, UserAdminSchema, UserUpdateSchema
 from ..security import get_client_ip
-from .helpers import accessible_restaurant_ids, admin_required, get_current_user
+from .helpers import (
+    accessible_restaurant_ids,
+    admin_required,
+    get_current_user,
+    paginated_response,
+)
 
 users_bp = Blueprint(
     'users', __name__,
@@ -154,14 +159,13 @@ def list_users():
     """
     caller = get_current_user()
     ids = accessible_restaurant_ids(caller)
-    if ids:
-        query = User.query.filter(User.restaurant_id.in_(ids))
-        if not caller.is_org_admin():
-            query = query.filter(User.role != User.ROLE_ORG_ADMIN)
-        users = query.order_by(User.created_at.desc()).all()
-    else:
-        users = []
-    return jsonify({'users': [user.to_dict(include_sensitive=True) for user in users]}), 200
+    if not ids:
+        return jsonify({'users': []}), 200
+    query = User.query.filter(User.restaurant_id.in_(ids))
+    if not caller.is_org_admin():
+        query = query.filter(User.role != User.ROLE_ORG_ADMIN)
+    query = query.order_by(User.created_at.desc())
+    return paginated_response(query, 'users', lambda u: u.to_dict(include_sensitive=True))
 
 
 @users_bp.route('/<int:user_id>', methods=['GET'])

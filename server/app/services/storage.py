@@ -31,6 +31,15 @@ class StorageService:
     HEIC_EXTENSIONS = {'heic', 'heif'}
     MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB par image
 
+    # Web-safe output formats and their MIME types (content type is derived from
+    # the decoded image, never from the client-supplied header).
+    _FORMAT_CONTENT_TYPE = {
+        'JPEG': 'image/jpeg',
+        'PNG': 'image/png',
+        'WEBP': 'image/webp',
+        'GIF': 'image/gif',
+    }
+
     def __init__(self, app=None):
         self.client = None
         self.bucket = None
@@ -176,39 +185,51 @@ class StorageService:
         return True, None
 
     @classmethod
-    def process_image(cls, file_data, filename, content_type):
-        """Traite une image uploadée. Convertit HEIC/HEIF en JPEG automatiquement.
+    def process_image(cls, file_data, filename, content_type=None):
+        """Validate and re-encode an uploaded image through Pillow.
+
+        Decoding rejects non-images (a fake ``.jpg`` that is really HTML/SVG) and
+        neutralizes polyglot files; re-encoding strips EXIF and any trailing
+        payload. The returned content type is derived from the decoded image, not
+        from the client-supplied ``content_type`` (kept only for signature
+        compatibility). HEIC/HEIF are converted to JPEG.
 
         Args:
-            file_data: Contenu binaire du fichier (bytes).
-            filename: Nom original du fichier.
-            content_type: Type MIME du fichier.
+            file_data: Raw file bytes.
+            filename: Original filename (used for the output base name only).
+            content_type: Ignored; the real type is derived server-side.
 
         Returns:
-            tuple: (file_data, filename, content_type) — convertis si HEIC, inchangés sinon.
+            tuple: (file_data, filename, content_type) — normalized.
+
+        Raises:
+            ValueError: if the bytes cannot be decoded as an image.
         """
-        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+        try:
+            img = Image.open(io.BytesIO(file_data))
+            img.load()
+        except Exception as exc:
+            raise ValueError('Fichier image invalide ou corrompu') from exc
 
-        if ext not in cls.HEIC_EXTENSIONS:
-            return file_data, filename, content_type
+        base = filename.rsplit('.', 1)[0] if '.' in filename else filename
 
-        # Conversion HEIC/HEIF -> JPEG via Pillow (plugin pillow-heif)
-        img = Image.open(io.BytesIO(file_data))
+        # Preserve animation (GIF/WebP): re-encoding frames is error-prone, so
+        # keep the validated bytes but force the correct content type.
+        if getattr(img, 'is_animated', False):
+            fmt = (img.format or 'GIF').upper()
+            content_type = cls._FORMAT_CONTENT_TYPE.get(fmt, 'application/octet-stream')
+            return file_data, f'{base}.{fmt.lower()}', content_type
+
         img = ImageOps.exif_transpose(img)
-
-        if img.mode != 'RGB':
-            img = img.convert('RGB')
+        has_alpha = img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info)
 
         output = io.BytesIO()
-        img.save(output, format='JPEG', quality=90)
-        converted_data = output.getvalue()
+        if has_alpha:
+            img.convert('RGBA').save(output, format='PNG', optimize=True)
+            return output.getvalue(), f'{base}.png', 'image/png'
 
-        # Nouveau nom de fichier et type MIME
-        base = filename.rsplit('.', 1)[0] if '.' in filename else filename
-        converted_filename = f"{base}.jpg"
-        converted_content_type = 'image/jpeg'
-
-        return converted_data, converted_filename, converted_content_type
+        img.convert('RGB').save(output, format='JPEG', quality=90, optimize=True)
+        return output.getvalue(), f'{base}.jpg', 'image/jpeg'
 
     # ------------------------------------------------------------------
     # Méthodes internes

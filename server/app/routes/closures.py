@@ -10,8 +10,6 @@ Editor endpoints (JWT required):
 - PUT    /v1/closures/<id>      Update a closure
 - DELETE /v1/closures/<id>      Delete a closure
 """
-from datetime import datetime
-
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 from flask_smorest import Blueprint
@@ -26,7 +24,7 @@ from ..schemas.closures import (
 )
 from ..schemas.common import ErrorSchema, MessageSchema
 from ..security import get_client_ip
-from ..utils.time import paris_today
+from ..utils.time import paris_today, parse_iso_date
 from .helpers import (
     accessible_restaurant_ids,
     editor_required,
@@ -44,13 +42,6 @@ closures_bp = Blueprint(
 # ============================================================
 # HELPERS
 # ============================================================
-
-def parse_date(date_str, field_name='date'):
-    try:
-        return datetime.strptime(date_str, '%Y-%m-%d').date()
-    except (ValueError, TypeError):
-        return None
-
 
 # ============================================================
 # LISTE DES FERMETURES — route unifiée public/éditeur
@@ -156,8 +147,8 @@ def create_closure(data):
     current_user = User.query.get(current_user_id)
     today = paris_today()
 
-    start_date = parse_date(data.get('start_date'), 'start_date')
-    end_date = parse_date(data.get('end_date'), 'end_date')
+    start_date = parse_iso_date(data.get('start_date'))
+    end_date = parse_iso_date(data.get('end_date'))
 
     if not start_date or not end_date:
         return jsonify({'error': 'start_date et end_date sont requis (format YYYY-MM-DD)'}), 400
@@ -214,7 +205,7 @@ def update_closure(data, closure_id):
     date_changed = False
 
     if 'start_date' in data:
-        new_start = parse_date(data['start_date'], 'start_date')
+        new_start = parse_iso_date(data['start_date'])
         if not new_start:
             return jsonify({'error': 'start_date invalide (format YYYY-MM-DD)'}), 400
         if new_start != closure.start_date:
@@ -222,7 +213,7 @@ def update_closure(data, closure_id):
             date_changed = True
 
     if 'end_date' in data:
-        new_end = parse_date(data['end_date'], 'end_date')
+        new_end = parse_iso_date(data['end_date'])
         if not new_end:
             return jsonify({'error': 'end_date invalide (format YYYY-MM-DD)'}), 400
         closure.end_date = new_end

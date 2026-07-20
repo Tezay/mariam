@@ -102,6 +102,21 @@ URL : https://domaine.com/reset-password/aBcDeFgH...
 
 > Le lien nécessite la vérification MFA (A2F) — seul le possesseur du téléphone peut réinitialiser.
 
+### Clé de chiffrement MFA (`MFA_ENCRYPTION_KEY`)
+
+Les secrets TOTP sont chiffrés au repos (Fernet). La clé est **obligatoire en
+production** (le backend refuse de démarrer sans elle).
+
+```bash
+# Générer une clé (une fois)
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Renseigner `MFA_ENCRYPTION_KEY` dans `deploy/.env`. **Sauvegarder la clé** dans un
+gestionnaire de secrets : sa perte rend tous les secrets TOTP illisibles et
+impose un reset MFA de tous les comptes. La migration de mise en place chiffre
+les secrets existants au premier `flask db upgrade` (la clé doit être présente).
+
 ---
 
 ## Base de données

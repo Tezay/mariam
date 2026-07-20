@@ -741,9 +741,12 @@ def upload_menu_image(menu_id):
     if len(file_data) > storage.MAX_FILE_SIZE:
         return jsonify({'error': 'Fichier trop volumineux (max 5 MB)'}), 400
 
-    file_data, filename, content_type = storage.process_image(
-        file_data, file.filename, file.content_type
-    )
+    try:
+        file_data, filename, content_type = storage.process_image(
+            file_data, file.filename, file.content_type
+        )
+    except ValueError as err:
+        return jsonify({'error': str(err)}), 400
 
     result = storage.upload_file(
         file_data=file_data,
@@ -763,6 +766,17 @@ def upload_menu_image(menu_id):
         order=current_count,
     )
     db.session.add(image)
+    db.session.flush()
+
+    user, _ = get_user_and_restaurant()
+    AuditLog.log(
+        action=AuditLog.ACTION_MENU_IMAGE_UPLOAD,
+        user_id=user.id if user else None,
+        restaurant_id=menu.restaurant_id,
+        target_type='menu_image',
+        target_id=image.id,
+        ip_address=get_client_ip(),
+    )
     db.session.commit()
 
     return jsonify({'message': 'Image uploadée', 'image': image.to_dict()}), 201
@@ -784,6 +798,16 @@ def delete_menu_image(menu_id, image_id):
 
     storage.delete_file(image.storage_key)
     db.session.delete(image)
+
+    user, _ = get_user_and_restaurant()
+    AuditLog.log(
+        action=AuditLog.ACTION_MENU_IMAGE_DELETE,
+        user_id=user.id if user else None,
+        restaurant_id=menu.restaurant_id,
+        target_type='menu_image',
+        target_id=image_id,
+        ip_address=get_client_ip(),
+    )
     db.session.commit()
 
     return jsonify({'message': 'Image supprimée'}), 200
