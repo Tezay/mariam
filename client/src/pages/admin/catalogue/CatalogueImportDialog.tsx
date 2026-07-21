@@ -299,7 +299,7 @@ export function CatalogueImportDialog({
                   {previewData.new_count} à créer
                 </span>
                 {previewData.duplicate_count > 0 && (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-800">
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
                     {previewData.duplicate_count} doublon
                     {previewData.duplicate_count > 1 ? 's' : ''} ignoré
                     {previewData.duplicate_count > 1 ? 's' : ''}
@@ -350,7 +350,7 @@ export function CatalogueImportDialog({
                               return (
                                 <span
                                   key={id}
-                                  className="inline-flex items-center gap-0.5 rounded-full border border-amber-100 bg-amber-50 px-1.5 py-0.5 text-[11px]"
+                                  className="inline-flex items-center gap-0.5 rounded-full border border-amber-100 bg-amber-50 px-1.5 py-0.5 text-[11px] dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300"
                                   title={c.name}
                                 >
                                   <img

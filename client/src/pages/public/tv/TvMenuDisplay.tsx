@@ -4,11 +4,11 @@
  * Optimisé pour grands écrans (salles à manger, cafétérias).
  */
 import { useState, useEffect } from 'react';
-import { ExceptionalClosure, CertificationItem } from '@/lib/api';
+import { ExceptionalClosure } from '@/lib/api';
 import { generateEventPalette } from '@/lib/color-utils';
+import { getCategoryColor, type CategoryColor } from '@/lib/category-colors';
 import { DynamicIcon as Icon } from 'lucide-react/dynamic';
 import { InlineError, getErrorType } from '@/components/InlineError';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
   RefreshCw,
   ZoomIn,
@@ -28,69 +28,6 @@ import type {
 } from '../menu-types';
 import type { IconName } from 'lucide-react/dynamic';
 import { usePublicMenu } from '../use-public-menu';
-
-// ─── Constantes badges ──────────────────────────────────────────────────────
-
-const TAG_CATEGORY_NAMES: Record<string, string> = {
-  regime: 'Régime alimentaire',
-  allergenes: 'Allergènes',
-  preparation: 'Mode de préparation',
-  gout: 'Goût',
-};
-
-const JURISDICTION_LABELS: Record<string, string> = {
-  france: '🇫🇷 France',
-  eu: '🇪🇺 Union européenne',
-  international: '🌍 International',
-};
-
-const SCHEME_LABELS: Record<string, string> = {
-  public: 'Label officiel',
-  private: 'Label privé',
-};
-
-// ─── CertBadge (TV) ────────────────────────────────────────────────────────
-
-function CertBadge({ cert, size = 'sm' }: { cert: CertificationItem; size?: 'sm' | 'lg' }) {
-  const sizeClass = size === 'lg' ? 'h-7 w-7' : 'h-5 w-5';
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button type="button" className="inline-flex items-center">
-          <img
-            src={`/certifications/${cert.logo_filename}`}
-            alt={cert.name}
-            title={cert.name}
-            className={`${sizeClass} cursor-pointer object-contain`}
-          />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-64 p-3" align="start">
-        <div className="mb-2 flex items-start gap-3">
-          <img
-            src={`/certifications/${cert.logo_filename}`}
-            alt={cert.name}
-            className="h-10 w-10 shrink-0 object-contain"
-          />
-          <div>
-            <p className="text-sm font-semibold leading-tight">{cert.name}</p>
-            {cert.official_name && cert.official_name !== cert.name && (
-              <p className="mt-0.5 text-xs text-muted-foreground">{cert.official_name}</p>
-            )}
-          </div>
-        </div>
-        {cert.guarantee && (
-          <p className="mb-2 text-xs leading-snug text-gray-600">{cert.guarantee}</p>
-        )}
-        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 border-t pt-2 text-xs text-muted-foreground">
-          {cert.issuer && <span>{cert.issuer}</span>}
-          <span>{JURISDICTION_LABELS[cert.jurisdiction]}</span>
-          <span>{SCHEME_LABELS[cert.scheme_type]}</span>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
 
 // ─── Composants TV Images ───────────────────────────────────────────────────
 
@@ -260,11 +197,13 @@ function TvChefNoteFooter({ note }: { note: string }) {
 function TvCategoryCard({
   category,
   items,
+  color,
   renderBadges,
   substitutions,
 }: {
   category: DisplayCategory;
   items: MenuItemData[];
+  color: CategoryColor;
   renderBadges: (item: MenuItemData) => React.ReactNode;
   substitutions?: CategorySubstitutionData[];
 }) {
@@ -278,53 +217,66 @@ function TvCategoryCard({
         is_out_of_stock: false,
       }))
     : [];
+
+  // Boîte par plat, reprenant le design mobile (fond coloré + border-bottom 3D)
+  // à l'échelle TV.
+  const renderBox = (item: MenuItemData, isNew: boolean, key: string) => {
+    const isOos = item.is_out_of_stock ?? false;
+    const showImage = isHighlighted && !!item.dish?.image_url;
+    const badges = renderBadges(item);
+    return (
+      <li key={key} className={`relative ${badges ? 'mb-8' : ''}`}>
+        <div
+          className="relative rounded-3xl px-8 py-6"
+          style={{ backgroundColor: color.bg, borderBottom: `8px solid ${color.border}` }}
+        >
+          {isOos && (
+            <span className="absolute left-8 top-0 -translate-y-1/2 rounded-full bg-red-500 px-4 py-1 text-xl font-bold uppercase tracking-wide text-white shadow">
+              Rupture
+            </span>
+          )}
+          {isNew && (
+            <span className="absolute left-8 top-0 -translate-y-1/2 rounded-full bg-[#F5A524] px-4 py-1 text-xl font-bold uppercase tracking-wide text-[#4A2E00] shadow">
+              Nouveau
+            </span>
+          )}
+          {showImage && (
+            <img
+              src={item.dish!.image_url!}
+              alt={item.dish?.name ?? ''}
+              loading="lazy"
+              className="mb-5 h-64 w-full rounded-2xl object-cover"
+            />
+          )}
+          <p
+            className={`text-4xl font-bold leading-tight ${isOos ? 'line-through opacity-60' : ''}`}
+            style={{ color: color.label }}
+          >
+            {item.dish?.name ?? ''}
+          </p>
+          {/* Pastille de labels/certifications à cheval sur le bas de la box */}
+          {badges && <div className="absolute bottom-0 right-5 z-20 translate-y-1/2">{badges}</div>}
+        </div>
+      </li>
+    );
+  };
+
   return (
-    <section
-      className={`flex h-full flex-col gap-6 rounded-3xl border p-8 shadow-md transition-all duration-300 ${
-        isHighlighted
-          ? 'border-gray-100 bg-white shadow-lg ring-2 ring-mariam-blue/30'
-          : 'border-gray-100 bg-white'
-      }`}
-    >
-      <h2 className="flex items-center gap-4 border-b border-gray-50 pb-4">
-        <span className="text-3xl font-bold uppercase tracking-wide text-gray-700">
+    <section className="flex h-full flex-col gap-7 rounded-3xl border border-gray-100 bg-white p-8 shadow-md">
+      {/* En-tête de section : libellé centré entre deux filets (design mobile) */}
+      <div className="flex items-center gap-4">
+        <div className="h-0.5 flex-1 rounded" style={{ backgroundColor: color.sectionBorder }} />
+        <span
+          className="text-3xl font-bold uppercase tracking-widest"
+          style={{ color: color.sectionLabel }}
+        >
           {category.label}
         </span>
-      </h2>
-      <ul className="flex-1 space-y-6">
-        {items.map((item, i) => (
-          <li key={item.id ?? item.dish?.id ?? i} className="flex flex-col gap-2 text-gray-900">
-            <span
-              className={`font-medium leading-tight ${isHighlighted ? 'text-5xl tracking-tight' : 'text-4xl'} ${item.is_out_of_stock ? 'text-gray-400 line-through' : ''}`}
-            >
-              {item.dish?.name ?? ''}
-            </span>
-            {item.is_out_of_stock && (
-              <span className="text-xl font-normal text-amber-500">Rupture de service</span>
-            )}
-            {!item.is_out_of_stock && isHighlighted && item.dish?.image_url && (
-              <img
-                src={item.dish.image_url}
-                alt={item.dish.name}
-                className="mt-2 h-48 w-full rounded-2xl object-cover"
-              />
-            )}
-            <div className="origin-left">{renderBadges(item)}</div>
-          </li>
-        ))}
-        {subItems.map((item, i) => (
-          <li key={`sub-${item.dish?.id ?? i}`} className="flex flex-col gap-2 text-gray-900">
-            <span
-              className={`font-medium leading-tight ${isHighlighted ? 'text-5xl tracking-tight' : 'text-4xl'} flex flex-wrap items-center gap-3`}
-            >
-              <span className="inline-flex items-center rounded-full bg-[#F5A524] px-2.5 py-1 text-lg font-bold uppercase tracking-wide text-[#4A2E00]">
-                Nouveau
-              </span>
-              {item.dish?.name ?? ''}
-            </span>
-            <div className="origin-left">{renderBadges(item)}</div>
-          </li>
-        ))}
+        <div className="h-0.5 flex-1 rounded" style={{ backgroundColor: color.sectionBorder }} />
+      </div>
+      <ul className="flex flex-1 flex-col gap-8">
+        {items.map((item, i) => renderBox(item, false, `${item.id ?? item.dish?.id ?? i}`))}
+        {subItems.map((item, i) => renderBox(item, true, `sub-${item.dish?.id ?? i}`))}
       </ul>
     </section>
   );
@@ -458,37 +410,40 @@ export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
   };
 
   const renderTvBadges = (item: MenuItemData) => {
-    const badges: JSX.Element[] = [];
     const tags = item.dish?.tags ?? [];
     const certs = item.dish?.certifications ?? [];
-    tags.forEach((tag) => {
-      const cls = tvColorClasses[tag.color] || 'bg-gray-100 text-gray-800 border-gray-200';
-      badges.push(
-        <Popover key={tag.id}>
-          <PopoverTrigger asChild>
-            <div
-              className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1 shadow-sm ${cls}`}
+    if (tags.length === 0 && certs.length === 0) return null;
+    return (
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {tags.map((tag) => {
+          const cls = tvColorClasses[tag.color] || 'bg-gray-100 text-gray-800 border-gray-200';
+          return (
+            <span
+              key={tag.id}
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 shadow-sm ${cls}`}
             >
-              <Icon name={tag.icon as IconName} className="h-5 w-5" />
-              <span className="text-lg font-medium">{tag.label}</span>
-            </div>
-          </PopoverTrigger>
-          <PopoverContent className="w-52 p-3" align="start">
-            <div className="mb-1 flex items-center gap-2">
-              <Icon name={tag.icon as IconName} className="h-4 w-4 shrink-0" />
-              <span className="text-sm font-semibold">{tag.label}</span>
-            </div>
-            {TAG_CATEGORY_NAMES[tag.category_id] && (
-              <p className="text-xs text-muted-foreground">{TAG_CATEGORY_NAMES[tag.category_id]}</p>
-            )}
-          </PopoverContent>
-        </Popover>
-      );
-    });
-    certs.forEach((cert) => badges.push(<CertBadge key={cert.id} cert={cert} size="lg" />));
-    return badges.length > 0 ? (
-      <div className="mt-2 flex flex-wrap items-center gap-2">{badges}</div>
-    ) : null;
+              <Icon name={tag.icon as IconName} className="h-5 w-5 shrink-0" />
+              <span className="whitespace-nowrap text-lg font-semibold">{tag.label}</span>
+            </span>
+          );
+        })}
+        {certs.map((cert) => (
+          <span
+            key={cert.id}
+            className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 shadow-sm"
+          >
+            <img
+              src={`/certifications/${cert.logo_filename}`}
+              alt={cert.name}
+              className="h-6 w-6 shrink-0 object-contain"
+            />
+            <span className="whitespace-nowrap text-lg font-semibold text-gray-700">
+              {cert.name}
+            </span>
+          </span>
+        ))}
+      </div>
+    );
   };
 
   if (isError && !data) {
@@ -532,7 +487,7 @@ export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
 
       {/* Contenu avec Zoom */}
       <div
-        style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top center' }}
+        style={{ zoom: zoomLevel } as React.CSSProperties}
         className="flex h-full w-full flex-col"
       >
         {/* Header TV */}
@@ -579,36 +534,33 @@ export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
             <TvClosureDisplay closure={activeClosure} />
           ) : todayData?.menu ? (
             <div className="custom-scrollbar h-full overflow-y-auto pr-6">
-              <div className="grid grid-cols-[repeat(auto-fit,minmax(450px,1fr))] content-start gap-8 pb-20">
-                {(todayData.menu.by_category || []).map((category) => {
-                  const subs = todayData.menu!.substitutions;
-                  if (category.subcategories && category.subcategories.length > 0) {
-                    return category.subcategories.map((sub) => {
-                      const items = sub.items || [];
-                      if (items.length === 0) return null;
-                      return (
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(460px,1fr))] content-start gap-8 pb-20">
+                {(() => {
+                  const subs = todayData.menu.substitutions;
+                  const cards: React.ReactNode[] = [];
+                  let colorIndex = 0;
+                  for (const category of todayData.menu.by_category || []) {
+                    const leaves =
+                      category.subcategories && category.subcategories.length > 0
+                        ? category.subcategories
+                        : [category];
+                    for (const leaf of leaves) {
+                      const items = leaf.items || [];
+                      if (items.length === 0) continue;
+                      cards.push(
                         <TvCategoryCard
-                          key={sub.id}
-                          category={sub}
+                          key={leaf.id}
+                          category={leaf}
                           items={items}
+                          color={getCategoryColor(leaf.color_key, colorIndex++)}
                           renderBadges={renderTvBadges}
-                          substitutions={subs?.[sub.id]}
+                          substitutions={subs?.[leaf.id]}
                         />
                       );
-                    });
+                    }
                   }
-                  const items = category.items || [];
-                  if (items.length === 0) return null;
-                  return (
-                    <TvCategoryCard
-                      key={category.id}
-                      category={category}
-                      items={items}
-                      renderBadges={renderTvBadges}
-                      substitutions={subs?.[category.id]}
-                    />
-                  );
-                })}
+                  return cards;
+                })()}
               </div>
             </div>
           ) : (

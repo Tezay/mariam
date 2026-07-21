@@ -117,6 +117,7 @@ export function MobileItemCard({
               <img
                 src={dishImage}
                 alt={dishName}
+                loading="lazy"
                 className={`h-full w-full object-cover transition-opacity duration-200 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
                 onLoad={() => setImgLoaded(true)}
               />
@@ -151,6 +152,7 @@ export function MobileItemCard({
               <img
                 src={dishImage}
                 alt={dishName}
+                loading="lazy"
                 className={`h-full w-full object-cover transition-opacity duration-200 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
                 onLoad={() => setImgLoaded(true)}
               />

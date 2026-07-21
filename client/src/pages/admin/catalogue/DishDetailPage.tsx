@@ -682,7 +682,7 @@ export function DishDetailPage() {
               {dish.certifications.map((c) => (
                 <span
                   key={c.id}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300"
                   title={c.official_name || c.name}
                 >
                   <img

@@ -203,7 +203,7 @@ export function DayImportCsv({
                   {previewData.new_count > 1 ? 'x' : ''}
                 </span>
                 {previewData.duplicates_count > 0 && (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-800">
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
                     {previewData.duplicates_count} doublon
                     {previewData.duplicates_count > 1 ? 's' : ''}
                   </span>
@@ -214,7 +214,7 @@ export function DayImportCsv({
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold">{m.date_display}</p>
                     {m.has_duplicate && (
-                      <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">
+                      <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
                         Remplace
                       </span>
                     )}

@@ -166,6 +166,7 @@ export function ImageUploader({
                     type="button"
                     onClick={() => onServerRemove(img.id)}
                     className="absolute right-1 top-1 rounded-full bg-destructive p-1 text-destructive-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                    aria-label="Supprimer l'image"
                     title="Supprimer"
                   >
                     <X className="h-3 w-3" />
@@ -182,6 +183,7 @@ export function ImageUploader({
                             onReorder(ids);
                           }}
                           className="rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                          aria-label="Déplacer l'image avant"
                           title="Déplacer avant"
                         >
                           <ArrowLeft className="h-3 w-3" />
@@ -196,6 +198,7 @@ export function ImageUploader({
                             onReorder(ids);
                           }}
                           className="rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                          aria-label="Déplacer l'image après"
                           title="Déplacer après"
                         >
                           <ArrowRight className="h-3 w-3" />
@@ -223,11 +226,20 @@ export function ImageUploader({
       {/* Zone d'upload */}
       {slotsLeft > 0 && !disabled && (
         <div
+          role="button"
+          tabIndex={0}
+          aria-label="Ajouter des images"
           onDragOver={onDragOver}
           onDragLeave={onDragLeave}
           onDrop={onDrop}
           onClick={() => inputRef.current?.click()}
-          className={`cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              inputRef.current?.click();
+            }
+          }}
+          className={`cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             isDragOver
               ? 'border-primary bg-primary/5'
               : 'border-border hover:border-primary/50 hover:bg-muted/50'

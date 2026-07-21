@@ -359,7 +359,7 @@ export function EventEditPage() {
           </p>
         </div>
         {isDirty && (
-          <span className="hidden rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-600 sm:inline">
+          <span className="hidden rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-600 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300 sm:inline">
             Non enregistré
           </span>
         )}
@@ -369,8 +369,8 @@ export function EventEditPage() {
             className={cn(
               'hidden rounded-full border px-2.5 py-1 text-xs font-semibold sm:inline',
               status === 'published'
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                : 'border-orange-200 bg-orange-50 text-orange-700'
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300'
+                : 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-300'
             )}
           >
             {status === 'published' ? 'Publié' : 'Brouillon'}

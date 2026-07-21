@@ -89,7 +89,7 @@ function DishCard({ dish, onEdit }: { dish: DishCatalogItem; onEdit: () => void 
             {dish.certifications.slice(0, 2).map((c) => (
               <span
                 key={c.id}
-                className="inline-flex items-center gap-0.5 rounded-full border border-amber-100 bg-amber-50 px-1.5 py-0.5 text-xs"
+                className="inline-flex items-center gap-0.5 rounded-full border border-amber-100 bg-amber-50 px-1.5 py-0.5 text-xs dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300"
                 title={c.name}
               >
                 <img
