@@ -1,27 +1,117 @@
 version: 2
+
 updates:
+  # The npm ecosystem updates package.json without bun.lock; only bun updates both.
+  - package-ecosystem: bun
+    directory: /client
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    labels: [dependencies, frontend]
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      react:
+        patterns:
+          - react
+          - react-dom
+          - '@types/react'
+          - '@types/react-dom'
+          - '@vitejs/plugin-react'
+      radix-ui:
+        patterns: ['@radix-ui/*']
+      tiptap:
+        patterns: ['@tiptap/*']
+      vite:
+        patterns:
+          - vite
+          - vitest
+          - '@vitest/*'
+          - vite-plugin-pwa
+          - jsdom
+      lint-format:
+        patterns:
+          - eslint
+          - '@eslint/*'
+          - eslint-plugin-*
+          - typescript-eslint
+          - prettier
+          - prettier-plugin-*
+          - globals
+      client-minor-patch:
+        patterns: ['*']
+        update-types: [minor, patch]
+
   - package-ecosystem: uv
     directory: /server
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
+    open-pull-requests-limit: 5
     labels: [dependencies, backend]
-
-  - package-ecosystem: npm
-    directory: /client
-    schedule:
-      interval: weekly
-      day: monday
-    labels: [dependencies, frontend]
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      flask:
+        patterns:
+          - Flask
+          - Flask-*
+          - Werkzeug
+          - SQLAlchemy
+      python-dev-tools:
+        patterns:
+          - ruff
+          - mypy
+          - pytest
+          - pytest-*
+          - factory-boy
+          - types-*
+      server-minor-patch:
+        patterns: ['*']
+        update-types: [minor, patch]
 
   - package-ecosystem: docker
-    directory: /
+    directories:
+      - /server
+      - /client
+      - /deploy/backup
     schedule:
       interval: monthly
+    open-pull-requests-limit: 3
     labels: [dependencies, infrastructure]
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      base-images:
+        patterns: ['*']
+
+  # The docker ecosystem does not read compose files.
+  - package-ecosystem: docker-compose
+    directories:
+      - /
+      - /deploy
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    labels: [dependencies, infrastructure]
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      compose-images:
+        patterns: ['*']
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    open-pull-requests-limit: 3
     labels: [dependencies, ci]
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      actions:
+        patterns: ['*']
