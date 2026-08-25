@@ -1,27 +1,121 @@
 version: 2
+
+# Within an ecosystem, the first matching group wins — keep the catch-all last.
 updates:
+  # The client is a Bun project: the npm ecosystem updates package.json but never
+  # bun.lock, which breaks `bun install --frozen-lockfile` in CI.
+  - package-ecosystem: bun
+    directory: /client
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    labels: [dependencies, frontend]
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      react:
+        patterns:
+          - react
+          - react-dom
+          - '@types/react'
+          - '@types/react-dom'
+          - '@vitejs/plugin-react'
+      radix-ui:
+        patterns: ['@radix-ui/*']
+      tiptap:
+        patterns: ['@tiptap/*']
+      vite:
+        patterns:
+          - vite
+          - vitest
+          - '@vitest/*'
+          - vite-plugin-pwa
+          - jsdom
+      lint-format:
+        patterns:
+          - eslint
+          - '@eslint/*'
+          - eslint-plugin-*
+          - typescript-eslint
+          - prettier
+          - prettier-plugin-*
+          - globals
+      client-minor-patch:
+        patterns: ['*']
+        update-types: [minor, patch]
+
   - package-ecosystem: uv
     directory: /server
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
+    open-pull-requests-limit: 5
     labels: [dependencies, backend]
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      flask:
+        patterns:
+          - Flask
+          - Flask-*
+          - Werkzeug
+          - SQLAlchemy
+      python-dev-tools:
+        patterns:
+          - ruff
+          - mypy
+          - pytest
+          - pytest-*
+          - factory-boy
+          - types-*
+      server-minor-patch:
+        patterns: ['*']
+        update-types: [minor, patch]
 
-  - package-ecosystem: npm
-    directory: /client
-    schedule:
-      interval: weekly
-      day: monday
-    labels: [dependencies, frontend]
-
+  # `directories` (plural) is required here: the singular form takes a single path,
+  # and this repo has no Dockerfile at the root.
   - package-ecosystem: docker
-    directory: /
+    directories:
+      - /server
+      - /client
+      - /deploy/backup
     schedule:
       interval: monthly
+    open-pull-requests-limit: 3
     labels: [dependencies, infrastructure]
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      base-images:
+        patterns: ['*']
+
+  # Compose service images are a separate ecosystem from Dockerfile base images.
+  - package-ecosystem: docker-compose
+    directories:
+      - /
+      - /deploy
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    labels: [dependencies, infrastructure]
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      compose-images:
+        patterns: ['*']
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    open-pull-requests-limit: 3
     labels: [dependencies, ci]
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      actions:
+        patterns: ['*']
