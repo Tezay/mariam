@@ -1,9 +1,7 @@
 version: 2
 
-# Within an ecosystem, the first matching group wins — keep the catch-all last.
 updates:
-  # The client is a Bun project: the npm ecosystem updates package.json but never
-  # bun.lock, which breaks `bun install --frozen-lockfile` in CI.
+  # The npm ecosystem updates package.json without bun.lock; only bun updates both.
   - package-ecosystem: bun
     directory: /client
     schedule:
@@ -73,8 +71,6 @@ updates:
         patterns: ['*']
         update-types: [minor, patch]
 
-  # `directories` (plural) is required here: the singular form takes a single path,
-  # and this repo has no Dockerfile at the root.
   - package-ecosystem: docker
     directories:
       - /server
@@ -91,7 +87,7 @@ updates:
       base-images:
         patterns: ['*']
 
-  # Compose service images are a separate ecosystem from Dockerfile base images.
+  # The docker ecosystem does not read compose files.
   - package-ecosystem: docker-compose
     directories:
       - /
