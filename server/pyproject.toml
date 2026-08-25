@@ -11,12 +11,12 @@ dependencies = [
     "Flask-CORS==4.0.0",
     "Flask-Migrate==4.0.5",
     "Werkzeug==3.0.1",
-    "python-dotenv==1.0.0",
+    "python-dotenv==1.2.3",
     # Database
-    "psycopg2-binary==2.9.9",
+    "psycopg2-binary==2.9.12",
     # Auth / JWT / MFA
     "Flask-JWT-Extended==4.6.0",
-    "pyotp==2.9.0",
+    "pyotp==2.10.0",
     "webauthn>=2.0.0",
     "qrcode[pil]==7.4.2",
     # API docs
