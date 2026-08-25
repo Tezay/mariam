@@ -121,3 +121,20 @@ jobs:
       - name: Run tests
         working-directory: client
         run: bun run test
+
+  build-frontend:
+    name: Frontend build (tsc + Vite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        working-directory: client
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        working-directory: client
+        run: bun run build
