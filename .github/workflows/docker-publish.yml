@@ -7,55 +7,37 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME_BACKEND: ${{ github.repository }}-backend
-  IMAGE_NAME_FRONTEND: ${{ github.repository }}-frontend
 
 jobs:
-  # Gate: no image is published unless the backend test suite passes.
-  test:
-    name: Tests (gate)
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: mariam
-          POSTGRES_PASSWORD: mariam_secret
-          POSTGRES_DB: mariam_db
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      DATABASE_URL: postgresql://mariam:mariam_secret@localhost:5432/mariam_db
-      DB_HOST: localhost
-      SECRET_KEY: ci-secret-key
-      JWT_SECRET_KEY: ci-jwt-secret-key
-      FLASK_APP: run.py
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-      - name: Install dependencies
-        working-directory: server
-        run: uv sync --group dev --no-install-project --frozen
-      - name: Run migrations
-        working-directory: server
-        run: uv run flask db upgrade
-      - name: Run tests
-        working-directory: server
-        run: uv run pytest
+  # Gate: no image is published unless the full quality suite passes.
+  quality:
+    name: Quality gates
+    uses: ./.github/workflows/quality.yml
 
-  build-backend:
-    needs: [test]
+  build:
+    name: Publish ${{ matrix.component }} image
+    needs: [quality]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
+    strategy:
+      matrix:
+        include:
+          - component: backend
+            context: ./server
+          - component: frontend
+            context: ./client
 
     steps:
       - name: Checkout repository
@@ -71,64 +53,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (Backend)
+      - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
+          images: ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.component }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
 
-      - name: Build and push Backend
+      - name: Build and push
         uses: docker/build-push-action@v7
         with:
-          context: ./server
-          file: ./server/Dockerfile.prod
-          push: true
-          platforms: linux/amd64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  build-frontend:
-    needs: [test]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (Frontend)
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
-
-      - name: Build and push Frontend
-        uses: docker/build-push-action@v7
-        with:
-          context: ./client
-          file: ./client/Dockerfile.prod
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/Dockerfile.prod
           push: true
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
@@ -137,8 +75,9 @@ jobs:
           cache-to: type=gha,mode=max
 
   summary:
+    name: Summary
     runs-on: ubuntu-latest
-    needs: [build-backend, build-frontend]
+    needs: [build]
 
     steps:
       - name: Summary
@@ -150,6 +89,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Images" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${GITHUB_REF_NAME#v}" >> $GITHUB_STEP_SUMMARY
-          echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${GITHUB_REF_NAME#v}" >> $GITHUB_STEP_SUMMARY
+          echo "${{ env.REGISTRY }}/${{ github.repository }}-backend:${GITHUB_REF_NAME#v}" >> $GITHUB_STEP_SUMMARY
+          echo "${{ env.REGISTRY }}/${{ github.repository }}-frontend:${GITHUB_REF_NAME#v}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY

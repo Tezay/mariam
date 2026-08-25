@@ -18,7 +18,6 @@ updates:
           - react-dom
           - '@types/react'
           - '@types/react-dom'
-          - '@vitejs/plugin-react'
       radix-ui:
         patterns: ['@radix-ui/*']
       tiptap:
@@ -27,6 +26,7 @@ updates:
         patterns:
           - vite
           - vitest
+          - '@vitejs/*'
           - '@vitest/*'
           - vite-plugin-pwa
           - jsdom
