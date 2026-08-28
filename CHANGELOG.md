@@ -7,32 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Security
-
-- **Multi-tenant isolation enforced** on events, closures, users, settings, audit logs and imports (scoped to the caller's restaurant/organization); the "first active restaurant" fallback is removed and cross-tenant access now returns 404.
-- **Token revocation on credential changes**: password change/reset and MFA reset invalidate all outstanding tokens; changing your own password requires re-login.
-- **Stored-XSS fixed** on the public event display (descriptions escaped before markdown rendering).
-- **Privilege-escalation guards** on role assignment and cross-scope user reassignment.
-- **MFA secrets encrypted at rest** (Fernet, `MFA_ENCRYPTION_KEY`, required in production).
-- **Hardened image uploads**: files are decoded and re-encoded through Pillow (rejects fake/polyglot images, strips EXIF) and the content type is derived server-side, not trusted from the client.
-- **Login anti-enumeration** (unknown email and wrong password are indistinguishable in message and timing); MFA login tokens are single-use; password reset is limited to 3/hour.
-- **Startup guard extended**: production refuses to boot without `MFA_ENCRYPTION_KEY`, `DATABASE_URL` and S3 credentials.
-
 ### Added
 
-- **Organization → Restaurant hierarchy**: new `Organization` entity and `org_admin` (director) role; restaurants gain `organization_id` and a URL-safe `slug`.
+- **Analytics dashboard** (`GET /v1/analytics/overview`, `GET /v1/analytics/publications`) scoped by role: a site admin sees its own site, a supervisor every site of its organization, on the same screens. Filters: `period=7d|30d|90d`, custom `start`/`end`, `site_ids`.
+- **Publication metrics**: publication rate on opening days, punctuality against service hours, lead time, content completeness and a site × day status matrix.
+- **Statistics page** in the site dashboard, on the same views as the supervision dashboard.
+- **Step-up authentication** (`POST /v1/auth/step-up/…`): a single-use five-minute proof, by passkey or password + TOTP, sent as `X-Step-Up-Token`. Deleting an account now requires it.
+- A site's week of menus, read-only, on its supervision page.
+- Audit logs filterable by site when the caller oversees several.
+- The sidebar names the current tenant: the site, or the organization on the supervision dashboard.
+- Supervisors get their own installable app, opening on the supervision dashboard.
+- Short-lived Redis cache for analytics aggregates (`ORG_CACHE_TTL_SECONDS`, 60s); recomputed per request without Redis.
+- **Organization → Restaurant hierarchy**: new `Organization` entity and `org_admin` (supervisor) role; restaurants gain `organization_id` and a URL-safe `slug`.
 - **Automated off-site backups**: daily Postgres `pg_dump` to a dedicated S3 bucket with retention, plus a `restore.sh` script.
 - **Error tracking (Sentry)** for backend and frontend, enabled via environment.
 - **Readiness probe** `GET /health/ready` (checks DB and Redis) for external uptime monitoring.
 - **Slugged public API** (`/v1/public/<restaurant>/…`): tenant resolved from the request host (subdomain = organization) and the restaurant slug, with an `/v1/public/org` bootstrap endpoint. Legacy `?restaurant_id=` endpoints kept for compatibility.
 - **Multi-tenant public routing**: the tenant is resolved from the host; a single-site organization serves its menu at the root (`/menu`), a multi-site organization lists its sites (each menu at `/:slug/menu`). Public pages now use the slugged API.
-- **Organization director site switcher**: an `org_admin` selects which site of its organization to manage; admin operations target it via a validated `X-Restaurant-Id` header. The `org_admin` role now has full admin/editor access in the frontend.
-- **Director dashboard** (`/org`): a dedicated cross-site overview for `org_admin` (KPIs, per-site status, site creation/rename/activation, org-wide users and audit log), separate from the per-site admin.
-- **CLI provisioning commands**: `flask create-org` (create a client organization) and `flask create-invite` (create an activation link for any role) to bootstrap a new tenant or its director in production.
+- **Supervision dashboard** (`/org`): a dedicated cross-site overview for `org_admin` (KPIs, per-site status, org-wide accounts and audit log), separate from the per-site dashboard, which a supervisor does not access.
+- **CLI provisioning commands**: `flask create-org` (create a client organization) and `flask create-invite` (create an activation link for any role) to bootstrap a new tenant or its supervisor in production.
 - **Server-rendered SEO** for public menu pages: per-restaurant `<title>`, description, Open Graph/Twitter tags and Schema.org JSON-LD (`Restaurant` + today's menu) injected into the shell so link previews and search engines work without running JavaScript. Adds a per-host `sitemap.xml`, updated `robots.txt`, and wildcard-host serving (`*.mariam.app`).
 
 ### Changed
 
+- Both dashboards share one shell and one table: collapsible sidebar, mobile navigation, theme toggle, and the same sortable table everywhere.
+- `/org/users` and `/org/audit` render the site dashboard's pages, which gain a site column for multi-site callers.
+- The account page is shared by both dashboards, redesigned, and names the site or organization it belongs to.
+- Role names and icons come from a single catalog, in French everywhere (`org_admin` used to surface raw), as one neutral badge per role.
+- Supervisors are listed apart from site accounts, and account counts are labelled "Comptes" rather than "Utilisateurs".
+- Account actions sit in one menu, and "Modifier" becomes "Rôle et accès", spelling out what each level allows. The accounts page points to support for the rest.
 - Users are bound to a restaurant/organization at activation; unassigned accounts no longer fall back to a default restaurant.
 - **Production deploys pinned GHCR images** (rollback via `MARIAM_TAG`) instead of building on the server; near-zero-downtime redeploys.
 - **Push scheduler** runs as a single dedicated service instead of inside every web worker, preventing duplicate notifications.
@@ -44,8 +47,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Opt-in pagination** on the users and restaurants lists (`?page=`/`?per_page=`); the default response shape is unchanged.
 - Audit log now covers menu/event image upload and deletion and calendar-settings changes; added a `menu_items(menu_id, dish_id)` index.
 
+### Removed
+
+- Opening, renaming and deactivating a site (`POST /v1/restaurants`, `PUT /v1/restaurants/<id>`): a new site is a subscription change, handled by the Mariam team with `init-restaurant`.
+- Unused frontend dependencies dropped: `usehooks-ts`, `heic2any` (HEIC is now converted server-side), `@tanstack/react-virtual`.
+
 ### Fixed
 
+- The installed app and the install walkthrough both pointed at `/admin/menus`, a route that no longer exists.
 - Image uploads larger than 1 MB were rejected: nginx `client_max_body_size` is aligned with the 32 MB backend limit.
 - nginx rate limiting now keys on the real visitor IP behind Cloudflare instead of the Cloudflare edge IP.
 - **Error boundaries** replace the previous full white-screen on an unexpected UI error (global fallback + a friendly one on public menu pages), with the error reported to Sentry.
@@ -55,9 +64,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Image previews no longer leak object URLs (effect cleanup now runs) and use stable keys; the TV display uses `transform` instead of the non-standard `zoom` (Firefox), stable keys, and guards invalid dates.
 - Public menu day selection uses the Europe/Paris day of week regardless of the viewer's timezone.
 
-### Removed
+### Security
 
-- Unused frontend dependencies dropped: `usehooks-ts`, `heic2any` (HEIC is now converted server-side), `@tanstack/react-virtual`.
+- **A supervisor belongs to no site and manages only its peers**: it invites supervisors only and cannot touch site accounts, in either direction. A migration detaches existing supervisors from their site.
+- Requests are no longer implicitly scoped by a stored "active site"; views targeting another site say so.
+- `X-Restaurant-Id` and `X-Step-Up-Token` added to the CORS allow-list, for cross-origin deployments.
+- **Multi-tenant isolation enforced** on events, closures, users, settings, audit logs and imports (scoped to the caller's restaurant/organization); the "first active restaurant" fallback is removed and cross-tenant access now returns 404.
+- **Token revocation on credential changes**: password change/reset and MFA reset invalidate all outstanding tokens; changing your own password requires re-login.
+- **Stored-XSS fixed** on the public event display (descriptions escaped before markdown rendering).
+- **Privilege-escalation guards** on role assignment and cross-scope user reassignment.
+- **MFA secrets encrypted at rest** (Fernet, `MFA_ENCRYPTION_KEY`, required in production).
+- **Hardened image uploads**: files are decoded and re-encoded through Pillow (rejects fake/polyglot images, strips EXIF) and the content type is derived server-side, not trusted from the client.
+- **Login anti-enumeration** (unknown email and wrong password are indistinguishable in message and timing); MFA login tokens are single-use; password reset is limited to 3/hour.
+- **Startup guard extended**: production refuses to boot without `MFA_ENCRYPTION_KEY`, `DATABASE_URL` and S3 credentials.
 
 ## [0.13.0] - 2026-07-06
 

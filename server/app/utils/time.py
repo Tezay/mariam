@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from zoneinfo import ZoneInfo
 
 PARIS_TZ = ZoneInfo('Europe/Paris')
@@ -12,6 +12,11 @@ def paris_today() -> date:
 def paris_now() -> datetime:
     """Current datetime in Europe/Paris. Use for time-of-day comparisons."""
     return datetime.now(PARIS_TZ)
+
+
+def utc_naive_to_paris(value: datetime) -> datetime:
+    """Stamp a naive-UTC column (datetime.utcnow) as Paris time before comparing it."""
+    return value.replace(tzinfo=UTC).astimezone(PARIS_TZ)
 
 
 def parse_iso_date(date_str: str | None) -> date | None:

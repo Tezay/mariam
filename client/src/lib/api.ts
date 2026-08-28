@@ -62,7 +62,7 @@ const PUBLIC_API_TIMEOUT_MS = 20000;
 // Fire-and-forget : les erreurs (SW inactif, contexte non sécurisé) sont silencieuses.
 function setManifestRole(role: string | null): void {
   if (!('caches' in window)) return;
-  if (role === 'admin' || role === 'editor') {
+  if (role === 'admin' || role === 'editor' || role === 'org_admin') {
     caches
       .open('mariam-config')
       .then((cache) =>
@@ -93,34 +93,13 @@ const api = axios.create({
 });
 
 // ========================================
-// SITE ACTIF (org_admin) — préférence UI
-// ========================================
-let _activeRestaurantId: number | null = null;
-
-export function setActiveRestaurantId(id: number | null) {
-  _activeRestaurantId = id;
-  if (id != null) localStorage.setItem('mariam-active-site', String(id));
-  else localStorage.removeItem('mariam-active-site');
-}
-
-export function getActiveRestaurantId(): number | null {
-  if (_activeRestaurantId != null) return _activeRestaurantId;
-  const stored = localStorage.getItem('mariam-active-site');
-  return stored ? Number(stored) : null;
-}
-
-// ========================================
-// INTERCEPTOR - Ajout du token JWT (+ site actif)
+// INTERCEPTOR - Ajout du token JWT
 // ========================================
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-    }
-    const activeSite = getActiveRestaurantId();
-    if (activeSite != null) {
-      config.headers['X-Restaurant-Id'] = String(activeSite);
     }
     return config;
   },
@@ -346,6 +325,27 @@ export const authApi = {
   /**
    * Change le mot de passe (nécessite MFA)
    */
+  stepUpWithPassword: async (password: string, mfaCode?: string) => {
+    const response = await api.post('/auth/step-up/password', {
+      password,
+      mfa_code: mfaCode,
+    });
+    return response.data.step_up_token as string;
+  },
+
+  stepUpPasskeyBegin: async () => {
+    const response = await api.post('/auth/step-up/passkey/begin');
+    return response.data as { options: Record<string, unknown>; challenge_token: string };
+  },
+
+  stepUpPasskeyComplete: async (challengeToken: string, credential: unknown) => {
+    const response = await api.post('/auth/step-up/passkey/complete', {
+      challenge_token: challengeToken,
+      credential,
+    });
+    return response.data.step_up_token as string;
+  },
+
   changePassword: async (currentPassword: string, newPassword: string, mfaCode: string) => {
     const response = await api.post('/auth/change-password', {
       current_password: currentPassword,
@@ -699,7 +699,11 @@ export const menusApi = {
   getWeek: async (weekOffset = 0, restaurantId?: number) => {
     const params: Record<string, string | number> = { week_offset: weekOffset };
     if (restaurantId) params.restaurant_id = restaurantId;
-    const response = await api.get('/menus/week', { params });
+    // The route reads restaurant_id only for anonymous visitors; a JWT caller is scoped by the header.
+    const response = await api.get('/menus/week', {
+      params,
+      headers: restaurantId ? { 'X-Restaurant-Id': String(restaurantId) } : undefined,
+    });
     return response.data;
   },
 
@@ -1156,8 +1160,10 @@ export const closuresApi = {
 // API CATÉGORIES DE MENU
 // ========================================
 export const categoriesApi = {
-  list: async (): Promise<{ categories: MenuCategory[] }> => {
-    const response = await api.get('/settings/categories');
+  list: async (restaurantId?: number): Promise<{ categories: MenuCategory[] }> => {
+    const response = await api.get('/settings/categories', {
+      headers: restaurantId ? { 'X-Restaurant-Id': String(restaurantId) } : undefined,
+    });
     return response.data;
   },
 
@@ -1194,9 +1200,13 @@ export interface User {
   mfa_enabled: boolean;
   is_active: boolean;
   restaurant_id?: number;
+  organization_id?: number | null;
   created_at: string;
   last_login?: string;
   passkeys_count?: number;
+  /** Resolved only on the authenticated user's own profile. */
+  restaurant_name?: string | null;
+  organization_name?: string | null;
 }
 
 export interface PasskeyInfo {
@@ -1219,8 +1229,8 @@ export const adminApi = {
     return response.data.user;
   },
 
-  deleteUser: async (id: number) => {
-    await api.delete(`/users/${id}`);
+  deleteUser: async (id: number, stepUpToken: string) => {
+    await api.delete(`/users/${id}`, { headers: { 'X-Step-Up-Token': stepUpToken } });
   },
 
   resetUserMfa: async (id: number) => {
@@ -1253,6 +1263,7 @@ export const adminApi = {
     per_page?: number;
     action?: string;
     user_id?: number;
+    restaurant_id?: number;
     start_date?: string;
     end_date?: string;
   }) => {
@@ -1559,18 +1570,6 @@ export const restaurantApi = {
     const response = await api.get('/restaurants');
     return (response.data.restaurants ?? []) as AdminSite[];
   },
-  create: async (data: { name: string; code: string; slug?: string }) => {
-    const response = await api.post('/restaurants', data);
-    return response.data.restaurant as AdminSite;
-  },
-  setActive: async (id: number, isActive: boolean) => {
-    const response = await api.put(`/restaurants/${id}`, { is_active: isActive });
-    return response.data.restaurant as AdminSite;
-  },
-  update: async (id: number, data: { name?: string; logo_url?: string }) => {
-    const response = await api.put(`/restaurants/${id}`, data);
-    return response.data.restaurant as AdminSite;
-  },
 };
 
 export interface OrgSite {
@@ -1581,6 +1580,7 @@ export interface OrgSite {
   user_count: number;
   today_menu_published: boolean;
   upcoming_events: number;
+  last_published_at: string | null;
 }
 
 // Organization director dashboard (org_admin) — cross-site overview.
@@ -1588,6 +1588,129 @@ export const orgApi = {
   getSites: async (): Promise<OrgSite[]> => {
     const response = await api.get('/org/sites');
     return (response.data.sites ?? []) as OrgSite[];
+  },
+};
+
+// ============================================================================
+// ANALYTICS — same endpoints for a site admin (own site) and a director (org).
+// ============================================================================
+
+export interface AnalyticsMetric {
+  value: number | null;
+  previous: number | null;
+  delta: number | null;
+  delta_pct: number | null;
+}
+
+export interface AnalyticsCompleteness {
+  categories_filled_rate: number | null;
+  photo_rate: number | null;
+  chef_note_rate: number | null;
+}
+
+export interface AnalyticsTrendPoint {
+  date: string;
+  published_sites: number;
+  views: number | null;
+  unique_visitors: number | null;
+  score: number | null;
+}
+
+export interface AnalyticsOverviewSite {
+  site_id: number;
+  name: string;
+  is_active: boolean;
+  publication_rate: number | null;
+  punctuality_rate: number | null;
+  last_published_at: string | null;
+  views: number | null;
+  views_sparkline: number[] | null;
+  score: number | null;
+  votes: number | null;
+}
+
+export interface AnalyticsOverview {
+  period: { start: string; end: string; days: number };
+  scope: { site_count: number };
+  kpis: {
+    sites: { total: number; active: number };
+    publication_rate: AnalyticsMetric;
+    punctuality_rate: AnalyticsMetric;
+    avg_lead_time_hours: AnalyticsMetric;
+    completeness: AnalyticsCompleteness;
+    views: AnalyticsMetric | null;
+    unique_visitors: AnalyticsMetric | null;
+    satisfaction: AnalyticsMetric | null;
+    participation_rate: AnalyticsMetric | null;
+  };
+  trend: AnalyticsTrendPoint[];
+  sites: AnalyticsOverviewSite[];
+  top_dishes: unknown[] | null;
+  flop_dishes: unknown[] | null;
+}
+
+export type PublicationDayStatus =
+  | 'published_on_time'
+  | 'published_late'
+  | 'draft'
+  | 'missing'
+  | 'closed';
+
+export interface PublicationSiteRow {
+  site_id: number;
+  name: string;
+  publication_rate: number | null;
+  punctuality_rate: number | null;
+  avg_lead_time_hours: number | null;
+  categories_filled_rate: number | null;
+  photo_rate: number | null;
+  chef_note_rate: number | null;
+}
+
+export interface PublicationsReport {
+  summary: {
+    publication_rate: number | null;
+    punctuality_rate: number | null;
+    avg_lead_time_hours: number | null;
+    completeness: AnalyticsCompleteness;
+  };
+  sites: PublicationSiteRow[];
+  matrix: {
+    site_id: number;
+    name: string;
+    days: { date: string; status: PublicationDayStatus }[];
+  }[];
+}
+
+export interface AnalyticsQuery {
+  period?: string;
+  start?: string;
+  end?: string;
+  siteIds?: number[];
+}
+
+function analyticsParams(query: AnalyticsQuery): Record<string, string> {
+  const params: Record<string, string> = {};
+  if (query.start && query.end) {
+    params.start = query.start;
+    params.end = query.end;
+  } else if (query.period) {
+    params.period = query.period;
+  }
+  if (query.siteIds?.length) {
+    params.site_ids = query.siteIds.join(',');
+  }
+  return params;
+}
+
+export const analyticsApi = {
+  getOverview: async (query: AnalyticsQuery = {}): Promise<AnalyticsOverview> => {
+    const response = await api.get('/analytics/overview', { params: analyticsParams(query) });
+    return response.data as AnalyticsOverview;
+  },
+  getPublications: async (query: AnalyticsQuery = {}): Promise<PublicationsReport> => {
+    const response = await api.get('/analytics/publications', { params: analyticsParams(query) });
+    return response.data as PublicationsReport;
   },
 };
 

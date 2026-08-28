@@ -14,6 +14,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { dashboardPathForRole } from '@/lib/dashboard-routes';
 import { authApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,9 +57,9 @@ export function Login() {
       const credential = await startAuthentication({
         optionsJSON: options as unknown as PublicKeyCredentialRequestOptionsJSON,
       });
-      await loginWithPasskey(challenge_token, credential);
+      const loggedUser = await loginWithPasskey(challenge_token, credential);
       window.umami?.track('login-success', { method: 'passkey' });
-      navigate('/admin');
+      navigate(dashboardPathForRole(loggedUser?.role));
     } catch (err: unknown) {
       const error = err as {
         name?: string;
@@ -91,7 +92,7 @@ export function Login() {
         setMode('mfa');
       } else {
         window.umami?.track('login-success', { method: 'password' });
-        navigate('/admin');
+        navigate(dashboardPathForRole(result.user?.role));
       }
     } catch (err: unknown) {
       const error = err as {
@@ -118,9 +119,9 @@ export function Login() {
     setIsLoading(true);
 
     try {
-      await verifyMfa(mfaToken, mfaCode);
+      const loggedUser = await verifyMfa(mfaToken, mfaCode);
       window.umami?.track('login-success', { method: 'password+mfa' });
-      navigate('/admin');
+      navigate(dashboardPathForRole(loggedUser?.role));
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
       window.umami?.track('login-failure', { method: 'mfa' });

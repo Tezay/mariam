@@ -12,7 +12,7 @@ Endpoints:
 - POST /v1/users/invite             Create an invitation link
 - GET  /v1/users/invitations        List pending invitations
 """
-from flask import jsonify
+from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity
 from flask_smorest import Blueprint
 
@@ -21,6 +21,7 @@ from ..models import ActivationLink, AuditLog, User
 from ..schemas.common import ErrorSchema, MessageSchema
 from ..schemas.users import InvitationSchema, InviteSchema, UserAdminSchema, UserUpdateSchema
 from ..security import get_client_ip
+from ..services.step_up import consume_step_up_token
 from .helpers import (
     accessible_restaurant_ids,
     admin_required,
@@ -38,19 +39,44 @@ users_bp = Blueprint(
 # HELPERS
 # ============================================================
 
+def _tenant_users_filter(caller):
+    """Users the caller may see: its own site, or its whole organization.
+
+    A supervisor has no restaurant_id, so the organization branch has to match
+    on organization_id as well or supervisors would never appear.
+    """
+    if caller is None:
+        return None
+    if caller.is_org_admin() and caller.organization_id:
+        return db.or_(
+            User.restaurant_id.in_(accessible_restaurant_ids(caller)),
+            db.and_(
+                User.organization_id == caller.organization_id,
+                User.restaurant_id.is_(None),
+            ),
+        )
+    if not caller.restaurant_id:
+        return None
+    # A site admin never sees the organization's supervisors.
+    return db.and_(
+        User.restaurant_id == caller.restaurant_id,
+        User.role != User.ROLE_ORG_ADMIN,
+    )
+
+
 def _scoped_user(user_id):
     """Return the target user only if within the caller's scope (same restaurant,
     or same organization for an org_admin), otherwise None. A site admin cannot
     manage an org_admin.
     """
     caller = get_current_user()
-    ids = accessible_restaurant_ids(caller)
-    if not ids:
+    scope = _tenant_users_filter(caller)
+    if scope is None:
         return None
-    target = User.query.filter(User.id == user_id, User.restaurant_id.in_(ids)).first()
+    target = User.query.filter(User.id == user_id, scope).first()
     if not target:
         return None
-    if target.is_org_admin() and not caller.is_org_admin():
+    if target.is_org_admin() != caller.is_org_admin():
         return None
     return target
 
@@ -82,17 +108,18 @@ def create_invitation(data):
     if role not in User.VALID_ROLES:
         return jsonify({'error': f'Rôle invalide. Valeurs possibles: {User.VALID_ROLES}'}), 400
 
-    if role == User.ROLE_ORG_ADMIN and not inviter.is_org_admin():
-        return jsonify({'error': "Seul un directeur d'organisation peut inviter à ce rôle"}), 403
-
-    # Target site: an org_admin may invite onto any site of its organization
-    # (from the body); otherwise the inviter's own restaurant is used.
-    target_restaurant_id = inviter.restaurant_id
-    body_rid = data.get('restaurant_id')
-    if body_rid and body_rid in accessible_restaurant_ids(inviter):
-        target_restaurant_id = body_rid
-    if not target_restaurant_id:
-        return jsonify({'error': 'Aucun restaurant associé à votre compte'}), 400
+    if inviter.is_org_admin():
+        if role != User.ROLE_ORG_ADMIN:
+            return jsonify(
+                {'error': 'Un superviseur ne peut inviter que d’autres superviseurs'}
+            ), 403
+        target_restaurant_id = None
+    else:
+        if role == User.ROLE_ORG_ADMIN:
+            return jsonify({'error': 'Rôle réservé aux superviseurs'}), 403
+        target_restaurant_id = inviter.restaurant_id
+        if not target_restaurant_id:
+            return jsonify({'error': 'Aucun restaurant associé à votre compte'}), 400
 
     if User.query.filter_by(email=email).first():
         return jsonify({'error': 'Cet email est déjà utilisé'}), 409
@@ -132,13 +159,23 @@ def create_invitation(data):
 @admin_required
 def list_invitations():
     """List pending invitations of the caller's tenant (50 most recent)."""
-    ids = accessible_restaurant_ids(get_current_user())
+    caller = get_current_user()
+    ids = accessible_restaurant_ids(caller)
+    scope = ActivationLink.restaurant_id.in_(ids)
+    if caller.is_org_admin() and caller.organization_id:
+        scope = db.or_(
+            scope,
+            db.and_(
+                ActivationLink.organization_id == caller.organization_id,
+                ActivationLink.restaurant_id.is_(None),
+            ),
+        )
     links = (
         ActivationLink.query.filter(
             ActivationLink.link_type == 'invite',
-            ActivationLink.restaurant_id.in_(ids),
+            scope,
         ).order_by(ActivationLink.created_at.desc()).limit(50).all()
-        if ids else []
+        if ids or caller.is_org_admin() else []
     )
 
     return jsonify({'invitations': [link.to_dict(include_token=True) for link in links]}), 200
@@ -154,17 +191,14 @@ def list_invitations():
 def list_users():
     """List users of the caller's tenant (admin only).
 
-    A site admin never sees organization directors; an org_admin sees everyone
+    A site admin never sees supervisors; an org_admin sees everyone
     in its organization.
     """
     caller = get_current_user()
-    ids = accessible_restaurant_ids(caller)
-    if not ids:
+    scope = _tenant_users_filter(caller)
+    if scope is None:
         return jsonify({'users': []}), 200
-    query = User.query.filter(User.restaurant_id.in_(ids))
-    if not caller.is_org_admin():
-        query = query.filter(User.role != User.ROLE_ORG_ADMIN)
-    query = query.order_by(User.created_at.desc())
+    query = User.query.filter(scope).order_by(User.created_at.desc())
     return paginated_response(query, 'users', lambda u: u.to_dict(include_sensitive=True))
 
 
@@ -203,8 +237,8 @@ def update_user(data, user_id):
     caller = get_current_user()
 
     if 'role' in data and data['role'] in User.VALID_ROLES:
-        if data['role'] == User.ROLE_ORG_ADMIN and not caller.is_org_admin():
-            return jsonify({'error': "Seul un directeur d'organisation peut attribuer ce rôle"}), 403
+        if caller.is_org_admin() != (data['role'] == User.ROLE_ORG_ADMIN):
+            return jsonify({'error': 'Ce rôle est hors de votre périmètre'}), 403
         if user.id == current_user_id and data['role'] not in (User.ROLE_ADMIN, User.ROLE_ORG_ADMIN):
             return jsonify({'error': 'Vous ne pouvez pas retirer vos propres droits admin'}), 400
         user.role = data['role']
@@ -251,6 +285,9 @@ def delete_user(user_id):
 
     if user.is_rescue_account:
         return jsonify({'error': 'Le compte de secours ne peut pas être supprimé'}), 403
+
+    if not consume_step_up_token(request.headers.get('X-Step-Up-Token', ''), current_user_id):
+        return jsonify({'error': 'Confirmation d’identité requise'}), 401
 
     AuditLog.log(
         action=AuditLog.ACTION_USER_DELETE,

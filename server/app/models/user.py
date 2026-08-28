@@ -57,7 +57,7 @@ class User(db.Model):
     passkeys = db.relationship('Passkey', back_populates='user', lazy='dynamic', cascade='all, delete-orphan')
     
     # Rôles valides
-    ROLE_ORG_ADMIN = 'org_admin'  # Organization director: every site of its org
+    ROLE_ORG_ADMIN = 'org_admin'  # Supervisor: every site of its organization
     ROLE_ADMIN = 'admin'          # Admin of a single restaurant (site)
     ROLE_EDITOR = 'editor'
     ROLE_READER = 'reader'
@@ -113,7 +113,7 @@ class User(db.Model):
         self.mfa_enabled = False
     
     def is_org_admin(self):
-        """Return True if the user is an organization director (multi-site access)."""
+        """Return True if the user supervises every site of an organization."""
         return self.role == self.ROLE_ORG_ADMIN
 
     def is_admin(self):
@@ -150,10 +150,13 @@ class User(db.Model):
         """Met à jour la date de dernière connexion."""
         self.last_login = datetime.utcnow()
     
-    def to_dict(self, include_sensitive=False):
+    def to_dict(self, include_sensitive=False, include_tenant=False):
         """
         Sérialise l'utilisateur en dictionnaire JSON.
         N'inclut jamais le password_hash ni le mfa_secret.
+
+        `include_tenant` resolves the site and organization names, which costs a
+        query each: reserve it for the caller's own profile, never for a list.
         """
         data = {
             'id': self.id,
@@ -169,9 +172,18 @@ class User(db.Model):
             'passkeys_count': self.passkeys.count(),
         }
         
+        if include_tenant:
+            from .organization import Organization
+
+            data['restaurant_name'] = self.restaurant.name if self.restaurant else None
+            organization = (
+                Organization.query.get(self.organization_id) if self.organization_id else None
+            )
+            data['organization_name'] = organization.name if organization else None
+
         if include_sensitive:
             data['is_rescue_account'] = self.is_rescue_account
-        
+
         return data
     
     def __repr__(self):

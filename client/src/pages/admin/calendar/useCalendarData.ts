@@ -76,7 +76,11 @@ interface UseCalendarDataResult {
 
 const STALE_TIME = 60_000; // 60 secondes — remplace les caches maison précédents
 
-export function useCalendarData(rangeStart: string, rangeEnd: string): UseCalendarDataResult {
+export function useCalendarData(
+  rangeStart: string,
+  rangeEnd: string,
+  siteId?: number
+): UseCalendarDataResult {
   const queryClient = useQueryClient();
 
   const weekOffsets = useMemo(
@@ -91,21 +95,21 @@ export function useCalendarData(rangeStart: string, rangeEnd: string): UseCalend
 
   const weekResults = useQueries({
     queries: fetchedOffsets.map((offset) => ({
-      queryKey: ['calendar-week', offset],
-      queryFn: () => menusApi.getWeek(offset) as Promise<WeekPayload>,
+      queryKey: ['calendar-week', siteId ?? 'self', offset],
+      queryFn: () => menusApi.getWeek(offset, siteId) as Promise<WeekPayload>,
       staleTime: STALE_TIME,
     })),
   });
 
   const eventsQuery = useQuery({
-    queryKey: ['calendar-events'],
-    queryFn: () => eventsApi.list(false, undefined, true) as Promise<Event[]>,
+    queryKey: ['calendar-events', siteId ?? 'self'],
+    queryFn: () => eventsApi.list(false, siteId, true) as Promise<Event[]>,
     staleTime: STALE_TIME,
   });
 
   const closuresQuery = useQuery({
-    queryKey: ['calendar-closures'],
-    queryFn: () => closuresApi.list(false, undefined, true) as Promise<ExceptionalClosure[]>,
+    queryKey: ['calendar-closures', siteId ?? 'self'],
+    queryFn: () => closuresApi.list(false, siteId, true) as Promise<ExceptionalClosure[]>,
     staleTime: STALE_TIME,
   });
 

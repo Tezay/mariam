@@ -46,6 +46,9 @@ async function resolveDynamicManifest() {
     const roleRes = await cache.match('/user-role');
     if (roleRes) {
       const role = await roleRes.text();
+      if (role === 'org_admin') {
+        return fetch('/manifest-org.webmanifest');
+      }
       if (role === 'admin' || role === 'editor') {
         return fetch('/manifest-admin.webmanifest');
       }

@@ -9,9 +9,10 @@ Editor endpoints (JWT required):
 - PUT /v1/settings           Update settings (admin only)
 
 Admin endpoints:
-- GET  /v1/restaurants       List all restaurants
-- POST /v1/restaurants       Create a restaurant
-- PUT  /v1/restaurants/<id>  Update a restaurant
+- GET  /v1/restaurants       List the caller's restaurants
+
+Creating, renaming or deactivating a site is a billing event: it is handled by
+the Mariam team through the CLI, never through the API.
 """
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -24,7 +25,6 @@ from ..models.restaurant_calendar import RestaurantCalendarSettings
 from ..schemas.common import ErrorSchema
 from ..schemas.restaurant import RestaurantSchema, RestaurantUpdateSchema
 from ..security import get_client_ip, limiter
-from ..utils.slug import is_valid_slug, normalize_slug
 from .helpers import (
     accessible_restaurant_ids,
     admin_required,
@@ -249,99 +249,6 @@ def list_restaurants():
         return jsonify({'restaurants': []}), 200
     query = Restaurant.query.filter(Restaurant.id.in_(ids)).order_by(Restaurant.name)
     return paginated_response(query, 'restaurants', lambda r: r.to_dict())
-
-
-@restaurant_bp.route('/restaurants', methods=['POST'])
-@restaurant_bp.arguments(RestaurantUpdateSchema)
-@restaurant_bp.response(201, RestaurantSchema)
-@restaurant_bp.alt_response(400, schema=ErrorSchema, description="Name and code required")
-@restaurant_bp.alt_response(409, schema=ErrorSchema, description="Code already in use")
-@admin_required
-def create_restaurant(data):
-    """Create a new restaurant (site) within the caller's organization.
-
-    Restricted to the organization director (org_admin).
-    """
-    caller = get_current_user()
-    if not caller.is_org_admin() or not caller.organization_id:
-        return jsonify({'error': "Réservé au directeur d'organisation"}), 403
-
-    name = data.get('name')
-    code = data.get('code')
-
-    if not name or not code:
-        return jsonify({'error': 'Nom et code requis'}), 400
-
-    if Restaurant.query.filter_by(code=code).first():
-        return jsonify({'error': 'Ce code est déjà utilisé'}), 409
-
-    # URL slug, unique within the organization (defaults to the code).
-    slug = normalize_slug(data.get('slug') or code)
-    if not is_valid_slug(slug):
-        return jsonify({'error': 'Slug invalide ou réservé'}), 400
-    if Restaurant.query.filter_by(organization_id=caller.organization_id, slug=slug).first():
-        return jsonify({'error': 'Ce slug est déjà utilisé dans votre organisation'}), 409
-
-    restaurant = Restaurant(
-        name=name,
-        code=code,
-        slug=slug,
-        organization_id=caller.organization_id,
-        logo_url=data.get('logo_url'),
-    )
-    db.session.add(restaurant)
-    db.session.flush()  # get restaurant.id without committing
-
-    _create_default_categories(restaurant.id)
-
-    AuditLog.log(
-        action='restaurant_create',
-        user_id=caller.id,
-        restaurant_id=restaurant.id,
-        target_type='restaurant',
-        target_id=restaurant.id,
-        details={'name': name, 'code': code, 'slug': slug},
-        ip_address=get_client_ip(),
-    )
-    db.session.commit()
-
-    return jsonify({'message': 'Restaurant créé', 'restaurant': restaurant.to_dict()}), 201
-
-
-@restaurant_bp.route('/restaurants/<int:restaurant_id>', methods=['PUT'])
-@restaurant_bp.arguments(RestaurantUpdateSchema)
-@restaurant_bp.response(200, RestaurantSchema)
-@restaurant_bp.alt_response(404, schema=ErrorSchema, description="Restaurant not found")
-@admin_required
-def update_restaurant(data, restaurant_id):
-    """Update an existing restaurant (within the caller's organization)."""
-    caller = get_current_user()
-    restaurant = Restaurant.query.get(restaurant_id)
-    if not restaurant or restaurant.id not in accessible_restaurant_ids(caller):
-        return jsonify({'error': 'Restaurant non trouvé'}), 404
-
-    if 'name' in data:
-        restaurant.name = data['name']
-    if 'logo_url' in data:
-        restaurant.logo_url = data['logo_url']
-    if 'is_active' in data:
-        # Activating/deactivating a site is restricted to the organization director.
-        if not caller.is_org_admin():
-            return jsonify({'error': "Seul un directeur d'organisation peut activer/désactiver un site"}), 403
-        restaurant.is_active = data['is_active']
-
-    AuditLog.log(
-        action='restaurant_update',
-        user_id=caller.id,
-        restaurant_id=restaurant.id,
-        target_type='restaurant',
-        target_id=restaurant.id,
-        details={'updated_fields': list(data.keys())},
-        ip_address=get_client_ip(),
-    )
-    db.session.commit()
-
-    return jsonify({'message': 'Restaurant mis à jour', 'restaurant': restaurant.to_dict()}), 200
 
 
 # ============================================================

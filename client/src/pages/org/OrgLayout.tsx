@@ -1,87 +1,63 @@
 /**
- * Dashboard shell for an organization director (org_admin): a cross-site view of
- * the organization (dashboard, sites, users, audit). Responsive: a sidebar on
- * desktop, a top bar with a horizontal nav on mobile. Distinct from the per-site
- * manager dashboard under /admin.
+ * Director dashboard (org_admin): a cross-site view of the organization.
+ * Shares its shell with the site dashboard so both stay visually identical;
+ * only the navigation and the enabled top-bar features differ.
  */
-import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Building2, Users, Shield, LogOut, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Building2, CalendarCheck, Users, ScrollText } from 'lucide-react';
+import { DashboardShell } from '@/components/layout/DashboardShell';
+import { type SidebarNavItem } from '@/components/layout/Sidebar';
+import { type PageTitleMap } from '@/components/layout/Topbar';
 import { useAuth } from '@/contexts/AuthContext';
-import { Logo } from '@/components/Logo';
-import { cn } from '@/lib/utils';
+import { usePwaOnboarding } from '@/hooks/usePwaOnboarding';
 
-const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
-  { to: '/org', label: 'Vue d’ensemble', icon: LayoutDashboard, end: true },
-  { to: '/org/sites', label: 'Sites', icon: Building2 },
-  { to: '/org/users', label: 'Utilisateurs', icon: Users },
-  { to: '/org/audit', label: 'Audit', icon: Shield },
+const NAV_ITEMS: SidebarNavItem[] = [
+  {
+    to: '/org',
+    label: "Vue d'ensemble",
+    shortLabel: 'Résumé',
+    icon: <LayoutDashboard className="h-5 w-5" />,
+    end: true,
+  },
+  {
+    to: '/org/analytics/publications',
+    label: 'Publications',
+    icon: <CalendarCheck className="h-5 w-5" />,
+  },
+  { to: '/org/sites', label: 'Sites', icon: <Building2 className="h-5 w-5" /> },
+  { to: '/org/users', label: 'Utilisateurs', icon: <Users className="h-5 w-5" /> },
+  { to: '/org/audit', label: 'Journal', icon: <ScrollText className="h-5 w-5" /> },
 ];
 
-function NavItem({ to, label, icon: Icon, end }: (typeof NAV)[number]) {
-  return (
-    <NavLink
-      to={to}
-      end={end}
-      className={({ isActive }) =>
-        cn(
-          'flex items-center gap-2.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-          isActive
-            ? 'bg-primary/10 text-primary'
-            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-        )
-      }
-    >
-      <Icon className="h-4 w-4 shrink-0" />
-      {label}
-    </NavLink>
-  );
-}
+const PAGE_TITLES: PageTitleMap = [
+  ['/org/analytics/publications', 'Publications'],
+  ['/org/sites', 'Sites'],
+  ['/org/users', 'Utilisateurs'],
+  ['/org/audit', 'Journal'],
+  ['/org/account', 'Mon compte'],
+  ['/org', "Vue d'ensemble"],
+];
+
+const BOTTOM_NAV_PATHS = ['/org', '/org/analytics/publications', '/org/sites', '/org/users'];
 
 export function OrgLayout() {
-  const { logout, user } = useAuth();
+  const { user } = useAuth();
+
+  usePwaOnboarding('/org/install', user?.role === 'org_admin');
 
   return (
-    <div className="flex min-h-screen flex-col bg-background md:flex-row">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-card md:flex">
-        <div className="flex h-14 items-center border-b border-border px-4">
-          <Logo className="h-7 w-auto" />
-        </div>
-        <nav className="flex-1 space-y-0.5 p-3">
-          {NAV.map((item) => (
-            <NavItem key={item.to} {...item} />
-          ))}
-        </nav>
-        <div className="border-t border-border p-3">
-          <p className="mb-2 truncate px-1 text-xs text-muted-foreground">{user?.email}</p>
-          <button
-            onClick={logout}
-            className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-            Déconnexion
-          </button>
-        </div>
-      </aside>
-
-      <div className="md:hidden">
-        <div className="flex h-14 items-center justify-between border-b border-border bg-card px-4">
-          <Logo className="h-7 w-auto" />
-          <button onClick={logout} className="text-muted-foreground" aria-label="Déconnexion">
-            <LogOut className="h-5 w-5" />
-          </button>
-        </div>
-        <nav className="flex gap-1 overflow-x-auto border-b border-border bg-card px-2 py-2">
-          {NAV.map((item) => (
-            <NavItem key={item.to} {...item} />
-          ))}
-        </nav>
-      </div>
-
-      <main className="flex-1 overflow-auto">
-        <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-8">
-          <Outlet />
-        </div>
-      </main>
-    </div>
+    <DashboardShell
+      navItems={NAV_ITEMS}
+      homePath="/org"
+      bottomNavPaths={BOTTOM_NAV_PATHS}
+      pageTitles={PAGE_TITLES}
+      fallbackTitle="Organisation"
+      accountPath="/org/account"
+      tenant={
+        user?.organization_name
+          ? { label: 'Organisation', name: user.organization_name }
+          : undefined
+      }
+      contentClassName="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8"
+    />
   );
 }

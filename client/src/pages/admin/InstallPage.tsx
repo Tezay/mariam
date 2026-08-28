@@ -7,6 +7,8 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { dashboardPathForRole } from '@/lib/dashboard-routes';
 import { QRCodeSVG } from 'qrcode.react';
 import { authApi } from '@/lib/api';
 import { detectPlatform } from '@/lib/push';
@@ -348,6 +350,7 @@ function Step({ number, text }: { number: number; text: React.ReactNode }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 export function InstallPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const platform = detectPlatform();
   const ua = navigator.userAgent;
   const isIosSafari =
@@ -355,7 +358,7 @@ export function InstallPage() {
 
   const handleDone = () => {
     markDone();
-    navigate('/admin/menus', { replace: true });
+    navigate(dashboardPathForRole(user?.role), { replace: true });
   };
 
   return (
