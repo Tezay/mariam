@@ -44,6 +44,9 @@ def app():
 
     original_db_url = os.environ.get('DATABASE_URL')
     os.environ['DATABASE_URL'] = _TEST_DB_URL
+    # Cached aggregates outlive TRUNCATE, and RESTART IDENTITY makes the next
+    # test reuse the same cache key — stale hits would leak between tests.
+    os.environ['ORG_CACHE_TTL_SECONDS'] = '0'
 
     try:
         application = create_app()

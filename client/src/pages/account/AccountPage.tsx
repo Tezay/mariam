@@ -6,8 +6,9 @@
  * - Passkeys (Touch ID, Face ID, Windows Hello)
  * - Changement de mot de passe (TOTP ou passkey selon ce qui est disponible)
  */
-import { useState } from 'react';
+import { useState, type ComponentType } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { RoleBadge } from '@/components/dashboard/RoleBadge';
 import { authApi } from '@/lib/api';
 import { usePwaInstall } from '@/contexts/PwaInstallContext';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import {
   Mail,
-  Shield,
+  Building2,
   Calendar,
   Clock,
   Key,
@@ -46,9 +47,7 @@ function AppInstallSection() {
 
   return (
     <section className="space-y-4">
-      <h2 className="border-b border-border pb-2 text-lg font-semibold text-foreground">
-        Application
-      </h2>
+      <h2 className="text-sm font-semibold text-foreground">Application</h2>
 
       {isInstalled ? (
         <div className="flex items-center gap-3 rounded-lg border border-green-500/20 bg-green-500/10 p-4">
@@ -80,16 +79,33 @@ function AppInstallSection() {
   );
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'Administrateur',
-  editor: 'Éditeur',
-  reader: 'Lecteur',
-};
-
 type VerificationMethod = 'totp' | 'passkey';
+
+function DetailRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+  value?: string | null;
+}) {
+  return (
+    <div className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+      <dt className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
+        <Icon className="h-4 w-4 shrink-0" />
+        {label}
+      </dt>
+      <dd className="break-words text-sm font-medium text-foreground sm:text-right">
+        {value || '—'}
+      </dd>
+    </div>
+  );
+}
 
 export function AccountPage() {
   const { user } = useAuth();
+  const tenant = user?.role === 'org_admin' ? user?.organization_name : user?.restaurant_name;
 
   const hasMfa = user?.mfa_enabled ?? false;
   const hasPasskeys = (user?.passkeys_count ?? 0) > 0;
@@ -225,69 +241,55 @@ export function AccountPage() {
   };
 
   return (
-    <div className="container-mariam py-8">
+    <div className="container-mariam py-6">
       <div className="mx-auto max-w-3xl space-y-8">
-        {/* En-tête */}
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">
-            {user?.username || user?.email || 'Mon Compte'}
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            Gérez vos informations personnelles et votre sécurité.
-          </p>
+        {/* Identité */}
+        <div className="flex items-start gap-4">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg font-semibold text-primary">
+            {(user?.username || user?.email || '?').charAt(0).toUpperCase()}
+          </span>
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-semibold tracking-tight text-foreground">
+              {user?.username || user?.email || 'Mon compte'}
+            </h1>
+            <p className="mt-0.5 break-all text-sm text-muted-foreground">{user?.email}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <RoleBadge role={user?.role} />
+              {tenant && (
+                <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+                  {tenant}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Informations du compte */}
-        <section className="space-y-4">
-          <h2 className="border-b border-border pb-2 text-lg font-semibold text-foreground">
-            Informations du compte
-          </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-4">
-              <Mail className="mt-0.5 h-5 w-5 text-primary" />
-              <div>
-                <p className="text-sm text-muted-foreground">Email</p>
-                <p className="break-all font-medium text-foreground">{user?.email}</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-4">
-              <Shield className="mt-0.5 h-5 w-5 text-primary" />
-              <div>
-                <p className="text-sm text-muted-foreground">Rôle</p>
-                <p className="font-medium capitalize text-foreground">
-                  {ROLE_LABELS[user?.role || ''] || user?.role}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-4">
-              <Calendar className="mt-0.5 h-5 w-5 text-primary" />
-              <div>
-                <p className="text-sm text-muted-foreground">Activation du compte</p>
-                <p className="font-medium text-foreground">
-                  {formatDate(user?.created_at || null)}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-4">
-              <Clock className="mt-0.5 h-5 w-5 text-primary" />
-              <div>
-                <p className="text-sm text-muted-foreground">Dernière connexion</p>
-                <p className="font-medium text-foreground">
-                  {formatDate(user?.last_login || null)}
-                </p>
-              </div>
-            </div>
-          </div>
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-foreground">Compte</h2>
+          <dl className="divide-y divide-border rounded-xl border border-border bg-card">
+            <DetailRow icon={Mail} label="Email" value={user?.email} />
+            <DetailRow
+              icon={Building2}
+              label={user?.role === 'org_admin' ? 'Organisation' : 'Site'}
+              value={user?.role === 'org_admin' ? user?.organization_name : user?.restaurant_name}
+            />
+            <DetailRow
+              icon={Calendar}
+              label="Compte activé le"
+              value={formatDate(user?.created_at || null)}
+            />
+            <DetailRow
+              icon={Clock}
+              label="Dernière connexion"
+              value={formatDate(user?.last_login || null)}
+            />
+          </dl>
         </section>
 
         {/* Sécurité */}
-        <section className="space-y-4">
-          <h2 className="border-b border-border pb-2 text-lg font-semibold text-foreground">
-            Sécurité
-          </h2>
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-foreground">Sécurité</h2>
 
           {/* TOTP */}
           <TotpManager />

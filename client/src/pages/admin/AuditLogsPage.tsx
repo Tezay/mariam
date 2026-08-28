@@ -6,9 +6,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
-import { adminApi } from '@/lib/api';
+import { adminApi, restaurantApi, type AdminSite } from '@/lib/api';
 import { notify } from '@/lib/toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { accountPathForRole } from '@/lib/dashboard-routes';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -104,6 +105,9 @@ export function AuditLogsPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [mfaRequired, setMfaRequired] = useState(false);
+  const [sites, setSites] = useState<AdminSite[]>([]);
+  const [siteFilter, setSiteFilter] = useState('');
+  const isOrgScope = user?.role === 'org_admin';
   const [isExporting, setIsExporting] = useState(false);
   const [selectedDetails, setSelectedDetails] = useState<Record<string, unknown> | null>(null);
 
@@ -124,6 +128,7 @@ export function AuditLogsPage() {
         page,
         per_page: 50,
         action: actionFilter || undefined,
+        restaurant_id: siteFilter ? Number(siteFilter) : undefined,
       });
 
       setLogs(response.logs);
@@ -140,12 +145,17 @@ export function AuditLogsPage() {
   };
 
   useEffect(() => {
-    if (user?.role !== 'admin') {
-      navigate('/admin/menus');
-      return;
-    }
     loadLogs();
-  }, [user, page, actionFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, actionFilter, siteFilter]);
+
+  useEffect(() => {
+    if (!isOrgScope) return;
+    restaurantApi
+      .list()
+      .then(setSites)
+      .catch(() => {});
+  }, [isOrgScope]);
 
   // Export
   const handleExport = async () => {
@@ -195,7 +205,7 @@ export function AuditLogsPage() {
               utilisateurs, etc.). Pour y accéder, vous devez d'abord activer l'authentification à
               deux facteurs sur votre compte.
             </p>
-            <Button onClick={() => navigate('/admin/users')} className="gap-2">
+            <Button onClick={() => navigate(accountPathForRole(user?.role))} className="gap-2">
               <Shield className="h-4 w-4" />
               Configurer l'A2F
             </Button>
@@ -242,6 +252,27 @@ export function AuditLogsPage() {
                 />
               </div>
             </div>
+            {isOrgScope && sites.length > 1 && (
+              <div className="md:w-56">
+                <Label htmlFor="site-filter">Filtrer par site</Label>
+                <select
+                  id="site-filter"
+                  value={siteFilter}
+                  onChange={(e) => {
+                    setSiteFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="">Tous les sites</option>
+                  {sites.map((site) => (
+                    <option key={site.id} value={site.id}>
+                      {site.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="md:w-64">
               <Label htmlFor="action-filter">Filtrer par action</Label>
               <select

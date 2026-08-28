@@ -56,27 +56,6 @@ export function StatTile({
   );
 }
 
-export function EmptyState({
-  icon: IconComp,
-  title,
-  description,
-  action,
-}: {
-  icon?: Icon;
-  title: string;
-  description?: string;
-  action?: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 px-6 py-14 text-center">
-      {IconComp && <IconComp className="mb-3 h-8 w-8 text-muted-foreground/60" />}
-      <h3 className="text-sm font-medium text-foreground">{title}</h3>
-      {description && <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>}
-      {action && <div className="mt-4">{action}</div>}
-    </div>
-  );
-}
-
 export function StatusPill({ active }: { active: boolean }) {
   return (
     <span

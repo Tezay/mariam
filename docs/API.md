@@ -85,6 +85,18 @@ Invitation links support two activation paths depending on the user's choice of 
 | `POST` | `/v1/auth/passkey/setup/begin` | none | Start passkey registration during activation (Path A, step 2) |
 | `POST` | `/v1/auth/passkey/setup/complete` | none | Finish passkey registration during activation, receive JWT (Path A, step 3) |
 
+### Step-up authentication
+
+Proves the caller re-authenticated moments ago. The returned `step_up_token` is
+single-use, valid 5 minutes, and passed as `X-Step-Up-Token` on the guarded
+request (currently `DELETE /v1/users/<id>`).
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| `POST` | `/v1/auth/step-up/password` | bearer | Re-authenticate with password (and TOTP when enabled) |
+| `POST` | `/v1/auth/step-up/passkey/begin` | bearer | Challenge the caller's passkeys |
+| `POST` | `/v1/auth/step-up/passkey/complete` | bearer | Verify the assertion and return the proof |
+
 ### Password management
 
 | Method | Route | Auth | Description |
@@ -105,7 +117,8 @@ No authentication required.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `/health` | Health check |
+| `GET` | `/health` | Liveness — the process is up |
+| `GET` | `/health/ready` | Readiness — checks DB and Redis; returns 503 when a dependency is down |
 | `GET` | `/v1/restaurant` | Active restaurant info |
 | `GET` | `/v1/taxonomy` | Dietary tags and certifications catalog |
 | `GET` | `/v1/menus/today` | Today's published menu |
@@ -113,6 +126,24 @@ No authentication required.
 | `GET` | `/v1/menus/week` | This week's published menus |
 | `GET` | `/v1/events` | Upcoming published events (TV/mobile display) |
 | `GET` | `/v1/notifications/vapid-public-key` | VAPID public key for push subscriptions |
+
+### Tenant-aware public API
+
+The tenant comes from the request host (subdomain = organization) and the
+restaurant slug, so these endpoints need no identifier in the query string.
+All are rate-limited to 30 requests per minute.
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/v1/public/org` | Organization behind the host and its sites (bootstrap for the public pages) |
+| `GET` | `/v1/public/<site>/today` | Today's published menu |
+| `GET` | `/v1/public/<site>/tomorrow` | Tomorrow's published menu |
+| `GET` | `/v1/public/<site>/week` | Published menus for a week (`week_offset`) |
+| `GET` | `/v1/public/<site>/events` | Published events (`visibility`, `limit`) |
+| `GET` | `/v1/public/<site>/closures` | Current and upcoming exceptional closures |
+| `GET` | `/v1/public/<site>/restaurant` | Site info and public configuration |
+
+The legacy `?restaurant_id=` endpoints above are kept for compatibility.
 
 **Example — `GET /v1/menus/today`**
 
@@ -147,6 +178,8 @@ Requires `editor` role or above, except the public read routes listed above.
 | `GET` | `/v1/menus/week` | Full week including drafts |
 | `GET` | `/v1/menus/<id>` | Menu details |
 | `GET` | `/v1/menus/by-date/<date>` | Menu by date (YYYY-MM-DD) |
+| `GET` | `/v1/menus/jours-feries/<year>` | French public holidays for a year (no authentication) |
+| `GET` | `/v1/menus/vacances-scolaires/<year>` | School holidays for a year, by zone (no authentication) |
 | `POST` | `/v1/menus` | Create or update a menu |
 | `PUT` | `/v1/menus/<id>` | Update a menu |
 | `POST` | `/v1/menus/<id>/publish` | Publish a menu |
@@ -184,6 +217,21 @@ Requires `editor` role or above. Unauthenticated requests to `GET /v1/events` on
 
 ---
 
+## Exceptional Closures
+
+Requires `editor` role or above to write. Unauthenticated requests to
+`GET /v1/closures` only see active closures from today onward, split into
+`current_closure` and `upcoming_closures`.
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/v1/closures` | List closures (filters: `restaurant_id`, `upcoming`, `include_inactive`) |
+| `POST` | `/v1/closures` | Create a closure |
+| `PUT` | `/v1/closures/<id>` | Update a closure |
+| `DELETE` | `/v1/closures/<id>` | Delete a closure |
+
+---
+
 ## Dish Catalog
 
 Requires `editor` role or above. Dishes are scoped to the authenticated user's restaurant.
@@ -209,11 +257,59 @@ Requires authentication. In-app notification center for business alerts.
 |--------|-------|-------------|
 | `GET` | `/v1/inbox` | List notifications for the current user |
 | `GET` | `/v1/inbox/unread-count` | Unread notifications count |
+| `GET` | `/v1/inbox/live-alerts` | Alerts computed on the fly (unpublished menu, service without menu, upcoming holiday); nothing is stored |
 | `PUT` | `/v1/inbox/<id>/read` | Mark a notification as read |
 | `PUT` | `/v1/inbox/read-all` | Mark all notifications as read |
 | `DELETE` | `/v1/inbox/<id>` | Delete a notification |
 | `GET` | `/v1/inbox/notification-preferences` | Get in-app notification preferences |
 | `PUT` | `/v1/inbox/notification-preferences` | Update in-app notification preferences |
+
+---
+
+## Organization
+
+Requires `org_admin`. Cross-site management of the caller's organization;
+per-site management stays under the site endpoints.
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/v1/org/sites` | Every site of the organization with user count, today's publication state, upcoming events and last publication |
+
+Opening, renaming or deactivating a site is a billing event and is not exposed
+through the API: it is handled by the Mariam team with the `init-restaurant` CLI
+command.
+
+---
+
+## Analytics
+
+Requires `admin` or `org_admin`. The scope is derived from the caller: a site
+admin gets its own site, an org director every site of its organization. The
+`X-Restaurant-Id` header is ignored here — directors narrow the scope with
+`site_ids` instead.
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/v1/analytics/overview` | Period KPIs with previous-period comparison, daily trend, per-site table |
+| `GET` | `/v1/analytics/publications` | Publication rate, punctuality, lead time, completeness, site × day status matrix |
+
+Shared query parameters:
+
+| Parameter | Description |
+|-----------|-------------|
+| `period` | `7d`, `30d` (default) or `90d` |
+| `start`, `end` | Custom ISO range (`YYYY-MM-DD`), capped at 366 days; overrides `period` |
+| `site_ids` | Comma-separated site ids; ids outside the caller's scope are ignored |
+
+Notes:
+
+- A day counts as *open* when the weekday is in the site's `service_days` and no
+  exceptional closure covers it; `publication_rate` is measured over those days.
+- A menu is *punctual* when `published_at` precedes the service opening time for
+  that weekday (`11:30` when the site has no service hours).
+- Rates are `null` when their denominator is zero. Traffic and satisfaction keys
+  are present but `null` until those features collect data.
+- The status matrix covers at most the last 60 days of the period.
 
 ---
 
@@ -223,9 +319,7 @@ Requires authentication. In-app notification center for business alerts.
 |--------|-------|------|-------------|
 | `GET` | `/v1/settings` | editor+ | Full restaurant settings |
 | `PUT` | `/v1/settings` | admin | Update settings |
-| `GET` | `/v1/restaurants` | admin | List all restaurants |
-| `POST` | `/v1/restaurants` | admin | Create a restaurant |
-| `PUT` | `/v1/restaurants/<id>` | admin | Update a restaurant |
+| `GET` | `/v1/restaurants` | admin | List the caller's restaurants |
 | `GET` | `/v1/restaurant/calendar-settings` | editor+ | Calendar display settings (public holidays, school vacations) |
 | `PUT` | `/v1/restaurant/calendar-settings` | editor+ | Update calendar display settings |
 
@@ -254,7 +348,7 @@ Requires `admin` role.
 | `GET` | `/v1/users` | List users |
 | `GET` | `/v1/users/<id>` | User details |
 | `PUT` | `/v1/users/<id>` | Update a user |
-| `DELETE` | `/v1/users/<id>` | Delete a user |
+| `DELETE` | `/v1/users/<id>` | Delete a user (requires `X-Step-Up-Token`) |
 | `POST` | `/v1/users/<id>/reset-mfa` | Reset a user's MFA |
 | `POST` | `/v1/users/invite` | Create an invitation link |
 | `GET` | `/v1/users/invitations` | List pending invitations |
@@ -267,7 +361,7 @@ Requires `admin` role with active MFA session.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `/v1/audit-logs` | Paginated audit log (filters: `action`, `user_id`, `start_date`, `end_date`) |
+| `GET` | `/v1/audit-logs` | Paginated audit log (filters: `action`, `user_id`, `restaurant_id`, `start_date`, `end_date`) |
 | `GET` | `/v1/audit-logs/export` | CSV export (max 10,000 rows) |
 
 ---

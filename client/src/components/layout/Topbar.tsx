@@ -2,6 +2,7 @@ import { useLocation, useNavigate, NavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { useSidebar } from '@/contexts/SidebarContext';
+import { roleLabel } from '@/lib/roles';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -24,33 +25,37 @@ import {
   Menu as MenuIcon,
 } from 'lucide-react';
 
-const PAGE_TITLES: Array<[string, string]> = [
-  ['/admin/calendar', 'Calendrier'],
-  ['/admin/service', 'Service en cours'],
-  ['/admin/catalogue', 'Catalogue'],
-  ['/admin/events', 'Événements'],
-  ['/admin/closures', 'Fermetures'],
-  ['/admin/users', 'Utilisateurs'],
-  ['/admin/settings', 'Paramètres'],
-  ['/admin/audit-logs', "Logs d'audit"],
-  ['/admin/account', 'Mon compte'],
-  ['/admin', 'Calendrier'],
-];
+export type PageTitleMap = Array<[string, string]>;
 
-function usePageTitle(): string {
-  const { pathname } = useLocation();
-  for (const [prefix, label] of PAGE_TITLES) {
-    if (pathname === prefix || pathname.startsWith(prefix + '/')) return label;
-  }
-  return 'Admin';
+interface TopbarProps {
+  /** Longest prefixes first: the first match wins. */
+  pageTitles: PageTitleMap;
+  fallbackTitle: string;
+  showSearch?: boolean;
+  showNotifications?: boolean;
+  accountPath: string;
 }
 
-export function Topbar() {
+function usePageTitle(pageTitles: PageTitleMap, fallback: string): string {
+  const { pathname } = useLocation();
+  for (const [prefix, label] of pageTitles) {
+    if (pathname === prefix || pathname.startsWith(prefix + '/')) return label;
+  }
+  return fallback;
+}
+
+export function Topbar({
+  pageTitles,
+  fallbackTitle,
+  showSearch = false,
+  showNotifications = false,
+  accountPath,
+}: TopbarProps) {
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const { toggle, setMobileOpen } = useSidebar();
   const navigate = useNavigate();
-  const title = usePageTitle();
+  const title = usePageTitle(pageTitles, fallbackTitle);
 
   const handleLogout = () => {
     logout();
@@ -88,12 +93,13 @@ export function Topbar() {
       <div className="flex-1" />
 
       {/* Search - hidden on small mobile */}
-      <div className="hidden sm:flex">
-        <GlobalSearch />
-      </div>
+      {showSearch && (
+        <div className="hidden sm:flex">
+          <GlobalSearch />
+        </div>
+      )}
 
-      {/* Notification bell */}
-      <NotificationBell />
+      {showNotifications && <NotificationBell />}
 
       {/* User menu */}
       <DropdownMenu>
@@ -112,18 +118,19 @@ export function Topbar() {
           <DropdownMenuLabel>
             <div>
               <p className="text-sm font-medium">{user?.username || user?.email}</p>
-              <p className="mt-0.5 text-xs capitalize text-muted-foreground">{user?.role}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{roleLabel(user?.role)}</p>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <NavLink to="/menu" target="_blank" className="cursor-pointer gap-2">
+            {/* Root resolves to the single menu or to the site list, per tenant. */}
+            <NavLink to="/" target="_blank" className="cursor-pointer gap-2">
               <ExternalLink className="h-4 w-4" />
               Voir le menu public
             </NavLink>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <NavLink to="/admin/account" className="cursor-pointer gap-2">
+            <NavLink to={accountPath} className="cursor-pointer gap-2">
               <User className="h-4 w-4" />
               Mon compte
             </NavLink>

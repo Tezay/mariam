@@ -17,6 +17,7 @@ import { PwaInstallProvider } from './contexts/PwaInstallContext';
 // Chemin public critique (menu) — chargé en eager pour un premier rendu rapide.
 import { TenantLayout, PublicRoot, MonoMenu, SluggedMenu } from './pages/public/PublicRoutes';
 import { ErrorBoundary, PublicErrorFallback } from './components/ErrorBoundary';
+import { dashboardPathForRole } from './lib/dashboard-routes';
 
 // Tout le reste (auth, admin, org, notifications) est chargé à la demande pour
 // garder le bundle du menu public léger (les étudiants ne téléchargent pas le JS admin).
@@ -41,7 +42,7 @@ const AuditLogsPage = lazy(() =>
   import('./pages/admin/AuditLogsPage').then((m) => ({ default: m.AuditLogsPage }))
 );
 const AccountPage = lazy(() =>
-  import('./pages/admin/AccountPage').then((m) => ({ default: m.AccountPage }))
+  import('./pages/account/AccountPage').then((m) => ({ default: m.AccountPage }))
 );
 const EventsPage = lazy(() =>
   import('./pages/admin/EventsPage').then((m) => ({ default: m.EventsPage }))
@@ -64,23 +65,22 @@ const CalendarPage = lazy(() =>
 const OrgLayout = lazy(() =>
   import('./pages/org/OrgLayout').then((m) => ({ default: m.OrgLayout }))
 );
-const OrgDashboardPage = lazy(() =>
-  import('./pages/org/OrgDashboardPage').then((m) => ({ default: m.OrgDashboardPage }))
+const StatsPage = lazy(() =>
+  import('./pages/admin/StatsPage').then((m) => ({ default: m.StatsPage }))
+);
+const OrgOverviewPage = lazy(() =>
+  import('./pages/org/OrgOverviewPage').then((m) => ({ default: m.OrgOverviewPage }))
+);
+const OrgPublicationsPage = lazy(() =>
+  import('./pages/org/analytics/PublicationsPage').then((m) => ({
+    default: m.OrgPublicationsPage,
+  }))
 );
 const OrgSitesPage = lazy(() =>
   import('./pages/org/OrgSitesPage').then((m) => ({ default: m.OrgSitesPage }))
 );
-const OrgSiteNewPage = lazy(() =>
-  import('./pages/org/OrgSiteNewPage').then((m) => ({ default: m.OrgSiteNewPage }))
-);
 const OrgSiteDetailPage = lazy(() =>
   import('./pages/org/OrgSiteDetailPage').then((m) => ({ default: m.OrgSiteDetailPage }))
-);
-const OrgUsersPage = lazy(() =>
-  import('./pages/org/OrgUsersPage').then((m) => ({ default: m.OrgUsersPage }))
-);
-const OrgAuditPage = lazy(() =>
-  import('./pages/org/OrgAuditPage').then((m) => ({ default: m.OrgAuditPage }))
 );
 const EventEditPage = lazy(() =>
   import('./pages/admin/EventEditPage').then((m) => ({ default: m.EventEditPage }))
@@ -127,8 +127,23 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
     return <FullScreenSpinner />;
   }
 
-  if (user?.role !== 'admin' && user?.role !== 'org_admin') {
+  if (user?.role !== 'admin') {
     return <Forbidden />;
+  }
+
+  return <>{children}</>;
+}
+
+// Tout le dashboard de site : un directeur est renvoyé vers le sien.
+function SiteDashboardRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <FullScreenSpinner />;
+  }
+
+  if (user?.role === 'org_admin') {
+    return <Navigate to="/org" replace />;
   }
 
   return <>{children}</>;
@@ -142,7 +157,7 @@ function EditorRoute({ children }: { children: React.ReactNode }) {
     return <FullScreenSpinner />;
   }
 
-  if (user?.role !== 'admin' && user?.role !== 'editor' && user?.role !== 'org_admin') {
+  if (user?.role !== 'admin' && user?.role !== 'editor') {
     return <Forbidden />;
   }
 
@@ -158,7 +173,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (isAuthenticated) {
-    return <Navigate to={user?.role === 'org_admin' ? '/org' : '/admin'} replace />;
+    return <Navigate to={dashboardPathForRole(user?.role)} replace />;
   }
 
   return <>{children}</>;
@@ -245,6 +260,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/org/install"
+            element={
+              <ProtectedRoute>
+                <InstallPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Réception du transfert de session cross-device */}
           <Route path="/admin/setup" element={<SetupTransferPage />} />
@@ -260,12 +283,13 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<OrgDashboardPage />} />
+            <Route index element={<OrgOverviewPage />} />
+            <Route path="analytics/publications" element={<OrgPublicationsPage />} />
             <Route path="sites" element={<OrgSitesPage />} />
-            <Route path="sites/new" element={<OrgSiteNewPage />} />
             <Route path="sites/:id" element={<OrgSiteDetailPage />} />
-            <Route path="users" element={<OrgUsersPage />} />
-            <Route path="audit" element={<OrgAuditPage />} />
+            <Route path="users" element={<UsersPage />} />
+            <Route path="audit" element={<AuditLogsPage />} />
+            <Route path="account" element={<AccountPage />} />
           </Route>
 
           {/* Interface Admin */}
@@ -273,7 +297,9 @@ function App() {
             path="/admin"
             element={
               <ProtectedRoute>
-                <AdminLayout />
+                <SiteDashboardRoute>
+                  <AdminLayout />
+                </SiteDashboardRoute>
               </ProtectedRoute>
             }
           >
@@ -362,6 +388,16 @@ function App() {
                 <EditorRoute>
                   <DishDetailPage />
                 </EditorRoute>
+              }
+            />
+
+            {/* Statistiques du site (admin only) */}
+            <Route
+              path="stats"
+              element={
+                <AdminRoute>
+                  <StatsPage />
+                </AdminRoute>
               }
             />
 

@@ -10,9 +10,12 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ mfaRequired: boolean; mfaToken?: string }>;
-  verifyMfa: (mfaToken: string, code: string) => Promise<void>;
-  loginWithPasskey: (challengeToken: string, credential: unknown) => Promise<void>;
+  login: (
+    email: string,
+    password: string
+  ) => Promise<{ mfaRequired: boolean; mfaToken?: string; user?: User }>;
+  verifyMfa: (mfaToken: string, code: string) => Promise<User>;
+  loginWithPasskey: (challengeToken: string, credential: unknown) => Promise<User>;
   activateComplete: (user: User) => void;
   refreshUser: () => Promise<void>;
   logout: () => void;
@@ -57,17 +60,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setUser(result.user);
-    return { mfaRequired: false };
+    // Returned as well as stored: the caller redirects on role before the
+    // context state has propagated.
+    return { mfaRequired: false, user: result.user };
   };
 
   const verifyMfa = async (mfaToken: string, code: string) => {
     const loggedUser = await authApi.verifyMfa(mfaToken, code);
     setUser(loggedUser);
+    return loggedUser;
   };
 
   const loginWithPasskey = async (challengeToken: string, credential: unknown) => {
     const loggedUser = await authApi.passkeyLoginComplete(challengeToken, credential);
     setUser(loggedUser);
+    return loggedUser;
   };
 
   const activateComplete = (user: User) => {

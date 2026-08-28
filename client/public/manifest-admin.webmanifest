@@ -2,13 +2,16 @@
     "name": "Mariam — Gestion",
     "short_name": "Gestion",
     "description": "Tableau de bord de gestion MARIAM.",
-    "start_url": "/admin/menus",
+    "start_url": "/admin/calendar",
     "scope": "/",
     "display": "standalone",
-    "theme_color": "#001BB7",
+    "theme_color": "#093EAA",
     "background_color": "#ffffff",
     "lang": "fr-FR",
-    "categories": ["food", "productivity"],
+    "categories": [
+        "food",
+        "productivity"
+    ],
     "icons": [
         {
             "src": "/favicon-96x96.png",

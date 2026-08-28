@@ -58,6 +58,11 @@ def _apply_audit_filters(query):
     if user_filter := request.args.get('user_id'):
         query = query.filter(AuditLog.user_id == int(user_filter))
 
+    if site_filter := request.args.get('restaurant_id', type=int):
+        # Intersected with the tenant scope applied by the caller, so an
+        # unreachable site simply yields nothing.
+        query = query.filter(AuditLog.restaurant_id == site_filter)
+
     if start_date := request.args.get('start_date'):
         try:
             query = query.filter(AuditLog.created_at >= datetime.fromisoformat(start_date))

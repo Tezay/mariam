@@ -1,12 +1,14 @@
 /**
  * Director view: the organization's sites as a clean list; each row opens the
- * site detail. Creation happens on a dedicated page.
+ * site detail. Read-only — opening or closing a site goes through Mariam.
  */
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Plus, ChevronRight } from 'lucide-react';
+import { Building2, ChevronRight } from 'lucide-react';
 import { orgApi, type OrgSite } from '@/lib/api';
-import { PageHeader, StatusPill, EmptyState, PrimaryButton } from './ui';
+import { PageHeader, StatusPill } from './ui';
+import { AddSiteButton } from './AddSiteButton';
+import { EmptyState } from '@/components/dashboard/EmptyState';
 
 export function OrgSitesPage() {
   const [sites, setSites] = useState<OrgSite[] | null>(null);
@@ -18,21 +20,12 @@ export function OrgSitesPage() {
       .catch(() => setSites([]));
   }, []);
 
-  const newSiteButton = (
-    <Link to="/org/sites/new">
-      <PrimaryButton>
-        <Plus className="h-4 w-4" />
-        Nouveau site
-      </PrimaryButton>
-    </Link>
-  );
-
   return (
     <div>
       <PageHeader
         title="Sites"
         description="Les restaurants de votre organisation"
-        action={newSiteButton}
+        action={<AddSiteButton />}
       />
 
       {sites === null ? (
@@ -42,7 +35,7 @@ export function OrgSitesPage() {
           icon={Building2}
           title="Aucun site"
           description="Créez un site pour lui affecter des gestionnaires et publier ses menus."
-          action={newSiteButton}
+          action={<AddSiteButton />}
         />
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
@@ -58,7 +51,7 @@ export function OrgSitesPage() {
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium text-foreground">{s.name}</div>
                 <div className="truncate text-xs text-muted-foreground">
-                  /{s.slug} · {s.user_count} utilisateur{s.user_count > 1 ? 's' : ''} ·{' '}
+                  /{s.slug} · {s.user_count} compte{s.user_count > 1 ? 's' : ''} ·{' '}
                   {s.upcoming_events} événement{s.upcoming_events > 1 ? 's' : ''}
                 </div>
               </div>

@@ -11,7 +11,12 @@ from ..models.taxonomy import Certification, DietaryTag
 
 
 def editor_required(f):
-    """Décorateur : accès réservé aux éditeurs (role editor ou admin)."""
+    """Editors and admins; a supervisor may read but never write site content.
+
+    A supervisor oversees every site of its organization, so it reaches these
+    routes, but running a site (menus, dishes, events, closures) stays with the
+    site's own team.
+    """
     @wraps(f)
     @jwt_required()
     def decorated_function(*args, **kwargs):
@@ -19,6 +24,10 @@ def editor_required(f):
         user = User.query.get(current_user_id)
         if not user or not user.is_editor():
             return jsonify({'error': 'Accès réservé aux éditeurs'}), 403
+        if user.is_org_admin() and request.method != 'GET':
+            return jsonify(
+                {'error': "Un superviseur ne peut pas modifier le contenu d'un site"}
+            ), 403
         return f(*args, **kwargs)
     return decorated_function
 
@@ -32,6 +41,19 @@ def admin_required(f):
         user = User.query.get(current_user_id)
         if not user or not user.is_admin():
             return jsonify({'error': 'Accès réservé aux administrateurs'}), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def org_admin_required(f):
+    """Supervisors only; one without an organization resolves to an empty scope."""
+    @wraps(f)
+    @jwt_required()
+    def decorated_function(*args, **kwargs):
+        current_user_id = int(get_jwt_identity())
+        user = User.query.get(current_user_id)
+        if not user or not user.is_org_admin() or not user.organization_id:
+            return jsonify({'error': 'Réservé aux superviseurs'}), 403
         return f(*args, **kwargs)
     return decorated_function
 

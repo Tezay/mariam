@@ -178,7 +178,7 @@ def create_app(config_class=None):
         Bloque deux catégories de tokens :
         1. Tokens intermédiaires / à usage limité — identifiés par une claim
            spécifique (mfa_pending, webauthn_pending, setup_phase,
-           session_transfer). Ne doivent jamais être acceptés sur les
+           session_transfer, step_up). Ne doivent jamais être acceptés sur les
            endpoints @jwt_required() ordinaires.
         2. Tokens révoqués explicitement (logout, usage unique) — vérifiés
            en Redis via leur JTI.
@@ -188,6 +188,7 @@ def create_app(config_class=None):
             or jwt_payload.get('webauthn_pending')
             or jwt_payload.get('session_transfer')
             or jwt_payload.get('setup_phase')
+            or jwt_payload.get('step_up')
         ):
             return True
 
@@ -256,7 +257,7 @@ def create_app(config_class=None):
         app,
         origins=origins,
         supports_credentials=True,
-        allow_headers=['Content-Type', 'Authorization'],
+        allow_headers=['Content-Type', 'Authorization', 'X-Restaurant-Id', 'X-Step-Up-Token'],
         methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
     )
     
@@ -266,6 +267,7 @@ def create_app(config_class=None):
     from flask_smorest import Api
     api = Api(app)
 
+    from .routes.analytics import analytics_bp
     from .routes.audit import audit_bp
     from .routes.auth import auth_bp
     from .routes.catalog import catalog_bp
@@ -297,6 +299,7 @@ def create_app(config_class=None):
     api.register_blueprint(closures_bp,      url_prefix='/v1/closures')
     api.register_blueprint(public_bp,        url_prefix='/v1/public')
     api.register_blueprint(org_bp,           url_prefix='/v1/org')
+    api.register_blueprint(analytics_bp,     url_prefix='/v1/analytics')
 
     # Public HTML shell (SEO) + sitemap — a plain Flask blueprint on the app so it
     # serves raw HTML/XML at the root, outside the /v1 OpenAPI namespace.
@@ -494,8 +497,9 @@ Disallow: /v1/users/
     @app.cli.command('create-invite')
     @click.option('--email', required=True, help="Email de l'invité")
     @click.option('--role', required=True, help='org_admin | admin | editor | reader')
-    @click.option('--restaurant', required=True, help='Site cible (id ou slug)')
-    def create_invite(email, role, restaurant):
+    @click.option('--restaurant', default=None, help='Site cible (id ou slug) — rôles de site')
+    @click.option('--org', default=None, help='Organisation (id ou slug) — rôle org_admin')
+    def create_invite(email, role, restaurant, org):
         """Crée un lien d'activation pour un utilisateur de n'importe quel rôle."""
         if role not in User.VALID_ROLES:
             click.echo(f'❌ Rôle invalide. Valeurs : {User.VALID_ROLES}')
@@ -503,22 +507,48 @@ Disallow: /v1/users/
         if User.query.filter_by(email=email).first():
             click.echo(f'❌ Un utilisateur avec {email} existe déjà.')
             return
-        target = Restaurant.query.get(int(restaurant)) if restaurant.isdigit() else None
-        if target is None:
-            target = Restaurant.query.filter_by(slug=restaurant).first()
-        if target is None:
-            click.echo(f'❌ Restaurant introuvable : {restaurant}')
-            return
-        link = ActivationLink.create_invite_link(
-            email=email,
-            role=role,
-            restaurant_id=target.id,
-            organization_id=target.organization_id,
-        )
+
+        # A supervisor sits above the sites: it is attached to the organization
+        # and to no restaurant.
+        if role == User.ROLE_ORG_ADMIN:
+            if not org:
+                click.echo('❌ --org est requis pour le rôle org_admin.')
+                return
+            organization = Organization.query.get(int(org)) if org.isdigit() else None
+            if organization is None:
+                organization = Organization.query.filter_by(slug=org).first()
+            if organization is None:
+                click.echo(f'❌ Organisation introuvable : {org}')
+                return
+            link = ActivationLink.create_invite_link(
+                email=email,
+                role=role,
+                restaurant_id=None,
+                organization_id=organization.id,
+            )
+            destination = organization.name
+        else:
+            if not restaurant:
+                click.echo('❌ --restaurant est requis pour un rôle de site.')
+                return
+            target = Restaurant.query.get(int(restaurant)) if restaurant.isdigit() else None
+            if target is None:
+                target = Restaurant.query.filter_by(slug=restaurant).first()
+            if target is None:
+                click.echo(f'❌ Restaurant introuvable : {restaurant}')
+                return
+            link = ActivationLink.create_invite_link(
+                email=email,
+                role=role,
+                restaurant_id=target.id,
+                organization_id=target.organization_id,
+            )
+            destination = target.name
+
         db.session.add(link)
         db.session.commit()
         frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
-        click.echo(f'✅ Invitation créée : {email} ({role}) → {target.name}')
+        click.echo(f'✅ Invitation créée : {email} ({role}) → {destination}')
         click.echo(f'🔗 {frontend_url}/activate/{link.token}')
         click.echo('⚠️  Expire dans 72 h, usage unique.')
 
