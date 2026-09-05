@@ -215,8 +215,9 @@ def get_live_alerts():
     """Calcule en temps réel les alertes actives pour l'utilisateur courant.
     Aucune persistance DB — l'état reflète la situation actuelle du restaurant.
     """
-    from ..models import Menu
+    from ..models import Menu, Restaurant
     from ..models.restaurant import RestaurantServiceHours
+    from ..services.service_calendar import closures_by_site, is_open_on
 
     user, restaurant_id = _get_user_and_restaurant_id()
     if not user or not restaurant_id:
@@ -232,7 +233,13 @@ def get_live_alerts():
     alerts = []
 
     # ── Alerte 1 : menu du jour non publié ───────────────────────────────────
-    if prefs.get('notify_menu_unpublished', True):
+    restaurant = Restaurant.query.get(restaurant_id)
+    closures = closures_by_site([restaurant_id], today_date, today_date)
+    serves_today = restaurant is not None and is_open_on(
+        restaurant, today_date, closures.get(restaurant_id, [])
+    )
+
+    if serves_today and prefs.get('notify_menu_unpublished', True):
         published_menu = Menu.query.filter_by(
             restaurant_id=restaurant_id,
             date=today_date,

@@ -51,7 +51,7 @@ const getApiUrl = (): string => {
   return 'http://localhost:5000/v1';
 };
 
-const API_URL = getApiUrl();
+export const API_URL = getApiUrl();
 const PUBLIC_API_TIMEOUT_MS = 20000;
 
 // ========================================
@@ -1572,13 +1572,15 @@ export const restaurantApi = {
   },
 };
 
+export type MenuDayStatus = 'published' | 'draft' | 'missing' | 'closed';
+
 export interface OrgSite {
   id: number;
   name: string;
   slug?: string | null;
   is_active: boolean;
   user_count: number;
-  today_menu_published: boolean;
+  today_menu_status: MenuDayStatus;
   upcoming_events: number;
   last_published_at: string | null;
 }
@@ -1682,6 +1684,29 @@ export interface PublicationsReport {
   }[];
 }
 
+export interface TrafficSeriesPoint {
+  date: string;
+  views: number;
+  unique_visitors: number;
+}
+
+export interface TrafficSiteRow {
+  site_id: number;
+  name: string;
+  views: number;
+  unique_visitors: number;
+  delta_pct: number | null;
+  sparkline: number[];
+}
+
+export interface TrafficReport {
+  series: TrafficSeriesPoint[];
+  by_site: TrafficSiteRow[];
+  by_page_kind: { page_kind: string; views: number }[];
+  hour_profile: { hour: number; views: number }[];
+  totals: { views: number; unique_visitors: number; org_root_views: number };
+}
+
 export interface AnalyticsQuery {
   period?: string;
   start?: string;
@@ -1711,6 +1736,10 @@ export const analyticsApi = {
   getPublications: async (query: AnalyticsQuery = {}): Promise<PublicationsReport> => {
     const response = await api.get('/analytics/publications', { params: analyticsParams(query) });
     return response.data as PublicationsReport;
+  },
+  getTraffic: async (query: AnalyticsQuery = {}): Promise<TrafficReport> => {
+    const response = await api.get('/analytics/traffic', { params: analyticsParams(query) });
+    return response.data as TrafficReport;
   },
 };
 

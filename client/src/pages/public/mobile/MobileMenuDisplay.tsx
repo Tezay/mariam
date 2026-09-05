@@ -3,7 +3,8 @@
  *
  * Gère le fetch des données et orchestre tous les composants mobiles.
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { trackPageView } from '@/lib/telemetry';
 import { Zap, CalendarOff } from 'lucide-react';
 import { ExceptionalClosure } from '@/lib/api';
 import { InlineError, getErrorType } from '@/components/InlineError';
@@ -60,6 +61,10 @@ function filterUpcomingClosures(closures: ExceptionalClosure[]): ExceptionalClos
 
 export function MobileMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
   const [selectedDay, setSelectedDay] = useState<'today' | 'tomorrow'>('today');
+
+  useEffect(() => {
+    trackPageView(selectedDay, restaurantSlug);
+  }, [selectedDay, restaurantSlug]);
   const [selectedItem, setSelectedItem] = useState<MenuItemData | null>(null);
 
   const { data, isPending, isError, error, refetch } = usePublicMenu(restaurantSlug, 'mobile');

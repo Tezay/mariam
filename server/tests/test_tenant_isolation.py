@@ -446,8 +446,25 @@ class TestOrgDashboard:
         sites = res.get_json()['sites']
         assert {s['name'] for s in sites} == {'OVA', 'OVB'}
         assert all(
-            k in sites[0] for k in ('user_count', 'today_menu_published', 'upcoming_events', 'is_active')
+            k in sites[0] for k in ('user_count', 'today_menu_status', 'upcoming_events', 'is_active')
         )
+
+    def test_a_closed_day_is_not_reported_as_a_missing_menu(self, app, client):
+        _, rids = self._org('ov-closed', ['OVC'])
+        restaurant = Restaurant.query.get(rids[0])
+        restaurant.service_days = list(range(7))
+        today = paris_today()
+        db.session.add(
+            ExceptionalClosure(
+                restaurant_id=rids[0], start_date=today, end_date=today, is_active=True
+            )
+        )
+        db.session.commit()
+        token = get_token(client, email='u@mariam.app')
+
+        res = client.get('/v1/org/sites', headers=auth_headers(token))
+
+        assert res.get_json()['sites'][0]['today_menu_status'] == 'closed'
 
     def test_sites_overview_forbidden_for_site_admin(self, app, client):
         self._org('ov2', ['OV2A'], role='admin')

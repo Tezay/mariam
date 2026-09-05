@@ -4,6 +4,7 @@
  * Optimisé pour grands écrans (salles à manger, cafétérias).
  */
 import { useState, useEffect } from 'react';
+import { trackPageView } from '@/lib/telemetry';
 import { ExceptionalClosure, CertificationItem } from '@/lib/api';
 import { generateEventPalette } from '@/lib/color-utils';
 import { DynamicIcon as Icon } from 'lucide-react/dynamic';
@@ -367,6 +368,10 @@ function TvClosureDisplay({ closure }: { closure: ExceptionalClosure }) {
 // ─── TvMenuDisplay ──────────────────────────────────────────────────────────
 
 export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
+  useEffect(() => {
+    trackPageView('tv', restaurantSlug);
+  }, [restaurantSlug]);
+
   const [footerSlot, setFooterSlot] = useState(0);
   const [isRotated, setIsRotated] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);

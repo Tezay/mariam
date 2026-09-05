@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Public-page telemetry**: anonymous and aggregate-only — no cookie, nothing stored on the device. Counters live in Redis and are flushed every five minutes; unique visitors come from a HyperLogLog over IP and user-agent hashes, salted with a key that rotates daily and is never persisted.
+- **Traffic page** (`GET /v1/analytics/traffic`): daily series, hour profile, peak hour, per-site comparison and page-kind split. Signage screens are reported apart, never as visits.
+- Three scheduled jobs: counter flush, previous-day visitor close, purge past retention (`TELEMETRY_RETENTION_DAYS`, 400 days).
+- Visits and a two-week trend per site in the supervision overview, and each site's traffic on its own page.
 - **Analytics dashboard** (`GET /v1/analytics/overview`, `GET /v1/analytics/publications`) scoped by role: a site admin sees its own site, a supervisor every site of its organization, on the same screens. Filters: `period=7d|30d|90d`, custom `start`/`end`, `site_ids`.
 - **Publication metrics**: publication rate on opening days, punctuality against service hours, lead time, content completeness and a site × day status matrix.
 - **Statistics page** in the site dashboard, on the same views as the supervision dashboard.
@@ -30,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Redis ships with the deployment (`redis:7-alpine`) instead of a managed service; `REDIS_URL` still accepts a managed instance.
+- The scheduler runs as its own container in development too, matching production.
 - Both dashboards share one shell and one table: collapsible sidebar, mobile navigation, theme toggle, and the same sortable table everywhere.
 - `/org/users` and `/org/audit` render the site dashboard's pages, which gain a site column for multi-site callers.
 - The account page is shared by both dashboards, redesigned, and names the site or organization it belongs to.
@@ -54,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Public pages were rate-limited per IP address at a per-visitor budget**, so a campus behind a single NAT address ran out of menu requests at lunchtime. Both nginx and the API now budget a whole site, tunable through `PUBLIC_RATE_LIMIT`.
 - The installed app and the install walkthrough both pointed at `/admin/menus`, a route that no longer exists.
 - Image uploads larger than 1 MB were rejected: nginx `client_max_body_size` is aligned with the 32 MB backend limit.
 - nginx rate limiting now keys on the real visitor IP behind Cloudflare instead of the Cloudflare edge IP.
@@ -66,6 +73,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **Forwarding headers are rebuilt by nginx** from the connection's real address; a request reaching the origin directly could otherwise forge the IP that rate limiting keys on.
+- View counting refuses a beacon claiming a foreign origin, and caps what one visitor and one address can contribute per site and per day (`TELEMETRY_VISITOR_DAILY_CAP`, `TELEMETRY_IP_DAILY_CAP`, `TELEMETRY_IP_UNIQUE_CAP`). Addresses serve those caps alone, hashed with the daily salt, never stored in the clear.
+- The development compose file no longer carries credential values; local Web Push keys come from an untracked `.env` (see `.env.example`).
 - **A supervisor belongs to no site and manages only its peers**: it invites supervisors only and cannot touch site accounts, in either direction. A migration detaches existing supervisors from their site.
 - Requests are no longer implicitly scoped by a stored "active site"; views targeting another site say so.
 - `X-Restaurant-Id` and `X-Step-Up-Token` added to the CORS allow-list, for cross-origin deployments.

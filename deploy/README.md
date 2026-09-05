@@ -6,7 +6,7 @@ Ce dossier contient tout le nécessaire pour déployer MARIAM en production.
 
 ```
 deploy/
-├── docker-compose.yml    # Orchestration des services
+├── compose.yaml          # Orchestration des services
 ├── .env.example          # Template des variables d'environnement
 ├── nginx/
 │   └── nginx.conf        # Configuration du reverse proxy

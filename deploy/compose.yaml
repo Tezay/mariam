@@ -1,12 +1,5 @@
-# MARIAM - Production Docker Compose
-# ========================================
-# Consumes the images published to GHCR by CI on each version tag.
-#
-# Usage:
-#   ./scripts/run.sh          # pull images and (re)start
-#   ./scripts/run.sh logs     # view logs
-#   ./scripts/run.sh down     # stop
-#   ./scripts/init.sh         # first-time setup
+# Images are built by CI and pulled here rather than built on the server, so a
+# deploy cannot fail on a missing toolchain and a rollback is a tag change.
 
 x-logging: &default-logging
   driver: json-file
@@ -14,7 +7,6 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "3"
 
-# Shared runtime env for the backend and the scheduler (same app, same config).
 x-backend-env: &backend-env
   DATABASE_URL: postgresql://${POSTGRES_USER:-mariam}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-mariam_db}
   SECRET_KEY: ${SECRET_KEY:?Définissez SECRET_KEY dans .env}
@@ -36,7 +28,14 @@ x-backend-env: &backend-env
   VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:?Définissez VAPID_PUBLIC_KEY dans .env}
   VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:?Définissez VAPID_PRIVATE_KEY dans .env}
   VAPID_CONTACT_EMAIL: ${VAPID_CONTACT_EMAIL:-contact@mariam.app}
-  REDIS_URL: ${REDIS_URL:?Définissez REDIS_URL dans .env (Upstash)}
+  REDIS_URL: ${REDIS_URL:?Définissez REDIS_URL dans .env}
+  ORG_CACHE_TTL_SECONDS: ${ORG_CACHE_TTL_SECONDS:-60}
+  PUBLIC_RATE_LIMIT: "${PUBLIC_RATE_LIMIT:-600 per minute}"
+  TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-1}
+  TELEMETRY_RETENTION_DAYS: ${TELEMETRY_RETENTION_DAYS:-400}
+  TELEMETRY_VISITOR_DAILY_CAP: ${TELEMETRY_VISITOR_DAILY_CAP:-120}
+  TELEMETRY_IP_DAILY_CAP: ${TELEMETRY_IP_DAILY_CAP:-50000}
+  TELEMETRY_IP_UNIQUE_CAP: ${TELEMETRY_IP_UNIQUE_CAP:-5000}
   WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:?Définissez WEBAUTHN_RP_ID dans .env (ex. mariam.app)}
   WEBAUTHN_RP_NAME: ${WEBAUTHN_RP_NAME:-MARIAM}
   WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:?Définissez WEBAUTHN_ORIGIN dans .env (ex. https://mariam.app)}
@@ -48,9 +47,6 @@ x-backend-env: &backend-env
   DEFAULT_ORG_SLUG: ${DEFAULT_ORG_SLUG:-}
 
 services:
-  # ========================================
-  # DATABASE
-  # ========================================
   db:
     image: postgres:15-alpine
     container_name: mariam_db_prod
@@ -72,9 +68,6 @@ services:
     networks:
       - mariam_network
 
-  # ========================================
-  # BACKEND (Flask + Gunicorn)
-  # ========================================
   backend:
     image: ${BACKEND_IMAGE:-ghcr.io/tezay/mariam-backend}:${MARIAM_TAG:-latest}
     container_name: mariam_backend_prod
@@ -84,7 +77,9 @@ services:
     cpus: 1.0
     environment:
       <<: *backend-env
-      ENABLE_SCHEDULER: "0"  # the dedicated scheduler service runs jobs
+      # Jobs run once, in the scheduler service; a second runner would duplicate
+      # every push notification.
+      ENABLE_SCHEDULER: "0"
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
       GUNICORN_THREADS: ${GUNICORN_THREADS:-4}
     depends_on:
@@ -99,9 +94,26 @@ services:
     networks:
       - mariam_network
 
-  # ========================================
-  # SCHEDULER (APScheduler — single instance)
-  # ========================================
+  redis:
+    image: redis:7-alpine
+    container_name: mariam_redis_prod
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 320m
+    cpus: 0.5
+    # Every key we store carries a TTL; volatile-ttl evicts the oldest of those
+    # under pressure, where allkeys-* could drop a lock or a revoked token.
+    command: redis-server --maxmemory 256mb --maxmemory-policy volatile-ttl
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - mariam_network
+
   scheduler:
     image: ${BACKEND_IMAGE:-ghcr.io/tezay/mariam-backend}:${MARIAM_TAG:-latest}
     container_name: mariam_scheduler_prod
@@ -119,9 +131,6 @@ services:
     networks:
       - mariam_network
 
-  # ========================================
-  # FRONTEND (Nginx + React build)
-  # ========================================
   frontend:
     image: ${FRONTEND_IMAGE:-ghcr.io/tezay/mariam-frontend}:${MARIAM_TAG:-latest}
     container_name: mariam_frontend_prod
@@ -143,9 +152,6 @@ services:
     networks:
       - mariam_network
 
-  # ========================================
-  # BACKUP (Postgres dump -> S3 bucket)
-  # ========================================
   backup:
     build:
       context: ./backup
@@ -174,6 +180,7 @@ services:
 
 volumes:
   postgres_data_prod:
+  redis_data:
 
 networks:
   mariam_network:

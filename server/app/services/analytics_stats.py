@@ -11,10 +11,21 @@ from datetime import date, datetime, timedelta
 from flask import request
 
 from ..extensions import db
-from ..models import DishCatalog, ExceptionalClosure, Menu, MenuCategory, MenuItem, Restaurant
+from ..models import (
+    DishCatalog,
+    Menu,
+    MenuCategory,
+    MenuItem,
+    PageViewRollup,
+    Restaurant,
+    VisitorDailyUnique,
+)
+from ..models.telemetry import ORG_PAGE_KINDS
 from ..routes.helpers import accessible_restaurant_ids
 from ..utils.time import PARIS_TZ, paris_today, parse_iso_date, utc_naive_to_paris
 from .redis_client import get_redis
+from .service_calendar import closures_by_site
+from .telemetry import live_uniques
 
 PERIODS = {'7d': 7, '30d': 30, '90d': 90}
 DEFAULT_PERIOD = '30d'
@@ -274,27 +285,6 @@ def _top_level_category_counts(site_ids: list[int]) -> dict[int, int]:
     return {restaurant_id: count for restaurant_id, count in rows}
 
 
-def _closed_days(scope: Scope) -> dict[int, list[tuple[date, date]]]:
-    rows = (
-        ExceptionalClosure.query.filter(
-            ExceptionalClosure.restaurant_id.in_(scope.site_ids),
-            ExceptionalClosure.is_active,
-            ExceptionalClosure.start_date <= scope.end,
-            ExceptionalClosure.end_date >= scope.start,
-        )
-        .with_entities(
-            ExceptionalClosure.restaurant_id,
-            ExceptionalClosure.start_date,
-            ExceptionalClosure.end_date,
-        )
-        .all()
-    )
-    closures: dict[int, list[tuple[date, date]]] = {}
-    for restaurant_id, start, end in rows:
-        closures.setdefault(restaurant_id, []).append((start, end))
-    return closures
-
-
 def _open_times(site_ids: list[int]) -> dict[tuple[int, int], str]:
     from ..models import RestaurantServiceHours
 
@@ -330,7 +320,7 @@ def publication_stats(scope: Scope, include_matrix: bool = True) -> dict:
     filled = _filled_categories_per_menu(scope)
     photos = _photo_counts_per_menu(scope)
     expected_categories = _top_level_category_counts(scope.site_ids)
-    closures = _closed_days(scope)
+    closures = closures_by_site(scope.site_ids, scope.start, scope.end)
     open_times = _open_times(scope.site_ids)
 
     menus_by_site_date = {(menu.restaurant_id, menu.date): menu for menu in menus}
@@ -422,11 +412,11 @@ def publication_stats(scope: Scope, include_matrix: bool = True) -> dict:
     return {'summary': overall.as_summary(), 'sites': site_rows, 'matrix': matrix}
 
 
-def overview(scope: Scope) -> dict:
+def overview(scope: Scope, organization_id=None) -> dict:
     """Headline KPIs, org trend and per-site table for the dashboard home.
 
-    Traffic and satisfaction are not collected yet; their keys are present and
-    null so the frontend contract does not change when they land.
+    Satisfaction is not collected yet; its keys are present and null so the
+    frontend contract does not change when it lands.
     """
     sites = _sites_in_scope(scope.site_ids)
     current = publication_stats(scope, include_matrix=False)
@@ -436,6 +426,13 @@ def overview(scope: Scope) -> dict:
     previous_summary = previous['summary']
     rates_by_site = {row['site_id']: row for row in current['sites']}
     last_published = _last_published_at(scope.site_ids) if scope.site_ids else {}
+
+    traffic = traffic_stats(scope, organization_id) if scope.site_ids else None
+    traffic_previous = (
+        traffic_stats(scope.previous(), organization_id) if scope.site_ids else None
+    )
+    traffic_by_date = {row['date']: row for row in (traffic['series'] if traffic else [])}
+    traffic_by_site = {row['site_id']: row for row in (traffic['by_site'] if traffic else [])}
 
     published_per_date: dict[date, int] = {}
     for menu in _menus_in_range(scope) if scope.site_ids else []:
@@ -448,8 +445,8 @@ def overview(scope: Scope) -> dict:
         trend.append({
             'date': day.isoformat(),
             'published_sites': published_per_date.get(day, 0),
-            'views': None,
-            'unique_visitors': None,
+            'views': traffic_by_date.get(day.isoformat(), {}).get('views'),
+            'unique_visitors': traffic_by_date.get(day.isoformat(), {}).get('unique_visitors'),
             'score': None,
         })
         day += timedelta(days=1)
@@ -467,8 +464,8 @@ def overview(scope: Scope) -> dict:
             'last_published_at': (
                 utc_naive_to_paris(published_at).isoformat() if published_at else None
             ),
-            'views': None,
-            'views_sparkline': None,
+            'views': traffic_by_site.get(site.id, {}).get('views'),
+            'views_sparkline': traffic_by_site.get(site.id, {}).get('sparkline'),
             'score': None,
             'votes': None,
         })
@@ -495,8 +492,14 @@ def overview(scope: Scope) -> dict:
                 current_summary['avg_lead_time_hours'], previous_summary['avg_lead_time_hours']
             ),
             'completeness': current_summary['completeness'],
-            'views': None,
-            'unique_visitors': None,
+            'views': _metric(
+                traffic['totals']['views'] if traffic else None,
+                traffic_previous['totals']['views'] if traffic_previous else None,
+            ),
+            'unique_visitors': _metric(
+                traffic['totals']['unique_visitors'] if traffic else None,
+                traffic_previous['totals']['unique_visitors'] if traffic_previous else None,
+            ),
             'satisfaction': None,
             'participation_rate': None,
         },
@@ -504,4 +507,177 @@ def overview(scope: Scope) -> dict:
         'sites': site_rows,
         'top_dishes': None,
         'flop_dishes': None,
+    }
+
+
+SPARKLINE_DAYS = 14
+
+# Signage screens refresh unattended all day; counting them as visits would make
+# every other figure meaningless.
+_SITE_VIEWS = db.and_(
+    PageViewRollup.restaurant_id.isnot(None),
+    PageViewRollup.page_kind != 'tv',
+)
+
+
+def _views_in_range(site_ids, start: date, end: date, *, all_kinds: bool = False):
+    scope = PageViewRollup.restaurant_id.in_(site_ids)
+    if not all_kinds:
+        scope = db.and_(scope, _SITE_VIEWS)
+    return db.session.query(PageViewRollup).filter(
+        scope, PageViewRollup.date >= start, PageViewRollup.date <= end
+    )
+
+
+def _sum_by(site_ids, start: date, end: date, column, *, all_kinds: bool = False) -> dict:
+    rows = (
+        _views_in_range(site_ids, start, end, all_kinds=all_kinds)
+        .with_entities(column, db.func.sum(PageViewRollup.views))
+        .group_by(column)
+        .all()
+    )
+    return {key: int(total or 0) for key, total in rows}
+
+
+def _uniques_by_site(site_ids, start: date, end: date) -> dict[int, int]:
+    rows = (
+        db.session.query(
+            VisitorDailyUnique.restaurant_id, db.func.sum(VisitorDailyUnique.unique_visitors)
+        )
+        .filter(
+            VisitorDailyUnique.restaurant_id.in_(site_ids),
+            VisitorDailyUnique.date >= start,
+            VisitorDailyUnique.date <= end,
+        )
+        .group_by(VisitorDailyUnique.restaurant_id)
+        .all()
+    )
+    totals = {site_id: int(count or 0) for site_id, count in rows}
+
+    # The day close runs at 00:30, so today's estimate normally lives only in
+    # Redis. Take the larger of the two rather than their sum: a close already
+    # run for today would otherwise be counted twice.
+    today = paris_today()
+    if start <= today <= end:
+        for site_id, count in live_uniques(site_ids, today).items():
+            totals[site_id] = max(totals.get(site_id, 0), count)
+    return totals
+
+
+def _uniques_by_date(site_ids, start: date, end: date) -> dict[date, int]:
+    rows = (
+        db.session.query(VisitorDailyUnique.date, db.func.sum(VisitorDailyUnique.unique_visitors))
+        .filter(
+            VisitorDailyUnique.restaurant_id.in_(site_ids),
+            VisitorDailyUnique.date >= start,
+            VisitorDailyUnique.date <= end,
+        )
+        .group_by(VisitorDailyUnique.date)
+        .all()
+    )
+    totals = {day: int(count or 0) for day, count in rows}
+    today = paris_today()
+    if start <= today <= end:
+        live = sum(live_uniques(site_ids, today).values())
+        if live:
+            totals[today] = max(totals.get(today, 0), live)
+    return totals
+
+
+def _org_root_views(organization_id, start: date, end: date) -> int:
+    if not organization_id:
+        return 0
+    total = (
+        db.session.query(db.func.sum(PageViewRollup.views))
+        .filter(
+            PageViewRollup.organization_id == organization_id,
+            PageViewRollup.page_kind.in_(ORG_PAGE_KINDS),
+            PageViewRollup.date >= start,
+            PageViewRollup.date <= end,
+        )
+        .scalar()
+    )
+    return int(total or 0)
+
+
+def traffic_stats(scope: Scope, organization_id=None) -> dict:
+    """Consultation of the public pages over the period, per day, site and hour."""
+    sites = _sites_in_scope(scope.site_ids)
+    if not sites:
+        return {
+            'series': [], 'by_site': [], 'by_page_kind': [], 'hour_profile': [],
+            'totals': {'views': 0, 'unique_visitors': 0, 'org_root_views': 0},
+        }
+
+    site_ids = scope.site_ids
+    views_by_date = _sum_by(site_ids, scope.start, scope.end, PageViewRollup.date)
+    views_by_site = _sum_by(site_ids, scope.start, scope.end, PageViewRollup.restaurant_id)
+    views_by_hour = _sum_by(site_ids, scope.start, scope.end, PageViewRollup.hour)
+    views_by_kind = _sum_by(
+        site_ids, scope.start, scope.end, PageViewRollup.page_kind, all_kinds=True
+    )
+    previous = scope.previous()
+    previous_by_site = _sum_by(site_ids, previous.start, previous.end, PageViewRollup.restaurant_id)
+
+    uniques_by_site = _uniques_by_site(site_ids, scope.start, scope.end)
+    uniques_by_date = _uniques_by_date(site_ids, scope.start, scope.end)
+
+    sparkline_start = max(scope.start, scope.end - timedelta(days=SPARKLINE_DAYS - 1))
+    sparkline_rows = (
+        _views_in_range(site_ids, sparkline_start, scope.end)
+        .with_entities(
+            PageViewRollup.restaurant_id, PageViewRollup.date, db.func.sum(PageViewRollup.views)
+        )
+        .group_by(PageViewRollup.restaurant_id, PageViewRollup.date)
+        .all()
+    )
+    sparklines: dict[int, dict[date, int]] = {}
+    for site_id, day, total in sparkline_rows:
+        sparklines.setdefault(site_id, {})[day] = int(total or 0)
+
+    series = []
+    day = scope.start
+    while day <= scope.end:
+        series.append({
+            'date': day.isoformat(),
+            'views': views_by_date.get(day, 0),
+            'unique_visitors': uniques_by_date.get(day, 0),
+        })
+        day += timedelta(days=1)
+
+    sparkline_days = []
+    day = sparkline_start
+    while day <= scope.end:
+        sparkline_days.append(day)
+        day += timedelta(days=1)
+
+    by_site = []
+    for site in sites:
+        current = views_by_site.get(site.id, 0)
+        before = previous_by_site.get(site.id, 0)
+        by_site.append({
+            'site_id': site.id,
+            'name': site.name,
+            'views': current,
+            'unique_visitors': uniques_by_site.get(site.id, 0),
+            'delta_pct': (
+                round((current - before) / before * 100, 1) if before else None
+            ),
+            'sparkline': [sparklines.get(site.id, {}).get(d, 0) for d in sparkline_days],
+        })
+
+    return {
+        'series': series,
+        'by_site': by_site,
+        'by_page_kind': [
+            {'page_kind': kind, 'views': total} for kind, total in sorted(views_by_kind.items())
+        ],
+        'hour_profile': [
+            {'hour': hour, 'views': views_by_hour.get(hour, 0)} for hour in range(24)
+        ],
+        'totals': {
+            'views': sum(views_by_date.values()),
+            'unique_visitors': sum(uniques_by_site.values()),
+            'org_root_views': _org_root_views(organization_id, scope.start, scope.end),
+        },
     }

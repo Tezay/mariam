@@ -10,8 +10,10 @@ import { orgApi, adminApi, type OrgSite, type User } from '@/lib/api';
 import { StatTile, StatusPill, PrimaryButton } from './ui';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { RoleBadge } from '@/components/dashboard/RoleBadge';
+import { menuStatusLabel } from '@/lib/menu-status';
 import { DataTable, type DataTableColumn } from '@/components/dashboard/DataTable';
 import { SiteWeekCalendar } from './site/SiteWeekCalendar';
+import { TrafficView } from '@/features/analytics/TrafficView';
 
 const SITE_USER_COLUMNS: DataTableColumn<User>[] = [
   {
@@ -94,9 +96,14 @@ export function OrgSiteDetailPage() {
         <StatTile label="Événements à venir" value={site.upcoming_events} icon={CalendarClock} />
         <StatTile
           label="Menu du jour"
-          value={site.today_menu_published ? 'Publié' : 'Non publié'}
+          value={menuStatusLabel(site.today_menu_status)}
           icon={CheckCircle2}
         />
+      </div>
+
+      <div className="mt-8">
+        <h2 className="mb-3 text-sm font-medium text-foreground">Consultations du menu</h2>
+        <TrafficView siteId={site.id} />
       </div>
 
       <div className="mt-8">

@@ -10,6 +10,7 @@ from flask_smorest import Blueprint
 
 from ..extensions import db
 from ..models import Event, Menu, Restaurant, User
+from ..services.service_calendar import closures_by_site, menu_status
 from ..utils.time import paris_today, utc_naive_to_paris
 from .helpers import accessible_restaurant_ids, get_current_user, org_admin_required
 
@@ -33,16 +34,11 @@ def org_sites():
         .group_by(User.restaurant_id)
         .all()
     )
-    published_today = {
-        row[0]
-        for row in db.session.query(Menu.restaurant_id)
-        .filter(
-            Menu.restaurant_id.in_(ids),
-            Menu.date == today,
-            Menu.status == 'published',
-        )
-        .all()
+    menus_today = {
+        menu.restaurant_id: menu
+        for menu in Menu.query.filter(Menu.restaurant_id.in_(ids), Menu.date == today).all()
     }
+    closures = closures_by_site(ids, today, today)
     upcoming_events = dict(
         db.session.query(Event.restaurant_id, db.func.count(Event.id))
         .filter(
@@ -70,7 +66,9 @@ def org_sites():
             'slug': site.slug,
             'is_active': site.is_active,
             'user_count': user_counts.get(site.id, 0),
-            'today_menu_published': site.id in published_today,
+            'today_menu_status': menu_status(
+                site, today, menus_today.get(site.id), closures.get(site.id, [])
+            ),
             'upcoming_events': upcoming_events.get(site.id, 0),
             'last_published_at': (
                 utc_naive_to_paris(published_at).isoformat() if published_at else None

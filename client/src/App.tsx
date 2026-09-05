@@ -71,6 +71,9 @@ const StatsPage = lazy(() =>
 const OrgOverviewPage = lazy(() =>
   import('./pages/org/OrgOverviewPage').then((m) => ({ default: m.OrgOverviewPage }))
 );
+const OrgTrafficPage = lazy(() =>
+  import('./pages/org/analytics/TrafficPage').then((m) => ({ default: m.OrgTrafficPage }))
+);
 const OrgPublicationsPage = lazy(() =>
   import('./pages/org/analytics/PublicationsPage').then((m) => ({
     default: m.OrgPublicationsPage,
@@ -284,6 +287,7 @@ function App() {
             }
           >
             <Route index element={<OrgOverviewPage />} />
+            <Route path="analytics/traffic" element={<OrgTrafficPage />} />
             <Route path="analytics/publications" element={<OrgPublicationsPage />} />
             <Route path="sites" element={<OrgSitesPage />} />
             <Route path="sites/:id" element={<OrgSiteDetailPage />} />

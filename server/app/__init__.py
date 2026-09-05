@@ -635,48 +635,68 @@ Disallow: /v1/users/
     # ========================================
     # SCHEDULER — Notifications push planifiées
     # ========================================
-    _start_notification_scheduler(app)
+    _start_scheduler(app)
 
     return app
 
 
-def _start_notification_scheduler(app):
-    """Start APScheduler for scheduled push notifications (every minute).
+def _start_scheduler(app):
+    """Start the background jobs, in the dedicated scheduler process only.
 
-    Runs only in the dedicated scheduler process (ENABLE_SCHEDULER=1); the web
-    (gunicorn) workers never start it, which prevents duplicate sends.
+    Gunicorn workers never start it (ENABLE_SCHEDULER=1), which is what keeps
+    push notifications from being sent once per worker.
     """
     if os.environ.get('ENABLE_SCHEDULER') != '1':
-        return
-
-    vapid_key = os.environ.get('VAPID_PRIVATE_KEY', '')
-    if not vapid_key:
-        app.logger.info("VAPID_PRIVATE_KEY unset — notification scheduler disabled")
         return
 
     # Under the Flask dev reloader, only the child process should start it.
     if app.debug and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
         return
-    
+
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
 
-        from .services.notification_service import check_and_send_notifications
-        
-        scheduler = BackgroundScheduler(daemon=True)
+        from .services import telemetry
+
+        scheduler = BackgroundScheduler(daemon=True, timezone='Europe/Paris')
+
+        # Push is the only job needing VAPID keys; the others run regardless.
+        if os.environ.get('VAPID_PRIVATE_KEY'):
+            from .services.notification_service import check_and_send_notifications
+            scheduler.add_job(
+                func=check_and_send_notifications,
+                trigger='cron', minute='*', args=[app],
+                id='push_notifications',
+                name='Envoi des notifications push planifiées',
+                replace_existing=True, misfire_grace_time=60,
+            )
+        else:
+            app.logger.info('VAPID_PRIVATE_KEY unset — push notifications disabled')
+
         scheduler.add_job(
-            func=check_and_send_notifications,
-            trigger='cron',
-            minute='*',
-            args=[app],
-            id='push_notifications',
-            name='Envoi des notifications push planifiées',
-            replace_existing=True,
-            misfire_grace_time=60,
+            func=telemetry.run_flush_job,
+            trigger='cron', minute='*/5', args=[app],
+            id='telemetry_flush',
+            name='Flush des compteurs de vues',
+            replace_existing=True, misfire_grace_time=300,
+        )
+        scheduler.add_job(
+            func=telemetry.run_day_close_job,
+            trigger='cron', hour=0, minute=30, args=[app],
+            id='telemetry_day_close',
+            name='Clôture des visiteurs uniques de la veille',
+            replace_existing=True, misfire_grace_time=300,
+        )
+        scheduler.add_job(
+            func=telemetry.run_purge_job,
+            trigger='cron', day_of_week='sun', hour=3, args=[app],
+            id='analytics_purge',
+            name='Purge des données de télémétrie expirées',
+            replace_existing=True, misfire_grace_time=300,
         )
 
         scheduler.start()
-        app.logger.info("✅ Scheduler de notifications push démarré (toutes les minutes)")
-        
+        app.logger.info('✅ Scheduler démarré (%d jobs)', len(scheduler.get_jobs()))
+
     except Exception as e:
         app.logger.error(f"❌ Impossible de démarrer le scheduler : {e}")

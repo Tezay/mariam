@@ -8,7 +8,13 @@ through `site_ids` instead of switching active site.
 from flask import jsonify
 from flask_smorest import Blueprint
 
-from ..services.analytics_stats import cached_json, overview, publication_stats, resolve_scope
+from ..services.analytics_stats import (
+    cached_json,
+    overview,
+    publication_stats,
+    resolve_scope,
+    traffic_stats,
+)
 from .helpers import admin_required, get_current_user
 
 analytics_bp = Blueprint('analytics', __name__, description='Dashboard analytics')
@@ -24,7 +30,12 @@ def analytics_overview():
     """Headline KPIs, trend and per-site table for the period."""
     user = get_current_user()
     scope = resolve_scope(user)
-    data = cached_json(_cache_namespace(user), 'overview', scope, lambda: overview(scope))
+    data = cached_json(
+        _cache_namespace(user),
+        'overview',
+        scope,
+        lambda: overview(scope, user.organization_id),
+    )
     return jsonify(data), 200
 
 
@@ -36,5 +47,20 @@ def analytics_publications():
     scope = resolve_scope(user)
     data = cached_json(
         _cache_namespace(user), 'publications', scope, lambda: publication_stats(scope)
+    )
+    return jsonify(data), 200
+
+
+@analytics_bp.route('/traffic', methods=['GET'])
+@admin_required
+def analytics_traffic():
+    """Public-page consultation over the period, per day, site, hour and page kind."""
+    user = get_current_user()
+    scope = resolve_scope(user)
+    data = cached_json(
+        _cache_namespace(user),
+        'traffic',
+        scope,
+        lambda: traffic_stats(scope, user.organization_id),
     )
     return jsonify(data), 200

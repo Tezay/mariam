@@ -9,8 +9,10 @@ import {
   TrendingUp,
   UtensilsCrossed,
 } from 'lucide-react';
-import type { AnalyticsOverviewSite, OrgSite } from '@/lib/api';
+import type { AnalyticsOverviewSite, MenuDayStatus, OrgSite } from '@/lib/api';
 import { EmptyState } from '@/components/dashboard/EmptyState';
+import { MenuStatusBadge } from '@/components/dashboard/MenuStatusBadge';
+import { MENU_STATUS_RANK } from '@/lib/menu-status';
 import { PageHeader } from './ui';
 import { AddSiteButton } from './AddSiteButton';
 import { KpiCard } from '@/features/analytics/ui/KpiCard';
@@ -19,6 +21,7 @@ import { PeriodSelector } from '@/features/analytics/ui/PeriodSelector';
 import { SitePicker } from '@/features/analytics/ui/SitePicker';
 import { DataTable, type DataTableColumn } from '@/components/dashboard/DataTable';
 import { RateBar } from '@/features/analytics/ui/RateBar';
+import { Sparkline } from '@/features/analytics/ui/charts/Sparkline';
 import { useAnalyticsFilters } from '@/features/analytics/hooks/useAnalyticsFilters';
 import { useAnalyticsOverview, useOrgSites } from '@/features/analytics/hooks/useAnalyticsQueries';
 import {
@@ -26,25 +29,14 @@ import {
   formatNumber,
   formatPercent,
   formatPoints,
+  formatRelative,
+  PLACEHOLDER,
+  plural,
 } from '@/features/analytics/format';
-import { cn } from '@/lib/utils';
 
 interface OverviewRow extends AnalyticsOverviewSite {
-  todayPublished: boolean;
+  todayStatus: MenuDayStatus;
   userCount: number;
-}
-
-function TodayMenuBadge({ published }: { published: boolean }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-medium">
-      <span
-        className={cn('h-1.5 w-1.5 rounded-full', published ? 'bg-emerald-500' : 'bg-red-400')}
-      />
-      <span className={published ? 'text-foreground' : 'text-red-600 dark:text-red-400'}>
-        {published ? 'Publié' : 'Non publié'}
-      </span>
-    </span>
-  );
 }
 
 const COLUMNS: DataTableColumn<OverviewRow>[] = [
@@ -57,8 +49,22 @@ const COLUMNS: DataTableColumn<OverviewRow>[] = [
   {
     key: 'today',
     header: 'Menu du jour',
-    render: (row) => <TodayMenuBadge published={row.todayPublished} />,
-    sortValue: (row) => (row.todayPublished ? 1 : 0),
+    render: (row) => <MenuStatusBadge status={row.todayStatus} />,
+    sortValue: (row) => MENU_STATUS_RANK[row.todayStatus],
+  },
+  {
+    key: 'views',
+    header: 'Consultations',
+    align: 'right',
+    render: (row) => (
+      <div className="flex items-center justify-end gap-2">
+        {row.views_sparkline && (
+          <Sparkline values={row.views_sparkline} className="text-primary/70" />
+        )}
+        <span className="tabular-nums">{formatNumber(row.views)}</span>
+      </div>
+    ),
+    sortValue: (row) => row.views,
   },
   {
     key: 'publication_rate',
@@ -110,7 +116,7 @@ export function OrgOverviewPage() {
         const orgSite = sitesById.get(site.site_id);
         return {
           ...site,
-          todayPublished: orgSite?.today_menu_published ?? false,
+          todayStatus: orgSite?.today_menu_status ?? 'missing',
           userCount: orgSite?.user_count ?? 0,
         };
       }),
@@ -123,9 +129,20 @@ export function OrgOverviewPage() {
   );
 
   const kpis = overview?.kpis;
-  const publishedToday = rows.filter((row) => row.todayPublished).length;
-  const missingToday = rows.filter((row) => !row.todayPublished && row.is_active);
+  const closedToday = rows.filter((row) => row.todayStatus === 'closed').length;
+  const openToday = rows.filter((row) => row.todayStatus !== 'closed');
+  const publishedToday = openToday.filter((row) => row.todayStatus === 'published').length;
+  const missingToday = openToday.filter((row) => row.todayStatus !== 'published' && row.is_active);
   const isComparative = rows.length > 1;
+
+  const allClosed = rows.length > 0 && openToday.length === 0;
+  const todayValue = allClosed
+    ? `${plural(rows.length, 'Site')} ${plural(rows.length, 'fermé')}`
+    : `${publishedToday}/${openToday.length}`;
+  const todayHint = allClosed
+    ? "aucun service aujourd'hui"
+    : `${plural(publishedToday, 'publié')} aujourd'hui` +
+      (closedToday > 0 ? ` (${closedToday} ${plural(closedToday, 'fermé')})` : '');
 
   return (
     <div className="space-y-6">
@@ -169,8 +186,8 @@ export function OrgOverviewPage() {
           label="Menus du jour"
           icon={UtensilsCrossed}
           loading={isLoading}
-          value={`${publishedToday}/${rows.length}`}
-          hint="publiés aujourd'hui"
+          value={rows.length === 0 ? PLACEHOLDER : todayValue}
+          hint={rows.length === 0 ? undefined : todayHint}
         />
         <KpiCard
           label="Taux de publication"
@@ -199,13 +216,15 @@ export function OrgOverviewPage() {
           icon={Building2}
           loading={isLoading}
           value={`${kpis?.sites.active ?? 0}/${kpis?.sites.total ?? 0}`}
-          hint="sites de l'organisation"
+          hint={`${plural(kpis?.sites.total, 'site')} de l'organisation`}
         />
         <KpiCard
-          label="Fréquentation"
+          label="Consultations du menu"
           icon={TrendingUp}
-          pending="Bientôt disponible — la mesure démarre à la prochaine mise à jour."
-          value={null}
+          loading={isLoading}
+          value={formatNumber(kpis?.views?.value)}
+          delta={rateDelta(kpis?.views?.delta_pct, formatRelative(kpis?.views?.delta_pct))}
+          hint={`${formatNumber(kpis?.unique_visitors?.value)} ${plural(kpis?.unique_visitors?.value, 'visiteur')} ${plural(kpis?.unique_visitors?.value, 'unique')}`}
         />
         <KpiCard
           label="Satisfaction"

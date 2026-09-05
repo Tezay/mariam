@@ -14,6 +14,7 @@ from datetime import time, timedelta
 from pywebpush import WebPushException, webpush
 
 from ..utils.time import paris_now, paris_today
+from .redis_client import acquire_job_lock
 
 logger = logging.getLogger(__name__)
 
@@ -450,24 +451,5 @@ def _check_closure_notifications(db, now, sent_count: int) -> int:
 # Verrou Redis (anti-doublon multi-instance)
 # ========================================
 def _acquire_lock(lock_key: str, ttl: int = 55) -> bool:
-    """
-    Tente d'acquérir un verrou Redis pour éviter les exécutions concurrentes.
-    Retourne True si le verrou est acquis, False sinon.
-    En développement (sans Redis), retourne toujours True.
-    """
-    redis_url = os.environ.get('REDIS_URL', '')
-
-    if not redis_url or redis_url == 'memory://':
-        # Pas de Redis — mode dev, pas de verrou nécessaire
-        return True
-
-    try:
-        import redis
-        r = redis.from_url(redis_url)
-        # SET NX (set if not exists) avec TTL
-        acquired = r.set(lock_key, '1', nx=True, ex=ttl)
-        return bool(acquired)
-    except Exception as e:
-        logger.warning(f"Impossible d'acquérir le verrou Redis : {e}")
-        # Ne pas bloquer les notifications si Redis indisponible en dev
-        return True
+    """Verrou Redis anti-exécutions concurrentes, partagé avec les autres jobs."""
+    return acquire_job_lock(lock_key, ttl)

@@ -94,6 +94,19 @@ def _truncate_all() -> None:
 
 
 @pytest.fixture(autouse=True)
+def no_ambient_redis(monkeypatch):
+    """Cut the suite off from any reachable Redis.
+
+    Counters, caches and job locks live outside PostgreSQL, so a developer's
+    local instance would otherwise leak state between tests and across runs.
+    A suite that needs Redis substitutes its own double.
+    """
+    from app.services import analytics_stats, redis_client, telemetry
+    for module in (redis_client, analytics_stats, telemetry):
+        monkeypatch.setattr(module, 'get_redis', lambda: None)
+
+
+@pytest.fixture(autouse=True)
 def clean_db(app):
     """
     Vide toutes les tables AVANT chaque test via TRUNCATE CASCADE.

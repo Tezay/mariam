@@ -217,7 +217,7 @@ class TestCompleteness:
 
 
 class TestOverview:
-    def test_traffic_and_satisfaction_are_absent_until_collected(self, app, client):
+    def test_traffic_reads_zero_and_satisfaction_stays_absent(self, app, client):
         org = _org('ov1')
         rid = _site(org, 'OV1')
         _director(rid, org)
@@ -226,7 +226,8 @@ class TestOverview:
         )
         assert res.status_code == 200
         kpis = res.get_json()['kpis']
-        assert kpis['views'] is None
+        assert kpis['views']['value'] == 0
+        assert kpis['unique_visitors']['value'] == 0
         assert kpis['satisfaction'] is None
         assert kpis['publication_rate']['value'] == 0.0
 

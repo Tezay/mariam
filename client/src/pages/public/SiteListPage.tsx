@@ -2,13 +2,19 @@
  * Public root for a multi-site organization: lists the sites, each linking to
  * its menu at /:slug/menu. Light mode only (public page).
  */
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, UtensilsCrossed } from 'lucide-react';
 import { useTenant } from '@/contexts/TenantContext';
 import { useDocumentMeta } from '@/lib/use-document-meta';
+import { trackPageView } from '@/lib/telemetry';
 
 export function SiteListPage() {
   const { organization, sites } = useTenant();
+
+  useEffect(() => {
+    trackPageView('sites');
+  }, []);
 
   useDocumentMeta({
     title: organization ? `${organization.name} — Nos restaurants` : undefined,

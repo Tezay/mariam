@@ -15,6 +15,13 @@ export function useAnalyticsPublications(query: AnalyticsQuery) {
   });
 }
 
+export function useAnalyticsTraffic(query: AnalyticsQuery) {
+  return useQuery({
+    queryKey: ['analytics', 'traffic', query],
+    queryFn: () => analyticsApi.getTraffic(query),
+  });
+}
+
 export function useOrgSites(enabled = true) {
   return useQuery({
     queryKey: ['org', 'sites'],

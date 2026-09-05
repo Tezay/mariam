@@ -10,13 +10,14 @@ import { useNavigate } from 'react-router-dom';
 import {
   menusApi,
   categoriesApi,
+  closuresApi,
   restaurantApi,
   Menu,
   MenuItem,
   MenuCategory,
   ServiceHours,
 } from '@/lib/api';
-import { isInServiceHours } from '@/lib/utils';
+import { backendWeekday, isInServiceHours } from '@/lib/utils';
 import { parisToday } from '@/lib/date-utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -30,6 +31,7 @@ import {
   Pencil,
   AlertTriangle,
   CalendarDays,
+  CalendarOff,
   Maximize2,
   Minimize2,
   ExternalLink,
@@ -58,7 +60,7 @@ function formatTodayLabel(date: Date): string {
 
 function nextServiceSlot(serviceHours: ServiceHours): string | null {
   const now = new Date();
-  const todayIdx = now.getDay() === 0 ? 6 : now.getDay() - 1;
+  const todayIdx = backendWeekday(now);
   const curMin = now.getHours() * 60 + now.getMinutes();
 
   for (let offset = 0; offset < 7; offset++) {
@@ -295,6 +297,7 @@ export function ServicePage() {
   const [menu, setMenu] = useState<Menu | null>(null);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [serviceHours, setServiceHours] = useState<ServiceHours>({});
+  const [closure, setClosure] = useState<{ closed: boolean; reason?: string }>({ closed: false });
   const [loading, setLoading] = useState(true);
 
   const [togglingId, setTogglingId] = useState<number | null>(null);
@@ -303,7 +306,7 @@ export function ServicePage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const duringService = isInServiceHours(serviceHours);
+  const duringService = !closure.closed && isInServiceHours(serviceHours);
   const outOfStockCount = (menu?.items ?? []).filter((i) => i.is_out_of_stock).length;
   const totalCount = (menu?.items ?? []).length;
   const published = !!menu && menu.status === 'published';
@@ -322,11 +325,18 @@ export function ServicePage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [menuRes, catRes, restaurantRes] = await Promise.all([
+      const [menuRes, catRes, restaurantRes, closuresRes] = await Promise.all([
         menusApi.getByDate(today).catch(() => null),
         categoriesApi.list().catch(() => ({ categories: [] })),
         restaurantApi.getMine().catch(() => null),
+        closuresApi.list().catch(() => []),
       ]);
+      const serviceDays = restaurantRes?.config?.service_days ?? [0, 1, 2, 3, 4];
+      const current = closuresRes.find((c) => c.is_active && c.is_current);
+      setClosure({
+        closed: !serviceDays.includes(backendWeekday()) || !!current,
+        reason: current?.reason,
+      });
       setMenu(menuRes ?? null);
       setChefNote(menuRes?.chef_note ?? '');
       setCategories(catRes.categories ?? []);
@@ -461,7 +471,17 @@ export function ServicePage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
         {/* Colonne principale — menu */}
         <div className="order-2 min-w-0 lg:order-1">
-          {!published ? (
+          {closure.closed && !published ? (
+            <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-border py-16 text-center">
+              <CalendarOff className="h-10 w-10 text-muted-foreground/40" />
+              <div>
+                <p className="font-medium text-foreground">Restaurant fermé aujourd'hui</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {closure.reason ?? "Aucun service n'est prévu ce jour."}
+                </p>
+              </div>
+            </div>
+          ) : !published ? (
             <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-border py-16 text-center">
               <CalendarDays className="h-10 w-10 text-muted-foreground/40" />
               <div>
