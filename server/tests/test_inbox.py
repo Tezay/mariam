@@ -1,10 +1,19 @@
 """
 Tests du centre de notifications in-app : listing, compteur, lecture, préférences.
 """
+from app.extensions import db
+from app.models import ExceptionalClosure, Restaurant
+from app.models.notification import Notification
+from app.utils.time import paris_today
 from conftest import auth_headers, get_token, make_restaurant, make_user
 
-from app.extensions import db
-from app.models.notification import Notification
+
+def _serving_today(restaurant_id: int) -> int:
+    """Pin the weekly schedule so the alert does not depend on the run date."""
+    restaurant = Restaurant.query.get(restaurant_id)
+    restaurant.service_days = list(range(7))
+    db.session.commit()
+    return restaurant_id
 
 
 def _make_notification(restaurant_id, title='Alerte test', user_id=None, **kwargs):
@@ -141,10 +150,41 @@ class TestInboxPreferences:
 
 class TestLiveAlerts:
     def test_menu_unpublished_alert(self, app, client):
-        rid = make_restaurant(app)
+        rid = _serving_today(make_restaurant(app))
         make_user(app, restaurant_id=rid)
         token = get_token(client)
         res = client.get('/v1/inbox/live-alerts', headers=auth_headers(token))
         assert res.status_code == 200
         keys = [a['key'] for a in res.get_json()['alerts']]
         assert any(k.startswith('menu_unpublished:') for k in keys)
+
+    def test_no_menu_alert_when_the_site_does_not_serve_today(self, app, client):
+        """A missing menu is only a gap on a day the restaurant opens."""
+        rid = make_restaurant(app)
+        restaurant = Restaurant.query.get(rid)
+        restaurant.service_days = [(paris_today().weekday() + 1) % 7]
+        db.session.commit()
+        make_user(app, restaurant_id=rid)
+        token = get_token(client)
+
+        res = client.get('/v1/inbox/live-alerts', headers=auth_headers(token))
+
+        keys = [a['key'] for a in res.get_json()['alerts']]
+        assert not any(k.startswith('menu_unpublished:') for k in keys)
+
+    def test_no_menu_alert_during_an_exceptional_closure(self, app, client):
+        rid = _serving_today(make_restaurant(app))
+        today = paris_today()
+        db.session.add(
+            ExceptionalClosure(
+                restaurant_id=rid, start_date=today, end_date=today, is_active=True
+            )
+        )
+        db.session.commit()
+        make_user(app, restaurant_id=rid)
+        token = get_token(client)
+
+        res = client.get('/v1/inbox/live-alerts', headers=auth_headers(token))
+
+        keys = [a['key'] for a in res.get_json()['alerts']]
+        assert not any(k.startswith('menu_unpublished:') for k in keys)

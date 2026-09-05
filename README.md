@@ -67,15 +67,18 @@ Le guide complet pour le démarrage et la configuration en production est détai
 ### Prérequis
 - Docker & Docker Compose
 
-### 1. Cloner et configurer
+### 1. Cloner
 
 ```bash
 cd Mariam
-
-# Copier la config d'environnement
-cp deploy/.env.example deploy/.env
-# Éditer deploy/.env avec vos secrets
 ```
+
+Aucune configuration n'est nécessaire : la stack de développement démarre avec
+les valeurs de test de `compose.yaml`. Pour surcharger une variable —
+activer les notifications push en local, par exemple — copiez `.env.example`
+en `.env` et remplissez ce dont vous avez besoin. La configuration de
+production, elle, se fait dans `deploy/.env` (voir
+[deploy/docs/INSTALL.md](./deploy/docs/INSTALL.md)).
 
 ### 2. Lancer en développement
 
@@ -106,10 +109,11 @@ Ouvrez le lien affiché pour créer votre compte admin avec MFA.
 
 ```
 Mariam/
-├── docker-compose.yml          # Orchestration développement
+├── compose.yaml                # Orchestration développement
+├── .env.example                # Surcharges facultatives du dev
 ├── deploy/                     # Configuration production
-│   ├── docker-compose.yml
-│   ├── .env.example
+│   ├── compose.yaml
+│   ├── .env.example            # Variables de production (requises)
 │   ├── nginx/
 │   └── scripts/
 ├── server/                     # Backend Flask
@@ -173,7 +177,7 @@ MARIAM utilise un stockage **S3-compatible** pour gérer les images uploadées p
 
 ### En développement
 
-MinIO est inclus dans le `docker-compose.yml` et démarre automatiquement :
+MinIO est inclus dans le `compose.yaml` et démarre automatiquement :
 - **API S3** : `http://localhost:9000`
 - **Console web** : `http://localhost:9001`
 - **Identifiants** : `mariam_minio` / `mariam_minio_secret`

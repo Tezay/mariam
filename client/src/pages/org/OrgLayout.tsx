@@ -3,7 +3,14 @@
  * Shares its shell with the site dashboard so both stay visually identical;
  * only the navigation and the enabled top-bar features differ.
  */
-import { LayoutDashboard, Building2, CalendarCheck, Users, ScrollText } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Building2,
+  CalendarCheck,
+  TrendingUp,
+  Users,
+  ScrollText,
+} from 'lucide-react';
 import { DashboardShell } from '@/components/layout/DashboardShell';
 import { type SidebarNavItem } from '@/components/layout/Sidebar';
 import { type PageTitleMap } from '@/components/layout/Topbar';
@@ -19,6 +26,11 @@ const NAV_ITEMS: SidebarNavItem[] = [
     end: true,
   },
   {
+    to: '/org/analytics/traffic',
+    label: 'Consultations du menu',
+    icon: <TrendingUp className="h-5 w-5" />,
+  },
+  {
     to: '/org/analytics/publications',
     label: 'Publications',
     icon: <CalendarCheck className="h-5 w-5" />,
@@ -29,6 +41,7 @@ const NAV_ITEMS: SidebarNavItem[] = [
 ];
 
 const PAGE_TITLES: PageTitleMap = [
+  ['/org/analytics/traffic', 'Consultations du menu'],
   ['/org/analytics/publications', 'Publications'],
   ['/org/sites', 'Sites'],
   ['/org/users', 'Utilisateurs'],
@@ -37,7 +50,7 @@ const PAGE_TITLES: PageTitleMap = [
   ['/org', "Vue d'ensemble"],
 ];
 
-const BOTTOM_NAV_PATHS = ['/org', '/org/analytics/publications', '/org/sites', '/org/users'];
+const BOTTOM_NAV_PATHS = ['/org', '/org/analytics/traffic', '/org/sites', '/org/users'];
 
 export function OrgLayout() {
   const { user } = useAuth();

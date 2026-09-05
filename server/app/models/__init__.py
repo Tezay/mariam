@@ -25,6 +25,7 @@ from .taxonomy import (
     restaurant_certifications,
     restaurant_dietary_tags,
 )
+from .telemetry import PAGE_KINDS, VISITOR_PAGE_KINDS, PageViewRollup, VisitorDailyUnique
 from .user import User
 
 __all__ = [
@@ -50,6 +51,10 @@ __all__ = [
     'AuditLog',
     'ImportSession',
     'PushSubscription',
+    'PageViewRollup',
+    'VisitorDailyUnique',
+    'PAGE_KINDS',
+    'VISITOR_PAGE_KINDS',
     'DietaryTagCategory',
     'DietaryTag',
     'DietaryTagKeyword',

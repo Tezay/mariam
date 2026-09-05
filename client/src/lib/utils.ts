@@ -11,13 +11,16 @@ export function cn(...inputs: ClassValue[]) {
  * @param serviceHours - Horaires indexés par jour (0=Lundi … 6=Dimanche, convention backend)
  * @param now - Date de référence (défaut : maintenant)
  */
+/** JS getDay() is Sunday-first; the backend indexes weekdays from Monday. */
+export function backendWeekday(date = new Date()): number {
+  return date.getDay() === 0 ? 6 : date.getDay() - 1;
+}
+
 export function isInServiceHours(
   serviceHours: Record<string, { open: string; close: string }>,
   now = new Date()
 ): boolean {
-  // JS getDay() : 0=Dimanche. Convention backend : 0=Lundi, 6=Dimanche
-  const dayIndex = now.getDay() === 0 ? 6 : now.getDay() - 1;
-  const slot = serviceHours[String(dayIndex)];
+  const slot = serviceHours[String(backendWeekday(now))];
   if (!slot) return false;
   const cur = now.getHours() * 60 + now.getMinutes();
   const [oh, om] = slot.open.split(':').map(Number);

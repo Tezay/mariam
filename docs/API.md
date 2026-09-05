@@ -131,7 +131,9 @@ No authentication required.
 
 The tenant comes from the request host (subdomain = organization) and the
 restaurant slug, so these endpoints need no identifier in the query string.
-All are rate-limited to 30 requests per minute.
+They share one rate limit (`PUBLIC_RATE_LIMIT`, 600 requests per minute by
+default), sized for a whole campus behind a single address rather than for one
+visitor.
 
 | Method | Route | Description |
 |--------|-------|-------------|
@@ -142,8 +144,16 @@ All are rate-limited to 30 requests per minute.
 | `GET` | `/v1/public/<site>/events` | Published events (`visibility`, `limit`) |
 | `GET` | `/v1/public/<site>/closures` | Current and upcoming exceptional closures |
 | `GET` | `/v1/public/<site>/restaurant` | Site info and public configuration |
+| `POST` | `/v1/public/track` | Count one page view (`page_kind`, plus `site` for a site-scoped page); always 204 |
 
 The legacy `?restaurant_id=` endpoints above are kept for compatibility.
+
+`POST /v1/public/track` answers 204 in every case, including when it declines to
+count: telemetry must never degrade a menu page. A beacon claiming an origin this
+deployment does not serve is refused, and per-visitor and per-address daily
+budgets cap how far one source can move the figures. IP addresses are used
+for those budgets only, hashed with a salt that rotates daily and is never
+persisted; no address, user agent or per-visitor row reaches PostgreSQL.
 
 **Example — `GET /v1/menus/today`**
 
@@ -273,7 +283,7 @@ per-site management stays under the site endpoints.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `/v1/org/sites` | Every site of the organization with user count, today's publication state, upcoming events and last publication |
+| `GET` | `/v1/org/sites` | Every site of the organization with user count, today's menu status (`published`, `draft`, `missing`, `closed`), upcoming events and last publication |
 
 Opening, renaming or deactivating a site is a billing event and is not exposed
 through the API: it is handled by the Mariam team with the `init-restaurant` CLI
@@ -292,6 +302,7 @@ admin gets its own site, an org director every site of its organization. The
 |--------|-------|-------------|
 | `GET` | `/v1/analytics/overview` | Period KPIs with previous-period comparison, daily trend, per-site table |
 | `GET` | `/v1/analytics/publications` | Publication rate, punctuality, lead time, completeness, site × day status matrix |
+| `GET` | `/v1/analytics/traffic` | Public-page consultation: daily series, per-site table, hour profile, page-kind split |
 
 Shared query parameters:
 
@@ -310,6 +321,13 @@ Notes:
 - Rates are `null` when their denominator is zero. Traffic and satisfaction keys
   are present but `null` until those features collect data.
 - The status matrix covers at most the last 60 days of the period.
+- Traffic excludes signage screens (`page_kind` `tv`), which refresh unattended;
+  those appear only in the page-kind split. The public root of a multi-site
+  organization is counted against the organization and reported separately as
+  `totals.org_root_views`.
+- Unique visitors are an estimate: a HyperLogLog over hashes of IP and user
+  agent, salted with a key that rotates daily and is never persisted. No cookie,
+  no identifier stored on the device, nothing per-visitor in the database.
 
 ---
 

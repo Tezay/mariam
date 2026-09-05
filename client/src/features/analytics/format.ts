@@ -23,6 +23,18 @@ export function formatPoints(delta: number | null | undefined): string | null {
   return `${points > 0 ? '+' : ''}${formatted} pts`;
 }
 
+/** In French only counts above one take the mark, so zero stays singular. */
+export function plural(count: number | null | undefined, word: string): string {
+  return (count ?? 0) > 1 ? `${word}s` : word;
+}
+
+/** Count deltas read as a relative change, where rate deltas read as points. */
+export function formatRelative(deltaPct: number | null | undefined): string | null {
+  if (deltaPct === null || deltaPct === undefined || deltaPct === 0) return null;
+  const formatted = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(deltaPct);
+  return `${deltaPct > 0 ? '+' : ''}${formatted} %`;
+}
+
 /** Unsigned duration; lead time carries its direction in a separate label. */
 export function formatDuration(hours: number | null | undefined): string {
   if (hours === null || hours === undefined) return PLACEHOLDER;

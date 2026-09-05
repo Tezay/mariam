@@ -44,12 +44,12 @@ Les scripts se trouvent dans `deploy/scripts/`.
 
 ### Créer un nouveau lien d'activation admin
 ```bash
-docker compose -f deploy/docker-compose.yml exec backend flask create-activation-link
+docker compose -f deploy/compose.yaml exec backend flask create-activation-link
 ```
 
 ### Ajouter un restaurant
 ```bash
-docker compose -f deploy/docker-compose.yml exec backend flask init-restaurant
+docker compose -f deploy/compose.yaml exec backend flask init-restaurant
 ```
 
 ### Provisionner un nouveau client (organisation + directeur)
@@ -60,12 +60,12 @@ organisation depuis `/org` et crée lui-même les restaurants ensuite.
 
 ```bash
 # 1. Créer l'organisation (idempotent sur le slug)
-docker compose -f deploy/docker-compose.yml exec backend \
+docker compose -f deploy/compose.yaml exec backend \
   flask create-org --name "CROUS de Créteil" --slug crous-creteil
 
 # 2. Créer un lien d'activation pour le directeur, rattaché à un site
 #    (--restaurant accepte un id ou un slug de restaurant existant)
-docker compose -f deploy/docker-compose.yml exec backend \
+docker compose -f deploy/compose.yaml exec backend \
   flask create-invite --email directeur@example.com --role org_admin --restaurant efrei
 ```
 
@@ -116,6 +116,57 @@ Renseigner `MFA_ENCRYPTION_KEY` dans `deploy/.env`. **Sauvegarder la clé** dans
 gestionnaire de secrets : sa perte rend tous les secrets TOTP illisibles et
 impose un reset MFA de tous les comptes. La migration de mise en place chiffre
 les secrets existants au premier `flask db upgrade` (la clé doit être présente).
+
+### Redis (`REDIS_URL`)
+
+Redis porte la blacklist des tokens JWT, le rate limiting partagé entre workers,
+le cache des agrégats analytics, les compteurs de fréquentation et les verrous
+des jobs planifiés. Le compose de production fournit le service ; `REDIS_URL` reste
+l'abstraction, une instance managée (`rediss://…`) fonctionne à l'identique.
+
+```bash
+# Bascule depuis une instance managée
+# 1. Dans deploy/.env : REDIS_URL=redis://redis:6379/0
+# 2. docker compose up -d redis backend scheduler
+# 3. Vérifier, puis résilier l'abonnement managé
+curl -s https://<domaine>/health/ready | jq .checks
+```
+
+Les données sont éphémères par conception (tout porte un TTL) : une perte du
+volume coûte au pire quelques minutes de compteurs de vues et les visiteurs
+uniques du jour en cours. Deux points à connaître :
+
+- `maxmemory-policy volatile-ttl` : en cas de saturation mémoire, Redis évince
+  des clés à TTL, **y compris des entrées de blacklist**, ce qui rendrait un
+  token révoqué à nouveau valide jusqu'à son expiration naturelle (30 min). Le
+  plafond de 256 Mo est très au-dessus du volume réel ; surveiller
+  `redis-cli info memory` si le nombre de sites augmente fortement.
+- La vérification de blacklist échoue **fermée** : si `REDIS_URL` est défini
+  mais Redis injoignable, les requêtes authentifiées sont rejetées. Le
+  `restart: unless-stopped` et le healthcheck couvrent le cas nominal.
+
+### Fréquentation et réseaux partagés
+
+Un établissement accède au service depuis une poignée d'adresses IP publiques :
+tous les étudiants d'un campus partagent la même. Tous les plafonds indexés sur
+l'IP budgètent donc un site entier, pas un visiteur.
+
+| Variable | Défaut | Ce qu'elle borne |
+|---|---|---|
+| `PUBLIC_RATE_LIMIT` | `600 per minute` | Requêtes des pages publiques, par adresse |
+| `TELEMETRY_VISITOR_DAILY_CAP` | `120` | Consultations comptées pour un même visiteur et par site |
+| `TELEMETRY_IP_DAILY_CAP` | `50000` | Consultations comptées pour une adresse et par site |
+| `TELEMETRY_IP_UNIQUE_CAP` | `5000` | Visiteurs distincts attribuables à une adresse et par site |
+
+Symptôme d'un plafond trop bas : des 429 sur `/v1/public/…` aux heures de
+service, ou une courbe de fréquentation qui plafonne à heure fixe. Les
+augmenter est sans risque fonctionnel ; les baisser fausse la mesure.
+
+Les adresses IP ne servent qu'à ces plafonds et au calcul des visiteurs
+uniques, sous forme de hachage salé par un sel quotidien jamais persisté
+(TTL 48 h). Aucune adresse, aucun user-agent et aucune ligne par visiteur
+n'atteint PostgreSQL : les tables de fréquentation ne contiennent que des
+compteurs agrégés par site, jour, heure et type de page.
 
 ---
 
@@ -208,7 +259,7 @@ bucket Scaleway **dédié** (séparé des médias), avec rétention configurable
 1. Console Scaleway → Object Storage → créer un bucket (ex. `mariam-backups`), **versioning activé**.
 2. Créer une clé d'API (API keys) dédiée, idéalement scopée à ce bucket.
 3. Renseigner dans `.env` : `BACKUP_S3_ENDPOINT`, `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`, `BACKUP_S3_BUCKET` (voir `.env.example`).
-4. Redéployer : `./deploy/scripts/run.sh`. Vérifier : `docker compose -f deploy/docker-compose.yml logs backup`.
+4. Redéployer : `./deploy/scripts/run.sh`. Vérifier : `docker compose -f deploy/compose.yaml logs backup`.
 
 **Restauration** (⚠️ écrase la base) :
 ```bash
