@@ -22,6 +22,13 @@ export function useAnalyticsTraffic(query: AnalyticsQuery) {
   });
 }
 
+export function useAnalyticsSatisfaction(query: AnalyticsQuery) {
+  return useQuery({
+    queryKey: ['analytics', 'satisfaction', query],
+    queryFn: () => analyticsApi.getSatisfaction(query),
+  });
+}
+
 export function useOrgSites(enabled = true) {
   return useQuery({
     queryKey: ['org', 'sites'],

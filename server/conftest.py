@@ -123,6 +123,67 @@ def clean_db(app):
 # Helpers partagés entre les suites
 # ---------------------------------------------------------------------------
 
+class FakeRedis:
+    """Enough of the Redis surface for the telemetry service.
+
+    A dict-backed double keeps the suite free of a Redis dependency; the flush
+    logic it exercises is the same one production runs.
+    """
+
+    def __init__(self):
+        self.hashes: dict[str, dict[str, int]] = {}
+        self.sets: dict[str, set] = {}
+        self.strings: dict[str, str] = {}
+        self.hll: dict[str, set] = {}
+
+    def pipeline(self):
+        return self
+
+    def execute(self):
+        return []
+
+    def expire(self, *_args, **_kwargs):
+        return True
+
+    def hincrby(self, key, field, amount=1):
+        self.hashes.setdefault(key, {})
+        self.hashes[key][field] = self.hashes[key].get(field, 0) + amount
+        return self.hashes[key][field]
+
+    def hgetall(self, key):
+        return {k: str(v) for k, v in self.hashes.get(key, {}).items()}
+
+    def sadd(self, key, *values):
+        self.sets.setdefault(key, set()).update(str(v) for v in values)
+        return len(values)
+
+    def smembers(self, key):
+        return set(self.sets.get(key, set()))
+
+    def set(self, key, value, nx=False, ex=None):
+        if nx and key in self.strings:
+            return False
+        self.strings[key] = value
+        return True
+
+    def get(self, key):
+        return self.strings.get(key)
+
+    def incr(self, key):
+        value = int(self.strings.get(key, 0)) + 1
+        self.strings[key] = str(value)
+        return value
+
+    def pfadd(self, key, *members):
+        bucket = self.hll.setdefault(key, set())
+        before = len(bucket)
+        bucket.update(members)
+        return int(len(bucket) > before)
+
+    def pfcount(self, key):
+        return len(self.hll.get(key, set()))
+
+
 # Sentinel: distinguishes "auto-attach" from an explicit None.
 _AUTO_RESTAURANT = object()
 

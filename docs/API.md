@@ -145,8 +145,26 @@ visitor.
 | `GET` | `/v1/public/<site>/closures` | Current and upcoming exceptional closures |
 | `GET` | `/v1/public/<site>/restaurant` | Site info and public configuration |
 | `POST` | `/v1/public/track` | Count one page view (`page_kind`, plus `site` for a site-scoped page); always 204 |
+| `POST` | `/v1/public/device` | Issue a signed device token for the vote widget |
+| `GET` | `/v1/public/<site>/vote` | The caller's own vote (`device_id`), the dishes it may name grouped by category, the icon set to draw, and whether voting is open |
+| `POST` | `/v1/public/<site>/vote` | Rate today's published menu (`device_id`, `rating` 1-3, optional `dish_ids` and `fingerprint`) |
 
 The legacy `?restaurant_id=` endpoints above are kept for compatibility.
+
+The vote is anonymous and capped at one per device, organization and day — a
+student eats once, wherever they eat; rating another site of the same
+organization moves the vote there rather than adding one. A vote may name at
+most one dish per votable category, chosen by the site in its settings
+(`vote_enabled`, `vote_category_ids`); unset, the first subcategory of the
+highlighted category applies. Aggregates are never returned publicly: a caller
+only ever sees its own vote. The window opens with the day's
+service hours and closes at midnight: a meal is rated once served, and a day
+without service hours cannot be rated. Refusals are `403` (forged token), `409`
+(no published menu, outside the window, or a fingerprint already bound to
+another device) and `429` (address cap reached). The address cap counts new votes only:
+changing an existing one cannot move the score, so it is never charged. The
+device token is dropped from the stored vote the day after it was cast, once
+the vote can no longer be edited.
 
 `POST /v1/public/track` answers 204 in every case, including when it declines to
 count: telemetry must never degrade a menu page. A beacon claiming an origin this
@@ -302,6 +320,7 @@ admin gets its own site, an org director every site of its organization. The
 |--------|-------|-------------|
 | `GET` | `/v1/analytics/overview` | Period KPIs with previous-period comparison, daily trend, per-site table |
 | `GET` | `/v1/analytics/publications` | Publication rate, punctuality, lead time, completeness, site × day status matrix |
+| `GET` | `/v1/analytics/satisfaction` | Menu ratings: distribution, daily score, per-site comparison and dish ranking (`min_votes`, default 10) |
 | `GET` | `/v1/analytics/traffic` | Public-page consultation: daily series, per-site table, hour profile, page-kind split |
 
 Shared query parameters:
@@ -328,6 +347,10 @@ Notes:
 - Unique visitors are an estimate: a HyperLogLog over hashes of IP and user
   agent, salted with a key that rotates daily and is never persisted. No cookie,
   no identifier stored on the device, nothing per-visitor in the database.
+- Satisfaction carries a `settings` block describing what the sites in scope
+  currently offer, so the figures can be read against it: `site_count`,
+  `sites_with_vote`, `icon_preset` (`null` when the sites disagree) and
+  `dish_question` (resolved for a single site only, `null` otherwise).
 
 ---
 

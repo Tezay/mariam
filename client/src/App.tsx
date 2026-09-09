@@ -26,6 +26,9 @@ const Activate = lazy(() => import('./pages/Activate').then((m) => ({ default: m
 const ResetPassword = lazy(() =>
   import('./pages/ResetPassword').then((m) => ({ default: m.ResetPassword }))
 );
+const PrivacyPage = lazy(() =>
+  import('./pages/public/PrivacyPage').then((m) => ({ default: m.PrivacyPage }))
+);
 const NotificationsPage = lazy(() =>
   import('./pages/public/NotificationsPage').then((m) => ({ default: m.NotificationsPage }))
 );
@@ -73,6 +76,11 @@ const OrgOverviewPage = lazy(() =>
 );
 const OrgTrafficPage = lazy(() =>
   import('./pages/org/analytics/TrafficPage').then((m) => ({ default: m.OrgTrafficPage }))
+);
+const OrgSatisfactionPage = lazy(() =>
+  import('./pages/org/analytics/SatisfactionPage').then((m) => ({
+    default: m.OrgSatisfactionPage,
+  }))
 );
 const OrgPublicationsPage = lazy(() =>
   import('./pages/org/analytics/PublicationsPage').then((m) => ({
@@ -235,6 +243,8 @@ function App() {
             <Route path="/:restaurantSlug/menu" element={<SluggedMenu />} />
           </Route>
 
+          <Route path="/privacy" element={<PrivacyPage />} />
+
           {/* Notifications push (public) */}
           <Route path="/notifications" element={<NotificationsPage />} />
 
@@ -288,6 +298,7 @@ function App() {
           >
             <Route index element={<OrgOverviewPage />} />
             <Route path="analytics/traffic" element={<OrgTrafficPage />} />
+            <Route path="analytics/satisfaction" element={<OrgSatisfactionPage />} />
             <Route path="analytics/publications" element={<OrgPublicationsPage />} />
             <Route path="sites" element={<OrgSitesPage />} />
             <Route path="sites/:id" element={<OrgSiteDetailPage />} />

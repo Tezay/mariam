@@ -1,5 +1,12 @@
-import { describe, it, expect } from 'vitest';
-import { parisToday, addDays } from '@/lib/date-utils';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import {
+  addDays,
+  formatParisTime,
+  parisDayOfWeek,
+  parisNow,
+  parisToday,
+  parisYear,
+} from '@/lib/date-utils';
 
 describe('parisToday', () => {
   it('returns a valid YYYY-MM-DD string', () => {
@@ -32,5 +39,31 @@ describe('addDays', () => {
 
   it('adds 7 days correctly across month boundary', () => {
     expect(addDays('2024-01-28', 7)).toBe('2024-02-04');
+  });
+});
+
+describe('the Paris clock is independent of the machine', () => {
+  afterEach(() => vi.useRealTimers());
+
+  /** 23:30 UTC on a Sunday is already Monday 01:30 in Paris. */
+  function freezeLateSunday() {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-06T23:30:00Z'));
+  }
+
+  it("rolls the day over on Paris time, not on the viewer's", () => {
+    freezeLateSunday();
+    expect(parisToday()).toBe('2026-09-07');
+    expect(parisDayOfWeek()).toBe(1);
+  });
+
+  it('reads the hour in Paris', () => {
+    freezeLateSunday();
+    expect(parisNow().getHours()).toBe(1);
+    expect(parisYear()).toBe(2026);
+  });
+
+  it('formats an instant as Paris wall-clock', () => {
+    expect(formatParisTime(new Date('2026-09-06T23:30:00Z'))).toBe('01:30');
   });
 });

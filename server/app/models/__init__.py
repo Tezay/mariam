@@ -9,6 +9,14 @@ from .event import Event, EventImage
 from .exceptional_closure import ExceptionalClosure
 from .import_session import ImportSession
 from .menu import Menu, MenuImage, MenuItem
+from .menu_vote import (
+    DEFAULT_ICON_PRESET,
+    RATING_MAX,
+    RATING_MIN,
+    VOTE_ICON_PRESETS,
+    MenuVote,
+    menu_vote_dishes,
+)
 from .notification import Notification
 from .organization import Organization
 from .passkey import Passkey
@@ -39,6 +47,12 @@ __all__ = [
     'Menu',
     'MenuItem',
     'MenuImage',
+    'MenuVote',
+    'menu_vote_dishes',
+    'RATING_MIN',
+    'RATING_MAX',
+    'VOTE_ICON_PRESETS',
+    'DEFAULT_ICON_PRESET',
     'Notification',
     'DishCatalog',
     'CategorySubstitution',

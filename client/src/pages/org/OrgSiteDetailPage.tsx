@@ -14,6 +14,7 @@ import { menuStatusLabel } from '@/lib/menu-status';
 import { DataTable, type DataTableColumn } from '@/components/dashboard/DataTable';
 import { SiteWeekCalendar } from './site/SiteWeekCalendar';
 import { TrafficView } from '@/features/analytics/TrafficView';
+import { SatisfactionView } from '@/features/analytics/SatisfactionView';
 
 const SITE_USER_COLUMNS: DataTableColumn<User>[] = [
   {
@@ -104,6 +105,11 @@ export function OrgSiteDetailPage() {
       <div className="mt-8">
         <h2 className="mb-3 text-sm font-medium text-foreground">Consultations du menu</h2>
         <TrafficView siteId={site.id} />
+      </div>
+
+      <div className="mt-8">
+        <h2 className="mb-3 text-sm font-medium text-foreground">Satisfaction</h2>
+        <SatisfactionView siteId={site.id} />
       </div>
 
       <div className="mt-8">

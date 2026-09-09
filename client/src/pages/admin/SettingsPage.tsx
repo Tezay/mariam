@@ -30,6 +30,7 @@ import { AccessibiliteTab } from './settings/AccessibiliteTab';
 import { CategoriesTab } from './settings/CategoriesTab';
 import { TagsTab } from './settings/TagsTab';
 import { NotificationsTab } from './settings/NotificationsTab';
+import { SatisfactionTab } from './settings/SatisfactionTab';
 import { CalendriersTab } from './settings/CalendriersTab';
 
 export function SettingsPage() {
@@ -100,6 +101,9 @@ export function SettingsPage() {
           <TabsTrigger value="tags" className="shrink-0 rounded-lg text-sm">
             Tags & Labels
           </TabsTrigger>
+          <TabsTrigger value="satisfaction" className="shrink-0 rounded-lg text-sm">
+            Satisfaction
+          </TabsTrigger>
           <TabsTrigger value="notifications" className="shrink-0 rounded-lg text-sm">
             Notifications
           </TabsTrigger>
@@ -126,6 +130,10 @@ export function SettingsPage() {
 
         <TabsContent value="tags" className="mt-0 space-y-6">
           <TagsTab state={state} />
+        </TabsContent>
+
+        <TabsContent value="satisfaction" className="mt-0">
+          <SatisfactionTab state={state} />
         </TabsContent>
 
         <TabsContent value="notifications" className="mt-0">

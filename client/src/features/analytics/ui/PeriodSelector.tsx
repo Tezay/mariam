@@ -4,8 +4,14 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { PERIOD_OPTIONS, type PeriodKey, type PresetPeriod } from '../hooks/useAnalyticsFilters';
+import {
+  PERIOD_OPTIONS,
+  PERIOD_SHORT_LABELS,
+  type PeriodKey,
+  type PresetPeriod,
+} from '../hooks/useAnalyticsFilters';
 import { formatDayLabel } from '../format';
+import { parisToday } from '@/lib/date-utils';
 
 interface PeriodSelectorProps {
   period: PeriodKey;
@@ -29,7 +35,7 @@ function CustomRangeFields({
 }) {
   const [draftStart, setDraftStart] = useState(start ?? '');
   const [draftEnd, setDraftEnd] = useState(end ?? '');
-  const today = new Date().toISOString().slice(0, 10);
+  const today = parisToday();
   const canApply = Boolean(draftStart && draftEnd && draftStart <= draftEnd);
 
   return (
@@ -149,9 +155,9 @@ export function PeriodSelector({
               key={option.value}
               value={option.value}
               aria-label={option.label}
-              className="h-8 rounded-lg px-3 text-xs font-medium data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
+              className="h-8 rounded-lg px-2.5 text-xs font-medium data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
             >
-              {option.label}
+              {PERIOD_SHORT_LABELS[option.value]}
             </ToggleGroupItem>
           ))}
         </ToggleGroup>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { closuresApi, ExceptionalClosure } from '@/lib/api';
 import { notify } from '@/lib/toast';
-import { parisToday } from '@/lib/date-utils';
+import { parisNow, parisToday } from '@/lib/date-utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -89,7 +89,7 @@ export function ClosuresPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
 
-  const now = new Date();
+  const now = parisNow();
   const [calYear, setCalYear] = useState(now.getFullYear());
   const [calMonth, setCalMonth] = useState(now.getMonth());
 

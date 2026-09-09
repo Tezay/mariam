@@ -4,6 +4,7 @@
  * Gère le fetch des données et orchestre tous les composants mobiles.
  */
 import { useState, useMemo, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { trackPageView } from '@/lib/telemetry';
 import { Zap, CalendarOff } from 'lucide-react';
 import { ExceptionalClosure } from '@/lib/api';
@@ -19,6 +20,8 @@ import { MobileItemDetailSheet } from './MobileItemDetailSheet';
 import { MobileEventSection, MobileTodayEvent } from './MobileEventSection';
 import { MobileClosureSection } from './MobileClosureSection';
 import { MobileMenuSkeleton } from './MobileMenuSkeleton';
+import { MobileVoteCard } from './MobileVoteCard';
+import { PublicShell } from '../PublicShell';
 import type { MenuItemData } from '../menu-types';
 
 function ActiveClosureMessage({ closure }: { closure: ExceptionalClosure }) {
@@ -99,7 +102,7 @@ export function MobileMenuDisplay({ restaurantSlug }: { restaurantSlug: string }
   const isClosedDay = serviceDays.length > 0 && !serviceDays.includes(selectedMariamDay);
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
+    <PublicShell>
       {/* Header restaurant */}
       {restaurant && <MobileHeader restaurant={restaurant} activeClosure={activeClosure} />}
 
@@ -140,6 +143,10 @@ export function MobileMenuDisplay({ restaurantSlug }: { restaurantSlug: string }
               </div>
             )}
 
+            {selectedDay === 'today' && currentData?.menu && (
+              <MobileVoteCard siteSlug={restaurantSlug} />
+            )}
+
             {/* Événements à venir — toujours affichés */}
             <MobileEventSection upcomingEvents={upcomingEvents} />
 
@@ -149,7 +156,7 @@ export function MobileMenuDisplay({ restaurantSlug }: { restaurantSlug: string }
         )}
 
         {/* Footer */}
-        <footer className="py-6 text-center">
+        <footer className="flex flex-col items-center gap-2 py-6 text-center">
           <a
             href="https://mariam.app"
             target="_blank"
@@ -159,6 +166,12 @@ export function MobileMenuDisplay({ restaurantSlug }: { restaurantSlug: string }
             <Zap className="h-3 w-3" />
             Alimenté par <span className="underline">mariam.app</span>
           </a>
+          <Link
+            to="/privacy"
+            className="text-xs text-gray-300 underline transition-colors hover:text-gray-400"
+          >
+            Confidentialité
+          </Link>
         </footer>
       </div>
 
@@ -168,7 +181,7 @@ export function MobileMenuDisplay({ restaurantSlug }: { restaurantSlug: string }
         open={!!selectedItem}
         onClose={() => setSelectedItem(null)}
       />
-    </div>
+    </PublicShell>
   );
 }
 

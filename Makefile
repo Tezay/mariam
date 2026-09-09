@@ -1,7 +1,14 @@
-.PHONY: dev test lint format db-migrate db-upgrade db-downgrade db-seed db-demo db-seed-categories logs
+.PHONY: dev install test lint format db-migrate db-upgrade db-downgrade db-seed db-demo db-seed-categories logs
 
 dev:
 	docker compose up -d --build
+
+# The frontend container keeps its own node_modules in an anonymous volume, so a
+# `bun add` on the host never reaches it. Run this after adding a dependency.
+install:
+	docker compose exec frontend bun install
+	docker compose exec frontend rm -rf node_modules/.vite
+	docker compose restart frontend
 
 test:
 	docker compose exec backend uv run pytest

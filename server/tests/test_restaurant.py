@@ -28,6 +28,9 @@ class TestRestaurantAccess:
         data = res.get_json()['restaurant']
         assert 'menu_categories' in data['config']
         assert 'dietary_tags' in data['config']
+        # Resolved here and not in get_config(): it costs a query the public
+        # pages would pay on every menu view.
+        assert 'vote_category_ids' in data['config']
 
 
 class TestRestaurantUpdate:

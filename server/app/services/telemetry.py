@@ -2,35 +2,30 @@
 
 Counters live in Redis during the day and are flushed to Postgres by the
 scheduler. Uniqueness is approximated with a HyperLogLog whose members are
-hashes of the visitor's IP and user agent, salted with a key that rotates daily
-and is never persisted: yesterday's hashes cannot be linked to today's, and
-nothing identifying survives the salt's expiry. No address is ever stored in the
-clear, not even as a Redis key -- the abuse budgets below are keyed by the same
-salted digest.
+hashes of the visitor's IP and user agent (see anti_abuse). No address is ever
+stored in the clear, not even as a Redis key: the abuse budgets below are keyed
+by the same salted digest.
 """
-import hashlib
 import logging
 import os
-import secrets
 from datetime import date, timedelta
 
 from sqlalchemy.dialects.postgresql import insert
 
 from ..extensions import db
-from ..models import VISITOR_PAGE_KINDS, PageViewRollup, VisitorDailyUnique
+from ..models import VISITOR_PAGE_KINDS, MenuVote, PageViewRollup, VisitorDailyUnique
 from ..utils.time import paris_now, paris_today
+from .anti_abuse import claim_budget, daily_salt, digest, env_cap
 from .redis_client import acquire_job_lock, get_redis
+from .votes import forget_device_ids
 
 logger = logging.getLogger(__name__)
 
-# Counters and salt outlive the day they describe, so a late flush still finds
-# them and the day-close job can still read yesterday.
+# Counters outlive the day they describe, so a late flush still finds them and
+# the day-close job can still read yesterday.
 _DAY_TTL = 48 * 3600
 
 _DEFAULT_RETENTION_DAYS = 400
-
-# Abuse budgets cover a calendar day; the extra hours absorb the timezone offset.
-_BUDGET_TTL = 26 * 3600
 
 
 def _enabled() -> bool:
@@ -62,37 +57,8 @@ def _uniques_key(restaurant_id: int, day: date) -> str:
     return f'mariam:uv:{restaurant_id}:{day.isoformat()}'
 
 
-def daily_salt(client, day: date) -> str | None:
-    """Fetch the day's salt, creating it once. Never stored outside Redis."""
-    key = f'mariam:salt:{day.isoformat()}'
-    try:
-        client.set(key, secrets.token_hex(32), nx=True, ex=_DAY_TTL)
-        return client.get(key)
-    except Exception:
-        return None
-
-
-def _cap(name: str, default: int) -> int:
-    try:
-        return int(os.environ.get(name, default))
-    except ValueError:
-        return default
-
-
-def _digest(salt: str, *parts: str) -> str:
-    return hashlib.sha256('\x1f'.join((salt, *parts)).encode()).hexdigest()
-
-
-def _budget_key(scope: str, owner: str, day: date, digest: str) -> str:
-    return f'mariam:cap:{scope}:{owner}:{day.isoformat()}:{digest[:32]}'
-
-
-def _claim(client, key: str, cap: int) -> bool:
-    """Consume one unit of a daily budget; False once it is exhausted."""
-    used = client.incr(key)
-    if used == 1:
-        client.expire(key, _BUDGET_TTL)
-    return used <= cap
+def _budget_key(scope: str, owner: str, day: date, source: str) -> str:
+    return f'mariam:cap:{scope}:{owner}:{day.isoformat()}:{source[:32]}'
 
 
 def record_page_view(
@@ -122,18 +88,18 @@ def record_page_view(
         salt = daily_salt(client, day)
         if not salt:
             return
-        visitor = _digest(salt, ip, user_agent)
-        address = _digest(salt, ip)
-        if not _claim(
+        visitor = digest(salt, ip, user_agent)
+        address = digest(salt, ip)
+        if not claim_budget(
             client,
             _budget_key('visitor', owner, day, visitor),
-            _cap('TELEMETRY_VISITOR_DAILY_CAP', 120),
+            env_cap('TELEMETRY_VISITOR_DAILY_CAP', 120),
         ):
             return
-        if not _claim(
+        if not claim_budget(
             client,
             _budget_key('address', owner, day, address),
-            _cap('TELEMETRY_IP_DAILY_CAP', 50000),
+            env_cap('TELEMETRY_IP_DAILY_CAP', 50000),
         ):
             return
 
@@ -158,11 +124,11 @@ def _count_visitor(client, restaurant_id: int, day: date, visitor: str, address:
     rotating the header, so only distinct contributions consume the budget.
     """
     budget = _budget_key('uniques', _owner_token(restaurant_id, None), day, address)
-    cap = _cap('TELEMETRY_IP_UNIQUE_CAP', 5000)
+    cap = env_cap('TELEMETRY_IP_UNIQUE_CAP', 5000)
     if int(client.get(budget) or 0) >= cap:
         return
     if client.pfadd(_uniques_key(restaurant_id, day), visitor):
-        _claim(client, budget, cap)
+        claim_budget(client, budget, cap)
     client.expire(_uniques_key(restaurant_id, day), _DAY_TTL)
 
 
@@ -261,7 +227,7 @@ def close_day_uniques(app, day: date | None = None) -> int:
 
 
 def purge_telemetry(app) -> int:
-    """Drop rollups older than the retention window."""
+    """Drop every dated analytics row older than the retention window."""
     with app.app_context():
         try:
             days = int(os.environ.get('TELEMETRY_RETENTION_DAYS', _DEFAULT_RETENTION_DAYS))
@@ -271,10 +237,11 @@ def purge_telemetry(app) -> int:
         try:
             deleted = PageViewRollup.query.filter(PageViewRollup.date < cutoff).delete()
             deleted += VisitorDailyUnique.query.filter(VisitorDailyUnique.date < cutoff).delete()
+            deleted += MenuVote.query.filter(MenuVote.date < cutoff).delete()
             db.session.commit()
         except Exception:
             db.session.rollback()
-            logger.exception('Telemetry purge failed')
+            logger.exception('Analytics purge failed')
             return 0
         return deleted
 
@@ -299,6 +266,7 @@ def run_day_close_job(app) -> None:
     target = paris_today() - timedelta(days=1)
     if acquire_job_lock(f'mariam:day_close_lock:{target.isoformat()}', 3600):
         close_day_uniques(app, target)
+        forget_device_ids(app, before=target)
 
 
 def run_purge_job(app) -> None:

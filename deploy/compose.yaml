@@ -8,6 +8,9 @@ x-logging: &default-logging
     max-file: "3"
 
 x-backend-env: &backend-env
+  # Container clock on the business timezone: logs, cron triggers and any
+  # stray date.today() then agree with what the app computes explicitly.
+  TZ: Europe/Paris
   DATABASE_URL: postgresql://${POSTGRES_USER:-mariam}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-mariam_db}
   SECRET_KEY: ${SECRET_KEY:?Définissez SECRET_KEY dans .env}
   JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Définissez JWT_SECRET_KEY dans .env}
@@ -36,6 +39,9 @@ x-backend-env: &backend-env
   TELEMETRY_VISITOR_DAILY_CAP: ${TELEMETRY_VISITOR_DAILY_CAP:-120}
   TELEMETRY_IP_DAILY_CAP: ${TELEMETRY_IP_DAILY_CAP:-50000}
   TELEMETRY_IP_UNIQUE_CAP: ${TELEMETRY_IP_UNIQUE_CAP:-5000}
+  DEVICE_ID_SECRET: ${DEVICE_ID_SECRET:?Définissez DEVICE_ID_SECRET dans .env}
+  VOTE_IP_DAILY_CAP: ${VOTE_IP_DAILY_CAP:-3000}
+  VOTE_DEVICE_MINT_PER_HOUR: ${VOTE_DEVICE_MINT_PER_HOUR:-2000}
   WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:?Définissez WEBAUTHN_RP_ID dans .env (ex. mariam.app)}
   WEBAUTHN_RP_NAME: ${WEBAUTHN_RP_NAME:-MARIAM}
   WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:?Définissez WEBAUTHN_ORIGIN dans .env (ex. https://mariam.app)}

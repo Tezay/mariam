@@ -1,3 +1,5 @@
+import { parisNow } from './date-utils';
+
 export interface ServiceHourEntry {
   open: string; // "HH:MM"
   close: string; // "HH:MM"
@@ -30,7 +32,7 @@ export function getServiceStatus(
   serviceHours: Record<string, ServiceHourEntry>,
   serviceDays: number[]
 ): ServiceStatus {
-  const now = new Date();
+  const now = parisNow();
   const mariamDay = jsDayToMariamDay(now.getDay());
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
@@ -150,7 +152,7 @@ export function getNextOpeningDate(serviceDays: number[]): NextOpeningDate | nul
   if (serviceDays.length === 0) return null;
 
   for (let offset = 1; offset <= 7; offset++) {
-    const d = new Date();
+    const d = parisNow();
     d.setDate(d.getDate() + offset);
     const mariamDay = jsDayToMariamDay(d.getDay());
     if (serviceDays.includes(mariamDay)) {

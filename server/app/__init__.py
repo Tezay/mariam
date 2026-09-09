@@ -63,7 +63,11 @@ def create_app(config_class=None):
 
     # Garde-fou production : refuse de démarrer si un secret/service requis
     # manque (fail-closed). En dev (FLASK_DEBUG/FLASK_ENV), on laisse passer.
-    _dev_defaults = {'dev-secret-key-change-in-production', 'jwt-secret-key-change-in-production'}
+    _dev_defaults = {
+        'dev-secret-key-change-in-production',
+        'jwt-secret-key-change-in-production',
+        'dev-device-secret-change-me',
+    }
     _is_dev = (
         os.environ.get('FLASK_DEBUG') == '1'
         or os.environ.get('FLASK_ENV') == 'development'
@@ -72,6 +76,13 @@ def create_app(config_class=None):
         missing = []
         if _dev_defaults & {app.config['SECRET_KEY'], app.config['JWT_SECRET_KEY']}:
             missing.append('SECRET_KEY/JWT_SECRET_KEY (valeurs par défaut de dev)')
+        # Signs the vote device tokens; sharing JWT_SECRET_KEY would let a leak
+        # of either one forge both.
+        device_secret = os.environ.get('DEVICE_ID_SECRET')
+        if not device_secret or device_secret in _dev_defaults:
+            missing.append('DEVICE_ID_SECRET')
+        elif device_secret == app.config['JWT_SECRET_KEY']:
+            missing.append('DEVICE_ID_SECRET (doit différer de JWT_SECRET_KEY)')
         if not os.environ.get('MFA_ENCRYPTION_KEY'):
             missing.append('MFA_ENCRYPTION_KEY')
         if not os.environ.get('DATABASE_URL'):

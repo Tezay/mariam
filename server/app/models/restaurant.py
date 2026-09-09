@@ -65,6 +65,14 @@ class Restaurant(db.Model):
 
     # Jours de service et personnalisation des tags
     service_days = db.Column(db.JSON, nullable=True)  # [0,1,2,3,4] = Lun-Ven
+
+    vote_enabled = db.Column(db.Boolean, nullable=False, default=True, server_default='true')
+    # Categories whose dishes a vote may be attached to. NULL keeps the default
+    # resolution in services/votes.py rather than freezing today's category ids.
+    vote_category_ids = db.Column(db.JSON, nullable=True)
+    vote_icon_preset = db.Column(
+        db.String(20), nullable=False, default='thumbs', server_default='thumbs'
+    )
     tags_customized = db.Column(db.Boolean, default=False, server_default='false')
     
     # Relations N:N normalisées (tags & certifications activés pour ce restaurant)
@@ -132,11 +140,22 @@ class Restaurant(db.Model):
         return {
             'service_days': self.get_service_days(),
             'service_hours': self.get_service_hours_dict(),
+            'vote_enabled': self.vote_enabled,
+            'vote_icon_preset': self.vote_icon_preset,
             'menu_categories': [c.to_dict() for c in categories],
             'dietary_tags': [t.to_dict() for t in tags],
             'certifications': [c.to_dict() for c in certs],
         }
     
+    def get_votable_category_ids(self):
+        """Categories a vote may name a dish from, preset included.
+
+        Costs a query, so it stays out of get_config(): the public pages
+        serialise that on every menu view and never use it.
+        """
+        from ..services.votes import votable_categories  # deferred: services import models
+        return [category.id for category in votable_categories(self)]
+
     def get_service_hours_dict(self):
         """Retourne les horaires de service sous forme de dict {day: {open, close}}."""
         return {
