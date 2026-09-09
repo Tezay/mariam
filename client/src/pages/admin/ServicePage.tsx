@@ -18,7 +18,7 @@ import {
   ServiceHours,
 } from '@/lib/api';
 import { backendWeekday, isInServiceHours } from '@/lib/utils';
-import { parisToday } from '@/lib/date-utils';
+import { formatParisTime, nowInstant, parisNow, parisToday } from '@/lib/date-utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
@@ -59,7 +59,7 @@ function formatTodayLabel(date: Date): string {
 }
 
 function nextServiceSlot(serviceHours: ServiceHours): string | null {
-  const now = new Date();
+  const now = parisNow();
   const todayIdx = backendWeekday(now);
   const curMin = now.getHours() * 60 + now.getMinutes();
 
@@ -167,14 +167,10 @@ function SummaryCard({
   return (
     <div className="space-y-3 rounded-xl border border-border bg-card p-4">
       <div>
-        <p className="text-sm font-semibold text-foreground">{formatTodayLabel(new Date())}</p>
+        <p className="text-sm font-semibold text-foreground">{formatTodayLabel(parisNow())}</p>
         {lastUpdated && (
           <p className="mt-0.5 text-xs text-muted-foreground/70">
-            Mis à jour à{' '}
-            {lastUpdated.toLocaleTimeString('fr-FR', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
+            Mis à jour à {formatParisTime(lastUpdated)}
           </p>
         )}
       </div>
@@ -316,7 +312,7 @@ export function ServicePage() {
       const menuRes = await menusApi.getByDate(today).catch(() => null);
       setMenu(menuRes ?? null);
       setChefNote((prev) => menuRes?.chef_note ?? prev);
-      setLastUpdated(new Date());
+      setLastUpdated(nowInstant());
     } catch {
       /* ignore polling errors */
     }
@@ -341,7 +337,7 @@ export function ServicePage() {
       setChefNote(menuRes?.chef_note ?? '');
       setCategories(catRes.categories ?? []);
       setServiceHours(restaurantRes?.config?.service_hours ?? {});
-      setLastUpdated(new Date());
+      setLastUpdated(nowInstant());
     } finally {
       setLoading(false);
     }

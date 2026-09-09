@@ -30,6 +30,8 @@ import {
   formatPercent,
   formatPoints,
   formatRelative,
+  formatScore,
+  formatScoreDelta,
   PLACEHOLDER,
   plural,
 } from '@/features/analytics/format';
@@ -229,8 +231,10 @@ export function OrgOverviewPage() {
         <KpiCard
           label="Satisfaction"
           icon={SmilePlus}
-          pending="Bientôt disponible — les retours étudiants arrivent prochainement."
-          value={null}
+          loading={isLoading}
+          value={formatScore(kpis?.satisfaction?.value)}
+          delta={rateDelta(kpis?.satisfaction?.delta, formatScoreDelta(kpis?.satisfaction?.delta))}
+          hint={`${formatPercent(kpis?.participation_rate?.value)} de participation`}
         />
       </div>
 

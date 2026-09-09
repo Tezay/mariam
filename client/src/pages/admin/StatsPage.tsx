@@ -5,6 +5,7 @@
  */
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PublicationsView } from '@/features/analytics/PublicationsView';
+import { SatisfactionView } from '@/features/analytics/SatisfactionView';
 import { TrafficView } from '@/features/analytics/TrafficView';
 
 export function StatsPage() {
@@ -20,10 +21,14 @@ export function StatsPage() {
       <Tabs defaultValue="traffic">
         <TabsList>
           <TabsTrigger value="traffic">Consultations du menu</TabsTrigger>
+          <TabsTrigger value="satisfaction">Satisfaction</TabsTrigger>
           <TabsTrigger value="publications">Publications</TabsTrigger>
         </TabsList>
         <TabsContent value="traffic" className="mt-6">
           <TrafficView />
+        </TabsContent>
+        <TabsContent value="satisfaction" className="mt-6">
+          <SatisfactionView />
         </TabsContent>
         <TabsContent value="publications" className="mt-6">
           <PublicationsView />

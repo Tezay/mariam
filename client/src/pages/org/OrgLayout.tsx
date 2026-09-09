@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Building2,
   CalendarCheck,
+  SmilePlus,
   TrendingUp,
   Users,
   ScrollText,
@@ -31,6 +32,11 @@ const NAV_ITEMS: SidebarNavItem[] = [
     icon: <TrendingUp className="h-5 w-5" />,
   },
   {
+    to: '/org/analytics/satisfaction',
+    label: 'Satisfaction',
+    icon: <SmilePlus className="h-5 w-5" />,
+  },
+  {
     to: '/org/analytics/publications',
     label: 'Publications',
     icon: <CalendarCheck className="h-5 w-5" />,
@@ -42,6 +48,7 @@ const NAV_ITEMS: SidebarNavItem[] = [
 
 const PAGE_TITLES: PageTitleMap = [
   ['/org/analytics/traffic', 'Consultations du menu'],
+  ['/org/analytics/satisfaction', 'Satisfaction'],
   ['/org/analytics/publications', 'Publications'],
   ['/org/sites', 'Sites'],
   ['/org/users', 'Utilisateurs'],

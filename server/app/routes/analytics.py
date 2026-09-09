@@ -5,14 +5,16 @@ single-site admin and a supervisor of thirty sites without branching. The
 `X-Restaurant-Id` header is deliberately ignored here: a supervisor filters
 through `site_ids` instead of switching active site.
 """
-from flask import jsonify
+from flask import jsonify, request
 from flask_smorest import Blueprint
 
 from ..services.analytics_stats import (
+    DEFAULT_MIN_DISH_VOTES,
     cached_json,
     overview,
     publication_stats,
     resolve_scope,
+    satisfaction_stats,
     traffic_stats,
 )
 from .helpers import admin_required, get_current_user
@@ -62,5 +64,25 @@ def analytics_traffic():
         'traffic',
         scope,
         lambda: traffic_stats(scope, user.organization_id),
+    )
+    return jsonify(data), 200
+
+
+@analytics_bp.route('/satisfaction', methods=['GET'])
+@admin_required
+def analytics_satisfaction():
+    """Menu ratings over the period, per day, site and dish."""
+    user = get_current_user()
+    scope = resolve_scope(user)
+    try:
+        min_votes = max(1, int(request.args.get('min_votes', DEFAULT_MIN_DISH_VOTES)))
+    except ValueError:
+        min_votes = DEFAULT_MIN_DISH_VOTES
+    data = cached_json(
+        _cache_namespace(user),
+        'satisfaction',
+        scope,
+        lambda: satisfaction_stats(scope, min_votes),
+        extra={'min_votes': min_votes},
     )
     return jsonify(data), 200

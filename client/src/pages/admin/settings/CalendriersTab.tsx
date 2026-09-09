@@ -4,6 +4,7 @@
  * exceptionnelles en masse (action immédiate).
  */
 import { useState } from 'react';
+import { parisYear } from '@/lib/date-utils';
 import {
   adminApi,
   closuresApi,
@@ -30,7 +31,7 @@ import type { SettingsState } from './useSettingsState';
 
 export function CalendriersTab({ state }: { state: SettingsState }) {
   const { calendarSettings: settings, setCalendarSettings } = state;
-  const currentYear = new Date().getFullYear();
+  const currentYear = parisYear();
 
   // Jours fériés closures
   const [feriesYear, setFeriesYear] = useState(currentYear);

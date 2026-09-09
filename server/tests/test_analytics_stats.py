@@ -91,6 +91,108 @@ def _publications(client, token, start, end, extra=''):
     return res.get_json()
 
 
+def _analytics(client, token, path, query=''):
+    res = client.get(f'/v1/analytics/{path}?{query}', headers=auth_headers(token))
+    assert res.status_code == 200, res.get_json()
+    return res.get_json()
+
+
+class TestCalendarWindow:
+    def test_the_calendar_ignores_the_selected_period(self, app, client):
+        """It answers "did every site publish lately", which the filter does not change."""
+        org = _org('cal1')
+        rid = _site(org, 'CAL1')
+        _director(rid, org)
+        token = get_token(client, email='dir@mariam.app')
+
+        today = _analytics(client, token, 'publications', 'period=1d')
+        quarter = _analytics(client, token, 'publications', 'period=90d')
+
+        assert len(today['matrix'][0]['days']) == 30
+        assert today['matrix'][0]['days'] == quarter['matrix'][0]['days']
+
+    def test_the_rates_still_follow_the_period(self, app, client):
+        org = _org('cal2')
+        rid = _site(org, 'CAL2')
+        _director(rid, org)
+        monday, friday = _last_full_week()
+        for offset in range(5):
+            day = monday + datetime.timedelta(days=offset)
+            _menu(rid, day, published_at=_utc_naive(day, 9))
+        token = get_token(client, email='dir@mariam.app')
+
+        week = _publications(client, token, monday, friday)
+        today = _analytics(client, token, 'publications', 'period=1d')
+
+        assert week['summary']['publication_rate'] == 1.0
+        assert today['summary']['publication_rate'] != 1.0
+
+
+class TestGranularity:
+    def test_a_single_day_is_reported_by_hour(self, app, client):
+        org = _org('gr1')
+        rid = _site(org, 'GR1')
+        _director(rid, org)
+        token = get_token(client, email='dir@mariam.app')
+
+        traffic = _analytics(client, token, 'traffic', 'period=1d')
+        satisfaction = _analytics(client, token, 'satisfaction', 'period=1d')
+
+        assert traffic['granularity'] == 'hour'
+        assert satisfaction['granularity'] == 'hour'
+        assert len(satisfaction['series']) == 24
+        assert satisfaction['series'][0]['hour'] == 0
+
+    def test_a_longer_period_stays_daily(self, app, client):
+        org = _org('gr2')
+        rid = _site(org, 'GR2')
+        _director(rid, org)
+        token = get_token(client, email='dir@mariam.app')
+
+        traffic = _analytics(client, token, 'traffic', 'period=7d')
+        satisfaction = _analytics(client, token, 'satisfaction', 'period=7d')
+
+        assert traffic['granularity'] == 'day'
+        assert satisfaction['granularity'] == 'day'
+        assert len(satisfaction['series']) == 7
+
+
+class TestVoteSettings:
+    def test_a_single_site_reports_what_it_offers(self, app, client):
+        org = _org('vs1')
+        rid = _site(org, 'VS1')
+        site = Restaurant.query.get(rid)
+        site.vote_enabled = False
+        site.vote_icon_preset = 'stars'
+        db.session.commit()
+        _director(rid, org)
+        token = get_token(client, email='dir@mariam.app')
+
+        settings = _analytics(client, token, 'satisfaction', 'period=7d')['settings']
+
+        assert settings['site_count'] == 1
+        assert settings['sites_with_vote'] == 0
+        assert settings['icon_preset'] == 'stars'
+
+    def test_sites_disagreeing_on_the_preset_report_none(self, app, client):
+        org = _org('vs2')
+        first = _site(org, 'VS2A')
+        second = _site(org, 'VS2B')
+        Restaurant.query.get(first).vote_icon_preset = 'thumbs'
+        Restaurant.query.get(second).vote_icon_preset = 'faces'
+        Restaurant.query.get(second).vote_enabled = False
+        db.session.commit()
+        _director(first, org)
+        token = get_token(client, email='dir@mariam.app')
+
+        settings = _analytics(client, token, 'satisfaction', 'period=7d')['settings']
+
+        assert settings['site_count'] == 2
+        assert settings['sites_with_vote'] == 1
+        assert settings['icon_preset'] is None
+        assert settings['dish_question'] is None
+
+
 class TestPublicationRate:
     def test_counts_only_open_days(self, app, client):
         org = _org('pr1')
@@ -217,7 +319,7 @@ class TestCompleteness:
 
 
 class TestOverview:
-    def test_traffic_reads_zero_and_satisfaction_stays_absent(self, app, client):
+    def test_an_empty_org_reads_zero_everywhere(self, app, client):
         org = _org('ov1')
         rid = _site(org, 'OV1')
         _director(rid, org)
@@ -228,7 +330,8 @@ class TestOverview:
         kpis = res.get_json()['kpis']
         assert kpis['views']['value'] == 0
         assert kpis['unique_visitors']['value'] == 0
-        assert kpis['satisfaction'] is None
+        assert kpis['satisfaction']['value'] is None
+        assert kpis['participation_rate']['value'] is None
         assert kpis['publication_rate']['value'] == 0.0
 
     def test_delta_compares_with_the_previous_period(self, app, client):

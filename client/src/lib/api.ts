@@ -1408,6 +1408,9 @@ export interface RestaurantConfig {
   menu_categories: MenuCategory[];
   dietary_tags: DietaryTag[];
   certifications: CertificationItem[];
+  vote_enabled: boolean;
+  vote_category_ids: number[];
+  vote_icon_preset: string;
 }
 
 export interface RestaurantSettings {
@@ -1423,6 +1426,9 @@ export interface RestaurantSettings {
   capacity?: number | null;
   payment_methods?: string[] | null;
   pmr_access?: boolean | null;
+  vote_enabled?: boolean;
+  vote_category_ids?: number[];
+  vote_icon_preset?: string;
   dietary_tags?: string[];
   certifications?: string[];
 }
@@ -1700,6 +1706,7 @@ export interface TrafficSiteRow {
 }
 
 export interface TrafficReport {
+  granularity: 'day' | 'hour';
   series: TrafficSeriesPoint[];
   by_site: TrafficSiteRow[];
   by_page_kind: { page_kind: string; views: number }[];
@@ -1740,6 +1747,115 @@ export const analyticsApi = {
   getTraffic: async (query: AnalyticsQuery = {}): Promise<TrafficReport> => {
     const response = await api.get('/analytics/traffic', { params: analyticsParams(query) });
     return response.data as TrafficReport;
+  },
+  getSatisfaction: async (query: AnalyticsQuery = {}): Promise<SatisfactionReport> => {
+    const response = await api.get('/analytics/satisfaction', { params: analyticsParams(query) });
+    return response.data as SatisfactionReport;
+  },
+};
+
+export interface SatisfactionSiteRow {
+  site_id: number;
+  name: string;
+  votes: number;
+  score: number | null;
+  participation_rate: number | null;
+  delta: number | null;
+}
+
+export interface SatisfactionDishRow {
+  dish_id: number;
+  name: string;
+  site_id: number;
+  site_name: string;
+  votes: number;
+  score: number;
+}
+
+export interface SatisfactionPresetRow {
+  preset: string;
+  votes: number;
+  score: number | null;
+}
+
+export interface SatisfactionReport {
+  granularity: 'day' | 'hour';
+  by_preset: SatisfactionPresetRow[];
+  summary: {
+    score: number | null;
+    votes: number;
+    participation_rate: number | null;
+    distribution: Record<'1' | '2' | '3', number>;
+  };
+  series: { date?: string; hour?: number; votes: number; score: number | null }[];
+  by_site: SatisfactionSiteRow[];
+  top_dishes: SatisfactionDishRow[];
+  flop_dishes: SatisfactionDishRow[];
+  settings: {
+    site_count: number;
+    sites_with_vote: number;
+    /** Null when the sites in scope do not all offer the same set. */
+    icon_preset: string | null;
+    /** Only resolved for a single site; null otherwise. */
+    dish_question: boolean | null;
+  };
+}
+
+export interface MenuVote {
+  rating: 1 | 2 | 3;
+  dish_ids: number[];
+  restaurant_id: number;
+  updated_at: string | null;
+}
+
+export interface VoteDishChoice {
+  id: number;
+  name: string;
+  image_url: string | null;
+}
+
+export interface VoteDishGroup {
+  category_id: number;
+  label: string;
+  dishes: VoteDishChoice[];
+}
+
+export interface VoteState {
+  vote: MenuVote | null;
+  dish_groups: VoteDishGroup[];
+  voting_open: boolean;
+  icon_preset: string;
+}
+
+export const voteApi = {
+  mint: async (): Promise<string | null> => {
+    const response = await publicAxios.post(
+      '/public/device',
+      {},
+      { timeout: PUBLIC_API_TIMEOUT_MS }
+    );
+    return (response.data?.device_id as string | undefined) ?? null;
+  },
+  getState: async (siteSlug: string, deviceId: string): Promise<VoteState> => {
+    const response = await publicAxios.get(`/public/${siteSlug}/vote`, {
+      params: { device_id: deviceId },
+      timeout: PUBLIC_API_TIMEOUT_MS,
+    });
+    return response.data as VoteState;
+  },
+  cast: async (
+    siteSlug: string,
+    body: {
+      device_id: string;
+      rating: number;
+      dish_ids?: number[];
+      fingerprint?: string | null;
+    }
+  ): Promise<{ status: string; vote: MenuVote | null }> => {
+    const response = await publicAxios.post(`/public/${siteSlug}/vote`, body, {
+      timeout: PUBLIC_API_TIMEOUT_MS,
+    });
+    return response.data as { status: string; vote: MenuVote | null };
   },
 };
 

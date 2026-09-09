@@ -39,6 +39,13 @@ restaurant_bp = Blueprint(
 )
 
 
+def _settings_payload(restaurant) -> dict:
+    """Settings form payload: the shared config plus the resolved vote categories."""
+    payload = restaurant.to_dict(include_config=True)
+    payload['config']['vote_category_ids'] = restaurant.get_votable_category_ids()
+    return payload
+
+
 # ============================================================
 # ROUTE PUBLIQUE — info restaurant
 # ============================================================
@@ -90,7 +97,7 @@ def get_settings():
     if not restaurant:
         return jsonify({'error': 'Aucun restaurant configuré'}), 404
 
-    return jsonify({'restaurant': restaurant.to_dict(include_config=True)}), 200
+    return jsonify({'restaurant': _settings_payload(restaurant)}), 200
 
 
 @restaurant_bp.route('/settings', methods=['PUT'])
@@ -167,6 +174,22 @@ def update_settings(data):
         if isinstance(days, list) and all(isinstance(d, int) and 0 <= d <= 6 for d in days):
             restaurant.service_days = sorted(days)
 
+    if 'vote_enabled' in data:
+        restaurant.vote_enabled = bool(data['vote_enabled'])
+
+    if 'vote_icon_preset' in data:
+        restaurant.vote_icon_preset = data['vote_icon_preset']
+
+    if 'vote_category_ids' in data:
+        # Only this site's own categories, so one tenant cannot name another's.
+        restaurant.vote_category_ids = [
+            category.id
+            for category in MenuCategory.query.filter(
+                MenuCategory.restaurant_id == restaurant.id,
+                MenuCategory.id.in_(data['vote_category_ids']),
+            ).all()
+        ]
+
     if 'dietary_tags' in data or 'certifications' in data:
         restaurant.tags_customized = True
 
@@ -202,7 +225,7 @@ def update_settings(data):
 
     return jsonify({
         'message': 'Paramètres mis à jour',
-        'restaurant': restaurant.to_dict(include_config=True),
+        'restaurant': _settings_payload(restaurant),
     }), 200
 
 

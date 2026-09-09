@@ -12,13 +12,16 @@ from flask import request
 
 from ..extensions import db
 from ..models import (
+    DEFAULT_ICON_PRESET,
     DishCatalog,
     Menu,
     MenuCategory,
     MenuItem,
+    MenuVote,
     PageViewRollup,
     Restaurant,
     VisitorDailyUnique,
+    menu_vote_dishes,
 )
 from ..models.telemetry import ORG_PAGE_KINDS
 from ..routes.helpers import accessible_restaurant_ids
@@ -27,13 +30,13 @@ from .redis_client import get_redis
 from .service_calendar import closures_by_site
 from .telemetry import live_uniques
 
-PERIODS = {'7d': 7, '30d': 30, '90d': 90}
+PERIODS = {'1d': 1, '7d': 7, '30d': 30, '90d': 90}
 DEFAULT_PERIOD = '30d'
 MAX_RANGE_DAYS = 366
 
-# The status matrix is one entry per site and day; capping it keeps the payload
-# bounded on a year-long range (the heatmap only renders the last 30 days).
-MATRIX_MAX_DAYS = 60
+# The status calendar answers "did every site publish lately", a question the
+# period filter does not change: it always covers the same rolling window.
+MATRIX_DAYS = 30
 
 DEFAULT_OPEN_TIME = '11:30'
 
@@ -325,27 +328,20 @@ def publication_stats(scope: Scope, include_matrix: bool = True) -> dict:
 
     menus_by_site_date = {(menu.restaurant_id, menu.date): menu for menu in menus}
 
-    matrix_start = scope.start
-    if include_matrix and scope.days > MATRIX_MAX_DAYS:
-        matrix_start = scope.end - timedelta(days=MATRIX_MAX_DAYS - 1)
-
     overall = _PublicationCounters()
     site_rows = []
-    matrix = []
 
     for site in sites:
         counters = _PublicationCounters()
         service_days = set(site.get_service_days())
         site_closures = closures.get(site.id, [])
         expected = expected_categories.get(site.id, 0)
-        days = []
 
         day = scope.start
         while day <= scope.end:
             is_closed = any(start <= day <= end for start, end in site_closures)
             is_open = day.weekday() in service_days and not is_closed
             menu = menus_by_site_date.get((site.id, day))
-            status = 'closed'
 
             if is_open:
                 counters.open_days += 1
@@ -377,13 +373,6 @@ def publication_stats(scope: Scope, include_matrix: bool = True) -> dict:
                 if menu.chef_note:
                     counters.menus_with_note += 1
 
-                if not is_closed:
-                    status = 'published_on_time' if punctual else 'published_late'
-            elif is_open:
-                status = 'draft' if menu is not None else 'missing'
-
-            if include_matrix and day >= matrix_start:
-                days.append({'date': day.isoformat(), 'status': status})
             day += timedelta(days=1)
 
         overall.open_days += counters.open_days
@@ -406,18 +395,53 @@ def publication_stats(scope: Scope, include_matrix: bool = True) -> dict:
             'avg_lead_time_hours': counters.avg_lead_time_hours,
             **completeness,
         })
-        if include_matrix:
-            matrix.append({'site_id': site.id, 'name': site.name, 'days': days})
-
+    matrix = status_matrix(sites, scope.site_ids) if include_matrix else []
     return {'summary': overall.as_summary(), 'sites': site_rows, 'matrix': matrix}
 
 
-def overview(scope: Scope, organization_id=None) -> dict:
-    """Headline KPIs, org trend and per-site table for the dashboard home.
+def status_matrix(sites, site_ids) -> list[dict]:
+    """Publication status per site over the rolling calendar window."""
+    end = paris_today()
+    start = end - timedelta(days=MATRIX_DAYS - 1)
+    menus = {
+        (menu.restaurant_id, menu.date): menu
+        for menu in db.session.query(Menu.restaurant_id, Menu.date, Menu.status, Menu.published_at)
+        .filter(Menu.restaurant_id.in_(site_ids), Menu.date >= start, Menu.date <= end)
+        .all()
+    }
+    closures = closures_by_site(site_ids, start, end)
+    open_times = _open_times(site_ids)
 
-    Satisfaction is not collected yet; its keys are present and null so the
-    frontend contract does not change when it lands.
-    """
+    matrix = []
+    for site in sites:
+        service_days = set(site.get_service_days())
+        site_closures = closures.get(site.id, [])
+        days = []
+        day = start
+        while day <= end:
+            is_closed = any(from_ <= day <= to for from_, to in site_closures)
+            is_open = day.weekday() in service_days and not is_closed
+            menu = menus.get((site.id, day))
+            status = 'closed'
+            if menu is not None and menu.status == 'published':
+                if not is_closed:
+                    punctual = True
+                    if menu.published_at is not None:
+                        service_start = _service_start(
+                            day, open_times.get((site.id, day.weekday()), DEFAULT_OPEN_TIME)
+                        )
+                        punctual = service_start >= utc_naive_to_paris(menu.published_at)
+                    status = 'published_on_time' if punctual else 'published_late'
+            elif is_open:
+                status = 'draft' if menu is not None else 'missing'
+            days.append({'date': day.isoformat(), 'status': status})
+            day += timedelta(days=1)
+        matrix.append({'site_id': site.id, 'name': site.name, 'days': days})
+    return matrix
+
+
+def overview(scope: Scope, organization_id=None) -> dict:
+    """Headline KPIs, org trend and per-site table for the dashboard home."""
     sites = _sites_in_scope(scope.site_ids)
     current = publication_stats(scope, include_matrix=False)
     previous = publication_stats(scope.previous(), include_matrix=False)
@@ -434,6 +458,11 @@ def overview(scope: Scope, organization_id=None) -> dict:
     traffic_by_date = {row['date']: row for row in (traffic['series'] if traffic else [])}
     traffic_by_site = {row['site_id']: row for row in (traffic['by_site'] if traffic else [])}
 
+    satisfaction = satisfaction_stats(scope) if scope.site_ids else None
+    satisfaction_previous = satisfaction_stats(scope.previous()) if scope.site_ids else None
+    scores_by_date = {row['date']: row for row in (satisfaction['series'] if satisfaction else [])}
+    scores_by_site = {row['site_id']: row for row in (satisfaction['by_site'] if satisfaction else [])}
+
     published_per_date: dict[date, int] = {}
     for menu in _menus_in_range(scope) if scope.site_ids else []:
         if menu.status == 'published':
@@ -447,7 +476,7 @@ def overview(scope: Scope, organization_id=None) -> dict:
             'published_sites': published_per_date.get(day, 0),
             'views': traffic_by_date.get(day.isoformat(), {}).get('views'),
             'unique_visitors': traffic_by_date.get(day.isoformat(), {}).get('unique_visitors'),
-            'score': None,
+            'score': scores_by_date.get(day.isoformat(), {}).get('score'),
         })
         day += timedelta(days=1)
 
@@ -466,8 +495,8 @@ def overview(scope: Scope, organization_id=None) -> dict:
             ),
             'views': traffic_by_site.get(site.id, {}).get('views'),
             'views_sparkline': traffic_by_site.get(site.id, {}).get('sparkline'),
-            'score': None,
-            'votes': None,
+            'score': scores_by_site.get(site.id, {}).get('score'),
+            'votes': scores_by_site.get(site.id, {}).get('votes'),
         })
 
     return {
@@ -500,13 +529,23 @@ def overview(scope: Scope, organization_id=None) -> dict:
                 traffic['totals']['unique_visitors'] if traffic else None,
                 traffic_previous['totals']['unique_visitors'] if traffic_previous else None,
             ),
-            'satisfaction': None,
-            'participation_rate': None,
+            'satisfaction': _metric(
+                satisfaction['summary']['score'] if satisfaction else None,
+                satisfaction_previous['summary']['score'] if satisfaction_previous else None,
+            ),
+            'participation_rate': _metric(
+                satisfaction['summary']['participation_rate'] if satisfaction else None,
+                (
+                    satisfaction_previous['summary']['participation_rate']
+                    if satisfaction_previous
+                    else None
+                ),
+            ),
         },
         'trend': trend,
         'sites': site_rows,
-        'top_dishes': None,
-        'flop_dishes': None,
+        'top_dishes': satisfaction['top_dishes'] if satisfaction else [],
+        'flop_dishes': satisfaction['flop_dishes'] if satisfaction else [],
     }
 
 
@@ -605,6 +644,7 @@ def traffic_stats(scope: Scope, organization_id=None) -> dict:
     sites = _sites_in_scope(scope.site_ids)
     if not sites:
         return {
+            'granularity': 'day',
             'series': [], 'by_site': [], 'by_page_kind': [], 'hour_profile': [],
             'totals': {'views': 0, 'unique_visitors': 0, 'org_root_views': 0},
         }
@@ -667,6 +707,7 @@ def traffic_stats(scope: Scope, organization_id=None) -> dict:
         })
 
     return {
+        'granularity': 'hour' if scope.days == 1 else 'day',
         'series': series,
         'by_site': by_site,
         'by_page_kind': [
@@ -680,4 +721,194 @@ def traffic_stats(scope: Scope, organization_id=None) -> dict:
             'unique_visitors': sum(uniques_by_site.values()),
             'org_root_views': _org_root_views(organization_id, scope.start, scope.end),
         },
+    }
+
+
+# Below these counts a score says more about the sample than about the food.
+MIN_SITE_VOTES = 5
+DEFAULT_MIN_DISH_VOTES = 10
+
+
+def _votes_grouped(site_ids, start: date, end: date, column):
+    """(count, average) per value of `column` over the period."""
+    rows = (
+        db.session.query(column, db.func.count(MenuVote.id), db.func.avg(MenuVote.rating))
+        .filter(
+            MenuVote.restaurant_id.in_(site_ids),
+            MenuVote.date >= start,
+            MenuVote.date <= end,
+        )
+        .group_by(column)
+        .all()
+    )
+    return {key: (int(count), float(average)) for key, count, average in rows}
+
+
+def _score(count: int, average: float | None, threshold: int) -> float | None:
+    return round(average, 2) if average is not None and count >= threshold else None
+
+
+def _vote_settings(sites: list[Restaurant]) -> dict:
+    """What the sites in scope currently offer, to read the numbers against.
+
+    The dish question resolves a preset per site, so it is answered for a single
+    site only: doing it for a whole organization would cost a query per site.
+    """
+    presets = {site.vote_icon_preset for site in sites}
+    return {
+        'site_count': len(sites),
+        'sites_with_vote': sum(1 for site in sites if site.vote_enabled),
+        'icon_preset': presets.pop() if len(presets) == 1 else None,
+        'dish_question': bool(sites[0].get_votable_category_ids()) if len(sites) == 1 else None,
+    }
+
+
+def satisfaction_stats(scope: Scope, min_votes: int = DEFAULT_MIN_DISH_VOTES) -> dict:
+    """Ratings of the published menus over the period, per day, site and dish."""
+    sites = _sites_in_scope(scope.site_ids)
+    empty_summary = {
+        'score': None, 'votes': 0, 'participation_rate': None,
+        'distribution': {'1': 0, '2': 0, '3': 0},
+    }
+    if not sites:
+        return {
+            'summary': empty_summary, 'granularity': 'day', 'by_preset': [],
+            'series': [], 'by_site': [],
+            'top_dishes': [], 'flop_dishes': [],
+            'settings': _vote_settings(sites),
+        }
+
+    site_ids = scope.site_ids
+    by_date = _votes_grouped(site_ids, scope.start, scope.end, MenuVote.date)
+    by_site = _votes_grouped(site_ids, scope.start, scope.end, MenuVote.restaurant_id)
+    previous = scope.previous()
+    previous_by_site = _votes_grouped(site_ids, previous.start, previous.end, MenuVote.restaurant_id)
+
+    distribution_rows = (
+        db.session.query(MenuVote.rating, db.func.count(MenuVote.id))
+        .filter(
+            MenuVote.restaurant_id.in_(site_ids),
+            MenuVote.date >= scope.start,
+            MenuVote.date <= scope.end,
+        )
+        .group_by(MenuVote.rating)
+        .all()
+    )
+    distribution = {'1': 0, '2': 0, '3': 0}
+    for rating, count in distribution_rows:
+        distribution[str(int(rating))] = int(count)
+
+    dish_rows = (
+        db.session.query(
+            DishCatalog.id,
+            DishCatalog.name,
+            Restaurant.id,
+            Restaurant.name,
+            db.func.count(MenuVote.id),
+            db.func.avg(MenuVote.rating),
+        )
+        .join(menu_vote_dishes, menu_vote_dishes.c.vote_id == MenuVote.id)
+        .join(DishCatalog, DishCatalog.id == menu_vote_dishes.c.dish_id)
+        .join(Restaurant, Restaurant.id == MenuVote.restaurant_id)
+        .filter(
+            MenuVote.restaurant_id.in_(site_ids),
+            MenuVote.date >= scope.start,
+            MenuVote.date <= scope.end,
+        )
+        .group_by(DishCatalog.id, DishCatalog.name, Restaurant.id, Restaurant.name)
+        .having(db.func.count(MenuVote.id) >= min_votes)
+        .all()
+    )
+    dishes = [
+        {
+            'dish_id': dish_id,
+            'name': name,
+            'site_id': site_id,
+            'site_name': site_name,
+            'votes': int(count),
+            'score': round(float(average), 2),
+        }
+        for dish_id, name, site_id, site_name, count, average in dish_rows
+    ]
+    ranked = sorted(dishes, key=lambda row: row['score'], reverse=True)
+
+    uniques_by_site = _uniques_by_site(site_ids, scope.start, scope.end)
+    by_preset = _votes_grouped(
+        site_ids,
+        scope.start,
+        scope.end,
+        # Rows written before the column existed carry NULL; folding them into
+        # the default keeps one card per preset instead of two identical ones.
+        db.func.coalesce(MenuVote.icon_preset, DEFAULT_ICON_PRESET),
+    )
+
+    if scope.days == 1:
+        # A single day: the daily curve would be one point, the hourly one shows
+        # when the service was rated.
+        paris_hour = db.func.extract(
+            'hour', db.func.timezone('Europe/Paris', MenuVote.created_at)
+        )
+        by_hour = _votes_grouped(site_ids, scope.start, scope.end, paris_hour)
+        series = []
+        for hour in range(24):
+            count, average = by_hour.get(hour, (0, None))
+            series.append({'hour': hour, 'votes': count, 'score': _score(count, average, 1)})
+        granularity = 'hour'
+    else:
+        series = []
+        day = scope.start
+        while day <= scope.end:
+            count, average = by_date.get(day, (0, None))
+            series.append({
+                'date': day.isoformat(),
+                'votes': count,
+                'score': _score(count, average, 1),
+            })
+            day += timedelta(days=1)
+        granularity = 'day'
+
+    site_rows = []
+    for site in sites:
+        count, average = by_site.get(site.id, (0, None))
+        before_count, before_average = previous_by_site.get(site.id, (0, None))
+        current_score = _score(count, average, MIN_SITE_VOTES)
+        before_score = _score(before_count, before_average, MIN_SITE_VOTES)
+        site_uniques = uniques_by_site.get(site.id, 0)
+        site_rows.append({
+            'site_id': site.id,
+            'name': site.name,
+            'votes': count,
+            'score': current_score,
+            'participation_rate': _rate(count, site_uniques),
+            'delta': (
+                round(current_score - before_score, 2)
+                if current_score is not None and before_score is not None
+                else None
+            ),
+        })
+
+    total_votes = sum(count for count, _ in by_site.values())
+    weighted = sum(count * average for count, average in by_site.values() if average is not None)
+    total_uniques = sum(uniques_by_site.values())
+
+    return {
+        'summary': {
+            'score': _score(total_votes, weighted / total_votes if total_votes else None,
+                            MIN_SITE_VOTES),
+            'votes': total_votes,
+            'participation_rate': _rate(total_votes, total_uniques),
+            'distribution': distribution,
+        },
+        'granularity': granularity,
+        'by_preset': [
+            {'preset': preset, 'votes': count, 'score': _score(count, average, 1)}
+            for preset, (count, average) in sorted(
+                by_preset.items(), key=lambda row: row[1][0], reverse=True
+            )
+        ],
+        'series': series,
+        'by_site': site_rows,
+        'top_dishes': ranked[:5],
+        'flop_dishes': list(reversed(ranked[-5:])) if len(ranked) > 5 else [],
+        'settings': _vote_settings(sites),
     }

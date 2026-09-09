@@ -23,6 +23,19 @@ export function formatPoints(delta: number | null | undefined): string | null {
   return `${points > 0 ? '+' : ''}${formatted} pts`;
 }
 
+/** Ratings run from 1 to 3; two decimals keep a small change visible. */
+export function formatScore(score: number | null | undefined): string {
+  if (score === null || score === undefined) return PLACEHOLDER;
+  return score.toFixed(2).replace('.', ',');
+}
+
+/** A score delta is an absolute move on the 1–3 scale, never a percentage. */
+export function formatScoreDelta(delta: number | null | undefined): string | null {
+  if (delta === null || delta === undefined || delta === 0) return null;
+  const formatted = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(delta);
+  return `${delta > 0 ? '+' : ''}${formatted}`;
+}
+
 /** In French only counts above one take the mark, so zero stays singular. */
 export function plural(count: number | null | undefined, word: string): string {
   return (count ?? 0) > 1 ? `${word}s` : word;

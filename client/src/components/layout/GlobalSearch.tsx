@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
+import { parisNow } from '@/lib/date-utils';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -91,7 +92,7 @@ function toYMD(d: Date): string {
 
 function parseDateFR(q: string): string | null {
   const low = q.trim().toLowerCase();
-  const today = new Date();
+  const today = parisNow();
 
   if (low === "aujourd'hui" || low === 'auj') return toYMD(today);
 

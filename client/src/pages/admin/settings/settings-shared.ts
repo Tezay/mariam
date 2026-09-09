@@ -40,6 +40,9 @@ export interface RestaurantFormState {
   capacity: string;
   paymentMethods: string[];
   pmrAccess: boolean | null;
+  voteEnabled: boolean;
+  voteCategoryIds: number[];
+  voteIconPreset: string;
 }
 
 export function serializeRestaurantState(s: RestaurantFormState): string {
@@ -57,5 +60,8 @@ export function serializeRestaurantState(s: RestaurantFormState): string {
     capacity: s.capacity,
     paymentMethods: s.paymentMethods,
     pmrAccess: s.pmrAccess,
+    voteEnabled: s.voteEnabled,
+    voteCategoryIds: [...s.voteCategoryIds].sort((a, b) => a - b),
+    voteIconPreset: s.voteIconPreset,
   });
 }

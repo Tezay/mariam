@@ -1,4 +1,6 @@
-from marshmallow import EXCLUDE, Schema, fields
+from marshmallow import EXCLUDE, Schema, fields, validate
+
+from ..models.menu_vote import VOTE_ICON_PRESETS
 
 
 class ServiceHoursDaySchema(Schema):
@@ -75,6 +77,9 @@ class RestaurantUpdateSchema(Schema):
     )
     # Existing fields
     service_days = fields.List(fields.Int())
+    vote_enabled = fields.Bool()
+    vote_category_ids = fields.List(fields.Int())
+    vote_icon_preset = fields.Str(validate=validate.OneOf(VOTE_ICON_PRESETS))
     menu_categories = fields.List(fields.Dict())
     dietary_tags = fields.List(fields.Raw(), description="List of tag IDs or tag objects with 'id'")
     certifications = fields.List(fields.Raw(), description="List of cert IDs or cert objects with 'id'")

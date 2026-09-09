@@ -3,10 +3,19 @@ import { useSearchParams } from 'react-router-dom';
 import type { AnalyticsQuery } from '@/lib/api';
 
 export const PERIOD_OPTIONS = [
+  { value: '1d', label: "Aujourd'hui" },
   { value: '7d', label: '7 jours' },
   { value: '30d', label: '30 jours' },
   { value: '90d', label: '90 jours' },
 ] as const;
+
+/** The segmented bar holds four presets; the long form only fits the popover. */
+export const PERIOD_SHORT_LABELS: Record<PresetPeriod, string> = {
+  '1d': "Aujourd'hui",
+  '7d': '7 j',
+  '30d': '30 j',
+  '90d': '90 j',
+};
 
 export type PresetPeriod = (typeof PERIOD_OPTIONS)[number]['value'];
 export type PeriodKey = PresetPeriod | 'custom';

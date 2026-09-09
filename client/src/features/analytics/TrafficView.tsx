@@ -143,12 +143,14 @@ export function TrafficView({ sites = [], siteId, onSiteClick }: TrafficViewProp
 
           {!isLoading && data && hasTraffic && (
             <>
-              <section className="space-y-3">
-                <h2 className="text-sm font-semibold text-foreground">Consultations par jour</h2>
-                <div className="rounded-xl border border-border bg-card p-4">
-                  <TrafficTrendChart series={data.series} />
-                </div>
-              </section>
+              {data.granularity === 'day' && (
+                <section className="space-y-3">
+                  <h2 className="text-sm font-semibold text-foreground">Consultations par jour</h2>
+                  <div className="rounded-xl border border-border bg-card p-4">
+                    <TrafficTrendChart series={data.series} />
+                  </div>
+                </section>
+              )}
 
               <section className="space-y-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">

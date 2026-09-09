@@ -20,11 +20,23 @@ from urllib.parse import urlparse
 
 from flask import jsonify, request
 from flask_smorest import Blueprint
+from marshmallow import ValidationError
 
 from ..models import PAGE_KINDS, Event, ExceptionalClosure, Menu, Organization, Restaurant
 from ..models.telemetry import ORG_PAGE_KINDS
+from ..schemas.public import VoteInputSchema
 from ..security import get_client_ip, limiter
 from ..services.telemetry import record_page_view
+from ..services.votes import (
+    VoteError,
+    get_own_vote,
+    mint_device_id,
+    published_menu_today,
+    throttle_device_mint,
+    validate_and_record_vote,
+    vote_dish_groups,
+    voting_open,
+)
 from ..utils.time import paris_today
 from .menus import _format_menu_for_display
 
@@ -323,3 +335,66 @@ def track_page_view():
             restaurant_id=restaurant.id,
         )
     return '', 204
+
+
+# ============================================================
+# MENU VOTE — anonymous, one per device and organization per day
+# ============================================================
+
+@public_bp.route('/device', methods=['POST'])
+@limiter.limit(_public_limit)
+def mint_device():
+    """Issue a signed device token for the vote widget.
+
+    The signature is what stops a client from minting its own identities; the
+    hourly throttle bounds how many one address can collect.
+    """
+    if not throttle_device_mint(get_client_ip()):
+        return jsonify({'error': 'Trop de demandes, réessayez plus tard.'}), 429
+    return jsonify({'device_id': mint_device_id()}), 200
+
+
+@public_bp.route('/<restaurant_slug>/vote', methods=['GET'])
+@limiter.limit(_public_limit)
+def get_vote_state(restaurant_slug):
+    """State of the widget: the caller's own vote, never anyone else's."""
+    restaurant, err = _restaurant_or_404(restaurant_slug)
+    if err:
+        return err
+
+    menu = published_menu_today(restaurant.id) if restaurant.vote_enabled else None
+    vote = get_own_vote(restaurant.organization_id, request.args.get('device_id'))
+    return jsonify({
+        'vote': vote.to_dict() if vote else None,
+        'dish_groups': vote_dish_groups(restaurant, menu) if menu else [],
+        'voting_open': menu is not None and voting_open(restaurant),
+        'icon_preset': restaurant.vote_icon_preset,
+    }), 200
+
+
+@public_bp.route('/<restaurant_slug>/vote', methods=['POST'])
+@limiter.limit(_public_limit)
+def cast_vote(restaurant_slug):
+    restaurant, err = _restaurant_or_404(restaurant_slug)
+    if err:
+        return err
+
+    try:
+        payload = VoteInputSchema().load(request.get_json(silent=True) or {})
+    except ValidationError:
+        return jsonify({'error': 'Requête invalide.'}), 400
+
+    try:
+        status = validate_and_record_vote(
+            restaurant,
+            payload['device_id'],
+            payload['rating'],
+            payload['dish_ids'],
+            payload['fingerprint'],
+            get_client_ip(),
+        )
+    except VoteError as error:
+        return jsonify({'error': error.message}), error.status
+
+    vote = get_own_vote(restaurant.organization_id, payload['device_id'])
+    return jsonify({'status': status, 'vote': vote.to_dict() if vote else None}), 200

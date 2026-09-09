@@ -10,8 +10,9 @@
  * chargement, mis à jour section par section après une sauvegarde réussie
  * (une section en échec reste marquée comme modifiée).
  */
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { notify } from '@/lib/toast';
+import { DEFAULT_PRESET_ID } from '@/features/rating/scale';
 import {
   adminApi,
   inboxApi,
@@ -61,10 +62,19 @@ export function useSettingsState() {
   const [pmrAccess, setPmrAccess] = useState<boolean | null>(null);
 
   // ── Sections notifications & calendriers ────────────────────────────────
+  const [voteEnabled, setVoteEnabled] = useState(true);
+  const [voteCategoryIds, setVoteCategoryIds] = useState<number[]>([]);
+  const [voteIconPreset, setVoteIconPreset] = useState(DEFAULT_PRESET_ID);
   const [prefs, setPrefs] = useState<NotifPreferences | null>(null);
   const [calendarSettings, setCalendarSettings] = useState<CalendarSettings | null>(null);
 
-  const snapshotsRef = useRef<Snapshots>({ restaurant: '', prefs: '', calendar: '' });
+  // State, not a ref: `hasChanges` is derived from these, and a ref mutation
+  // would leave the unsaved-changes guard armed after a successful save.
+  const [baseline, setBaseline] = useState<Snapshots>({
+    restaurant: '',
+    prefs: '',
+    calendar: '',
+  });
 
   const restaurantState: RestaurantFormState = {
     name,
@@ -80,19 +90,30 @@ export function useSettingsState() {
     capacity,
     paymentMethods,
     pmrAccess,
+    voteEnabled,
+    voteCategoryIds,
+    voteIconPreset,
   };
   const restaurantSnapshot = serializeRestaurantState(restaurantState);
   const prefsSnapshot = JSON.stringify(prefs);
   const calendarSnapshot = JSON.stringify(calendarSettings);
 
   const hasChanges = useMemo(() => {
-    if (isLoading || snapshotsRef.current.restaurant === '') return false;
+    if (isLoading || baseline.restaurant === '') return false;
     return (
-      restaurantSnapshot !== snapshotsRef.current.restaurant ||
-      (prefs !== null && prefsSnapshot !== snapshotsRef.current.prefs) ||
-      (calendarSettings !== null && calendarSnapshot !== snapshotsRef.current.calendar)
+      restaurantSnapshot !== baseline.restaurant ||
+      (prefs !== null && prefsSnapshot !== baseline.prefs) ||
+      (calendarSettings !== null && calendarSnapshot !== baseline.calendar)
     );
-  }, [isLoading, restaurantSnapshot, prefsSnapshot, calendarSnapshot, prefs, calendarSettings]);
+  }, [
+    isLoading,
+    baseline,
+    restaurantSnapshot,
+    prefsSnapshot,
+    calendarSnapshot,
+    prefs,
+    calendarSettings,
+  ]);
 
   // ── Chargement initial ───────────────────────────────────────────────────
   useEffect(() => {
@@ -117,6 +138,9 @@ export function useSettingsState() {
         const loadedPmr = data.pmr_access ?? null;
         const loadedLat = data.address_lat ?? null;
         const loadedLon = data.address_lon ?? null;
+        const loadedVoteEnabled = data.config?.vote_enabled ?? true;
+        const loadedVoteCategories = data.config?.vote_category_ids ?? [];
+        const loadedVotePreset = data.config?.vote_icon_preset ?? DEFAULT_PRESET_ID;
 
         // Tous les jours actifs partagent-ils les mêmes horaires ?
         const hourValues = Object.values(loadedServiceHours);
@@ -139,10 +163,13 @@ export function useSettingsState() {
         setCapacity(loadedCapacity);
         setPaymentMethods(loadedPayments);
         setPmrAccess(loadedPmr);
+        setVoteEnabled(loadedVoteEnabled);
+        setVoteCategoryIds(loadedVoteCategories);
+        setVoteIconPreset(loadedVotePreset);
         setPrefs(loadedPrefs);
         setCalendarSettings(loadedCalendar);
 
-        snapshotsRef.current = {
+        setBaseline({
           restaurant: serializeRestaurantState({
             name: loadedName,
             serviceDays: loadedServiceDays,
@@ -157,10 +184,13 @@ export function useSettingsState() {
             capacity: loadedCapacity,
             paymentMethods: loadedPayments,
             pmrAccess: loadedPmr,
+            voteEnabled: loadedVoteEnabled,
+            voteCategoryIds: loadedVoteCategories,
+            voteIconPreset: loadedVotePreset,
           }),
           prefs: JSON.stringify(loadedPrefs),
           calendar: JSON.stringify(loadedCalendar),
-        };
+        });
       } catch {
         // ignore — la page affiche un état vide
       } finally {
@@ -180,10 +210,9 @@ export function useSettingsState() {
       return 'validation-error';
     }
 
-    const restaurantDirty = restaurantSnapshot !== snapshotsRef.current.restaurant;
-    const prefsDirty = prefs !== null && prefsSnapshot !== snapshotsRef.current.prefs;
-    const calendarDirty =
-      calendarSettings !== null && calendarSnapshot !== snapshotsRef.current.calendar;
+    const restaurantDirty = restaurantSnapshot !== baseline.restaurant;
+    const prefsDirty = prefs !== null && prefsSnapshot !== baseline.prefs;
+    const calendarDirty = calendarSettings !== null && calendarSnapshot !== baseline.calendar;
     if (!restaurantDirty && !prefsDirty && !calendarDirty) return 'noop';
 
     setIsSaving(true);
@@ -206,6 +235,9 @@ export function useSettingsState() {
             pmr_access: pmrAccess,
             dietary_tags: enabledTags,
             certifications: enabledCerts,
+            vote_enabled: voteEnabled,
+            vote_category_ids: voteCategoryIds,
+            vote_icon_preset: voteIconPreset,
           })) as RestaurantWithConfig;
 
           // Recharger l'état canonique depuis la réponse serveur
@@ -218,6 +250,9 @@ export function useSettingsState() {
           const savedPayments = saved.payment_methods || [];
           const savedPmr = saved.pmr_access ?? null;
           const savedDays = saved.config?.service_days ?? serviceDays;
+          const savedVoteEnabled = saved.config?.vote_enabled ?? voteEnabled;
+          const savedVoteCategories = saved.config?.vote_category_ids ?? voteCategoryIds;
+          const savedVotePreset = saved.config?.vote_icon_preset ?? voteIconPreset;
           const savedHours = saved.config?.service_hours ?? serviceHours;
           const savedTags = (saved.config?.dietary_tags || []).map((t: DietaryTag) => t.id);
           const savedCerts = (saved.config?.certifications || []).map(
@@ -238,22 +273,31 @@ export function useSettingsState() {
           setServiceHours(savedHours);
           setEnabledTags(savedTags);
           setEnabledCerts(savedCerts);
+          setVoteEnabled(savedVoteEnabled);
+          setVoteCategoryIds(savedVoteCategories);
+          setVoteIconPreset(savedVotePreset);
 
-          snapshotsRef.current.restaurant = serializeRestaurantState({
-            name: saved.name || name,
-            serviceDays: savedDays,
-            serviceHours: savedHours,
-            enabledTags: savedTags,
-            enabledCerts: savedCerts,
-            addressLabel: savedLabel,
-            addressLat: savedLat,
-            addressLon: savedLon,
-            email: savedEmail,
-            phone: savedPhone,
-            capacity: savedCapacity,
-            paymentMethods: savedPayments,
-            pmrAccess: savedPmr,
-          });
+          setBaseline((previous) => ({
+            ...previous,
+            restaurant: serializeRestaurantState({
+              name: saved.name || name,
+              serviceDays: savedDays,
+              serviceHours: savedHours,
+              enabledTags: savedTags,
+              enabledCerts: savedCerts,
+              voteEnabled: savedVoteEnabled,
+              voteCategoryIds: savedVoteCategories,
+              voteIconPreset: savedVotePreset,
+              addressLabel: savedLabel,
+              addressLat: savedLat,
+              addressLon: savedLon,
+              email: savedEmail,
+              phone: savedPhone,
+              capacity: savedCapacity,
+              paymentMethods: savedPayments,
+              pmrAccess: savedPmr,
+            }),
+          }));
         } catch {
           failures.push('paramètres du restaurant');
         }
@@ -263,7 +307,7 @@ export function useSettingsState() {
         try {
           const saved = await inboxApi.updateNotifPreferences(prefs);
           setPrefs(saved);
-          snapshotsRef.current.prefs = JSON.stringify(saved);
+          setBaseline((previous) => ({ ...previous, prefs: JSON.stringify(saved) }));
         } catch {
           failures.push('préférences de notifications');
         }
@@ -273,7 +317,7 @@ export function useSettingsState() {
         try {
           const saved = await adminApi.updateCalendarSettings(calendarSettings);
           setCalendarSettings(saved);
-          snapshotsRef.current.calendar = JSON.stringify(saved);
+          setBaseline((previous) => ({ ...previous, calendar: JSON.stringify(saved) }));
         } catch {
           failures.push('paramètres des calendriers');
         }
@@ -303,11 +347,15 @@ export function useSettingsState() {
     pmrAccess,
     enabledTags,
     enabledCerts,
+    voteEnabled,
+    voteCategoryIds,
+    voteIconPreset,
     prefs,
     calendarSettings,
     restaurantSnapshot,
     prefsSnapshot,
     calendarSnapshot,
+    baseline,
   ]);
 
   return {
@@ -347,6 +395,12 @@ export function useSettingsState() {
     setCapacity,
     paymentMethods,
     setPaymentMethods,
+    voteEnabled,
+    setVoteEnabled,
+    voteCategoryIds,
+    setVoteCategoryIds,
+    voteIconPreset,
+    setVoteIconPreset,
     pmrAccess,
     setPmrAccess,
     prefs,
