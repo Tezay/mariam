@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Satisfaction page and settings** (`GET /v1/analytics/satisfaction`, `Réglages › Satisfaction`): distribution, daily score, per-site comparison, best- and worst-rated dishes and participation against unique visitors; the vote, its icon set and the categories offering dishes are set per site.
 - Anti-fraud for the vote: a server-signed device token replicated across three browser stores, a ThumbmarkJS browser signature bound to it for the day in Redis only, and a per-address daily cap on new votes sized for a shared campus network (`DEVICE_ID_SECRET`, `VOTE_IP_DAILY_CAP`, `VOTE_DEVICE_MINT_PER_HOUR`). The signature is computed only when a vote is cast, and the token is stripped from the vote the day after.
 - **Privacy notice** at `/privacy`, linked from the public menu, covering the anonymous counters and the vote's fraud detection.
+- **Vos données** dialog on the account page: personal-data use, retention, sub-processors and security.
 - `flask seed-demo` now generates a month of traffic and ratings.
 - **Public-page telemetry**: anonymous and aggregate-only — no cookie, nothing stored on the device. Counters live in Redis and are flushed every five minutes; unique visitors come from a HyperLogLog over IP and user-agent hashes, salted with a key that rotates daily and is never persisted.
 - **Traffic page** (`GET /v1/analytics/traffic`): daily series, hour profile, peak hour, per-site comparison and page-kind split. Signage screens are reported apart, never as visits.
@@ -79,6 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Audit logs now include IP/browser data and configurable retention (`AUDIT_RETENTION_DAYS`, 180 days); notifications use `NOTIFICATION_RETENTION_DAYS` (90 days).
 - The production guard now refuses to start without `DEVICE_ID_SECRET`, or when it equals `JWT_SECRET_KEY`.
 - **Forwarding headers are rebuilt by nginx** from the connection's real address; a request reaching the origin directly could otherwise forge the IP that rate limiting keys on.
 - View counting refuses a beacon claiming a foreign origin, and caps what one visitor and one address can contribute per site and per day (`TELEMETRY_VISITOR_DAILY_CAP`, `TELEMETRY_IP_DAILY_CAP`, `TELEMETRY_IP_UNIQUE_CAP`). Addresses serve those caps alone, hashed with the daily salt, never stored in the clear.
