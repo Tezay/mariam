@@ -6,7 +6,7 @@
  * - Passkeys (Touch ID, Face ID, Windows Hello)
  * - Changement de mot de passe (TOTP ou passkey selon ce qui est disponible)
  */
-import { useState, type ComponentType } from 'react';
+import { useState, type ComponentType, type ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { RoleBadge } from '@/components/dashboard/RoleBadge';
 import { authApi } from '@/lib/api';
@@ -32,6 +32,7 @@ import {
   Check,
   Fingerprint,
   Smartphone,
+  ShieldCheck,
 } from 'lucide-react';
 import { PasskeyManager } from '@/components/PasskeyManager';
 import { TotpManager } from '@/components/TotpManager';
@@ -80,6 +81,123 @@ function AppInstallSection() {
 }
 
 type VerificationMethod = 'totp' | 'passkey';
+
+// ─── Privacy Dialog ───────────────────────────────────────────────────────────
+
+function Block({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="space-y-1.5">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function PrivacyDialog({ tenant }: { tenant?: string | null }) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+          Vos données et confidentialité
+        </button>
+      </DialogTrigger>
+      <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Vos données</DialogTitle>
+          <DialogDescription>
+            Données traitées dans le cadre de votre compte, durées de conservation et destinataires.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1 text-sm leading-relaxed text-muted-foreground">
+          <Block title="Finalités">
+            <p>
+              Ces données permettent de vous donner accès à l’outil, d’attribuer les publications à
+              leur auteur et de sécuriser le service.
+            </p>
+          </Block>
+
+          <Block title="Données du compte">
+            <p>
+              Email, nom, rôle, site ou organisation de rattachement, dates d’activation et de
+              dernière connexion.
+            </p>
+          </Block>
+
+          <Block title="Journal d’activité">
+            <p>
+              Chaque action effectuée sur le service est enregistrée avec sa date, votre adresse IP
+              et votre navigateur. Ce journal est conservé 6 mois, puis supprimé automatiquement.
+              Les notifications affichées dans l’application sont conservées 90 jours.
+            </p>
+          </Block>
+
+          <Block title="Fin d’accès">
+            <p>
+              Lorsque votre établissement ferme votre compte, ses données sont supprimées. Les
+              entrées de journal déjà écrites suivent leur propre durée de six mois.
+            </p>
+          </Block>
+
+          <Block title="Responsable du traitement">
+            <p>
+              {tenant ?? 'Votre établissement'} décide qui dispose d’un compte et pour quelles
+              missions, et reste responsable du traitement de ces données. Toute demande d’accès, de
+              rectification ou de suppression lui revient. Mariam intervient comme sous-traitant et
+              agit sur ses instructions.
+            </p>
+          </Block>
+
+          <Block title="Sous-traitants ultérieurs">
+            <p>
+              Scaleway héberge l’infrastructure en France : le serveur qui exécute l’application et
+              sa base de données, et le stockage objet qui conserve les images et les sauvegardes.
+              Aucune donnée ne quitte l’Union européenne.
+            </p>
+          </Block>
+
+          <Block title="Mesures de sécurité">
+            <ul className="ml-4 list-disc space-y-1">
+              <li>Connexions chiffrées (TLS).</li>
+              <li>Double authentification disponible, par application ou par passkey.</li>
+              <li>
+                Les mots de passe ne sont jamais conservés en clair et les secrets de double
+                authentification sont chiffrés en base.
+              </li>
+              <li>Sauvegardes quotidiennes de la base de données.</li>
+            </ul>
+          </Block>
+
+          <div className="space-y-2 border-t border-border pt-4">
+            <p>
+              Pour toute question sur le service ou sur ce traitement, écrivez à{' '}
+              <a className="text-primary underline" href="mailto:contact@mariam.app">
+                contact@mariam.app
+              </a>
+              . Les demandes portant sur vos droits doivent être adressées à{' '}
+              {tenant ?? 'votre établissement'}.
+            </p>
+            <p>
+              Les visiteurs des pages de menu relèvent d’un traitement distinct, décrit dans la{' '}
+              <a
+                className="text-primary underline"
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                notice de confidentialité publique
+              </a>
+              .
+            </p>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function DetailRow({
   icon: Icon,
@@ -489,6 +607,11 @@ export function AccountPage() {
 
         {/* Application — installation PWA (admin/editor uniquement) */}
         {(user?.role === 'admin' || user?.role === 'editor') && <AppInstallSection />}
+
+        {/* Not role-gated, unlike the section above: every account is audited. */}
+        <div className="border-t border-border pt-4">
+          <PrivacyDialog tenant={tenant} />
+        </div>
       </div>
     </div>
   );

@@ -667,7 +667,7 @@ def _start_scheduler(app):
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
 
-        from .services import telemetry
+        from .services import retention, telemetry
 
         scheduler = BackgroundScheduler(daemon=True, timezone='Europe/Paris')
 
@@ -703,6 +703,13 @@ def _start_scheduler(app):
             trigger='cron', day_of_week='sun', hour=3, args=[app],
             id='analytics_purge',
             name='Purge des données de télémétrie expirées',
+            replace_existing=True, misfire_grace_time=300,
+        )
+        scheduler.add_job(
+            func=retention.run_purge_job,
+            trigger='cron', day_of_week='sun', hour=3, minute=30, args=[app],
+            id='retention_purge',
+            name="Purge des journaux d'audit et des notifications expirés",
             replace_existing=True, misfire_grace_time=300,
         )
 
