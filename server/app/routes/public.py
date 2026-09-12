@@ -18,14 +18,16 @@ import os
 from datetime import timedelta
 from urllib.parse import urlparse
 
-from flask import jsonify, request
+from flask import jsonify, render_template, request
 from flask_smorest import Blueprint
 from marshmallow import ValidationError
 
+from ..extensions import db
 from ..models import PAGE_KINDS, Event, ExceptionalClosure, Menu, Organization, Restaurant
 from ..models.telemetry import ORG_PAGE_KINDS
 from ..schemas.public import VoteInputSchema
 from ..security import get_client_ip, limiter
+from ..services.email_service import user_from_token
 from ..services.telemetry import record_page_view
 from ..services.votes import (
     VoteError,
@@ -398,3 +400,31 @@ def cast_vote(restaurant_slug):
 
     vote = get_own_vote(restaurant.organization_id, payload['device_id'])
     return jsonify({'status': status, 'vote': vote.to_dict() if vote else None}), 200
+
+
+# ============================================================
+# EMAIL — one-click unsubscribe from the weekly digest
+# ============================================================
+
+@public_bp.route('/unsubscribe/<token>', methods=['GET', 'POST'])
+@limiter.limit(_public_limit)
+def unsubscribe(token: str):
+    """Turn the weekly digest off from the email itself.
+
+    POST answers the one-click of mail clients (RFC 8058); GET renders a page
+    for the footer link, so neither needs a session.
+    """
+    user = user_from_token(token)
+    if user:
+        prefs = user.get_notification_preferences()
+        prefs['weekly_digest'] = False
+        user.notification_preferences = prefs
+        db.session.commit()
+
+    if request.method == 'POST':
+        return '', 204
+    return render_template(
+        'public/unsubscribe.html',
+        done=user is not None,
+        url=os.environ.get('FRONTEND_URL', 'http://localhost:5173').split(',')[0].strip(),
+    )

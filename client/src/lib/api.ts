@@ -572,6 +572,7 @@ export type CatalogPeriod = 'all' | '7d' | '30d' | '90d' | '12m';
 
 export interface CatalogQuery {
   q?: string;
+  new_only?: string;
   category_ids?: string;
   tag_ids?: string;
   certification_ids?: string;
@@ -1560,14 +1561,26 @@ export interface VacanceScolaire {
 export interface NotifPreferences {
   notify_menu_unpublished: boolean;
   notify_menu_during_service: boolean;
+  notify_menu_tomorrow: boolean;
+  notify_traffic_drop: boolean;
+  notify_low_satisfaction: boolean;
+  notify_vote_anomaly: boolean;
+  notify_site_inactive: boolean;
   notify_holiday_approaching: boolean;
   holiday_alert_days_before: number;
+  weekly_digest: boolean;
+  /** Day of week (Monday = 0) and whole hour, in Paris, of the weekly email. */
+  digest_day: number;
+  digest_hour: number;
 }
 
 export interface LiveAlert {
   key: string;
   title: string;
   body: string;
+  /** Sites the alert caught; empty when the rule is not site-scoped. */
+  site_ids: number[];
+  site_names: string[];
   severity: 'error' | 'warning' | 'info';
 }
 

@@ -15,7 +15,6 @@ Endpoints :
 - GET    /v1/inbox/notification-preferences  Préférences de notification de l'utilisateur
 - PUT    /v1/inbox/notification-preferences  Met à jour les préférences
 """
-from datetime import UTC, date, datetime, timedelta
 
 from flask import jsonify
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -31,8 +30,8 @@ from ..schemas.inbox import (
     NotificationListSchema,
     UnreadCountSchema,
 )
-from ..services import holidays
-from .helpers import get_user_and_restaurant
+from ..services.alerts import live_alerts
+from .helpers import accessible_restaurant_ids, get_user_and_restaurant
 
 inbox_bp = Blueprint(
     'inbox', __name__,
@@ -181,13 +180,17 @@ def update_notification_preferences():
 
     data = request.get_json(silent=True) or {}
     allowed = {
-        'notify_menu_unpublished', 'notify_menu_during_service',
-        'notify_holiday_approaching', 'holiday_alert_days_before',
+        'notify_menu_unpublished', 'notify_menu_during_service', 'notify_menu_tomorrow',
+        'notify_traffic_drop', 'notify_low_satisfaction', 'notify_vote_anomaly',
+        'notify_site_inactive', 'notify_holiday_approaching', 'holiday_alert_days_before',
+        'weekly_digest', 'digest_day', 'digest_hour',
     }
     current = user.get_notification_preferences()
     for key in allowed:
         if key in data:
             current[key] = data[key]
+    current['digest_day'] = min(6, max(0, int(current.get('digest_day', 0))))
+    current['digest_hour'] = min(21, max(6, int(current.get('digest_hour', 8))))
 
     user.notification_preferences = current
     db.session.commit()
@@ -198,100 +201,17 @@ def update_notification_preferences():
 # LIVE ALERTS — calculées en temps réel, aucune persistance DB
 # ============================================================
 
-def _paris_now() -> datetime:
-    """Retourne l'heure courante en heure de Paris."""
-    try:
-        import zoneinfo
-        return datetime.now(zoneinfo.ZoneInfo('Europe/Paris'))
-    except Exception:
-        return datetime.now(UTC) + timedelta(hours=1)
-
-
 @inbox_bp.route('/live-alerts', methods=['GET'])
 @jwt_required()
 @inbox_bp.response(200, LiveAlertListSchema)
 @inbox_bp.alt_response(401, schema=ErrorSchema)
 def get_live_alerts():
-    """Calcule en temps réel les alertes actives pour l'utilisateur courant.
-    Aucune persistance DB — l'état reflète la situation actuelle du restaurant.
+    """Alertes actives de l'utilisateur, calculées en temps réel.
+
+    Le périmètre suit le rôle : son site pour un admin, tous ceux de son
+    organisation pour un directeur. Aucune persistance.
     """
-    from ..models import Menu, Restaurant
-    from ..models.restaurant import RestaurantServiceHours
-    from ..services.service_calendar import closures_by_site, is_open_on
-
-    user, restaurant_id = _get_user_and_restaurant_id()
-    if not user or not restaurant_id:
+    user = User.query.get(int(get_jwt_identity()))
+    if not user:
         return jsonify({'alerts': []}), 200
-
-    prefs = user.get_notification_preferences()
-    now = _paris_now()
-    today_str = now.strftime('%Y-%m-%d')
-    today_date = date.fromisoformat(today_str)
-    current_time = now.strftime('%H:%M')
-    current_day = now.weekday()
-
-    alerts = []
-
-    # ── Alerte 1 : menu du jour non publié ───────────────────────────────────
-    restaurant = Restaurant.query.get(restaurant_id)
-    closures = closures_by_site([restaurant_id], today_date, today_date)
-    serves_today = restaurant is not None and is_open_on(
-        restaurant, today_date, closures.get(restaurant_id, [])
-    )
-
-    if serves_today and prefs.get('notify_menu_unpublished', True):
-        published_menu = Menu.query.filter_by(
-            restaurant_id=restaurant_id,
-            date=today_date,
-            status='published',
-        ).first()
-        menu_published = published_menu is not None and published_menu.items.count() > 0
-
-        if not menu_published:
-            alerts.append({
-                'key': f'menu_unpublished:{today_str}',
-                'title': 'Menu non publié',
-                'body': f"Le menu du {today_str} n'est pas encore publié.",
-                'severity': 'warning',
-            })
-
-            # Sous-alerte : service en cours sans menu
-            if prefs.get('notify_menu_during_service', True):
-                hours = RestaurantServiceHours.query.filter_by(
-                    restaurant_id=restaurant_id,
-                    day_of_week=current_day,
-                ).first()
-                if hours:
-                    open_str = hours.open_time
-                    close_str = hours.close_time
-                    if open_str and close_str and open_str <= current_time <= close_str:
-                        alerts.append({
-                            'key': f'service_active:{today_str}',
-                            'title': 'Service en cours — menu non publié',
-                            'body': "Le service est actif mais le menu n'est pas visible par vos étudiants.",
-                            'severity': 'error',
-                        })
-
-    # ── Alerte 2 : jours fériés approchants ──────────────────────────────────
-    if prefs.get('notify_holiday_approaching', True):
-        days_before = int(prefs.get('holiday_alert_days_before', 5))
-        horizon = today_date + timedelta(days=days_before)
-        feries = holidays.get_jours_feries(today_date.year) or []
-        if horizon.year > today_date.year:
-            feries += holidays.get_jours_feries(today_date.year + 1) or []
-        for f in feries:
-            try:
-                fd = date.fromisoformat(f['date'])
-            except ValueError:
-                continue
-            if today_date <= fd <= horizon:
-                delta = (fd - today_date).days
-                label = "demain" if delta == 1 else f"dans {delta}j" if delta > 1 else "aujourd'hui"
-                alerts.append({
-                    'key': f'holiday:{f["date"]}',
-                    'title': f'Jour férié {label}',
-                    'body': f'{f["description"]} — {f["date"]}',
-                    'severity': 'info',
-                })
-
-    return jsonify({'alerts': alerts}), 200
+    return jsonify({'alerts': live_alerts(user, sorted(accessible_restaurant_ids(user)))}), 200

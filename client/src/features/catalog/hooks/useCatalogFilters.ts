@@ -4,6 +4,8 @@ import type { CatalogPeriod } from '@/lib/api';
 
 export interface CatalogFilters {
   q: string;
+  /** Dishes served for the first time within the period. */
+  newOnly: boolean;
   categoryIds: number[];
   tagIds: string[];
   certIds: string[];
@@ -50,6 +52,7 @@ export function useCatalogFilters(defaultSort: string) {
     const order = params.get('order');
     return {
       q: params.get('q') ?? '',
+      newOnly: params.get('new') === '1',
       categoryIds: numbers(params.get('categories')),
       tagIds: csv(params.get('tags')),
       certIds: csv(params.get('certs')),
@@ -69,6 +72,7 @@ export function useCatalogFilters(defaultSort: string) {
             else draft.delete(key);
           };
           if ('q' in next) write('q', next.q ?? null);
+          if ('newOnly' in next) write('new', next.newOnly ? '1' : null);
           if ('categoryIds' in next) write('categories', (next.categoryIds ?? []).join(','));
           if ('tagIds' in next) write('tags', (next.tagIds ?? []).join(','));
           if ('certIds' in next) write('certs', (next.certIds ?? []).join(','));
@@ -85,9 +89,16 @@ export function useCatalogFilters(defaultSort: string) {
   );
 
   /** Everything the Filters popover holds, which is what its badge counts. */
-  const activeCount = filters.categoryIds.length + filters.tagIds.length + filters.certIds.length;
+  const activeCount =
+    filters.categoryIds.length +
+    filters.tagIds.length +
+    filters.certIds.length +
+    (filters.newOnly ? 1 : 0);
 
-  const clear = useCallback(() => patch({ categoryIds: [], tagIds: [], certIds: [] }), [patch]);
+  const clear = useCallback(
+    () => patch({ categoryIds: [], tagIds: [], certIds: [], newOnly: false }),
+    [patch]
+  );
 
   return { filters, patch, activeCount, clear };
 }

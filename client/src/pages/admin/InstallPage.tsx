@@ -65,7 +65,7 @@ function IosInstructions({ isSafari, onDone }: { isSafari: boolean; onDone: () =
   return (
     <div className="w-full max-w-2xl space-y-6 rounded-lg border border-border bg-card p-8 shadow-lg">
       <IconHeader
-        title="Installez Mariam — Gestion"
+        title="Installez Mariam - Gestion"
         subtitle="Accédez au tableau de bord directement depuis votre écran d'accueil."
       />
 
@@ -156,7 +156,7 @@ function AndroidInstructions({ onDone }: { onDone: () => void }) {
   return (
     <div className="w-full max-w-sm space-y-6 rounded-lg border border-border bg-card p-8 shadow-lg">
       <IconHeader
-        title="Installez Mariam — Gestion"
+        title="Installez Mariam - Gestion"
         subtitle="Accédez au tableau de bord directement depuis votre écran d'accueil."
       />
 
@@ -174,7 +174,7 @@ function AndroidInstructions({ onDone }: { onDone: () => void }) {
           number={3}
           text={
             <>
-              Lancez <strong>Mariam — Gestion</strong> depuis votre écran d'accueil
+              Lancez <strong>Mariam - Gestion</strong> depuis votre écran d'accueil
             </>
           }
         />

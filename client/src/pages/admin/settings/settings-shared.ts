@@ -1,5 +1,5 @@
 /**
- * Constantes et helpers partagés entre les onglets de la page Paramètres.
+ * Constantes et helpers partagés entre les onglets de la page Mon restaurant.
  */
 import { ServiceHours } from '@/lib/api';
 

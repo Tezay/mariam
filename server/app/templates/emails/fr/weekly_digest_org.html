@@ -1,0 +1,78 @@
+{% extends "emails/base.html" %}
+{% import "emails/components.html" as ui %}
+
+{% block kicker %}{{ org_name }}{% endblock %}
+
+{% block content %}
+<p style="margin:0 0 16px;font-size:15px;color:#0f172a">
+  <strong>Semaine du {{ start }} au {{ end }}</strong><br />
+  <span style="color:#64748b">{{ site_count }} sites, vus d'ensemble.</span>
+</p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 -6px 4px">
+  <tr>
+    {{ ui.kpi('Satisfaction', satisfaction.value, satisfaction.unit, satisfaction.change) }}
+    {{ ui.kpi('Consultations', traffic.views, '', traffic.change) }}
+    {{ ui.kpi('Publication', publication.value, publication.unit, publication.change) }}
+  </tr>
+</table>
+
+{% if leaders or laggards %}
+{{ ui.heading('Classement des sites') }}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+  {% for site in leaders %}
+  {{ ui.row(site.name, site.detail, '#15803d') }}
+  {% endfor %}
+  {% for site in laggards %}
+  {{ ui.row(site.name, site.detail, '#b45309') }}
+  {% endfor %}
+</table>
+{% endif %}
+
+{% if watch %}
+<div style="margin-top:18px">
+  {{ ui.callout('Sites à surveiller', watch, '#b45309') }}
+</div>
+{% endif %}
+
+{{ ui.heading('Couverture') }}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+  {% for line in coverage %}
+  {{ ui.bar(line.label, line.value, line.percent, line.color) }}
+  {% endfor %}
+</table>
+
+{% if top_dishes or new_dishes %}
+{{ ui.heading('Les plats de la semaine') }}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+  {% for dish in top_dishes %}
+  {{ ui.row(dish.name, dish.detail, '#15803d') }}
+  {% endfor %}
+</table>
+{% if new_dishes %}
+<p style="margin:14px 0 4px;font-size:13px;font-weight:600;color:#0f172a">Servis pour la première fois</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+  {% for dish in new_dishes %}
+  {{ ui.row(dish.name, dish.detail) }}
+  {% endfor %}
+</table>
+{% endif %}
+{% endif %}
+
+{% if alerts %}
+<div style="margin-top:22px">
+  {{ ui.callout('Alertes ouvertes', alerts, '#b45309') }}
+</div>
+{% endif %}
+
+<p style="margin:26px 0 0">
+  <a href="{{ url }}" style="display:inline-block;background:#093EAA;color:#ffffff;text-decoration:none;padding:11px 18px;border-radius:10px;font-size:14px;font-weight:600">Ouvrir le tableau de bord</a>
+</p>
+{% endblock %}
+
+{% block footer %}
+Vous recevez ce résumé chaque {{ send_day }} parce qu'il est activé sur votre compte.<br />
+<a href="{{ unsubscribe_url }}" style="color:#64748b">Se désabonner</a>
+&nbsp;·&nbsp;
+<a href="{{ settings_url }}" style="color:#64748b">Gérer mes notifications</a>
+{% endblock %}

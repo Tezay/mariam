@@ -204,3 +204,21 @@ def dish_stats(restaurant, dish_ids: list[int], period: str | None = None) -> di
             },
         }
     return result
+
+
+def first_served(site_ids: list[int], start: date, end: date) -> dict[int, date]:
+    """Dishes whose very first appearance in a menu falls inside the window.
+
+    The first service is read over the whole history, not over the window: a
+    dish served last month and again this week is not a novelty.
+    """
+    if not site_ids:
+        return {}
+    rows = (
+        db.session.query(MenuItem.dish_id, db.func.min(Menu.date))
+        .join(Menu, Menu.id == MenuItem.menu_id)
+        .filter(Menu.restaurant_id.in_(site_ids))
+        .group_by(MenuItem.dish_id)
+        .all()
+    )
+    return {dish_id: day for dish_id, day in rows if start <= day <= end}

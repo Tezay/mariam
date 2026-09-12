@@ -27,6 +27,14 @@ x-backend-env: &backend-env
   VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
   VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
   VAPID_CONTACT_EMAIL: ${VAPID_CONTACT_EMAIL:-admin@mariam.dev}
+  # No default either: without SMTP_HOST every send is a logged no-op.
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USERNAME: ${SMTP_USERNAME:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  SMTP_SENDER: ${SMTP_SENDER:-}
+  SMTP_TLS: ${SMTP_TLS:-1}
+  EMAIL_LOCALE: ${EMAIL_LOCALE:-fr}
 
 services:
   db:

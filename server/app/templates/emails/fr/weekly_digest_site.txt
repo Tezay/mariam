@@ -1,0 +1,48 @@
+Semaine du {{ start }} au {{ end }}, {{ site_name }}.
+
+Satisfaction   {{ satisfaction.value }}{{ satisfaction.unit }}{% if satisfaction.change.label %} ({{ satisfaction.change.label }}){% endif %}
+Consultations  {{ traffic.views }}{% if traffic.change.label %} ({{ traffic.change.label }}){% endif %}
+Publication    {{ publication.value }}{{ publication.unit }}{% if publication.change.label %} ({{ publication.change.label }}){% endif %}
+{% if distribution %}
+Ce qu'ils ont pensé du menu
+{%- for level in distribution %}
+  {{ level.label }} : {{ level.value }}
+{%- endfor %}
+  {{ satisfaction.votes }} avis, {{ satisfaction.participation }} des visiteurs
+{% endif %}
+Consultations du menu
+{%- for day in days %}
+  {{ day.label }} : {{ day.value }}
+{%- endfor %}
+  Visiteurs uniques : {{ traffic.uniques }}
+  Créneau de pointe : {{ traffic.peak }}
+  Page la plus consultée : {{ traffic.top_page }}
+{% if top_dishes or flop_dishes %}
+Les plats de la semaine
+{%- for dish in top_dishes %}
+  {{ dish.name }} : {{ dish.detail }}
+{%- endfor %}
+{%- for dish in flop_dishes %}
+  {{ dish.name }} : {{ dish.detail }}
+{%- endfor %}
+{% endif %}
+{%- if new_dishes %}
+Servis pour la première fois
+{%- for dish in new_dishes %}
+  {{ dish.name }} : {{ dish.detail }}
+{%- endfor %}
+{% endif %}
+Publication
+  Publications à l'heure : {{ publication.punctuality }}
+  Anticipation moyenne : {{ publication.lead_time }}
+  Plats servis avec une photo : {{ publication.photos }}
+{% if alerts %}
+À traiter
+{%- for alert in alerts %}
+  {{ alert }}
+{%- endfor %}
+{% endif %}
+Tableau de bord : {{ url }}
+
+Vous recevez ce résumé chaque {{ send_day }} parce qu'il est activé sur votre compte.
+Se désabonner : {{ unsubscribe_url }}

@@ -7,6 +7,7 @@ import {
   Plus,
   Search,
   SlidersHorizontal,
+  Sparkles,
   Upload,
   X,
 } from 'lucide-react';
@@ -199,6 +200,23 @@ export function CatalogToolbar({
               className="max-h-[70vh] w-[min(20rem,calc(100vw-2rem))] overflow-y-auto p-3"
             >
               {tree.length > 0 && (
+                <Group title="Nouveautés">
+                  <Row
+                    active={filters.newOnly}
+                    onClick={() => patch({ newOnly: !filters.newOnly })}
+                  >
+                    <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">Servis pour la première fois</span>
+                  </Row>
+                  {filters.period === 'all' && (
+                    <p className="px-2 pt-1 text-[11px] text-muted-foreground">
+                      Choisissez une période pour voir les nouveautés.
+                    </p>
+                  )}
+                </Group>
+              )}
+
+              {tree.length > 0 && (
                 <Group title="Catégorie">
                   {tree.map((parent) => {
                     const children = parent.subcategories ?? [];
@@ -363,6 +381,9 @@ export function CatalogToolbar({
 
       {(activeCount > 0 || filters.period !== 'all') && (
         <div className="flex flex-wrap items-center gap-2 pt-1">
+          {filters.newOnly && (
+            <Chip label="Nouveautés" onRemove={() => patch({ newOnly: false })} />
+          )}
           {filters.categoryIds.map((id) => (
             <Chip
               key={id}

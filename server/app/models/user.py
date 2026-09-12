@@ -141,8 +141,17 @@ class User(db.Model):
         defaults = {
             'notify_menu_unpublished': True,
             'notify_menu_during_service': True,
+            'notify_menu_tomorrow': True,
+            'notify_traffic_drop': True,
+            'notify_low_satisfaction': True,
+            'notify_vote_anomaly': True,
+            'notify_site_inactive': True,
             'notify_holiday_approaching': True,
             'holiday_alert_days_before': 5,
+            # Email is the one channel nobody is subscribed to without asking.
+            'weekly_digest': False,
+            'digest_day': 0,
+            'digest_hour': 8,
         }
         return {**defaults, **(self.notification_preferences or {})}
 

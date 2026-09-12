@@ -8,6 +8,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from ..extensions import db
 from ..models import DishCatalog, Restaurant, User
 from ..models.taxonomy import Certification, DietaryTag
+from ..services.access import accessible_restaurant_ids
 
 
 def editor_required(f):
@@ -107,25 +108,6 @@ def get_active_restaurant(user):
         if target is not None and target in accessible_restaurant_ids(user):
             return Restaurant.query.get(target)
     return Restaurant.query.get(user.restaurant_id) if user.restaurant_id else None
-
-
-def accessible_restaurant_ids(user):
-    """Return the set of restaurant ids the user may act on.
-
-    - org_admin: every restaurant of its organization.
-    - admin / editor / reader: only its own restaurant.
-    - unassigned: empty set (no access).
-    """
-    if user is None:
-        return set()
-    if user.is_org_admin() and user.organization_id:
-        rows = Restaurant.query.filter_by(
-            organization_id=user.organization_id
-        ).with_entities(Restaurant.id).all()
-        return {row[0] for row in rows}
-    if user.restaurant_id:
-        return {user.restaurant_id}
-    return set()
 
 
 def user_can_access_restaurant(user, restaurant_id):

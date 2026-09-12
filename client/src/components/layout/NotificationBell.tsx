@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { Bell, CheckCheck, Trash2, Info, AlertTriangle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -34,6 +35,17 @@ const LIVE_ALERT_ICON: Record<LiveAlert['severity'], React.ReactNode> = {
   warning: <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />,
   info: <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />,
 };
+
+function AlertText({ alert }: { alert: LiveAlert }) {
+  return (
+    <div className="min-w-0 flex-1">
+      <p className="text-sm font-medium leading-snug text-foreground">{alert.title}</p>
+      {alert.body && (
+        <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{alert.body}</p>
+      )}
+    </div>
+  );
+}
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
@@ -157,24 +169,33 @@ export function NotificationBell() {
               {/* Live alerts */}
               {liveAlerts.length > 0 && (
                 <ul className="border-b border-border">
-                  {liveAlerts.map((alert) => (
-                    <li
-                      key={alert.key}
-                      className={cn('flex gap-3 px-4 py-3', LIVE_ALERT_STYLES[alert.severity])}
-                    >
-                      {LIVE_ALERT_ICON[alert.severity]}
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium leading-snug text-foreground">
-                          {alert.title}
-                        </p>
-                        {alert.body && (
-                          <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
-                            {alert.body}
-                          </p>
+                  {liveAlerts.map((alert) => {
+                    // An alert spanning several sites is a director's: send him
+                    // where their state is listed.
+                    const grouped = alert.site_names.length > 1;
+                    return (
+                      <li
+                        key={alert.key}
+                        className={cn('flex gap-3', LIVE_ALERT_STYLES[alert.severity])}
+                      >
+                        {grouped ? (
+                          <Link
+                            to="/org/sites"
+                            onClick={() => setOpen(false)}
+                            className="flex min-w-0 flex-1 gap-3 px-4 py-3 transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
+                          >
+                            {LIVE_ALERT_ICON[alert.severity]}
+                            <AlertText alert={alert} />
+                          </Link>
+                        ) : (
+                          <div className="flex min-w-0 flex-1 gap-3 px-4 py-3">
+                            {LIVE_ALERT_ICON[alert.severity]}
+                            <AlertText alert={alert} />
+                          </div>
                         )}
-                      </div>
-                    </li>
-                  ))}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
 

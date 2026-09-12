@@ -51,7 +51,7 @@ const PAGES: { label: string; to: string; icon: ReactNode; adminOnly?: boolean }
     adminOnly: true,
   },
   {
-    label: 'Paramètres',
+    label: 'Mon restaurant',
     to: '/admin/settings',
     icon: <Settings className="h-4 w-4 text-muted-foreground" />,
     adminOnly: true,

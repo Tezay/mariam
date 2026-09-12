@@ -12,7 +12,7 @@ Usage:
 import random
 import secrets
 import string
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Any
 
 import click
@@ -27,6 +27,7 @@ from ..commands.seed import (
     _upsert_dietary_tags,
 )
 from ..extensions import db
+from ..models.audit_log import AuditLog
 from ..models.catalog import DishCatalog
 from ..models.category import MenuCategory
 from ..models.menu import Menu, MenuItem
@@ -42,6 +43,37 @@ from ..utils.time import paris_today
 _DEMO_CODE = 'DEMO'
 _DEMO_SLUG = 'demo'
 _DEMO_EMAIL = 'demo@mariam.app'
+_DIRECTOR_EMAIL = 'direction@mariam.app'
+
+# Three sites rather than one: a supervision dashboard, its alerts and its
+# weekly email only mean something across a fleet. The profiles differ so the
+# ranking, the sites to watch and the satisfaction gap are not flat.
+_DEMO_SITES = [
+    {
+        'name': 'Restaurant Universitaire — Démo',
+        'code': _DEMO_CODE,
+        'slug': _DEMO_SLUG,
+        'visitors': (180, 420),
+        'ratings': [12, 28, 60],
+        'skip_days': (),
+    },
+    {
+        'name': 'Cafétéria des Sciences',
+        'code': 'DEMO_SCIENCES',
+        'slug': 'sciences',
+        'visitors': (90, 220),
+        'ratings': [18, 34, 48],
+        'skip_days': (4,),
+    },
+    {
+        'name': 'RU Campus Nord',
+        'code': 'DEMO_NORD',
+        'slug': 'nord',
+        'visitors': (60, 160),
+        'ratings': [34, 36, 30],
+        'skip_days': (1, 3),
+    },
+]
 _DEMO_OPEN_TIME = '11:30'
 _DEMO_CLOSE_TIME = '14:00'
 _PALETTE = ['indigo', 'sky', 'mint', 'saffron', 'clay', 'lilac']
@@ -61,27 +93,35 @@ def register_commands(app):
         _upsert_certification_keywords()
         db.session.commit()
 
-        # 2. Restaurant
-        restaurant = _ensure_demo_restaurant()
+        # 2. Organization and its sites
+        organization = _ensure_demo_organization()
         db.session.commit()
-
-        # 3. Menu categories
-        categories = _ensure_menu_categories(restaurant.id)
-        db.session.commit()
-
-        # 4. Admin user
         password = _generate_password()
-        _ensure_demo_user(password, restaurant.id)
-        db.session.commit()
+        restaurants = []
+        menu_count = item_count = view_count = vote_count = 0
 
-        # 5. Menus (current week Mon–Fri)
-        week = _get_current_week()
-        menu_count, item_count = _create_demo_menus(restaurant.id, categories, week)
-        db.session.commit()
+        for site in _DEMO_SITES:
+            restaurant = _ensure_demo_restaurant(organization, site)
+            db.session.commit()
+            categories = _ensure_menu_categories(restaurant.id)
+            db.session.commit()
+            menus, items = _create_demo_menus(restaurant.id, categories, _menu_plan(site))
+            db.session.commit()
+            views, votes = _create_demo_analytics(restaurant, site)
+            db.session.commit()
+            restaurants.append(restaurant)
+            menu_count += menus
+            item_count += items
+            view_count += views
+            vote_count += votes
 
-        # 6. Analytics history, so the dashboards are not empty at demo time
-        view_count, vote_count = _create_demo_analytics(restaurant)
+        # 3. Accounts: one site admin and the director who oversees them all
+        admin = _ensure_demo_user(password, restaurants[0].id)
+        _ensure_demo_director(password, organization.id)
         db.session.commit()
+        _seed_activity(restaurants, admin.id)
+        db.session.commit()
+        restaurant = restaurants[0]
 
         # 7. Summary
         frontend_url = app.config.get('FRONTEND_URL', 'http://localhost:5173')
@@ -94,12 +134,15 @@ def register_commands(app):
         click.echo('\n' + '=' * 55)
         click.echo('  DEMO — Données de présentation créées')
         click.echo('=' * 55)
-        click.echo(f'  Restaurant   : {restaurant.name} (code: {restaurant.code})')
+        click.echo(f'  Organisation : {organization.name} ({len(restaurants)} sites)')
+        for site in restaurants:
+            click.echo(f'    · {site.name} (code: {site.code})')
         click.echo(f'  Menus        : {menu_count} jours, {item_count} plats')
         click.echo(f'  Analytics    : {view_count} consultations, {vote_count} votes')
         click.echo('  Identifiants :')
-        click.echo(f'    Email      : {_DEMO_EMAIL}')
-        click.echo(f'    Mot de passe: {password}')
+        click.echo(f'    Admin de site : {_DEMO_EMAIL}')
+        click.echo(f'    Directeur     : {_DIRECTOR_EMAIL}')
+        click.echo(f'    Mot de passe  : {password}')
         click.echo(f'  Service      : {_DEMO_OPEN_TIME}–{_DEMO_CLOSE_TIME}, '
                    f'vote ouvert dès {_DEMO_OPEN_TIME} (heure de Paris)')
         click.echo(f'  URL admin    : {frontend_url}/admin/')
@@ -113,32 +156,31 @@ def register_commands(app):
 #  Restaurant
 # ──────────────────────────────────────────────────────────────────────
 
-def _ensure_demo_restaurant() -> Restaurant:
-    """The demo site and the organization serving it.
-
-    The public pages resolve their tenant from the Host, so a site without an
-    organization has no reachable menu page at all.
-    """
+def _ensure_demo_organization() -> Organization:
     organization = Organization.query.filter_by(slug=_DEMO_SLUG).first()
     if not organization:
         organization = Organization(name='Organisation Démo', slug=_DEMO_SLUG, is_active=True)
         db.session.add(organization)
         db.session.flush()
+    return organization
 
-    restaurant = Restaurant.query.filter_by(code=_DEMO_CODE).first()
+
+def _ensure_demo_restaurant(organization: Organization, site: dict) -> Restaurant:
+    """One demo site, attached to the organization.
+
+    The public pages resolve their tenant from the Host, so a site without an
+    organization has no reachable menu page at all.
+    """
+    restaurant = Restaurant.query.filter_by(code=site['code']).first()
     if not restaurant:
-        restaurant = Restaurant(
-            name='Restaurant Universitaire — Démo',
-            code=_DEMO_CODE,
-            is_active=True,
-        )
+        restaurant = Restaurant(name=site['name'], code=site['code'], is_active=True)
         db.session.add(restaurant)
-        click.echo('  ✓ Restaurant démo créé')
+        click.echo(f'  ✓ Site créé : {site["name"]}')
     else:
-        click.echo(f'  ✓ Restaurant démo réutilisé (ID {restaurant.id})')
+        click.echo(f'  ✓ Site réutilisé : {site["name"]} (ID {restaurant.id})')
 
     restaurant.organization_id = organization.id
-    restaurant.slug = restaurant.slug or _DEMO_SLUG
+    restaurant.slug = restaurant.slug or site['slug']
     restaurant.service_days = list(DEFAULT_SERVICE_DAYS)
     db.session.flush()
     _ensure_service_hours(restaurant.id)
@@ -286,6 +328,9 @@ def _ensure_demo_user(password: str, restaurant_id: int) -> User:
         user.is_active = True
         user.mfa_enabled = False
         click.echo(f'  ✓ Mot de passe demo réinitialisé ({_DEMO_EMAIL})')
+    user.notification_preferences = {
+        **user.get_notification_preferences(), 'weekly_digest': True
+    }
     return user
 
 
@@ -293,10 +338,37 @@ def _ensure_demo_user(password: str, restaurant_id: int) -> User:
 #  Menus
 # ──────────────────────────────────────────────────────────────────────
 
-def _get_current_week() -> list[date]:
+_DEMO_WEEKS = 5
+
+# Dishes introduced late, so « servis pour la première fois » has something to
+# report on the week the digest covers.
+_NEW_DISHES = [
+    (2, ('Curry de pois chiches', 'Végétarien', ['vegetarian', 'vegan', 'homemade'])),
+    (1, ('Filet de colin à l’aneth', 'Poissons', ['pescetarian'])),
+    (1, ('Salade de lentilles tièdes', 'Froides', ['vegetarian', 'vegan', 'seasonal'])),
+]
+
+
+def _menu_plan(site: dict) -> list[tuple[date, list]]:
+    """Five weeks of weekday menus, oldest first.
+
+    A site skips a weekday or two so the publication rate, the ranking and the
+    sites to watch are not identical everywhere.
+    """
     today = paris_today()
     monday = today - timedelta(days=today.weekday())
-    return [monday + timedelta(days=i) for i in range(5)]
+    plan = []
+    for back in range(_DEMO_WEEKS - 1, -1, -1):
+        week_start = monday - timedelta(weeks=back)
+        for index, items in enumerate(_WEEK_MENUS):
+            if back and index in site['skip_days']:
+                continue
+            day = week_start + timedelta(days=index)
+            if day > today:
+                continue
+            extras = [dish for weeks_back, dish in _NEW_DISHES if weeks_back >= back and index == 0]
+            plan.append((day, list(items) + extras))
+    return plan
 
 
 # Realistic CROUS-style menu items: (name, category_label, tag_ids)
@@ -385,12 +457,12 @@ _WEEK_MENUS = [
 def _create_demo_menus(
     restaurant_id: int,
     categories: dict,
-    week: list[date],
+    plan: list[tuple[date, list]],
 ) -> tuple[int, int]:
     menu_count = 0
     item_count = 0
 
-    for day_date, day_items in zip(week, _WEEK_MENUS, strict=False):
+    for day_date, day_items in plan:
         # Delete existing menu for this date (idempotent)
         existing = Menu.query.filter_by(
             restaurant_id=restaurant_id, date=day_date
@@ -403,7 +475,9 @@ def _create_demo_menus(
             restaurant_id=restaurant_id,
             date=day_date,
             status='published',
-            published_at=datetime.now(UTC),
+            # The eve at 17:00 Paris: a realistic lead time, so punctuality and
+            # anticipation read like a site that works rather than a backfill.
+            published_at=datetime.combine(day_date - timedelta(days=1), time(15, 0)),
         )
         db.session.add(menu)
         db.session.flush()
@@ -440,7 +514,9 @@ def _create_demo_menus(
 #  Analytics history
 # ──────────────────────────────────────────────────────────────────────
 
-_ANALYTICS_DAYS = 30
+# Five weeks: the traffic alert compares a day to the four previous same
+# weekdays, and the digest compares a week to the one before.
+_ANALYTICS_DAYS = 35
 
 # Menu traffic follows the service: a morning look-up, a lunch peak, a long tail.
 _HOURLY_SHAPE = {
@@ -454,7 +530,58 @@ def _demo_random(day: date, salt: int) -> random.Random:
     return random.Random(f'{day.isoformat()}:{salt}')
 
 
-def _create_demo_analytics(restaurant: Restaurant) -> tuple[int, int]:
+def _ensure_demo_director(password: str, organization_id: int) -> User:
+    """The supervisor account, subscribed to the weekly email like the admin."""
+    user = User.query.filter_by(email=_DIRECTOR_EMAIL).first()
+    if not user:
+        user = User(
+            email=_DIRECTOR_EMAIL,
+            username='direction',
+            role='org_admin',
+            is_active=True,
+            mfa_enabled=False,
+        )
+        db.session.add(user)
+        click.echo(f'  ✓ Directeur créé ({_DIRECTOR_EMAIL})')
+    user.password_hash = generate_password_hash(password)
+    user.is_active = True
+    user.mfa_enabled = False
+    user.organization_id = organization_id
+    user.restaurant_id = None
+    user.notification_preferences = {
+        **user.get_notification_preferences(), 'weekly_digest': True
+    }
+    return user
+
+
+def _seed_activity(restaurants: list[Restaurant], user_id: int) -> None:
+    """An audit trail behind the published menus.
+
+    Without it every demo site looks abandoned to the inactivity alert, which
+    reads the last recorded action.
+    """
+    today = paris_today()
+    AuditLog.query.filter(
+        AuditLog.restaurant_id.in_([site.id for site in restaurants]),
+        AuditLog.action == AuditLog.ACTION_MENU_PUBLISH,
+    ).delete(synchronize_session=False)
+
+    for restaurant in restaurants:
+        for back in range(1, 4):
+            day = today - timedelta(days=back)
+            if day.weekday() >= 5:
+                continue
+            db.session.add(AuditLog(
+                restaurant_id=restaurant.id,
+                user_id=user_id,
+                action=AuditLog.ACTION_MENU_PUBLISH,
+                target_type='menu',
+                details={'date': day.isoformat(), 'demo': True},
+                created_at=datetime.combine(day, time(15, 0)),
+            ))
+
+
+def _create_demo_analytics(restaurant: Restaurant, site: dict) -> tuple[int, int]:
     """Backfill traffic and votes so the dashboards show curves from day one."""
     today = paris_today()
     start = today - timedelta(days=_ANALYTICS_DAYS - 1)
@@ -484,7 +611,7 @@ def _create_demo_analytics(restaurant: Restaurant) -> tuple[int, int]:
             continue
 
         rng = _demo_random(day, restaurant.id)
-        daily_visitors = rng.randint(180, 420)
+        daily_visitors = rng.randint(*site['visitors'])
         for hour, share in _HOURLY_SHAPE.items():
             count = round(daily_visitors * share * rng.uniform(0.85, 1.15))
             if count <= 0:
@@ -513,8 +640,10 @@ def _create_demo_analytics(restaurant: Restaurant) -> tuple[int, int]:
                 restaurant_id=restaurant.id,
                 menu_id=menu.id,
                 date=day,
-                device_id=f'demo{day.isoformat()}{index:04d}'.replace('-', ''),
-                rating=rng.choices([1, 2, 3], weights=[12, 28, 60])[0],
+                # A device votes once per organization and day, so demo ids
+                # carry the site or two of them would collide.
+                device_id=f'demo{restaurant.id}{day.isoformat()}{index:04d}'.replace('-', ''),
+                rating=rng.choices([1, 2, 3], weights=site['ratings'])[0],
                 dishes=[
                     DishCatalog.query.get(rng.choice(group)) for group in groups
                 ],

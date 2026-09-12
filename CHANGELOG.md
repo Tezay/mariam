@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Satisfaction page and settings** (`GET /v1/analytics/satisfaction`, `Réglages › Satisfaction`): distribution, daily score, per-site comparison, best- and worst-rated dishes and participation against unique visitors; the vote, its icon set and the categories offering dishes are set per site.
 - Anti-fraud for the vote: a server-signed device token replicated across three browser stores, a ThumbmarkJS browser signature bound to it for the day in Redis only, and a per-address daily cap on new votes sized for a shared campus network (`DEVICE_ID_SECRET`, `VOTE_IP_DAILY_CAP`, `VOTE_DEVICE_MINT_PER_HOUR`). The signature is computed only when a vote is cast, and the token is stripped from the vote the day after.
 - **Privacy notice** at `/privacy`, linked from the public menu, covering the anonymous counters and the vote's fraud detection.
+- **Five alert rules on both dashboards**: tomorrow's menu missing, traffic drop, low satisfaction, vote anomaly, and inactive site for supervisors. Each has a switch, thresholds by environment (`ALERT_*`), and the bell now reaches `/org`.
+- **Weekly email digest**, opt-in, on the day and hour of your choosing, with figures written for the reader's role. Plain SMTP (`SMTP_*`), one-click unsubscribe, layout in `app/templates/emails/`.
 - **Dish selection and bulk actions on the catalogue**: lasso, Ctrl/Cmd-click, Shift-click and a right-click menu, then delete, change category, add or remove labels, or export the selection. A dish already served in a menu is kept.
 - **Catalogue export and import in CSV** (`GET /v1/catalog/export`): a line per dish with its category path, labels and certifications; re-importing such a file restores them.
 - **Organization catalogue** (`GET /v1/org/catalog`): every dish the sites serve, pooled by name, with presence, usage, photo coverage and satisfaction per site. Read-only.
@@ -45,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Notification preferences move to the account page, where each switch saves on the spot; the settings entry becomes « Mon restaurant ».
 - **The catalogue is one set of components for both dashboards**: the same list, filters and dish page for a site admin and a supervisor, cards on mobile and a sortable table on desktop, over a period that bounds services, reviews and score together.
 - **A dish page is read-first**, edited in place behind a save bar; it replaces the two divergent edit forms. Comparing dishes moves to a page of its own (`/admin/catalogue/compare`).
 - **Catalogue rules**: a dish hangs from a leaf category, and no two dishes share a name inside one; each refusal names what stands in the way.
@@ -322,7 +325,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **PWA (admin)**: Separate `"Mariam — Gestion"` manifest (`start_url: /admin/menus`) dynamically.
+- **PWA (admin)**: Separate `"Mariam - Gestion"` manifest (`start_url: /admin/menus`) dynamically.
 - **Install onboarding**: Full-screen `/admin/install` page shown on first login for admin/editor users, with platform-specific instructions — iOS/Safari steps, native Android prompt, and a desktop QR code with a 5-minute session transfer token for cross-device authentication.
 - **Auth**: Server-side logout (`POST /auth/logout`) blacklists both the refresh token and the access token in Redis, preventing any reuse after sign-out.
 

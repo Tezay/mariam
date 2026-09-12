@@ -6,10 +6,15 @@
  * - Passkeys (Touch ID, Face ID, Windows Hello)
  * - Changement de mot de passe (TOTP ou passkey selon ce qui est disponible)
  */
-import { useState, type ComponentType, type ReactNode } from 'react';
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { RoleBadge } from '@/components/dashboard/RoleBadge';
-import { authApi } from '@/lib/api';
+import { authApi, inboxApi, type NotifPreferences } from '@/lib/api';
+import {
+  NotificationPreferences,
+  type SaveState,
+} from '@/features/notifications/NotificationPreferences';
+import { notify } from '@/lib/toast';
 import { usePwaInstall } from '@/contexts/PwaInstallContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +48,52 @@ import {
 
 // ─── PWA Install Section ──────────────────────────────────────────────────────
 
+function NotificationSection() {
+  const { user } = useAuth();
+  const role = user?.role;
+  const [prefs, setPrefs] = useState<NotifPreferences | null>(null);
+  const [saveState, setSaveState] = useState<SaveState>(null);
+
+  useEffect(() => {
+    inboxApi
+      .getNotifPreferences()
+      .then(setPrefs)
+      .catch(() => setPrefs(null));
+  }, []);
+
+  if (!prefs) return null;
+
+  // Saved on change, so each row says so itself: there is no save bar here.
+  const save = async (patch: Partial<NotifPreferences>) => {
+    const key = Object.keys(patch)[0] as keyof NotifPreferences;
+    setPrefs({ ...prefs, ...patch });
+    setSaveState({ key, state: 'saving' });
+    try {
+      await inboxApi.updateNotifPreferences(patch);
+      setSaveState({ key, state: 'saved' });
+      setTimeout(() => setSaveState((current) => (current?.key === key ? null : current)), 2000);
+    } catch {
+      setPrefs(prefs);
+      setSaveState(null);
+      notify.error("La préférence n'a pas pu être enregistrée");
+    }
+  };
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-sm font-semibold text-foreground">Notifications</h2>
+      <div className="rounded-xl border border-border bg-card p-4">
+        <NotificationPreferences
+          prefs={prefs}
+          scope={role === 'org_admin' ? 'org' : 'site'}
+          saveState={saveState}
+          onChange={save}
+        />
+      </div>
+    </section>
+  );
+}
+
 function AppInstallSection() {
   const { isInstalled } = usePwaInstall();
 
@@ -56,7 +107,7 @@ function AppInstallSection() {
           <div>
             <p className="font-medium text-green-800 dark:text-green-300">Application installée</p>
             <p className="text-xs text-green-700 dark:text-green-400">
-              Mariam — Gestion est installée sur cet appareil.
+              Mariam - Gestion est installée sur cet appareil.
             </p>
           </div>
         </div>
@@ -604,6 +655,9 @@ export function AccountPage() {
             </Dialog>
           </div>
         </section>
+
+        {/* Personal by nature, so they live with the account rather than with the site. */}
+        <NotificationSection />
 
         {/* Application — installation PWA (admin/editor uniquement) */}
         {(user?.role === 'admin' || user?.role === 'editor') && <AppInstallSection />}

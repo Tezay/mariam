@@ -25,8 +25,8 @@ from ..models import (
     menu_vote_dishes,
 )
 from ..models.telemetry import ORG_PAGE_KINDS
-from ..routes.helpers import accessible_restaurant_ids
 from ..utils.time import PARIS_TZ, paris_today, parse_iso_date, utc_naive_to_paris
+from .access import accessible_restaurant_ids
 from .redis_client import get_redis
 from .service_calendar import closures_by_site
 from .telemetry import live_uniques
@@ -579,7 +579,17 @@ def _sum_by(site_ids, start: date, end: date, column, *, all_kinds: bool = False
     return {key: int(total or 0) for key, total in rows}
 
 
-def _uniques_by_site(site_ids, start: date, end: date) -> dict[int, int]:
+def views_per_site(site_ids, start: date, end: date) -> dict[int, int]:
+    """Non-TV views per site over the window, as the traffic page and the alerts read them."""
+    return _sum_by(site_ids, start, end, PageViewRollup.restaurant_id)
+
+
+def votes_per_site(site_ids, start: date, end: date) -> dict[int, tuple[int, float]]:
+    """(count, average rating) per site over the window."""
+    return _votes_grouped(site_ids, start, end, MenuVote.restaurant_id)
+
+
+def uniques_per_site(site_ids, start: date, end: date) -> dict[int, int]:
     rows = (
         db.session.query(
             VisitorDailyUnique.restaurant_id, db.func.sum(VisitorDailyUnique.unique_visitors)
@@ -660,7 +670,7 @@ def traffic_stats(scope: Scope, organization_id=None) -> dict:
     previous = scope.previous()
     previous_by_site = _sum_by(site_ids, previous.start, previous.end, PageViewRollup.restaurant_id)
 
-    uniques_by_site = _uniques_by_site(site_ids, scope.start, scope.end)
+    uniques_by_site = uniques_per_site(site_ids, scope.start, scope.end)
     uniques_by_date = _uniques_by_date(site_ids, scope.start, scope.end)
 
     sparkline_start = max(scope.start, scope.end - timedelta(days=SPARKLINE_DAYS - 1))
@@ -832,7 +842,7 @@ def satisfaction_stats(scope: Scope, min_votes: int = DEFAULT_MIN_DISH_VOTES) ->
     ]
     ranked = sorted(dishes, key=lambda row: row['score'], reverse=True)
 
-    uniques_by_site = _uniques_by_site(site_ids, scope.start, scope.end)
+    uniques_by_site = uniques_per_site(site_ids, scope.start, scope.end)
     by_preset = _votes_grouped(
         site_ids,
         scope.start,

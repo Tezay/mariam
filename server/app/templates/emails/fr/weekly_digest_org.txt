@@ -1,0 +1,46 @@
+Semaine du {{ start }} au {{ end }}, {{ org_name }} ({{ site_count }} sites).
+
+Satisfaction   {{ satisfaction.value }}{{ satisfaction.unit }}{% if satisfaction.change.label %} ({{ satisfaction.change.label }}){% endif %}
+Consultations  {{ traffic.views }}{% if traffic.change.label %} ({{ traffic.change.label }}){% endif %}
+Publication    {{ publication.value }}{{ publication.unit }}{% if publication.change.label %} ({{ publication.change.label }}){% endif %}
+{% if leaders or laggards %}
+Classement des sites
+{%- for site in leaders %}
+  {{ site.name }} : {{ site.detail }}
+{%- endfor %}
+{%- for site in laggards %}
+  {{ site.name }} : {{ site.detail }}
+{%- endfor %}
+{% endif %}
+{%- if watch %}
+Sites à surveiller
+{%- for line in watch %}
+  {{ line }}
+{%- endfor %}
+{% endif %}
+Couverture
+{%- for line in coverage %}
+  {{ line.label }} : {{ line.value }}
+{%- endfor %}
+{% if top_dishes %}
+Les plats de la semaine
+{%- for dish in top_dishes %}
+  {{ dish.name }} : {{ dish.detail }}
+{%- endfor %}
+{% endif %}
+{%- if new_dishes %}
+Servis pour la première fois
+{%- for dish in new_dishes %}
+  {{ dish.name }} : {{ dish.detail }}
+{%- endfor %}
+{% endif %}
+{%- if alerts %}
+Alertes ouvertes
+{%- for alert in alerts %}
+  {{ alert }}
+{%- endfor %}
+{% endif %}
+Tableau de bord : {{ url }}
+
+Vous recevez ce résumé chaque {{ send_day }} parce qu'il est activé sur votre compte.
+Se désabonner : {{ unsubscribe_url }}

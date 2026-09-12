@@ -441,7 +441,7 @@ function App() {
               }
             />
 
-            {/* Paramètres du restaurant (admin only) */}
+            {/* Réglages du restaurant (admin only) */}
             <Route
               path="settings"
               element={

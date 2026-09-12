@@ -1,5 +1,5 @@
 """Schémas de sortie du centre de notifications in-app (inbox)."""
-from marshmallow import EXCLUDE, Schema, fields
+from marshmallow import EXCLUDE, Schema, fields, validate
 
 
 class NotificationSchema(Schema):
@@ -33,6 +33,8 @@ class LiveAlertSchema(Schema):
     title = fields.Str()
     body = fields.Str()
     severity = fields.Str(description="info | warning | error")
+    site_ids = fields.List(fields.Int())
+    site_names = fields.List(fields.Str())
 
 
 class LiveAlertListSchema(Schema):
@@ -46,5 +48,13 @@ class InboxPreferencesSchema(Schema):
         unknown = EXCLUDE
     notify_menu_unpublished = fields.Bool()
     notify_menu_during_service = fields.Bool()
+    notify_menu_tomorrow = fields.Bool()
+    notify_traffic_drop = fields.Bool()
+    notify_low_satisfaction = fields.Bool()
+    notify_vote_anomaly = fields.Bool()
+    notify_site_inactive = fields.Bool()
     notify_holiday_approaching = fields.Bool()
     holiday_alert_days_before = fields.Int()
+    weekly_digest = fields.Bool()
+    digest_day = fields.Int(validate=validate.Range(min=0, max=6))
+    digest_hour = fields.Int(validate=validate.Range(min=6, max=21))

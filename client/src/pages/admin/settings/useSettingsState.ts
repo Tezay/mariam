@@ -1,9 +1,8 @@
 /**
- * État global de la page Paramètres.
+ * État global de la page Mon restaurant.
  *
  * Regroupe les trois sections sauvegardées par le bouton « Enregistrer » commun :
  * - restaurant (Infos, Horaires, Accessibilité, Tags & Labels) → PUT /settings
- * - prefs (Notifications, par utilisateur)                     → PUT /inbox/notification-preferences
  * - calendar (Calendriers, par restaurant)                     → PUT /restaurant/calendar-settings
  *
  * Le dirty tracking compare chaque section à un snapshot sérialisé pris au
@@ -15,12 +14,10 @@ import { notify } from '@/lib/toast';
 import { DEFAULT_PRESET_ID } from '@/features/rating/scale';
 import {
   adminApi,
-  inboxApi,
   DietaryTag,
   CertificationItem,
   ServiceHours,
   RestaurantWithConfig,
-  NotifPreferences,
   CalendarSettings,
 } from '@/lib/api';
 import {
@@ -34,7 +31,6 @@ export type SaveOutcome = 'saved' | 'partial' | 'validation-error' | 'noop';
 
 interface Snapshots {
   restaurant: string;
-  prefs: string;
   calendar: string;
 }
 
@@ -65,14 +61,12 @@ export function useSettingsState() {
   const [voteEnabled, setVoteEnabled] = useState(true);
   const [voteCategoryIds, setVoteCategoryIds] = useState<number[]>([]);
   const [voteIconPreset, setVoteIconPreset] = useState(DEFAULT_PRESET_ID);
-  const [prefs, setPrefs] = useState<NotifPreferences | null>(null);
   const [calendarSettings, setCalendarSettings] = useState<CalendarSettings | null>(null);
 
   // State, not a ref: `hasChanges` is derived from these, and a ref mutation
   // would leave the unsaved-changes guard armed after a successful save.
   const [baseline, setBaseline] = useState<Snapshots>({
     restaurant: '',
-    prefs: '',
     calendar: '',
   });
 
@@ -95,33 +89,22 @@ export function useSettingsState() {
     voteIconPreset,
   };
   const restaurantSnapshot = serializeRestaurantState(restaurantState);
-  const prefsSnapshot = JSON.stringify(prefs);
   const calendarSnapshot = JSON.stringify(calendarSettings);
 
   const hasChanges = useMemo(() => {
     if (isLoading || baseline.restaurant === '') return false;
     return (
       restaurantSnapshot !== baseline.restaurant ||
-      (prefs !== null && prefsSnapshot !== baseline.prefs) ||
       (calendarSettings !== null && calendarSnapshot !== baseline.calendar)
     );
-  }, [
-    isLoading,
-    baseline,
-    restaurantSnapshot,
-    prefsSnapshot,
-    calendarSnapshot,
-    prefs,
-    calendarSettings,
-  ]);
+  }, [isLoading, baseline, restaurantSnapshot, calendarSnapshot, calendarSettings]);
 
   // ── Chargement initial ───────────────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
       try {
-        const [data, loadedPrefs, loadedCalendar] = await Promise.all([
+        const [data, loadedCalendar] = await Promise.all([
           adminApi.getSettings(),
-          inboxApi.getNotifPreferences().catch(() => null),
           adminApi.getCalendarSettings().catch(() => null),
         ]);
 
@@ -166,7 +149,6 @@ export function useSettingsState() {
         setVoteEnabled(loadedVoteEnabled);
         setVoteCategoryIds(loadedVoteCategories);
         setVoteIconPreset(loadedVotePreset);
-        setPrefs(loadedPrefs);
         setCalendarSettings(loadedCalendar);
 
         setBaseline({
@@ -188,7 +170,6 @@ export function useSettingsState() {
             voteCategoryIds: loadedVoteCategories,
             voteIconPreset: loadedVotePreset,
           }),
-          prefs: JSON.stringify(loadedPrefs),
           calendar: JSON.stringify(loadedCalendar),
         });
       } catch {
@@ -211,9 +192,8 @@ export function useSettingsState() {
     }
 
     const restaurantDirty = restaurantSnapshot !== baseline.restaurant;
-    const prefsDirty = prefs !== null && prefsSnapshot !== baseline.prefs;
     const calendarDirty = calendarSettings !== null && calendarSnapshot !== baseline.calendar;
-    if (!restaurantDirty && !prefsDirty && !calendarDirty) return 'noop';
+    if (!restaurantDirty && !calendarDirty) return 'noop';
 
     setIsSaving(true);
     const failures: string[] = [];
@@ -303,16 +283,6 @@ export function useSettingsState() {
         }
       }
 
-      if (prefsDirty && prefs) {
-        try {
-          const saved = await inboxApi.updateNotifPreferences(prefs);
-          setPrefs(saved);
-          setBaseline((previous) => ({ ...previous, prefs: JSON.stringify(saved) }));
-        } catch {
-          failures.push('préférences de notifications');
-        }
-      }
-
       if (calendarDirty && calendarSettings) {
         try {
           const saved = await adminApi.updateCalendarSettings(calendarSettings);
@@ -327,7 +297,7 @@ export function useSettingsState() {
     }
 
     if (failures.length === 0) {
-      notify.success('Paramètres enregistrés !');
+      notify.success('Réglages enregistrés !');
       return 'saved';
     }
     notify.error(`Erreur lors de l'enregistrement : ${failures.join(', ')}`);
@@ -350,10 +320,8 @@ export function useSettingsState() {
     voteEnabled,
     voteCategoryIds,
     voteIconPreset,
-    prefs,
     calendarSettings,
     restaurantSnapshot,
-    prefsSnapshot,
     calendarSnapshot,
     baseline,
   ]);
@@ -403,8 +371,6 @@ export function useSettingsState() {
     setVoteIconPreset,
     pmrAccess,
     setPmrAccess,
-    prefs,
-    setPrefs,
     calendarSettings,
     setCalendarSettings,
   };
