@@ -11,6 +11,7 @@ from .import_session import ImportSession
 from .menu import Menu, MenuImage, MenuItem
 from .menu_vote import (
     DEFAULT_ICON_PRESET,
+    MIN_SITE_VOTES,
     RATING_MAX,
     RATING_MIN,
     VOTE_ICON_PRESETS,
@@ -49,6 +50,7 @@ __all__ = [
     'MenuImage',
     'MenuVote',
     'menu_vote_dishes',
+    'MIN_SITE_VOTES',
     'RATING_MIN',
     'RATING_MAX',
     'VOTE_ICON_PRESETS',

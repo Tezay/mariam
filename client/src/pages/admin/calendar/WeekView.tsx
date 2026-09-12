@@ -60,6 +60,7 @@ import {
 import type { CalendarData } from './useCalendarData';
 import { WeekDayColumn } from './week/WeekDayColumn';
 import { WeekMenuItemBoxGhost } from './week/WeekMenuItemBoxGhost';
+import { useRubberBand } from '@/hooks/useRubberBand';
 import { useSelection } from './selection/useSelection';
 import { SelectionToolbar } from './selection/SelectionToolbar';
 import { MenuCopyPopover } from './selection/MenuCopyPopover';
@@ -327,13 +328,27 @@ export function WeekView({
   const [addDishCatalog, setAddDishCatalog] = useState<DishCatalogItem[]>([]);
   const [addDishLoading, setAddDishLoading] = useState(false);
 
+  const columnsContainerRef = useRef<HTMLDivElement>(null);
+  const lasso = useRubberBand({
+    containerRef: columnsContainerRef,
+    itemSelector: '[data-menu-item-id]',
+    enabled: canEdit && !activeDragItem,
+    onSelect: (elements) => {
+      const entries = elements.flatMap((element) => {
+        const itemId = Number(element.dataset.menuItemId);
+        const date = element.dataset.menuItemDate ?? '';
+        const categoryId = Number(element.dataset.menuItemCategoryId ?? '0');
+        if (!itemId || !date || !categoryId) return [];
+        return [{ type: 'item' as const, itemId, date, categoryId }];
+      });
+      if (entries.length > 0) selection.selectMultiple(entries);
+    },
+  });
+
   const handleContextMenu = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      // Reset rubber band si pointerup a été manqué (ex: modal qui s'ouvre)
-      isRubberBanding.current = false;
-      rubberBandActive.current = false;
-      rubberBandStart.current = null;
-      setRubberBand(null);
+      // A modal opening on the gesture can swallow the pointerup
+      lasso.reset();
 
       if (!canEdit) return;
       setDupeAnchor({ x: e.clientX, y: e.clientY });
@@ -370,7 +385,7 @@ export function WeekView({
       }
       setContextTarget(null);
     },
-    [canEdit, data]
+    [canEdit, data, lasso]
   );
 
   const handleContextTogglePublish = useCallback(async () => {
@@ -411,7 +426,7 @@ export function WeekView({
       setAddDishCatalog([]);
       setAddDishLoading(true);
       catalogApi
-        .list({ category_id: categoryId, sort: 'name' })
+        .list({ category_ids: String(categoryId), sort: 'name' })
         .then((dishes) => setAddDishCatalog(dishes))
         .catch(() => {})
         .finally(() => setAddDishLoading(false));
@@ -456,136 +471,6 @@ export function WeekView({
           []
         ).find((i) => i.id === contextTarget.itemId)
       : undefined;
-
-  // Rubber band lasso selection
-  const [rubberBand, setRubberBand] = useState<{
-    x1: number;
-    y1: number;
-    x2: number;
-    y2: number;
-  } | null>(null);
-  const columnsContainerRef = useRef<HTMLDivElement>(null);
-  const isRubberBanding = useRef(false);
-  const rubberBandActive = useRef(false); // true only after 4px movement (deferred capture)
-  const rubberBandStart = useRef<{ x: number; y: number } | null>(null);
-
-  const handleColumnsPointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!canEdit) return;
-      const target = e.target as HTMLElement;
-      // Skip items and their children
-      if (target.closest('[data-menu-item-id]')) return;
-      // Skip all interactive elements — buttons, inputs, links etc. must receive their own clicks
-      if (target.closest('button, a, input, select, textarea, [role="button"], [role="checkbox"]'))
-        return;
-      // Don't interfere with active dnd drag
-      if (activeDragItem) return;
-
-      const container = columnsContainerRef.current;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
-      const x = e.clientX - rect.left + container.scrollLeft;
-      const y = e.clientY - rect.top + container.scrollTop;
-      // Record intent but do NOT capture pointer yet — deferred until actual drag movement
-      isRubberBanding.current = true;
-      rubberBandActive.current = false;
-      rubberBandStart.current = { x, y };
-    },
-    [canEdit, activeDragItem]
-  );
-
-  const handleColumnsPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isRubberBanding.current || !rubberBandStart.current) return;
-    const container = columnsContainerRef.current;
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-    const x = e.clientX - rect.left + container.scrollLeft;
-    const y = e.clientY - rect.top + container.scrollTop;
-    const dx = Math.abs(x - rubberBandStart.current.x);
-    const dy = Math.abs(y - rubberBandStart.current.y);
-    // Only start the visual rubber band + capture after minimum movement
-    if (!rubberBandActive.current && (dx > 4 || dy > 4)) {
-      rubberBandActive.current = true;
-      container.setPointerCapture(e.pointerId);
-    }
-    if (rubberBandActive.current) {
-      setRubberBand({
-        x1: rubberBandStart.current.x,
-        y1: rubberBandStart.current.y,
-        x2: x,
-        y2: y,
-      });
-    }
-  }, []);
-
-  const handleColumnsPointerUp = useCallback(
-    (_e: React.PointerEvent<HTMLDivElement>) => {
-      if (!isRubberBanding.current) return;
-      isRubberBanding.current = false;
-      const wasActive = rubberBandActive.current;
-      rubberBandActive.current = false;
-      rubberBandStart.current = null;
-
-      if (!wasActive) {
-        setRubberBand(null);
-        return;
-      }
-
-      const container = columnsContainerRef.current;
-      if (!container || !rubberBand) {
-        setRubberBand(null);
-        return;
-      }
-
-      const selRect = {
-        left: Math.min(rubberBand.x1, rubberBand.x2),
-        top: Math.min(rubberBand.y1, rubberBand.y2),
-        right: Math.max(rubberBand.x1, rubberBand.x2),
-        bottom: Math.max(rubberBand.y1, rubberBand.y2),
-      };
-
-      // Minimum 4px movement to count as a selection gesture
-      const width = selRect.right - selRect.left;
-      const height = selRect.bottom - selRect.top;
-      if (width < 4 && height < 4) {
-        setRubberBand(null);
-        return;
-      }
-
-      const containerRect = container.getBoundingClientRect();
-      const itemEls = container.querySelectorAll<HTMLElement>('[data-menu-item-id]');
-      const entries: import('./selection/useSelection').SelectionEntry[] = [];
-
-      itemEls.forEach((el) => {
-        const itemId = Number(el.dataset.menuItemId);
-        const itemDate = el.dataset.menuItemDate ?? '';
-        const categoryId = Number(el.dataset.menuItemCategoryId ?? '0');
-        if (!itemId || !itemDate || !categoryId) return;
-
-        const elRect = el.getBoundingClientRect();
-        const elLeft = elRect.left - containerRect.left + container.scrollLeft;
-        const elTop = elRect.top - containerRect.top + container.scrollTop;
-        const elRight = elLeft + elRect.width;
-        const elBottom = elTop + elRect.height;
-
-        // Intersection check
-        if (
-          elRight > selRect.left &&
-          elLeft < selRect.right &&
-          elBottom > selRect.top &&
-          elTop < selRect.bottom
-        ) {
-          entries.push({ type: 'item', itemId, date: itemDate, categoryId });
-        }
-      });
-
-      setRubberBand(null);
-      if (entries.length > 0) {
-        selection.selectMultiple(entries);
-      }
-    },
-    [rubberBand, selection]
-  );
 
   return (
     <DndContext
@@ -672,21 +557,17 @@ export function WeekView({
             <div
               ref={columnsContainerRef}
               className="relative flex flex-1 select-none overflow-auto border-t border-border pb-24 sidebar:pb-0"
-              onPointerDown={handleColumnsPointerDown}
-              onPointerMove={handleColumnsPointerMove}
-              onPointerUp={handleColumnsPointerUp}
-              onPointerCancel={handleColumnsPointerUp}
+              {...lasso.handlers}
               onContextMenu={handleContextMenu}
             >
-              {/* Rubber band overlay */}
-              {rubberBand && (
+              {lasso.rect && (
                 <div
                   className="pointer-events-none absolute z-30 rounded border border-primary bg-primary/10"
                   style={{
-                    left: Math.min(rubberBand.x1, rubberBand.x2),
-                    top: Math.min(rubberBand.y1, rubberBand.y2),
-                    width: Math.abs(rubberBand.x2 - rubberBand.x1),
-                    height: Math.abs(rubberBand.y2 - rubberBand.y1),
+                    left: Math.min(lasso.rect.x1, lasso.rect.x2),
+                    top: Math.min(lasso.rect.y1, lasso.rect.y2),
+                    width: Math.abs(lasso.rect.x2 - lasso.rect.x1),
+                    height: Math.abs(lasso.rect.y2 - lasso.rect.y1),
                   }}
                 />
               )}

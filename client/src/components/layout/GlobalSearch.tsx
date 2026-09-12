@@ -15,8 +15,10 @@ import {
   CornerDownRight,
 } from 'lucide-react';
 import { catalogApi, eventsApi, closuresApi } from '@/lib/api';
+import { useDebounce } from '@/hooks/useDebounce';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { fuzzyMatches } from '@/lib/fuzzy';
 
 type SearchResult =
   | { kind: 'page'; label: string; to: string; icon: ReactNode }
@@ -125,15 +127,6 @@ function parseDateFR(q: string): string | null {
   return null;
 }
 
-function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(id);
-  }, [value, delay]);
-  return debounced;
-}
-
 export function GlobalSearch() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -157,13 +150,12 @@ export function GlobalSearch() {
       }
 
       setLoading(true);
-      const ql = q.trim().toLowerCase();
       const next: SearchResult[] = [];
 
       // Navigation rapide (synchrone, en tête)
       for (const p of PAGES) {
         if (p.adminOnly && !isAdmin) continue;
-        if (p.label.toLowerCase().includes(ql)) {
+        if (fuzzyMatches(p.label, q)) {
           next.push({ kind: 'page', label: p.label, to: p.to, icon: p.icon });
         }
       }
@@ -182,8 +174,8 @@ export function GlobalSearch() {
       if (closures.status === 'fulfilled') {
         let count = 0;
         for (const c of closures.value) {
-          const hay = `${c.reason ?? ''} ${c.description ?? ''}`.toLowerCase();
-          if (hay.includes(ql) && count < 4) {
+          const hay = `${c.reason ?? ''} ${c.description ?? ''}`;
+          if (fuzzyMatches(hay, q) && count < 4) {
             next.push({
               kind: 'closure',
               id: c.id,
@@ -204,7 +196,7 @@ export function GlobalSearch() {
       if (events.status === 'fulfilled') {
         let eventCount = 0;
         for (const e of events.value) {
-          if (e.title.toLowerCase().includes(ql) && eventCount < 3) {
+          if (fuzzyMatches(e.title, q) && eventCount < 3) {
             next.push({ kind: 'event', id: e.id, label: e.title, date: e.event_date });
             eventCount++;
           }

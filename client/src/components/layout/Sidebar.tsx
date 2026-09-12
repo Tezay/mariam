@@ -110,7 +110,7 @@ export function Sidebar({ navItems, homePath = '/admin', tenant }: SidebarProps)
 
   return (
     <motion.aside
-      animate={{ width: isCollapsed ? 56 : 200 }}
+      animate={{ width: isCollapsed ? 56 : 224 }}
       transition={{ duration: 0.2, ease: 'easeInOut' }}
       className="hidden h-screen shrink-0 flex-col overflow-hidden border-r border-border bg-card sidebar:flex"
     >

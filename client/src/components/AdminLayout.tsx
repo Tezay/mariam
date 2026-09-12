@@ -30,12 +30,7 @@ const PAGE_TITLES: PageTitleMap = [
   ['/admin', 'Calendrier'],
 ];
 
-const BOTTOM_NAV_PATHS = [
-  '/admin/calendar',
-  '/admin/service',
-  '/admin/catalogue',
-  '/admin/settings',
-];
+const BOTTOM_NAV_PATHS = ['/admin/calendar', '/admin/service', '/admin/catalogue', '/admin/stats'];
 
 const ADMIN_ONLY_PATHS = ['/admin/stats', '/admin/users', '/admin/settings', '/admin/audit-logs'];
 
@@ -83,7 +78,12 @@ export function AdminLayout() {
       badge: servicePulse,
     },
     { to: '/admin/catalogue', label: 'Catalogue', icon: <BookOpen className="h-5 w-5" /> },
-    { to: '/admin/stats', label: 'Statistiques', icon: <ChartColumn className="h-5 w-5" /> },
+    {
+      to: '/admin/stats',
+      label: 'Statistiques',
+      shortLabel: 'Stats',
+      icon: <ChartColumn className="h-5 w-5" />,
+    },
     { to: '/admin/users', label: 'Utilisateurs', icon: <Users className="h-5 w-5" /> },
     { to: '/admin/settings', label: 'Paramètres', icon: <Settings className="h-5 w-5" /> },
     { to: '/admin/audit-logs', label: "Logs d'audit", icon: <Shield className="h-5 w-5" /> },

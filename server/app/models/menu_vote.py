@@ -12,6 +12,9 @@ from ..extensions import db
 RATING_MIN = 1
 RATING_MAX = 3
 
+# Below this, an average says more about the sample than about the dish.
+MIN_SITE_VOTES = 5
+
 # Icon sets the widget can render. The drawings live in the client's rating
 # module; only the identifier is stored, so both lists move together.
 VOTE_ICON_PRESETS = ('thumbs', 'faces', 'stars')

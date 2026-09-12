@@ -87,7 +87,7 @@ export function Topbar({
       </Button>
 
       {/* Page title */}
-      <h1 className="hidden text-sm font-semibold text-foreground sidebar:block">{title}</h1>
+      <h1 className="min-w-0 truncate text-sm font-semibold text-foreground">{title}</h1>
 
       {/* Spacer */}
       <div className="flex-1" />

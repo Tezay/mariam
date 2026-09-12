@@ -13,6 +13,7 @@ from flask import request
 from ..extensions import db
 from ..models import (
     DEFAULT_ICON_PRESET,
+    MIN_SITE_VOTES,
     DishCatalog,
     Menu,
     MenuCategory,
@@ -725,7 +726,6 @@ def traffic_stats(scope: Scope, organization_id=None) -> dict:
 
 
 # Below these counts a score says more about the sample than about the food.
-MIN_SITE_VOTES = 5
 DEFAULT_MIN_DISH_VOTES = 10
 
 
@@ -767,7 +767,7 @@ def satisfaction_stats(scope: Scope, min_votes: int = DEFAULT_MIN_DISH_VOTES) ->
     """Ratings of the published menus over the period, per day, site and dish."""
     sites = _sites_in_scope(scope.site_ids)
     empty_summary = {
-        'score': None, 'votes': 0, 'participation_rate': None,
+        'score': None, 'delta': None, 'votes': 0, 'participation_rate': None,
         'distribution': {'1': 0, '2': 0, '3': 0},
     }
     if not sites:
@@ -891,10 +891,23 @@ def satisfaction_stats(scope: Scope, min_votes: int = DEFAULT_MIN_DISH_VOTES) ->
     weighted = sum(count * average for count, average in by_site.values() if average is not None)
     total_uniques = sum(uniques_by_site.values())
 
+    score = _score(total_votes, weighted / total_votes if total_votes else None, MIN_SITE_VOTES)
+    before_votes = sum(count for count, _ in previous_by_site.values())
+    before_weighted = sum(
+        count * average for count, average in previous_by_site.values() if average is not None
+    )
+    before_score = _score(
+        before_votes, before_weighted / before_votes if before_votes else None, MIN_SITE_VOTES
+    )
+
     return {
         'summary': {
-            'score': _score(total_votes, weighted / total_votes if total_votes else None,
-                            MIN_SITE_VOTES),
+            'score': score,
+            'delta': (
+                round(score - before_score, 2)
+                if score is not None and before_score is not None
+                else None
+            ),
             'votes': total_votes,
             'participation_rate': _rate(total_votes, total_uniques),
             'distribution': distribution,

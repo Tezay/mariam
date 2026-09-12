@@ -150,7 +150,8 @@ class TestCatalogImportPreview:
         res = client.post('/v1/imports/catalog/preview', json={
             'file_id': file_id, 'name_column': 'Nom',
         }, headers=auth_headers(token))
-        assert res.status_code == 422  # category_id manquant
+        # Le champ n'est requis que hors export Mariam, d'où le refus côté route
+        assert res.status_code == 400
 
     def test_preview_flags_existing_duplicate(self, app, client):
         restaurant_id = make_restaurant(app)
@@ -288,3 +289,86 @@ class TestCatalogImportTenantIsolation:
             'file_id': file_id, 'name_column': 'Nom', 'category_id': category_a,
         }, headers=auth_headers(token_b))
         assert res.status_code == 400  # catégorie introuvable pour ce restaurant
+
+
+class TestCatalogExportRoundTrip:
+    """Exporter puis réimporter dans un catalogue vide doit tout restituer."""
+
+    def _export(self, app, client):
+        from app.extensions import db
+        from app.models import DishCatalog, MenuCategory
+
+        rid = make_restaurant(app)
+        make_user(app)
+        token = get_token(client)
+        _seed_vegetarian_tag(app)
+        parent = MenuCategory(restaurant_id=rid, label='Plat principal', order=0)
+        db.session.add(parent)
+        db.session.commit()
+        child = MenuCategory(restaurant_id=rid, parent_id=parent.id, label='Viandes', order=0)
+        dessert = MenuCategory(restaurant_id=rid, label='Desserts', order=1)
+        db.session.add_all([child, dessert])
+        db.session.commit()
+
+        client.post('/v1/catalog', json={
+            'name': 'Bœuf bourguignon', 'category_id': child.id, 'tag_ids': ['vegetarian'],
+        }, headers=auth_headers(token))
+        client.post('/v1/catalog', json={
+            'name': 'Tarte aux pommes', 'category_id': dessert.id,
+        }, headers=auth_headers(token))
+
+        csv_body = client.get(
+            '/v1/catalog/export', headers=auth_headers(token)
+        ).get_data(as_text=True)
+
+        # Le site repart de zéro : c'est le cas « réimport dans un catalogue vide »
+        DishCatalog.query.filter_by(restaurant_id=rid).delete()
+        MenuCategory.query.filter_by(restaurant_id=rid).delete()
+        db.session.commit()
+        return token, csv_body
+
+    def test_reimport_restores_dishes_categories_and_labels(self, app, client):
+        token, csv_body = self._export(app, client)
+
+        upload = _upload_catalog(client, token, csv_body, 'catalogue.csv').get_json()
+        assert upload['is_catalog_export'] is True
+        assert upload['category_paths'] == ['Plat principal › Viandes', 'Desserts']
+
+        mapping = {path: 'create' for path in upload['category_paths']}
+        preview = client.post('/v1/imports/catalog/preview', json={
+            'file_id': upload['file_id'], 'category_map': mapping,
+        }, headers=auth_headers(token)).get_json()
+        assert preview['new_count'] == 2
+        assert sorted(preview['categories_to_create']) == ['Desserts', 'Plat principal › Viandes']
+
+        result = client.post('/v1/imports/catalog/confirm', json={
+            'file_id': upload['file_id'], 'category_map': mapping,
+        }, headers=auth_headers(token))
+        assert result.get_json()['created_count'] == 2
+
+        dishes = client.get('/v1/catalog', headers=auth_headers(token)).get_json()['dishes']
+        restored = {dish['name']: dish for dish in dishes}
+        assert sorted(restored) == ['Bœuf bourguignon', 'Tarte aux pommes']
+        assert [tag['id'] for tag in restored['Bœuf bourguignon']['tags']] == ['vegetarian']
+
+        again = client.get('/v1/catalog/export', headers=auth_headers(token))
+        assert again.get_data(as_text=True) == csv_body
+
+    def test_mapping_to_an_existing_category_creates_nothing(self, app, client):
+        from app.models import MenuCategory
+
+        token, csv_body = self._export(app, client)
+        settings = client.get('/v1/settings', headers=auth_headers(token)).get_json()
+        rid = settings['restaurant']['id']
+        target = make_category(app, rid, label='Tout venant')
+
+        upload = _upload_catalog(client, token, csv_body, 'catalogue.csv').get_json()
+        mapping = {path: str(target) for path in upload['category_paths']}
+        client.post('/v1/imports/catalog/confirm', json={
+            'file_id': upload['file_id'], 'category_map': mapping,
+        }, headers=auth_headers(token))
+
+        labels = {c.label for c in MenuCategory.query.filter_by(restaurant_id=rid).all()}
+        assert labels == {'Tout venant'}
+        dishes = client.get('/v1/catalog', headers=auth_headers(token)).get_json()['dishes']
+        assert {dish['category_id'] for dish in dishes} == {target}

@@ -55,6 +55,11 @@ class MenuCategory(db.Model):
         db.Index('ix_menu_categories_parent', 'parent_id'),
     )
 
+    @property
+    def is_leaf(self) -> bool:
+        """A category with subcategories groups them; only leaves carry dishes."""
+        return not self.subcategories
+
     def to_dict(self, include_subcategories=True):
         data = {
             'id': self.id,

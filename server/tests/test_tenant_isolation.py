@@ -471,6 +471,11 @@ class TestOrgDashboard:
         token = get_token(client, email='u@mariam.app')
         assert client.get('/v1/org/sites', headers=auth_headers(token)).status_code == 403
 
+    def test_catalog_forbidden_for_site_admin(self, app, client):
+        self._org('ov2b', ['OV2B'], role='admin')
+        token = get_token(client, email='u@mariam.app')
+        assert client.get('/v1/org/catalog', headers=auth_headers(token)).status_code == 403
+
     def test_supervisor_only_invites_supervisors(self, app, client):
         _, (rid1, rid2) = self._org('ov3', ['OV3A', 'OV3B'])
         token = get_token(client, email='u@mariam.app')

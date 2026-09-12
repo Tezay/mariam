@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Check, BookOpen } from 'lucide-react';
 import {
   catalogImportApi,
+  getApiErrorMessage,
   type CatalogImportUploadResponse,
   type CatalogImportPreviewResponse,
   type MenuCategory,
@@ -34,6 +35,8 @@ const STEPS = [
   { id: 'preview' as const, label: 'Aperçu' },
 ];
 
+const CREATE = 'create';
+
 interface CatalogueImportDialogProps {
   open: boolean;
   categories: MenuCategory[];
@@ -62,6 +65,9 @@ export function CatalogueImportDialog({
   const [tagColumns, setTagColumns] = useState<Set<string>>(new Set());
   const [categoryId, setCategoryId] = useState<number | ''>('');
   const [autoDetect, setAutoDetect] = useState(true);
+  const [categoryMap, setCategoryMap] = useState<Record<string, string>>({});
+
+  const isExport = uploadData?.is_catalog_export ?? false;
 
   // Catégories feuilles avec contexte parent (« Parent › Sous-catégorie »)
   const categoryOptions = useMemo(() => {
@@ -89,6 +95,7 @@ export function CatalogueImportDialog({
     setTagColumns(new Set());
     setCategoryId('');
     setAutoDetect(true);
+    setCategoryMap({});
     setIsLoading(false);
   };
 
@@ -105,6 +112,14 @@ export function CatalogueImportDialog({
       const data = await catalogImportApi.upload(file);
       setUploadData(data);
       setNameColumn(data.suggested_name_column ?? data.columns[0] ?? '');
+      setCategoryMap(
+        Object.fromEntries(
+          data.category_paths.map((path) => [
+            path,
+            data.known_categories[path] ? String(data.known_categories[path]) : CREATE,
+          ])
+        )
+      );
       setStep('configure');
     } catch {
       setError('Erreur lors du chargement du fichier.');
@@ -114,18 +129,23 @@ export function CatalogueImportDialog({
   };
 
   // Étape 2 → 3 : prévisualisation
+  const importParams = () =>
+    isExport
+      ? { file_id: uploadData!.file_id, category_map: categoryMap }
+      : {
+          file_id: uploadData!.file_id,
+          name_column: nameColumn,
+          tag_columns: [...tagColumns],
+          category_id: categoryId as number,
+          auto_detect_tags: autoDetect,
+        };
+
   const handlePreview = async () => {
-    if (!uploadData || !nameColumn || categoryId === '') return;
+    if (!canPreview) return;
     setIsLoading(true);
     setError(null);
     try {
-      const data = await catalogImportApi.preview({
-        file_id: uploadData.file_id,
-        name_column: nameColumn,
-        tag_columns: [...tagColumns],
-        category_id: categoryId,
-        auto_detect_tags: autoDetect,
-      });
+      const data = await catalogImportApi.preview(importParams());
       setPreviewData(data);
       setStep('preview');
     } catch {
@@ -137,17 +157,11 @@ export function CatalogueImportDialog({
 
   // Étape 3 : confirmation
   const handleConfirm = async () => {
-    if (!uploadData || !nameColumn || categoryId === '') return;
+    if (!canPreview) return;
     setIsLoading(true);
     setError(null);
     try {
-      const result = await catalogImportApi.confirm({
-        file_id: uploadData.file_id,
-        name_column: nameColumn,
-        tag_columns: [...tagColumns],
-        category_id: categoryId,
-        auto_detect_tags: autoDetect,
-      });
+      const result = await catalogImportApi.confirm(importParams());
       const { created_count, skipped_count } = result;
       notify.success(
         `${created_count} plat${created_count > 1 ? 's' : ''} importé${created_count > 1 ? 's' : ''}`,
@@ -157,8 +171,8 @@ export function CatalogueImportDialog({
       );
       onImported();
       close();
-    } catch {
-      setError("Erreur lors de l'import.");
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Erreur lors de l'import."));
       setIsLoading(false);
     }
   };
@@ -172,7 +186,8 @@ export function CatalogueImportDialog({
     });
   };
 
-  const canPreview = Boolean(nameColumn) && categoryId !== '';
+  const canPreview =
+    Boolean(uploadData) && (isExport || (Boolean(nameColumn) && categoryId !== ''));
 
   return (
     <Dialog
@@ -201,8 +216,49 @@ export function CatalogueImportDialog({
             />
           )}
 
+          {/* Étape 2 — Correspondance des catégories (export Mariam) */}
+          {step === 'configure' && uploadData && isExport && (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-border bg-muted/40 p-3">
+                <p className="text-sm font-medium text-foreground">Export Mariam reconnu</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Les catégories, labels et certifications sont lus dans le fichier. Indiquez où
+                  ranger chaque catégorie.
+                </p>
+              </div>
+
+              {uploadData.category_paths.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Aucune catégorie dans le fichier : les plats seront ignorés.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {uploadData.category_paths.map((path) => (
+                    <div key={path} className="space-y-1.5">
+                      <Label>{path}</Label>
+                      <select
+                        value={categoryMap[path] ?? CREATE}
+                        onChange={(e) =>
+                          setCategoryMap((prev) => ({ ...prev, [path]: e.target.value }))
+                        }
+                        className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        <option value={CREATE}>Créer cette catégorie</option>
+                        {categoryOptions.map((opt) => (
+                          <option key={opt.id} value={String(opt.id)}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Étape 2 — Configuration */}
-          {step === 'configure' && uploadData && (
+          {step === 'configure' && uploadData && !isExport && (
             <div className="space-y-5">
               <div className="space-y-1.5">
                 <Label>
@@ -294,10 +350,16 @@ export function CatalogueImportDialog({
           {/* Étape 3 — Aperçu */}
           {step === 'preview' && previewData && (
             <div className="space-y-3">
-              <div className="flex gap-2 text-xs">
+              <div className="flex flex-wrap gap-2 text-xs">
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary">
                   {previewData.new_count} à créer
                 </span>
+                {previewData.categories_to_create.length > 0 && (
+                  <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-muted-foreground">
+                    {previewData.categories_to_create.length} catégorie
+                    {previewData.categories_to_create.length > 1 ? 's' : ''} à créer
+                  </span>
+                )}
                 {previewData.duplicate_count > 0 && (
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-800">
                     {previewData.duplicate_count} doublon
@@ -324,6 +386,11 @@ export function CatalogueImportDialog({
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{dish.name}</p>
+                        {dish.category_path && (
+                          <p className="truncate text-xs text-muted-foreground">
+                            {dish.category_path}
+                          </p>
+                        )}
                         {(dish.tags.length > 0 || dish.certifications.length > 0) && (
                           <div className="mt-0.5 flex flex-wrap gap-1">
                             {dish.tags.map((id) => {

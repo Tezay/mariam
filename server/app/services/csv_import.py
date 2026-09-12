@@ -8,9 +8,9 @@ s'appuie sur les mots-clés de taxonomie stockés en base.
 import csv
 import io
 import re
-import unicodedata
 
 from ..models import CertificationKeyword, DietaryTagKeyword
+from .text_match import normalize
 
 
 def detect_encoding(file_content: bytes) -> str:
@@ -102,11 +102,7 @@ def parse_upload(file) -> tuple[list[str], list[dict], str | None]:
 
 def normalize_label(label: str) -> str:
     """Normalise un label pour la comparaison (minuscules, sans accents)."""
-    label = label.lower().strip()
-    return ''.join(
-        c for c in unicodedata.normalize('NFD', label)
-        if unicodedata.category(c) != 'Mn'
-    )
+    return normalize(label)
 
 
 def detect_tags_from_text(text: str) -> dict:

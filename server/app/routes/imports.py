@@ -41,6 +41,7 @@ from ..schemas.imports import (
     ImportUploadSchema,
 )
 from ..security import get_client_ip
+from ..services import catalog_csv
 from ..services.csv_import import (
     clean_item_name,
     detect_tags_from_text,
@@ -511,6 +512,115 @@ def build_catalog_dishes(session, name_column, tag_columns, auto_detect_tags, ex
     return dishes
 
 
+class CategoryMappingError(Exception):
+    """A path of the file cannot become a category here."""
+
+
+def resolve_category_map(restaurant_id: int, mapping: dict, create: bool) -> dict[str, int]:
+    """Turn each file path into a leaf category id, creating those asked for.
+
+    Creation follows the rule enforced by /v1/settings/categories: a category
+    with subcategories carries no dish, so a parent that already holds dishes
+    cannot receive one.
+    """
+    known = catalog_csv.leaf_ids_by_path(restaurant_id)
+    resolved: dict[str, int] = {}
+    for path, target in mapping.items():
+        if target != 'create':
+            if not str(target).isdigit():
+                raise CategoryMappingError(f'Catégorie invalide pour « {path} »')
+            category = MenuCategory.query.filter_by(
+                id=int(target), restaurant_id=restaurant_id
+            ).first()
+            if not category or not category.is_leaf:
+                raise CategoryMappingError(f'Catégorie invalide pour « {path} »')
+            resolved[path] = category.id
+            continue
+        if path in known:
+            resolved[path] = known[path]
+            continue
+        if not create:
+            continue
+        resolved[path] = _create_category_path(restaurant_id, path)
+        known = catalog_csv.leaf_ids_by_path(restaurant_id)
+    return resolved
+
+
+def _create_category_path(restaurant_id: int, path: str) -> int:
+    labels = [part.strip() for part in path.split(catalog_csv.PATH_SEPARATOR) if part.strip()]
+    parent = None
+    for depth, label in enumerate(labels):
+        existing = MenuCategory.query.filter_by(
+            restaurant_id=restaurant_id,
+            parent_id=parent.id if parent else None,
+            label=label,
+        ).first()
+        if existing is None:
+            if parent is not None and DishCatalog.query.filter_by(
+                category_id=parent.id
+            ).count():
+                raise CategoryMappingError(
+                    f'« {parent.label} » porte des plats et ne peut pas recevoir '
+                    'de sous-catégorie. Déplacez-les avant d\'importer.'
+                )
+            existing = MenuCategory(
+                restaurant_id=restaurant_id,
+                parent_id=parent.id if parent else None,
+                label=label,
+                order=MenuCategory.query.filter_by(
+                    restaurant_id=restaurant_id,
+                    parent_id=parent.id if parent else None,
+                ).count(),
+                color_key=_next_color(restaurant_id) if depth == 0 else None,
+            )
+            db.session.add(existing)
+            db.session.flush()
+        parent = existing
+    if parent is None:
+        raise CategoryMappingError('Chemin de catégorie vide')
+    return parent.id
+
+
+def _next_color(restaurant_id: int) -> str:
+    palette = ['indigo', 'sky', 'mint', 'saffron', 'clay', 'lilac']
+    used = {
+        category.color_key
+        for category in MenuCategory.query.filter_by(restaurant_id=restaurant_id).all()
+        if category.color_key
+    }
+    return next((key for key in palette if key not in used), palette[0])
+
+
+def build_export_dishes(session, restaurant_id: int, mapping: dict, create: bool) -> list[dict]:
+    """Dishes of a Mariam export, each resolved to the category it lands in."""
+    parsed = catalog_csv.parse(session.get_rows())
+    resolved = resolve_category_map(restaurant_id, mapping, create)
+
+    existing: dict[int, set[str]] = {}
+    seen: set[tuple[int | None, str]] = set()
+    dishes = []
+    for row in parsed:
+        name = normalize_dish_name(clean_item_name(row['name']))
+        if not name:
+            continue
+        category_id = resolved.get(row['path'])
+        if category_id is not None and category_id not in existing:
+            existing[category_id] = existing_dish_norms(restaurant_id, category_id)
+        norm = normalize_label(name)
+        key = (category_id, norm)
+        taken = existing[category_id] if category_id is not None else set()
+        dishes.append({
+            'name': name,
+            'tags': row['tag_ids'],
+            'certifications': row['certification_ids'],
+            'category_id': category_id,
+            'category_path': row['path'],
+            'is_duplicate': norm in taken or key in seen,
+        })
+        seen.add(key)
+    return dishes
+
+
 @imports_bp.route('/catalog/upload', methods=['POST'])
 @imports_bp.response(200, CatalogImportUploadSchema)
 @imports_bp.alt_response(400, schema=ErrorSchema, description="Invalid or missing file")
@@ -544,6 +654,10 @@ def catalog_upload():
         db.session.add(session)
         db.session.commit()
 
+        _, restaurant = get_user_and_restaurant()
+        is_export = catalog_csv.is_export_file(columns)
+        paths = catalog_csv.distinct_paths(catalog_csv.parse(rows)) if is_export else []
+
         return jsonify({
             'file_id': file_id,
             'filename': file.filename,
@@ -552,6 +666,11 @@ def catalog_upload():
             'row_count': len(rows),
             'delimiter': delimiter,
             'suggested_name_column': suggest_name_column(columns),
+            'is_catalog_export': is_export,
+            'category_paths': paths,
+            'known_categories': (
+                catalog_csv.leaf_ids_by_path(restaurant.id) if is_export and restaurant else {}
+            ),
         }), 200
 
     except ValueError as e:
@@ -577,11 +696,25 @@ def catalog_preview(data):
     if not session:
         return jsonify({'error': 'Session expirée ou fichier non trouvé. Veuillez re-uploader le fichier.'}), 404
 
-    existing = existing_dish_norms(restaurant.id, data['category_id'])
-    dishes = build_catalog_dishes(
-        session, data['name_column'], data['tag_columns'],
-        data['auto_detect_tags'], existing,
-    )
+    if data.get('category_map') is not None:
+        try:
+            dishes = build_export_dishes(session, restaurant.id, data['category_map'], create=False)
+        except CategoryMappingError as error:
+            return jsonify({'error': str(error)}), 400
+        known = catalog_csv.leaf_ids_by_path(restaurant.id)
+        to_create = [
+            path for path, target in data['category_map'].items()
+            if target == 'create' and path not in known
+        ]
+    else:
+        if not data.get('name_column') or not data.get('category_id'):
+            return jsonify({'error': 'Colonne du nom et catégorie requises'}), 400
+        existing = existing_dish_norms(restaurant.id, data['category_id'])
+        dishes = build_catalog_dishes(
+            session, data['name_column'], data['tag_columns'],
+            data['auto_detect_tags'], existing,
+        )
+        to_create = []
     new_count = sum(1 for d in dishes if not d['is_duplicate'])
 
     return jsonify({
@@ -589,6 +722,7 @@ def catalog_preview(data):
         'total': len(dishes),
         'new_count': new_count,
         'duplicate_count': len(dishes) - new_count,
+        'categories_to_create': to_create,
     }), 200
 
 
@@ -608,26 +742,38 @@ def catalog_confirm(data):
     if not session:
         return jsonify({'error': 'Session expirée ou fichier non trouvé. Veuillez re-uploader le fichier.'}), 404
 
-    category = MenuCategory.query.filter_by(
-        id=data['category_id'], restaurant_id=restaurant.id
-    ).first()
-    if not category:
-        return jsonify({'error': 'Catégorie introuvable'}), 400
-
-    existing = existing_dish_norms(restaurant.id, category.id)
-    dishes = build_catalog_dishes(
-        session, data['name_column'], data['tag_columns'],
-        data['auto_detect_tags'], existing,
-    )
+    if data.get('category_map') is not None:
+        try:
+            dishes = build_export_dishes(session, restaurant.id, data['category_map'], create=True)
+        except CategoryMappingError as error:
+            db.session.rollback()
+            return jsonify({'error': str(error)}), 409
+        category_id = None
+    else:
+        if not data.get('name_column') or not data.get('category_id'):
+            return jsonify({'error': 'Colonne du nom et catégorie requises'}), 400
+        category = MenuCategory.query.filter_by(
+            id=data['category_id'], restaurant_id=restaurant.id
+        ).first()
+        if not category:
+            return jsonify({'error': 'Catégorie introuvable'}), 400
+        category_id = category.id
+        existing = existing_dish_norms(restaurant.id, category.id)
+        dishes = build_catalog_dishes(
+            session, data['name_column'], data['tag_columns'],
+            data['auto_detect_tags'], existing,
+        )
+        for dish in dishes:
+            dish['category_id'] = category.id
 
     created = 0
     for d in dishes:
-        if d['is_duplicate']:
+        if d['is_duplicate'] or not d.get('category_id'):
             continue
         # get_or_create_dish gère la normalisation, la dédup et l'attache des tags
         get_or_create_dish(restaurant.id, {
             'name': d['name'],
-            'category_id': category.id,
+            'category_id': d['category_id'],
             'tag_ids': d['tags'],
             'certification_ids': d['certifications'],
         })
@@ -639,7 +785,7 @@ def catalog_confirm(data):
         user_id=user.id,
         details={
             'filename': session.filename,
-            'category_id': category.id,
+            'category_id': category_id,
             'created_count': created,
             'skipped_count': skipped,
         },
