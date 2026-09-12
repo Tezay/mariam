@@ -13,7 +13,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_smorest import Blueprint
 
 from ..extensions import db
-from ..models import AuditLog, User
+from ..models import AuditLog, DishCatalog, User
 from ..models.category import MenuCategory
 from ..schemas.common import ErrorSchema, MessageSchema
 from ..schemas.menus import (
@@ -93,6 +93,14 @@ def create_category(data):
             return jsonify({'error': 'Catégorie parente introuvable'}), 404
         if parent.parent_id is not None:
             return jsonify({'error': 'Imbrication limitée à 1 niveau'}), 400
+        # A category with subcategories carries no dish, so the ones already
+        # attached have to go somewhere before the first child appears.
+        stranded = DishCatalog.query.filter_by(category_id=parent.id).count()
+        if stranded and not data.get('move_dishes'):
+            return jsonify({
+                'error': 'Des plats sont rattachés à cette catégorie',
+                'stranded_dishes': stranded,
+            }), 409
 
     label = (data.get('label') or '').strip()
     if not label:
@@ -115,6 +123,12 @@ def create_category(data):
         color_key=auto_color,
     )
     db.session.add(category)
+    db.session.flush()
+
+    if parent_id is not None and data.get('move_dishes'):
+        DishCatalog.query.filter_by(category_id=parent_id).update(
+            {'category_id': category.id}, synchronize_session=False
+        )
 
     AuditLog.log(
         action='category_create',
@@ -217,6 +231,16 @@ def delete_category(category_id):
 
     if category.is_protected:
         return jsonify({'error': 'Cette catégorie ne peut pas être supprimée'}), 403
+
+    # Deleting cascades to subcategories, and a dish may not end up without a
+    # category, so the whole subtree has to be empty first.
+    subtree = [category.id, *(child.id for child in category.subcategories)]
+    attached = DishCatalog.query.filter(DishCatalog.category_id.in_(subtree)).count()
+    if attached:
+        return jsonify({
+            'error': 'Des plats sont rattachés à cette catégorie',
+            'attached_dishes': attached,
+        }), 409
 
     AuditLog.log(
         action='category_delete',

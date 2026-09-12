@@ -20,6 +20,7 @@ import { rateDelta } from '@/features/analytics/ui/delta';
 import { PeriodSelector } from '@/features/analytics/ui/PeriodSelector';
 import { SitePicker } from '@/features/analytics/ui/SitePicker';
 import { DataTable, type DataTableColumn } from '@/components/dashboard/DataTable';
+import { DishHighlights } from '@/features/catalog/ui/DishHighlights';
 import { RateBar } from '@/features/analytics/ui/RateBar';
 import { Sparkline } from '@/features/analytics/ui/charts/Sparkline';
 import { useAnalyticsFilters } from '@/features/analytics/hooks/useAnalyticsFilters';
@@ -237,6 +238,8 @@ export function OrgOverviewPage() {
           hint={`${formatPercent(kpis?.participation_rate?.value)} de participation`}
         />
       </div>
+
+      <DishHighlights topDishes={overview?.top_dishes ?? []} />
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">

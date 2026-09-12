@@ -5,6 +5,7 @@
  */
 import {
   LayoutDashboard,
+  BookOpen,
   Building2,
   CalendarCheck,
   SmilePlus,
@@ -28,7 +29,7 @@ const NAV_ITEMS: SidebarNavItem[] = [
   },
   {
     to: '/org/analytics/traffic',
-    label: 'Consultations du menu',
+    label: 'Consultations menu',
     icon: <TrendingUp className="h-5 w-5" />,
   },
   {
@@ -42,6 +43,7 @@ const NAV_ITEMS: SidebarNavItem[] = [
     icon: <CalendarCheck className="h-5 w-5" />,
   },
   { to: '/org/sites', label: 'Sites', icon: <Building2 className="h-5 w-5" /> },
+  { to: '/org/catalog', label: 'Catalogue', icon: <BookOpen className="h-5 w-5" /> },
   { to: '/org/users', label: 'Utilisateurs', icon: <Users className="h-5 w-5" /> },
   { to: '/org/audit', label: 'Journal', icon: <ScrollText className="h-5 w-5" /> },
 ];
@@ -51,6 +53,7 @@ const PAGE_TITLES: PageTitleMap = [
   ['/org/analytics/satisfaction', 'Satisfaction'],
   ['/org/analytics/publications', 'Publications'],
   ['/org/sites', 'Sites'],
+  ['/org/catalog', 'Catalogue'],
   ['/org/users', 'Utilisateurs'],
   ['/org/audit', 'Journal'],
   ['/org/account', 'Mon compte'],

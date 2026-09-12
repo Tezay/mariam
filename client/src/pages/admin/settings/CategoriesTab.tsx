@@ -3,6 +3,7 @@
  * indépendant du bouton Enregistrer global).
  */
 import { useState, useEffect, useCallback } from 'react';
+import { isAxiosError } from 'axios';
 import { categoriesApi, MenuCategory } from '@/lib/api';
 import { notify } from '@/lib/toast';
 import { Button } from '@/components/ui/button';
@@ -23,10 +24,18 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CategoryRow, SortableCatList, CategoryPatch } from './CategoryComponents';
 
+/** The two refusals the server raises on the leaf rule, with what it counted. */
+function conflictCount(error: unknown, key: 'stranded_dishes' | 'attached_dishes'): number | null {
+  if (!isAxiosError(error) || error.response?.status !== 409) return null;
+  const count = (error.response.data as Record<string, unknown> | undefined)?.[key];
+  return typeof count === 'number' ? count : null;
+}
+
 export function CategoriesTab() {
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [catLoading, setCatLoading] = useState(true);
   const [deletingCategoryId, setDeletingCategoryId] = useState<number | null>(null);
+  const [stranded, setStranded] = useState<{ parent: MenuCategory; dishes: number } | null>(null);
 
   const loadCategories = useCallback(async () => {
     setCatLoading(true);
@@ -70,8 +79,16 @@ export function CategoriesTab() {
     try {
       await categoriesApi.delete(deletingCategoryId);
       await loadCategories();
-    } catch {
-      notify.error('Impossible de supprimer cette catégorie');
+    } catch (error) {
+      const attached = conflictCount(error, 'attached_dishes');
+      if (attached) {
+        notify.error(
+          `${attached} plat${attached > 1 ? 's sont rattachés' : ' est rattaché'} à cette catégorie`,
+          'Déplacez-les vers une autre catégorie avant de la supprimer.'
+        );
+      } else {
+        notify.error('Impossible de supprimer cette catégorie');
+      }
     } finally {
       setDeletingCategoryId(null);
     }
@@ -93,18 +110,21 @@ export function CategoriesTab() {
     }
   };
 
-  const handleAddSubcategory = async (parentId: number) => {
+  const handleAddSubcategory = async (parentId: number, moveDishes = false) => {
+    const parent = categories.find((c) => c.id === parentId);
     try {
-      const parent = categories.find((c) => c.id === parentId);
-      const subCount = parent?.subcategories?.length ?? 0;
       await categoriesApi.create({
         label: 'Nouvelle sous-catégorie',
-        order: subCount,
+        order: parent?.subcategories?.length ?? 0,
         parent_id: parentId,
+        move_dishes: moveDishes || undefined,
       });
+      setStranded(null);
       await loadCategories();
-    } catch {
-      notify.error('Erreur lors de la création de la sous-catégorie');
+    } catch (error) {
+      const dishes = conflictCount(error, 'stranded_dishes');
+      if (dishes && parent) setStranded({ parent, dishes });
+      else notify.error('Erreur lors de la création de la sous-catégorie');
     }
   };
 
@@ -208,7 +228,8 @@ export function CategoriesTab() {
             <AlertDialogHeader>
               <AlertDialogTitle>Supprimer cette catégorie ?</AlertDialogTitle>
               <AlertDialogDescription>
-                Les items associés à cette catégorie seront également supprimés.
+                Ses sous-catégories et les items de menu associés seront également supprimés. La
+                suppression est refusée tant que des plats du catalogue y sont rattachés.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -220,6 +241,28 @@ export function CategoriesTab() {
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
                 Supprimer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <AlertDialog open={stranded !== null} onOpenChange={(open) => !open && setStranded(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Déplacer les plats existants ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                « {stranded?.parent.label} » porte {stranded?.dishes} plat
+                {(stranded?.dishes ?? 0) > 1 ? 's' : ''}. Une catégorie qui contient des
+                sous-catégories n'en porte aucun : {(stranded?.dishes ?? 0) > 1 ? 'ils' : 'il'}{' '}
+                {(stranded?.dishes ?? 0) > 1 ? 'seront déplacés' : 'sera déplacé'} vers la nouvelle
+                sous-catégorie.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setStranded(null)}>Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => stranded && handleAddSubcategory(stranded.parent.id, true)}
+              >
+                Déplacer et créer
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

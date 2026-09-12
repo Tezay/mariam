@@ -23,7 +23,7 @@ class DishCatalogCreateSchema(Schema):
         unknown = EXCLUDE
 
     name = fields.Str(required=True, validate=validate.Length(min=1, max=200))
-    category_id = fields.Int(allow_none=True, load_default=None)
+    category_id = fields.Int(required=True)
     tag_ids = fields.List(fields.Str(), load_default=[])
     certification_ids = fields.List(fields.Str(), load_default=[])
 
@@ -34,7 +34,8 @@ class DishCatalogUpdateSchema(Schema):
         unknown = EXCLUDE
 
     name = fields.Str(validate=validate.Length(min=1, max=200))
-    category_id = fields.Int(allow_none=True)
+    # Partial update, so the field may be absent; sending it null is a refusal.
+    category_id = fields.Int()
     tag_ids = fields.List(fields.Str())
     certification_ids = fields.List(fields.Str())
 

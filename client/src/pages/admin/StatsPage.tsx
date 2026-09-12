@@ -3,12 +3,15 @@
  * dashboard; the API scopes them to the caller's own site, so nothing here
  * needs to know whether the organization has one site or thirty.
  */
+import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PublicationsView } from '@/features/analytics/PublicationsView';
 import { SatisfactionView } from '@/features/analytics/SatisfactionView';
 import { TrafficView } from '@/features/analytics/TrafficView';
 
 export function StatsPage() {
+  const navigate = useNavigate();
+
   return (
     <div className="container-mariam py-6">
       <div className="mb-6">
@@ -20,7 +23,7 @@ export function StatsPage() {
 
       <Tabs defaultValue="traffic">
         <TabsList>
-          <TabsTrigger value="traffic">Consultations du menu</TabsTrigger>
+          <TabsTrigger value="traffic">Consultations menu</TabsTrigger>
           <TabsTrigger value="satisfaction">Satisfaction</TabsTrigger>
           <TabsTrigger value="publications">Publications</TabsTrigger>
         </TabsList>
@@ -28,7 +31,7 @@ export function StatsPage() {
           <TrafficView />
         </TabsContent>
         <TabsContent value="satisfaction" className="mt-6">
-          <SatisfactionView />
+          <SatisfactionView onDishClick={(dish) => navigate(`/admin/catalogue/${dish.dish_id}`)} />
         </TabsContent>
         <TabsContent value="publications" className="mt-6">
           <PublicationsView />

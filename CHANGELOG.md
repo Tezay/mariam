@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Satisfaction page and settings** (`GET /v1/analytics/satisfaction`, `Réglages › Satisfaction`): distribution, daily score, per-site comparison, best- and worst-rated dishes and participation against unique visitors; the vote, its icon set and the categories offering dishes are set per site.
 - Anti-fraud for the vote: a server-signed device token replicated across three browser stores, a ThumbmarkJS browser signature bound to it for the day in Redis only, and a per-address daily cap on new votes sized for a shared campus network (`DEVICE_ID_SECRET`, `VOTE_IP_DAILY_CAP`, `VOTE_DEVICE_MINT_PER_HOUR`). The signature is computed only when a vote is cast, and the token is stripped from the vote the day after.
 - **Privacy notice** at `/privacy`, linked from the public menu, covering the anonymous counters and the vote's fraud detection.
+- **Dish selection and bulk actions on the catalogue**: lasso, Ctrl/Cmd-click, Shift-click and a right-click menu, then delete, change category, add or remove labels, or export the selection. A dish already served in a menu is kept.
+- **Catalogue export and import in CSV** (`GET /v1/catalog/export`): a line per dish with its category path, labels and certifications; re-importing such a file restores them.
+- **Organization catalogue** (`GET /v1/org/catalog`): every dish the sites serve, pooled by name, with presence, usage, photo coverage and satisfaction per site. Read-only.
+- **Dish ratings on the catalogue** (`GET /v1/catalog/stats?ids=`): score, breakdown, trend and rank within the category on a dish page, which says why a dish has none.
+- The supervision overview surfaces the most-served and best-rated dishes.
 - **Vos données** dialog on the account page: personal-data use, retention, sub-processors and security.
 - `flask seed-demo` now generates a month of traffic and ratings.
 - **Public-page telemetry**: anonymous and aggregate-only — no cookie, nothing stored on the device. Counters live in Redis and are flushed every five minutes; unique visitors come from a HyperLogLog over IP and user-agent hashes, salted with a key that rotates daily and is never persisted.
@@ -40,6 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The catalogue is one set of components for both dashboards**: the same list, filters and dish page for a site admin and a supervisor, cards on mobile and a sortable table on desktop, over a period that bounds services, reviews and score together.
+- **A dish page is read-first**, edited in place behind a save bar; it replaces the two divergent edit forms. Comparing dishes moves to a page of its own (`/admin/catalogue/compare`).
+- **Catalogue rules**: a dish hangs from a leaf category, and no two dishes share a name inside one; each refusal names what stands in the way.
+- Search tolerates a typo, in the catalogue as in the top bar.
 - The public menu and privacy pages share one shell: a full-width light backdrop with a centred, width-capped column, serving the mobile layout up to the TV breakpoint.
 - Redis ships with the deployment (`redis:7-alpine`) instead of a managed service; `REDIS_URL` still accepts a managed instance.
 - The scheduler runs as its own container in development too, matching production.

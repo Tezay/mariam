@@ -5,11 +5,12 @@ Endpoints under /v1/org give a cross-site view of the caller's organization.
 Per-site management (menus, catalog, service) stays in the site dashboards, and
 cross-site metrics live in /v1/analytics, which site admins also reach.
 """
-from flask import jsonify
+from flask import jsonify, request
 from flask_smorest import Blueprint
 
 from ..extensions import db
 from ..models import Event, Menu, Restaurant, User
+from ..services.org_catalog import dish_group, pooled_dishes
 from ..services.service_calendar import closures_by_site, menu_status
 from ..utils.time import paris_today, utc_naive_to_paris
 from .helpers import accessible_restaurant_ids, get_current_user, org_admin_required
@@ -76,3 +77,32 @@ def org_sites():
         })
 
     return jsonify({'sites': result}), 200
+
+
+@org_bp.route('/catalog', methods=['GET'])
+@org_admin_required
+def org_catalog():
+    """Dishes served across the organization, pooled by normalised name.
+
+    Query params: `q`, `sort` (usage | sites | name | photos), `page`, `per_page`.
+    """
+    user = get_current_user()
+    return jsonify(pooled_dishes(
+        user.organization_id,
+        q=request.args.get('q', ''),
+        sort=request.args.get('sort', 'usage'),
+        order=request.args.get('order'),
+        period=request.args.get('period'),
+        page=max(1, request.args.get('page', 1, type=int)),
+        per_page=min(max(1, request.args.get('per_page', 24, type=int)), 200),
+    )), 200
+
+
+@org_bp.route('/catalog/group', methods=['GET'])
+@org_admin_required
+def org_catalog_group():
+    """One pooled dish: the organization-wide aggregate and each site's figures."""
+    group = dish_group(get_current_user().organization_id, request.args.get('name', ''))
+    if group is None:
+        return jsonify({'error': 'Plat introuvable'}), 404
+    return jsonify(group), 200

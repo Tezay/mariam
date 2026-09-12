@@ -266,14 +266,52 @@ Requires `editor` role or above. Dishes are scoped to the authenticated user's r
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `/v1/catalog` | List dishes (filters: `category_id`, `q`, `sort`; optional pagination) |
+| `GET` | `/v1/catalog` | List dishes (`q`, `category_ids`, `tag_ids`, `certification_ids`, `period`, `sort`, `order`; optional pagination) |
 | `POST` | `/v1/catalog` | Create a dish |
 | `GET` | `/v1/catalog/<id>` | Dish details |
 | `PUT` | `/v1/catalog/<id>` | Update a dish |
 | `DELETE` | `/v1/catalog/<id>` | Delete a dish (409 if used in a menu) |
-| `GET` | `/v1/catalog/<id>/stats` | Usage statistics (week/month/semester/year, history) |
+| `GET` | `/v1/catalog/<id>/stats` | Usage windows, weekly history and satisfaction |
+| `GET` | `/v1/catalog/stats?ids=` | The same for up to five dishes, for the comparison view |
+| `POST` | `/v1/catalog/bulk/delete` | Delete several dishes, keeping those served in a menu |
+| `POST` | `/v1/catalog/bulk/category` | Attach several dishes to one leaf category |
+| `POST` | `/v1/catalog/bulk/labels` | Add or remove dietary tags and certifications on several dishes |
+| `GET` | `/v1/catalog/export` | Export dishes as CSV: `ids=` for a selection, the list filters otherwise |
 | `POST` | `/v1/catalog/<id>/image` | Upload or replace the dish image (multipart/form-data) |
 | `DELETE` | `/v1/catalog/<id>/image` | Delete the dish image |
+
+Notes:
+
+- `sort` accepts `usage` (default), `name`, `recent` and `score`; unrated dishes
+  sort last rather than at the bottom of the scale. Every dish carries `votes`
+  and `score`, the latter `null` under five votes.
+- `order` is `asc` or `desc`. Left out, a name reads A to Z and a measure reads
+  best-first.
+- `period` bounds `usage_count`, `votes` and `score` together: `all` (default),
+  `7d`, `30d`, `90d` or `12m`. `tag_ids` and `certification_ids` are
+  comma-separated and conjunctive: a dish must carry every one of them.
+  `category_ids` is disjunctive, a dish belonging to a single category.
+- `q` tolerates a typo: case, accents and ligatures are folded, then each word of
+  the query must appear in the name or sit within one edit of a word of it (two
+  beyond seven letters). Words of three letters or fewer must match exactly.
+- The export writes `nom;categorie;sous_categorie;labels;certifications`, labels
+  and certifications by their display name. The import reads that file back, so
+  exporting a catalog and importing it into an empty one restores it; images are
+  the exception, being out of reach of a CSV.
+- A dish requires a category, and that category must be a leaf: one carrying
+  subcategories is refused. Creation without a category is refused, and an update
+  may not set it back to null.
+- Two dishes of the same name may not share a category. Creation and update
+  answer 409 with `dish_id` and `dish_name`, naming the dish already there;
+  `POST /v1/catalog/bulk/category` keeps such a dish where it is and lists it
+  under `kept`.
+- `POST /v1/catalog/bulk/delete` answers `{deleted, kept}`: a dish still served in
+  a menu is kept, with its name and usage count. The other bulk routes answer the
+  ids they changed. All of them are audited and require the `editor` role.
+- The `satisfaction` block of a dish's stats reports why it carries no rating:
+  `enabled` (the site collects votes), `votable` (the dish's category is offered
+  to voters) and `votes`. It also carries the site's `icon_preset` so the
+  breakdown is drawn with the icons students saw.
 
 ---
 
@@ -302,10 +340,23 @@ per-site management stays under the site endpoints.
 | Method | Route | Description |
 |--------|-------|-------------|
 | `GET` | `/v1/org/sites` | Every site of the organization with user count, today's menu status (`published`, `draft`, `missing`, `closed`), upcoming events and last publication |
+| `GET` | `/v1/org/catalog` | Dishes served across the organization, pooled by normalised name (`q`, `sort`, `order`, `period`, `page`, `per_page`) |
+| `GET` | `/v1/org/catalog/group?name=` | One pooled dish: the organization-wide aggregate and each site's figures |
 
 Opening, renaming or deactivating a site is a billing event and is not exposed
 through the API: it is handled by the Mariam team with the `init-restaurant` CLI
 command.
+
+Catalogue notes:
+
+- Dishes are grouped by `lower(regexp_replace(btrim(name), '\s+', ' ', 'g'))`.
+  Accents are not folded, so two spellings differing only by an accent stay two
+  entries. `display_name` is the most frequent spelling in the group.
+- `sort` accepts `usage` (default), `sites`, `name`, `photos` and `score`, with
+  the same `order` and `period` semantics as the site catalogue.
+- `score` is `null` under five votes.
+- The pool is read-only: sites own their dishes, and nothing here writes to
+  them.
 
 ---
 
@@ -378,6 +429,14 @@ Requires `admin` role.
 | `PUT` | `/v1/settings/categories/<id>` | Update a category |
 | `DELETE` | `/v1/settings/categories/<id>` | Delete a category |
 
+Notes:
+
+- Only a leaf category carries dishes. Creating a subcategory under a category
+  that holds dishes answers 409 with `stranded_dishes`; repeat the call with
+  `move_dishes: true` to move them into the new subcategory.
+- Deletion answers 409 with `attached_dishes` when the category or one of its
+  descendants still holds dishes.
+
 ---
 
 ## Users
@@ -446,3 +505,10 @@ are skipped (idempotent).
 | `POST` | `/v1/imports/catalog/confirm` | Create the dishes (duplicates skipped) |
 
 Preview/confirm body: `{ file_id, name_column, tag_columns[], category_id, auto_detect_tags }`.
+
+A file carrying the export columns is recognised at upload (`is_catalog_export`),
+which returns the category paths it contains and those the site already has.
+Preview and confirm then take `category_map` — each path to a category id or to
+`"create"` — instead of a name column and a single category, and read categories,
+labels and certifications from the file itself. Creating a subcategory under a
+category that already holds dishes is refused (409).

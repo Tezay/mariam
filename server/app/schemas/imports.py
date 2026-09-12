@@ -67,17 +67,29 @@ class CatalogImportUploadSchema(Schema):
     row_count = fields.Int()
     delimiter = fields.Str(allow_none=True)
     suggested_name_column = fields.Str(allow_none=True)
+    is_catalog_export = fields.Bool()
+    category_paths = fields.List(fields.Str())
+    known_categories = fields.Dict(keys=fields.Str(), values=fields.Int())
 
 
 class CatalogImportPreviewSchema(Schema):
-    """Paramètres de prévisualisation/confirmation d'un import catalogue."""
+    """Paramètres de prévisualisation/confirmation d'un import catalogue.
+
+    Deux modes : le fichier quelconque (name_column + category_id), et l'export
+    Mariam, qui porte ses catégories et sa taxonomie et ne demande qu'une
+    correspondance de catégories.
+    """
     class Meta:
         unknown = EXCLUDE
     file_id = fields.Str(required=True)
-    name_column = fields.Str(required=True, description="Colonne contenant le nom du plat")
+    name_column = fields.Str(load_default=None, allow_none=True, description="Colonne contenant le nom du plat")
     tag_columns = fields.List(fields.Str(), load_default=[], description="Colonnes scannées pour les tags/labels")
-    category_id = fields.Int(required=True, validate=validate.Range(min=1))
+    category_id = fields.Int(load_default=None, allow_none=True, validate=validate.Range(min=1))
     auto_detect_tags = fields.Bool(load_default=True)
+    category_map = fields.Dict(
+        keys=fields.Str(), values=fields.Str(), load_default=None, allow_none=True,
+        description="Chemin du fichier → id de catégorie ou 'create'",
+    )
 
 
 class CatalogImportPreviewDishSchema(Schema):
@@ -87,6 +99,7 @@ class CatalogImportPreviewDishSchema(Schema):
     tags = fields.List(fields.Str())
     certifications = fields.List(fields.Str())
     is_duplicate = fields.Bool()
+    category_path = fields.Str()
 
 
 class CatalogImportPreviewResultSchema(Schema):
@@ -96,6 +109,7 @@ class CatalogImportPreviewResultSchema(Schema):
     total = fields.Int()
     new_count = fields.Int()
     duplicate_count = fields.Int()
+    categories_to_create = fields.List(fields.Str())
 
 
 # Confirmation : mêmes paramètres que la prévisualisation

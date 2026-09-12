@@ -9,6 +9,8 @@ import { formatDayLabel } from '../../format';
 
 const formatHour = (hour: number | string) => `${String(hour).padStart(2, '0')}h`;
 
+const SPARSE_SERIES = 10;
+
 const CHART_CONFIG: ChartConfig = {
   score: { label: 'Score moyen', color: '#093EAA' },
 };
@@ -21,6 +23,8 @@ export function SatisfactionTrendChart({
   granularity?: 'day' | 'hour';
 }) {
   const byHour = granularity === 'hour';
+  // A handful of services draws an invisible line, so short series show their points.
+  const sparse = series.length <= SPARSE_SERIES;
   return (
     <ChartContainer config={CHART_CONFIG} className="h-[200px] w-full">
       <LineChart data={series} margin={{ left: 4, right: 8, top: 8 }}>
@@ -44,6 +48,7 @@ export function SatisfactionTrendChart({
         <ChartTooltip
           content={
             <ChartTooltipContent
+              labelClassName="mb-1.5 border-b border-border pb-1.5"
               labelFormatter={(label, items) =>
                 byHour
                   ? formatHour((items?.[0]?.payload as { hour?: number } | undefined)?.hour ?? 0)
@@ -57,7 +62,7 @@ export function SatisfactionTrendChart({
           dataKey="score"
           stroke="var(--color-score)"
           strokeWidth={2}
-          dot={false}
+          dot={sparse ? { r: 3 } : false}
           connectNulls
         />
       </LineChart>

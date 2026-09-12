@@ -23,6 +23,7 @@ class MenuCategoryCreateSchema(Schema):
     parent_id = fields.Int(allow_none=True, load_default=None)
     label = fields.Str(required=True)
     order = fields.Int(load_default=0)
+    move_dishes = fields.Bool(load_default=False)
 
 
 class MenuCategoryUpdateSchema(Schema):

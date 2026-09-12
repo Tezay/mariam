@@ -90,6 +90,12 @@ const OrgPublicationsPage = lazy(() =>
 const OrgSitesPage = lazy(() =>
   import('./pages/org/OrgSitesPage').then((m) => ({ default: m.OrgSitesPage }))
 );
+const ComparePage = lazy(() =>
+  import('./pages/admin/catalogue/ComparePage').then((m) => ({ default: m.ComparePage }))
+);
+const OrgCatalogPage = lazy(() =>
+  import('./pages/org/OrgCatalogPage').then((m) => ({ default: m.OrgCatalogPage }))
+);
 const OrgSiteDetailPage = lazy(() =>
   import('./pages/org/OrgSiteDetailPage').then((m) => ({ default: m.OrgSiteDetailPage }))
 );
@@ -301,6 +307,7 @@ function App() {
             <Route path="analytics/satisfaction" element={<OrgSatisfactionPage />} />
             <Route path="analytics/publications" element={<OrgPublicationsPage />} />
             <Route path="sites" element={<OrgSitesPage />} />
+            <Route path="catalog" element={<OrgCatalogPage />} />
             <Route path="sites/:id" element={<OrgSiteDetailPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="audit" element={<AuditLogsPage />} />
@@ -394,6 +401,14 @@ function App() {
               element={
                 <EditorRoute>
                   <CataloguePage />
+                </EditorRoute>
+              }
+            />
+            <Route
+              path="catalogue/compare"
+              element={
+                <EditorRoute>
+                  <ComparePage />
                 </EditorRoute>
               }
             />

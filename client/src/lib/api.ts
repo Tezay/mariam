@@ -560,9 +560,23 @@ export interface DishCatalogItem {
   name: string;
   image_url: string | null;
   usage_count: number;
+  votes: number;
+  score: number | null;
   tags: DietaryTag[];
   certifications: CertificationItem[];
   created_at?: string;
+}
+
+export type DishSort = 'usage' | 'name' | 'recent' | 'score';
+export type CatalogPeriod = 'all' | '7d' | '30d' | '90d' | '12m';
+
+export interface CatalogQuery {
+  q?: string;
+  category_ids?: string;
+  tag_ids?: string;
+  certification_ids?: string;
+  period?: CatalogPeriod;
+  order?: 'asc' | 'desc';
 }
 
 export interface CategorySubstitution {
@@ -587,24 +601,27 @@ export interface CatalogListResponse {
 }
 
 export const catalogApi = {
-  list: async (params?: {
-    category_id?: number;
-    q?: string;
-    sort?: 'usage' | 'name' | 'recent';
-  }) => {
+  list: async (params?: { category_ids?: string; q?: string; sort?: DishSort }) => {
     const response = await api.get('/catalog', { params });
     return response.data.dishes as DishCatalogItem[];
   },
 
-  listPaginated: async (params: {
-    category_id?: number;
-    q?: string;
-    sort?: 'usage' | 'name' | 'recent';
-    page: number;
-    per_page?: number;
-  }) => {
+  listPaginated: async (
+    params: CatalogQuery & {
+      sort?: DishSort;
+      page: number;
+      per_page?: number;
+    }
+  ) => {
     const response = await api.get('/catalog', { params });
     return response.data as CatalogListResponse;
+  },
+
+  getStatsBatch: async (ids: number[], period?: CatalogPeriod) => {
+    const response = await api.get('/catalog/stats', {
+      params: { ids: ids.join(','), period },
+    });
+    return response.data.stats as Record<string, DishStats>;
   },
 
   create: async (data: {
@@ -654,11 +671,62 @@ export const catalogApi = {
     return response.data;
   },
 
-  getStats: async (dishId: number): Promise<DishStats> => {
-    const response = await api.get(`/catalog/${dishId}/stats`);
+  getStats: async (dishId: number, period?: CatalogPeriod): Promise<DishStats> => {
+    const response = await api.get(`/catalog/${dishId}/stats`, { params: { period } });
     return response.data as DishStats;
   },
+
+  bulkDelete: async (ids: number[]) => {
+    const response = await api.post('/catalog/bulk/delete', { ids });
+    return response.data as BulkDeleteResult;
+  },
+
+  bulkCategory: async (ids: number[], categoryId: number) => {
+    const response = await api.post('/catalog/bulk/category', { ids, category_id: categoryId });
+    return response.data as { moved: number[]; kept: { id: number; name: string }[] };
+  },
+
+  bulkLabels: async (
+    ids: number[],
+    changes: {
+      add_tag_ids?: string[];
+      remove_tag_ids?: string[];
+      add_certification_ids?: string[];
+      remove_certification_ids?: string[];
+    }
+  ) => {
+    const response = await api.post('/catalog/bulk/labels', { ids, ...changes });
+    return response.data.updated as number[];
+  },
+
+  exportCsv: async (params: { ids?: number[] } & CatalogQuery) => {
+    const { ids, ...filters } = params;
+    const response = await api.get('/catalog/export', {
+      params: ids?.length ? { ids: ids.join(',') } : filters,
+      responseType: 'blob',
+    });
+    return response.data as Blob;
+  },
 };
+
+export interface BulkDeleteResult {
+  deleted: number[];
+  kept: { id: number; name: string; usage_count: number }[];
+}
+
+export interface DishSatisfaction {
+  /** The site collects votes at all. */
+  enabled: boolean;
+  /** This dish's category is among those a vote may name. */
+  votable: boolean;
+  icon_preset: string;
+  votes: number;
+  score: number | null;
+  distribution: Record<'1' | '2' | '3', number>;
+  series: { date: string; votes: number; score: number }[];
+  /** Null while the dish has too few votes to be ranked among its peers. */
+  standing: { rank: number; rated_in_category: number; gap_to_average: number } | null;
+}
 
 export interface DishStats {
   week: number;
@@ -666,8 +734,7 @@ export interface DishStats {
   semester: number;
   year: number;
   history: { week: string; count: number }[];
-  category_rank: number | null;
-  similar_dishes: { id: number; name: string; month_count: number }[];
+  satisfaction: DishSatisfaction;
 }
 
 // ========================================
@@ -931,6 +998,10 @@ export interface CatalogImportUploadResponse {
   row_count: number;
   delimiter: string | null;
   suggested_name_column: string | null;
+  /** The file carries the columns the catalogue export writes. */
+  is_catalog_export: boolean;
+  category_paths: string[];
+  known_categories: Record<string, number>;
 }
 
 export interface CatalogImportPreviewDish {
@@ -938,6 +1009,7 @@ export interface CatalogImportPreviewDish {
   tags: string[]; // IDs des tags alimentaires détectés
   certifications: string[]; // IDs des certifications détectées
   is_duplicate: boolean;
+  category_path?: string;
 }
 
 export interface CatalogImportPreviewResponse {
@@ -945,14 +1017,17 @@ export interface CatalogImportPreviewResponse {
   total: number;
   new_count: number;
   duplicate_count: number;
+  categories_to_create: string[];
 }
 
 export interface CatalogImportParams {
   file_id: string;
-  name_column: string;
-  tag_columns: string[];
-  category_id: number;
-  auto_detect_tags: boolean;
+  name_column?: string;
+  tag_columns?: string[];
+  category_id?: number;
+  auto_detect_tags?: boolean;
+  /** Export file only: each category path of the file, to an id or 'create'. */
+  category_map?: Record<string, string>;
 }
 
 export interface CatalogImportResult {
@@ -1167,7 +1242,12 @@ export const categoriesApi = {
     return response.data;
   },
 
-  create: async (data: { label: string; order?: number; parent_id?: number | null }) => {
+  create: async (data: {
+    label: string;
+    order?: number;
+    parent_id?: number | null;
+    move_dishes?: boolean;
+  }) => {
     const response = await api.post('/settings/categories', data);
     return response.data.category as MenuCategory;
   },
@@ -1591,11 +1671,75 @@ export interface OrgSite {
   last_published_at: string | null;
 }
 
+export interface OrgCatalogSite {
+  site_id: number;
+  site_name: string;
+  dish_id: number;
+  has_image: boolean;
+}
+
+export interface OrgCatalogDish {
+  normalized_name: string;
+  display_name: string;
+  image_url: string | null;
+  site_count: number;
+  photo_count: number;
+  usage_count: number;
+  votes: number;
+  score: number | null;
+  sites: OrgCatalogSite[];
+}
+
+export interface OrgCatalogPage {
+  dishes: OrgCatalogDish[];
+  total: number;
+  page: number;
+  per_page: number;
+  has_more: boolean;
+}
+
+export type OrgCatalogSort = 'usage' | 'sites' | 'name' | 'photos' | 'score';
+
+export interface OrgCatalogGroupSite extends OrgCatalogSite {
+  usage_count: number;
+  votes: number;
+  score: number | null;
+}
+
+export interface OrgCatalogGroup {
+  normalized_name: string;
+  display_name: string;
+  image_url: string | null;
+  site_count: number;
+  photo_count: number;
+  usage_count: number;
+  votes: number;
+  score: number | null;
+  distribution: Record<'1' | '2' | '3', number>;
+  series: { date: string; votes: number; score: number }[];
+  sites: OrgCatalogGroupSite[];
+}
+
 // Organization director dashboard (org_admin) — cross-site overview.
 export const orgApi = {
   getSites: async (): Promise<OrgSite[]> => {
     const response = await api.get('/org/sites');
     return (response.data.sites ?? []) as OrgSite[];
+  },
+  getCatalog: async (params: {
+    q?: string;
+    sort?: OrgCatalogSort;
+    order?: 'asc' | 'desc';
+    period?: CatalogPeriod;
+    page?: number;
+    per_page?: number;
+  }): Promise<OrgCatalogPage> => {
+    const response = await api.get('/org/catalog', { params });
+    return response.data as OrgCatalogPage;
+  },
+  getCatalogGroup: async (normalizedName: string): Promise<OrgCatalogGroup> => {
+    const response = await api.get('/org/catalog/group', { params: { name: normalizedName } });
+    return response.data as OrgCatalogGroup;
   },
 };
 
@@ -1653,8 +1797,8 @@ export interface AnalyticsOverview {
   };
   trend: AnalyticsTrendPoint[];
   sites: AnalyticsOverviewSite[];
-  top_dishes: unknown[] | null;
-  flop_dishes: unknown[] | null;
+  top_dishes: SatisfactionDishRow[] | null;
+  flop_dishes: SatisfactionDishRow[] | null;
 }
 
 export type PublicationDayStatus =
@@ -1783,6 +1927,7 @@ export interface SatisfactionReport {
   by_preset: SatisfactionPresetRow[];
   summary: {
     score: number | null;
+    delta: number | null;
     votes: number;
     participation_rate: number | null;
     distribution: Record<'1' | '2' | '3', number>;

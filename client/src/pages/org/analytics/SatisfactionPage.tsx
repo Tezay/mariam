@@ -19,7 +19,11 @@ export function OrgSatisfactionPage() {
         title="Satisfaction"
         description="Ce que les étudiants pensent des menus servis."
       />
-      <SatisfactionView sites={sites} onSiteClick={(siteId) => navigate(`/org/sites/${siteId}`)} />
+      <SatisfactionView
+        sites={sites}
+        onSiteClick={(siteId) => navigate(`/org/sites/${siteId}`)}
+        onDishClick={(dish) => navigate(`/org/catalog?q=${encodeURIComponent(dish.name)}`)}
+      />
     </div>
   );
 }
