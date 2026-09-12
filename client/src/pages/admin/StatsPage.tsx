@@ -3,40 +3,26 @@
  * dashboard; the API scopes them to the caller's own site, so nothing here
  * needs to know whether the organization has one site or thirty.
  */
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AnalyticsTabs, type AnalyticsTab } from '@/features/analytics/ui/AnalyticsTabs';
 import { PublicationsView } from '@/features/analytics/PublicationsView';
 import { SatisfactionView } from '@/features/analytics/SatisfactionView';
 import { TrafficView } from '@/features/analytics/TrafficView';
 
 export function StatsPage() {
   const navigate = useNavigate();
+  const [tab, setTab] = useState<AnalyticsTab>('traffic');
 
   return (
-    <div className="container-mariam py-6">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">Statistiques</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Suivez la fréquentation de vos pages et la publication de vos menus.
-        </p>
-      </div>
+    <div className="container-mariam space-y-6 py-6">
+      <AnalyticsTabs value={tab} onChange={setTab} />
 
-      <Tabs defaultValue="traffic">
-        <TabsList>
-          <TabsTrigger value="traffic">Consultations menu</TabsTrigger>
-          <TabsTrigger value="satisfaction">Satisfaction</TabsTrigger>
-          <TabsTrigger value="publications">Publications</TabsTrigger>
-        </TabsList>
-        <TabsContent value="traffic" className="mt-6">
-          <TrafficView />
-        </TabsContent>
-        <TabsContent value="satisfaction" className="mt-6">
-          <SatisfactionView onDishClick={(dish) => navigate(`/admin/catalogue/${dish.dish_id}`)} />
-        </TabsContent>
-        <TabsContent value="publications" className="mt-6">
-          <PublicationsView />
-        </TabsContent>
-      </Tabs>
+      {tab === 'traffic' && <TrafficView />}
+      {tab === 'satisfaction' && (
+        <SatisfactionView onDishClick={(dish) => navigate(`/admin/catalogue/${dish.dish_id}`)} />
+      )}
+      {tab === 'publications' && <PublicationsView />}
     </div>
   );
 }

@@ -74,6 +74,7 @@ export function OrgLayout() {
       bottomNavPaths={BOTTOM_NAV_PATHS}
       pageTitles={PAGE_TITLES}
       fallbackTitle="Organisation"
+      showNotifications
       accountPath="/org/account"
       tenant={
         user?.organization_name

@@ -1,0 +1,55 @@
+{# Building blocks of every email. Layout lives here, wording in the locale files. #}
+
+{% macro heading(text) %}
+<p style="margin:24px 0 10px;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#6b7280">{{ text }}</p>
+{% endmacro %}
+
+{# One headline figure: label, value, and its move against the week before.
+   The change line is always drawn, blank included, so three cards side by side
+   keep the same height. #}
+{% macro kpi(label, value, unit, change) %}
+<td style="padding:0 6px" width="33%" valign="top">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px">
+    <tr><td style="padding:12px 14px">
+      <p style="margin:0;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#6b7280">{{ label }}</p>
+      <p style="margin:6px 0 0;font-size:24px;font-weight:700;line-height:1.1;color:#0f172a">
+        {{ value }}<span style="font-size:13px;font-weight:600;color:#6b7280">{{ unit }}</span>
+      </p>
+      <p style="margin:4px 0 0;font-size:12px;line-height:16px;color:{{ '#15803d' if change.tone == 'up' else '#b91c1c' if change.tone == 'down' else '#6b7280' }}">
+        {%- if change.label %}{{ change.label }}{% else %}&nbsp;{% endif -%}
+      </p>
+    </td></tr>
+  </table>
+</td>
+{% endmacro %}
+
+{# A horizontal bar drawn with table cells: no image to block, no font to load. #}
+{% macro bar(label, value, percent, color) %}
+<tr>
+  <td style="padding:3px 8px 3px 0;font-size:13px;color:#374151;white-space:nowrap">{{ label }}</td>
+  <td style="padding:3px 0;width:100%">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f7;border-radius:4px">
+      <tr><td style="width:{{ percent }}%;background:{{ color }};border-radius:4px;font-size:0;line-height:6px">&nbsp;</td><td>&nbsp;</td></tr>
+    </table>
+  </td>
+  <td style="padding:3px 0 3px 10px;font-size:13px;font-weight:600;color:#0f172a;text-align:right;white-space:nowrap">{{ value }}</td>
+</tr>
+{% endmacro %}
+
+{% macro row(title, detail, accent) %}
+<tr>
+  <td style="padding:6px 0;border-top:1px solid #f1f5f9;font-size:14px;color:#0f172a">{{ title }}</td>
+  <td style="padding:6px 0;border-top:1px solid #f1f5f9;font-size:13px;color:{{ accent or '#6b7280' }};text-align:right;white-space:nowrap">{{ detail }}</td>
+</tr>
+{% endmacro %}
+
+{% macro callout(title, items, color) %}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:{{ color }}0d;border-left:3px solid {{ color }};border-radius:6px">
+  <tr><td style="padding:10px 14px">
+    <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:{{ color }}">{{ title }}</p>
+    {% for item in items %}
+    <p style="margin:2px 0;font-size:13px;color:#374151">{{ item }}</p>
+    {% endfor %}
+  </td></tr>
+</table>
+{% endmacro %}

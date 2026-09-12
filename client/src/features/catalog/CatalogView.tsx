@@ -90,6 +90,7 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
   };
   const siteFilters = {
     ...shared,
+    new_only: filters.newOnly && filters.period !== 'all' ? '1' : undefined,
     category_ids: filters.categoryIds.join(',') || undefined,
     tag_ids: filters.tagIds.join(',') || undefined,
     certification_ids: filters.certIds.join(',') || undefined,
@@ -102,6 +103,7 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
       filters.sort,
       filters.order,
       filters.period,
+      filters.newOnly,
       filters.categoryIds,
       filters.tagIds,
       filters.certIds,

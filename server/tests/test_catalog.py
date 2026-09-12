@@ -624,3 +624,58 @@ class TestDuplicateNames:
         payload = res.get_json()
         assert payload['moved'] == [free['id']]
         assert [kept['id'] for kept in payload['kept']] == [twin['id']]
+
+
+class TestNovelties:
+    def _serve(self, app, client, token, dish_id, day):
+        from app.extensions import db
+        from app.models import Menu, MenuItem
+
+        menu = Menu.query.filter_by(date=day).first()
+        if menu is None:
+            settings = client.get('/v1/settings', headers=auth_headers(token)).get_json()
+            menu = Menu(restaurant_id=settings['restaurant']['id'], date=day, status='published')
+            db.session.add(menu)
+            db.session.commit()
+        db.session.add(MenuItem(
+            menu_id=menu.id, category_id=_category_for(client, token), dish_id=dish_id, order=0
+        ))
+        db.session.commit()
+
+    def test_only_dishes_first_served_in_the_window(self, app, client):
+        import datetime
+
+        from app.services.dish_stats import first_served
+        from app.utils.time import paris_today
+
+        rid = make_restaurant(app)
+        make_user(app)
+        token = get_token(client)
+        today = paris_today()
+        veteran = _create_dish(client, token, name='Poulet').get_json()['dish']
+        newcomer = _create_dish(client, token, name='Curry').get_json()['dish']
+        self._serve(app, client, token, veteran['id'], today - datetime.timedelta(days=40))
+        self._serve(app, client, token, veteran['id'], today)
+        self._serve(app, client, token, newcomer['id'], today)
+
+        found = first_served([rid], today - datetime.timedelta(days=7), today)
+
+        assert list(found) == [newcomer['id']]
+
+    def test_the_filter_needs_a_bounded_period(self, app, client):
+        import datetime
+
+        from app.utils.time import paris_today
+
+        make_restaurant(app)
+        make_user(app)
+        token = get_token(client)
+        newcomer = _create_dish(client, token, name='Curry').get_json()['dish']
+        _create_dish(client, token, name='Jamais servi')
+        self._serve(app, client, token, newcomer['id'], paris_today())
+
+        scoped = client.get('/v1/catalog?new_only=1&period=30d', headers=auth_headers(token))
+        unbounded = client.get('/v1/catalog?new_only=1&period=all', headers=auth_headers(token))
+
+        assert [dish['name'] for dish in scoped.get_json()['dishes']] == ['Curry']
+        assert len(unbounded.get_json()['dishes']) == 2

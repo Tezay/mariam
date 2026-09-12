@@ -6,6 +6,7 @@ des menus universitaires.
 """
 import os
 from datetime import timedelta
+from pathlib import Path
 
 from flask import Flask, jsonify
 from flask_cors import CORS
@@ -580,6 +581,40 @@ Disallow: /v1/users/
         db.session.commit()
         click.echo(f"✅ Catégories par défaut créées pour : {restaurant.name}")
 
+    @app.cli.command('send-digest')
+    @click.option('--to', required=True, help='Email du destinataire, qui doit avoir un compte')
+    @click.option('--dry-run', is_flag=True, help="Affiche l'email au lieu de l'envoyer")
+    @click.option('--html-out', default=None, help="Écrit le rendu HTML dans ce fichier")
+    def send_digest(to, dry_run, html_out):
+        """Envoie le résumé hebdomadaire à un utilisateur, pour vérifier la configuration SMTP."""
+        from .services import email_service
+        from .services.access import accessible_restaurant_ids
+
+        user = User.query.filter_by(email=to).first()
+        if not user:
+            click.echo(f'❌ Aucun utilisateur avec {to}.')
+            return
+        site_ids = sorted(accessible_restaurant_ids(user))
+        if not site_ids:
+            click.echo(f"❌ {to} n'a accès à aucun site.")
+            return
+
+        start, end = email_service.last_week()
+        digest = email_service.build_digest(user, site_ids, start, end)
+        if html_out:
+            Path(html_out).write_text(digest['html'], encoding='utf-8')
+            click.echo(f'✅ Rendu HTML écrit dans {html_out}.')
+        if dry_run:
+            click.echo(digest['subject'])
+            click.echo('─' * 40)
+            click.echo(digest['text'])
+            return
+        if not email_service.is_configured():
+            click.echo('❌ SMTP non configuré (SMTP_HOST, SMTP_SENDER).')
+            return
+        ok = email_service.send_email(to, digest['subject'], digest['text'], digest['html'])
+        click.echo(f'✅ Digest envoyé à {to}.' if ok else f"❌ L'envoi à {to} a échoué.")
+
     @app.cli.command('create-password-reset-link')
     def create_password_reset_link_cmd():
         """
@@ -667,7 +702,7 @@ def _start_scheduler(app):
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
 
-        from .services import retention, telemetry
+        from .services import email_service, retention, telemetry
 
         scheduler = BackgroundScheduler(daemon=True, timezone='Europe/Paris')
 
@@ -710,6 +745,14 @@ def _start_scheduler(app):
             trigger='cron', day_of_week='sun', hour=3, minute=30, args=[app],
             id='retention_purge',
             name="Purge des journaux d'audit et des notifications expirés",
+            replace_existing=True, misfire_grace_time=300,
+        )
+        # Hourly: each recipient picks the day and hour of their summary.
+        scheduler.add_job(
+            func=email_service.send_weekly_digest,
+            trigger='cron', minute=0, args=[app],
+            id='weekly_digest',
+            name='Envoi du résumé hebdomadaire par email',
             replace_existing=True, misfire_grace_time=300,
         )
 

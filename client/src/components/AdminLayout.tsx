@@ -24,7 +24,7 @@ const PAGE_TITLES: PageTitleMap = [
   ['/admin/closures', 'Fermetures'],
   ['/admin/stats', 'Statistiques'],
   ['/admin/users', 'Utilisateurs'],
-  ['/admin/settings', 'Paramètres'],
+  ['/admin/settings', 'Mon restaurant'],
   ['/admin/audit-logs', "Logs d'audit"],
   ['/admin/account', 'Mon compte'],
   ['/admin', 'Calendrier'],
@@ -85,7 +85,12 @@ export function AdminLayout() {
       icon: <ChartColumn className="h-5 w-5" />,
     },
     { to: '/admin/users', label: 'Utilisateurs', icon: <Users className="h-5 w-5" /> },
-    { to: '/admin/settings', label: 'Paramètres', icon: <Settings className="h-5 w-5" /> },
+    {
+      to: '/admin/settings',
+      label: 'Mon restaurant',
+      shortLabel: 'Restaurant',
+      icon: <Settings className="h-5 w-5" />,
+    },
     { to: '/admin/audit-logs', label: "Logs d'audit", icon: <Shield className="h-5 w-5" /> },
   ];
 

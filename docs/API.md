@@ -146,6 +146,7 @@ visitor.
 | `GET` | `/v1/public/<site>/restaurant` | Site info and public configuration |
 | `POST` | `/v1/public/track` | Count one page view (`page_kind`, plus `site` for a site-scoped page); always 204 |
 | `POST` | `/v1/public/device` | Issue a signed device token for the vote widget |
+| `GET`/`POST` | `/v1/public/unsubscribe/<token>` | Turn the weekly digest off from the email; POST answers the one-click of mail clients, GET renders a confirmation page |
 | `GET` | `/v1/public/<site>/vote` | The caller's own vote (`device_id`), the dishes it may name grouped by category, the icon set to draw, and whether voting is open |
 | `POST` | `/v1/public/<site>/vote` | Rate today's published menu (`device_id`, `rating` 1-3, optional `dish_ids` and `fingerprint`) |
 
@@ -294,6 +295,8 @@ Notes:
 - `q` tolerates a typo: case, accents and ligatures are folded, then each word of
   the query must appear in the name or sit within one edit of a word of it (two
   beyond seven letters). Words of three letters or fewer must match exactly.
+- `new_only=1` keeps the dishes whose first service ever falls inside `period`;
+  with `period=all` there is no window and the filter is ignored.
 - The export writes `nom;categorie;sous_categorie;labels;certifications`, labels
   and certifications by their display name. The import reads that file back, so
   exporting a catalog and importing it into an empty one restores it; images are
@@ -323,12 +326,26 @@ Requires authentication. In-app notification center for business alerts.
 |--------|-------|-------------|
 | `GET` | `/v1/inbox` | List notifications for the current user |
 | `GET` | `/v1/inbox/unread-count` | Unread notifications count |
-| `GET` | `/v1/inbox/live-alerts` | Alerts computed on the fly (unpublished menu, service without menu, upcoming holiday); nothing is stored |
+| `GET` | `/v1/inbox/live-alerts` | Alerts computed on the fly; nothing is stored |
 | `PUT` | `/v1/inbox/<id>/read` | Mark a notification as read |
 | `PUT` | `/v1/inbox/read-all` | Mark all notifications as read |
 | `DELETE` | `/v1/inbox/<id>` | Delete a notification |
 | `GET` | `/v1/inbox/notification-preferences` | Get in-app notification preferences |
 | `PUT` | `/v1/inbox/notification-preferences` | Update in-app notification preferences |
+
+Notes:
+
+- `live-alerts` is scoped by role: a site admin sees its own site, a supervisor
+  every site of its organization. Beyond one site each rule answers as one entry
+  carrying `site_ids` and `site_names`, rather than one entry per site.
+- Rules: unpublished menu, service open without a menu, tomorrow's menu missing,
+  traffic drop, low satisfaction, vote anomaly, inactive site (supervisors only)
+  and upcoming holiday. Each is switched by its own preference key, all on by
+  default; the thresholds are environment variables (`ALERT_*`).
+- `weekly_digest` subscribes the caller to the email, `digest_day` (Monday = 0)
+  and `digest_hour` (6 to 21, Europe/Paris) say when it lands. Off by default,
+  Monday 08:00. Whatever the slot, the summary covers the last complete week,
+  Monday to Sunday.
 
 ---
 

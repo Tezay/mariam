@@ -42,8 +42,9 @@ from ..schemas.catalog import (
 )
 from ..security import get_client_ip, limiter
 from ..services import catalog_csv, text_match
-from ..services.dish_stats import MAX_BATCH, dish_stats, period_cutoff
+from ..services.dish_stats import MAX_BATCH, dish_stats, first_served, period_cutoff
 from ..services.storage import storage
+from ..utils.time import paris_today
 from .helpers import editor_required, get_user_and_restaurant
 
 catalog_bp = Blueprint(
@@ -175,6 +176,13 @@ def _filtered_dishes(restaurant_id: int) -> list:
         query = query.filter(DishCatalog.certifications.any(Certification.id == cert_id))
 
     dishes = query.order_by(DishCatalog.name.asc()).all()
+
+    # A novelty only means something inside a bounded period.
+    if request.args.get('new_only') == '1':
+        cutoff = period_cutoff(request.args.get('period'))
+        if cutoff:
+            newcomers = first_served([restaurant_id], cutoff, paris_today())
+            dishes = [dish for dish in dishes if dish.id in newcomers]
 
     q = request.args.get('q', '').strip()
     if q:

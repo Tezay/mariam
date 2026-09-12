@@ -1,5 +1,5 @@
 /**
- * MARIAM - Page Paramètres du Restaurant
+ * MARIAM - Page Mon restaurant
  *
  * Conteneur des sept onglets de configuration. L'état est centralisé dans
  * useSettingsState ; un unique bouton « Enregistrer » sauvegarde les sections
@@ -29,7 +29,6 @@ import { HorairesTab } from './settings/HorairesTab';
 import { AccessibiliteTab } from './settings/AccessibiliteTab';
 import { CategoriesTab } from './settings/CategoriesTab';
 import { TagsTab } from './settings/TagsTab';
-import { NotificationsTab } from './settings/NotificationsTab';
 import { SatisfactionTab } from './settings/SatisfactionTab';
 import { CalendriersTab } from './settings/CalendriersTab';
 
@@ -81,7 +80,8 @@ export function SettingsPage() {
   return (
     <div className="container-mariam max-w-4xl py-6">
       <p className="mb-5 text-sm text-muted-foreground">
-        Configurez votre restaurant universitaire.
+        Les réglages de votre restaurant universitaire. Vos préférences personnelles sont dans Mon
+        compte.
       </p>
 
       <Tabs value={tab} onValueChange={setTab}>
@@ -103,9 +103,6 @@ export function SettingsPage() {
           </TabsTrigger>
           <TabsTrigger value="satisfaction" className="shrink-0 rounded-lg text-sm">
             Satisfaction
-          </TabsTrigger>
-          <TabsTrigger value="notifications" className="shrink-0 rounded-lg text-sm">
-            Notifications
           </TabsTrigger>
           <TabsTrigger value="calendriers" className="shrink-0 rounded-lg text-sm">
             Calendriers
@@ -134,10 +131,6 @@ export function SettingsPage() {
 
         <TabsContent value="satisfaction" className="mt-0">
           <SatisfactionTab state={state} />
-        </TabsContent>
-
-        <TabsContent value="notifications" className="mt-0">
-          <NotificationsTab state={state} />
         </TabsContent>
 
         <TabsContent value="calendriers" className="mt-0">

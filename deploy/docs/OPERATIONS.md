@@ -168,6 +168,45 @@ uniques, sous forme de hachage salé par un sel quotidien jamais persisté
 n'atteint PostgreSQL : les tables de fréquentation ne contiennent que des
 compteurs agrégés par site, jour, heure et type de page.
 
+### Email transactionnel (digest hebdomadaire)
+
+Le seul email envoyé par Mariam est le résumé du lundi matin, réservé aux
+comptes qui l'ont activé (`Réglages › Notifications` pour un site, `Mon compte`
+pour un directeur). Sans `SMTP_HOST`, l'envoi est un no-op journalisé : rien ne
+casse, personne ne reçoit rien.
+
+Fournisseur par défaut : **Scaleway TEM**, même hébergeur que le stockage S3 de
+production, 300 emails offerts par mois.
+
+1. Console Scaleway → Transactional Email → ajouter le domaine `mariam.app`
+2. Poser les enregistrements DNS proposés (SPF, DKIM, MX de retour) et attendre
+   la validation du domaine
+3. Créer une clé API avec la permission `TransactionalEmailFullAccess`
+4. Renseigner dans `deploy/.env` :
+
+```bash
+SMTP_HOST=smtp.tem.scaleway.com
+SMTP_PORT=587
+SMTP_USERNAME=<project_id>       # l'identifiant du projet Scaleway
+SMTP_PASSWORD=<clé API>
+SMTP_SENDER=Mariam <no-reply@mariam.app>   # doit appartenir au domaine validé
+```
+
+Vérifier sans attendre lundi :
+
+```bash
+# Lire l'email sans l'envoyer
+docker compose exec backend flask send-digest --to=directeur@exemple.fr --dry-run
+# Récupérer le rendu HTML pour l'ouvrir dans un navigateur
+docker compose exec backend flask send-digest --to=directeur@exemple.fr --html-out /tmp/digest.html
+# Envoi réel
+docker compose exec backend flask send-digest --to=directeur@exemple.fr
+```
+
+Le texte et la mise en page vivent dans `server/app/templates/emails/` : un
+dossier par langue (`EMAIL_LOCALE`, `fr` par défaut) au-dessus d'une coquille
+commune. Ajouter une langue revient à copier le dossier et à traduire.
+
 ---
 
 ## Base de données
