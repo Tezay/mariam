@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.14.0] - 2026-09-14
 
 ### Added
 
@@ -53,17 +53,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Catalogue rules**: a dish hangs from a leaf category, and no two dishes share a name inside one; each refusal names what stands in the way.
 - Search tolerates a typo, in the catalogue as in the top bar.
 - The public menu and privacy pages share one shell: a full-width light backdrop with a centred, width-capped column, serving the mobile layout up to the TV breakpoint.
-- Redis ships with the deployment (`redis:7-alpine`) instead of a managed service; `REDIS_URL` still accepts a managed instance.
-- The scheduler runs as its own container in development too, matching production.
-- Both dashboards share one shell and one table: collapsible sidebar, mobile navigation, theme toggle, and the same sortable table everywhere.
-- `/org/users` and `/org/audit` render the site dashboard's pages, which gain a site column for multi-site callers.
+- Redis ships with the deployment (`redis:8-alpine`) instead of a managed service; `REDIS_URL` still accepts a managed instance.
+- The supervision dashboard reuses the site dashboard's shell and tables, so navigation, theme and sorting behave identically on both.
 - The account page is shared by both dashboards, redesigned, and names the site or organization it belongs to.
-- Role names and icons come from a single catalog, in French everywhere (`org_admin` used to surface raw), as one neutral badge per role.
-- Supervisors are listed apart from site accounts, and account counts are labelled "Comptes" rather than "Utilisateurs".
+- Role names and icons come from a single catalog, in French everywhere, as one neutral badge per role.
+- Account counts are labelled "Comptes" rather than "Utilisateurs".
 - Account actions sit in one menu, and "Modifier" becomes "Rôle et accès", spelling out what each level allows. The accounts page points to support for the rest.
-- Users are bound to a restaurant/organization at activation; unassigned accounts no longer fall back to a default restaurant.
+- Users are bound to a restaurant/organization at activation.
 - **Production deploys pinned GHCR images** (rollback via `MARIAM_TAG`) instead of building on the server; near-zero-downtime redeploys.
-- **Push scheduler** runs as a single dedicated service instead of inside every web worker, preventing duplicate notifications.
+- **Push scheduler** runs as a single dedicated service, in development as in production, instead of inside every web worker, preventing duplicate notifications.
 - Gunicorn tuned (threaded workers, timeouts); container logs rotated and per-service resource limits set; nginx security headers added.
 - CI quality gate now runs on `main` and tags, and image publishing is gated on passing tests.
 - **Structured JSON logging** with a per-request `X-Request-ID` (level via `LOG_LEVEL`).
@@ -82,7 +80,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Public pages were rate-limited per IP address at a per-visitor budget**, so a campus behind a single NAT address ran out of menu requests at lunchtime. Both nginx and the API now budget a whole site, tunable through `PUBLIC_RATE_LIMIT`.
 - The installed app and the install walkthrough both pointed at `/admin/menus`, a route that no longer exists.
 - Image uploads larger than 1 MB were rejected: nginx `client_max_body_size` is aligned with the 32 MB backend limit.
-- nginx rate limiting now keys on the real visitor IP behind Cloudflare instead of the Cloudflare edge IP.
 - **Error boundaries** replace the previous full white-screen on an unexpected UI error (global fallback + a friendly one on public menu pages), with the error reported to Sentry.
 - **Service-worker updates** now prompt with a toast instead of reloading the page automatically; an unsaved-changes warning guards the event editor.
 - **Public visitors are no longer bounced to `/login`**: push-notification calls use a dedicated best-effort HTTP client that never redirects on 401.
@@ -92,23 +89,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- Backend dependencies updated to close published advisories: gunicorn, Flask, Werkzeug, Flask-CORS, cryptography, PyJWT, marshmallow, urllib3, aiohttp, pyasn1 and idna. Redis ships as `redis:8-alpine`.
+- Backend dependencies updated to close published advisories: gunicorn, Flask, Werkzeug, Flask-CORS, cryptography, PyJWT, marshmallow, urllib3, aiohttp, pyasn1 and idna.
 - Audit logs now include IP/browser data and configurable retention (`AUDIT_RETENTION_DAYS`, 180 days); notifications use `NOTIFICATION_RETENTION_DAYS` (90 days).
-- The production guard now refuses to start without `DEVICE_ID_SECRET`, or when it equals `JWT_SECRET_KEY`.
-- **Forwarding headers are rebuilt by nginx** from the connection's real address; a request reaching the origin directly could otherwise forge the IP that rate limiting keys on.
+- **Forwarding headers are rebuilt by nginx** from the connection's real address, so rate limiting keys on the real visitor IP behind Cloudflare; a request reaching the origin directly could otherwise forge it.
 - View counting refuses a beacon claiming a foreign origin, and caps what one visitor and one address can contribute per site and per day (`TELEMETRY_VISITOR_DAILY_CAP`, `TELEMETRY_IP_DAILY_CAP`, `TELEMETRY_IP_UNIQUE_CAP`). Addresses serve those caps alone, hashed with the daily salt, never stored in the clear.
 - The development compose file no longer carries credential values; local Web Push keys come from an untracked `.env` (see `.env.example`).
 - **A supervisor belongs to no site and manages only its peers**: it invites supervisors only and cannot touch site accounts, in either direction. A migration detaches existing supervisors from their site.
-- Requests are no longer implicitly scoped by a stored "active site"; views targeting another site say so.
 - `X-Restaurant-Id` and `X-Step-Up-Token` added to the CORS allow-list, for cross-origin deployments.
-- **Multi-tenant isolation enforced** on events, closures, users, settings, audit logs and imports (scoped to the caller's restaurant/organization); the "first active restaurant" fallback is removed and cross-tenant access now returns 404.
+- **Multi-tenant isolation enforced** on events, closures, users, settings, audit logs and imports (scoped to the caller's restaurant/organization). Requests are no longer implicitly scoped by a stored "active site", the "first active restaurant" fallback is gone, and cross-tenant access returns 404.
 - **Token revocation on credential changes**: password change/reset and MFA reset invalidate all outstanding tokens; changing your own password requires re-login.
 - **Stored-XSS fixed** on the public event display (descriptions escaped before markdown rendering).
 - **Privilege-escalation guards** on role assignment and cross-scope user reassignment.
 - **MFA secrets encrypted at rest** (Fernet, `MFA_ENCRYPTION_KEY`, required in production).
 - **Hardened image uploads**: files are decoded and re-encoded through Pillow (rejects fake/polyglot images, strips EXIF) and the content type is derived server-side, not trusted from the client.
 - **Login anti-enumeration** (unknown email and wrong password are indistinguishable in message and timing); MFA login tokens are single-use; password reset is limited to 3/hour.
-- **Startup guard extended**: production refuses to boot without `MFA_ENCRYPTION_KEY`, `DATABASE_URL` and S3 credentials.
+- **Startup guard**: production refuses to boot without `MFA_ENCRYPTION_KEY`, `DATABASE_URL`, S3 credentials or `DEVICE_ID_SECRET`, or when `DEVICE_ID_SECRET` equals `JWT_SECRET_KEY`.
 
 ## [0.13.0] - 2026-07-06
 
