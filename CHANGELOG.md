@@ -5,70 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.14.0] - 2026-09-14
+## [0.15.0] - 2026-09-14
 
 ### Added
 
-- **Menu satisfaction vote**: three anonymous levels on the day's published menu, one per device, organization and day, editable until midnight. An optional follow-up names the dish eaten.
-- **Satisfaction page and settings** (`GET /v1/analytics/satisfaction`, `Réglages › Satisfaction`): distribution, daily score, per-site comparison, best- and worst-rated dishes and participation against unique visitors; the vote, its icon set and the categories offering dishes are set per site.
-- Anti-fraud for the vote: a server-signed device token replicated across three browser stores, a ThumbmarkJS browser signature bound to it for the day in Redis only, and a per-address daily cap on new votes sized for a shared campus network (`DEVICE_ID_SECRET`, `VOTE_IP_DAILY_CAP`, `VOTE_DEVICE_MINT_PER_HOUR`). The signature is computed only when a vote is cast, and the token is stripped from the vote the day after.
-- **Privacy notice** at `/privacy`, linked from the public menu, covering the anonymous counters and the vote's fraud detection.
-- **Five alert rules on both dashboards**: tomorrow's menu missing, traffic drop, low satisfaction, vote anomaly, and inactive site for supervisors. Each has a switch, thresholds by environment (`ALERT_*`), and the bell now reaches `/org`.
+- **Multi-tenancy**: new `Organization` entity and `org_admin` (supervisor) role; restaurants gain an `organization_id` and a URL-safe slug. A supervision dashboard at `/org` covers every site of an organization, with its own installable app, cross-site accounts and audit log, and `flask create-org` / `flask create-invite` bootstrap a tenant in production.
+- **Multi-tenant public routing** and a slugged public API (`/v1/public/<restaurant>/…`): the tenant is resolved from the request host, a single-site organization serves its menu at the root and a multi-site one lists its sites. Legacy `?restaurant_id=` endpoints kept for compatibility.
+- **Analytics dashboard** (`GET /v1/analytics/*`) scoped by role: a site admin sees its own site, a supervisor every site of its organization, on the same screens. Publication, traffic and satisfaction views, filtered by period and sites, with a statistics page in the site dashboard.
+- **Public-page telemetry**: anonymous and aggregate-only, no cookie, nothing stored on the device. Counters live in Redis and are flushed every five minutes; unique visitors come from a HyperLogLog over IP and user-agent hashes, salted with a key that rotates daily and is never persisted. Signage screens are reported apart, never as visits.
+- **Menu satisfaction vote**: three anonymous levels on the day's published menu, one per device, organization and day, editable until midnight, with an optional follow-up naming the dish eaten. Anti-fraud pairs a server-signed device token with a browser signature kept in Redis for the day only, plus a per-address daily cap sized for a shared campus network (`DEVICE_ID_SECRET`, `VOTE_IP_DAILY_CAP`, `VOTE_DEVICE_MINT_PER_HOUR`).
+- **Catalogue selection and bulk actions**: lasso, Ctrl/Cmd-click, Shift-click and a right-click menu, then delete, change category, add or remove labels, or export. CSV export and import round-trip a dish with its category path, labels and certifications.
+- **Dish ratings and organization catalogue**: score, breakdown, trend and rank within the category on a dish page, which says why a dish has none; and a read-only org-wide pool with presence, usage, photo coverage and satisfaction per site.
+- **Alerts on both dashboards**: tomorrow's menu missing, traffic drop, low satisfaction, vote anomaly, and inactive site for supervisors. Each has a switch and thresholds set by environment (`ALERT_*`).
 - **Weekly email digest**, opt-in, on the day and hour of your choosing, with figures written for the reader's role. Plain SMTP (`SMTP_*`), one-click unsubscribe, layout in `app/templates/emails/`.
-- **Dish selection and bulk actions on the catalogue**: lasso, Ctrl/Cmd-click, Shift-click and a right-click menu, then delete, change category, add or remove labels, or export the selection. A dish already served in a menu is kept.
-- **Catalogue export and import in CSV** (`GET /v1/catalog/export`): a line per dish with its category path, labels and certifications; re-importing such a file restores them.
-- **Organization catalogue** (`GET /v1/org/catalog`): every dish the sites serve, pooled by name, with presence, usage, photo coverage and satisfaction per site. Read-only.
-- **Dish ratings on the catalogue** (`GET /v1/catalog/stats?ids=`): score, breakdown, trend and rank within the category on a dish page, which says why a dish has none.
-- The supervision overview surfaces the most-served and best-rated dishes.
-- **Vos données** dialog on the account page: personal-data use, retention, sub-processors and security.
-- `flask seed-demo` now generates a month of traffic and ratings.
-- **Public-page telemetry**: anonymous and aggregate-only — no cookie, nothing stored on the device. Counters live in Redis and are flushed every five minutes; unique visitors come from a HyperLogLog over IP and user-agent hashes, salted with a key that rotates daily and is never persisted.
-- **Traffic page** (`GET /v1/analytics/traffic`): daily series, hour profile, peak hour, per-site comparison and page-kind split. Signage screens are reported apart, never as visits.
-- Three scheduled jobs: counter flush, previous-day visitor close, purge past retention (`TELEMETRY_RETENTION_DAYS`, 400 days).
-- Visits and a two-week trend per site in the supervision overview, and each site's traffic on its own page.
-- **Analytics dashboard** (`GET /v1/analytics/overview`, `GET /v1/analytics/publications`) scoped by role: a site admin sees its own site, a supervisor every site of its organization, on the same screens. Filters: `period=7d|30d|90d`, custom `start`/`end`, `site_ids`.
-- **Publication metrics**: publication rate on opening days, punctuality against service hours, lead time, content completeness and a site × day status matrix.
-- **Statistics page** in the site dashboard, on the same views as the supervision dashboard.
 - **Step-up authentication** (`POST /v1/auth/step-up/…`): a single-use five-minute proof, by passkey or password + TOTP, sent as `X-Step-Up-Token`. Deleting an account now requires it.
-- A site's week of menus, read-only, on its supervision page.
-- Audit logs filterable by site when the caller oversees several.
-- The sidebar names the current tenant: the site, or the organization on the supervision dashboard.
-- Supervisors get their own installable app, opening on the supervision dashboard.
-- Short-lived Redis cache for analytics aggregates (`ORG_CACHE_TTL_SECONDS`, 60s); recomputed per request without Redis.
-- **Organization → Restaurant hierarchy**: new `Organization` entity and `org_admin` (supervisor) role; restaurants gain `organization_id` and a URL-safe `slug`.
-- **Automated off-site backups**: daily Postgres `pg_dump` to a dedicated S3 bucket with retention, plus a `restore.sh` script.
-- **Error tracking (Sentry)** for backend and frontend, enabled via environment.
-- **Readiness probe** `GET /health/ready` (checks DB and Redis) for external uptime monitoring.
-- **Slugged public API** (`/v1/public/<restaurant>/…`): tenant resolved from the request host (subdomain = organization) and the restaurant slug, with an `/v1/public/org` bootstrap endpoint. Legacy `?restaurant_id=` endpoints kept for compatibility.
-- **Multi-tenant public routing**: the tenant is resolved from the host; a single-site organization serves its menu at the root (`/menu`), a multi-site organization lists its sites (each menu at `/:slug/menu`). Public pages now use the slugged API.
-- **Supervision dashboard** (`/org`): a dedicated cross-site overview for `org_admin` (KPIs, per-site status, org-wide accounts and audit log), separate from the per-site dashboard, which a supervisor does not access.
-- **CLI provisioning commands**: `flask create-org` (create a client organization) and `flask create-invite` (create an activation link for any role) to bootstrap a new tenant or its supervisor in production.
-- **Server-rendered SEO** for public menu pages: per-restaurant `<title>`, description, Open Graph/Twitter tags and Schema.org JSON-LD (`Restaurant` + today's menu) injected into the shell so link previews and search engines work without running JavaScript. Adds a per-host `sitemap.xml`, updated `robots.txt`, and wildcard-host serving (`*.mariam.app`).
+- **Privacy notice** at `/privacy`, linked from the public menu, plus a **Vos données** dialog on the account page covering use, retention, sub-processors and security.
+- **Server-rendered SEO** for public menu pages: per-restaurant title, description, Open Graph/Twitter tags and Schema.org JSON-LD injected into the shell so link previews and search engines work without running JavaScript. Adds a per-host `sitemap.xml`, updated `robots.txt` and wildcard-host serving.
+- **Production readiness**: daily off-site Postgres backups to a dedicated S3 bucket with a `restore.sh` script, error tracking through Sentry, and a `GET /health/ready` probe checking the database and Redis.
 
 ### Changed
 
-- Notification preferences move to the account page, where each switch saves on the spot; the settings entry becomes « Mon restaurant ».
-- **The catalogue is one set of components for both dashboards**: the same list, filters and dish page for a site admin and a supervisor, cards on mobile and a sortable table on desktop, over a period that bounds services, reviews and score together.
-- **A dish page is read-first**, edited in place behind a save bar; it replaces the two divergent edit forms. Comparing dishes moves to a page of its own (`/admin/catalogue/compare`).
+- **The catalogue is one module for both dashboards**: the same list, filters and dish page for a site admin and a supervisor, cards on mobile and a sortable table on desktop, over a period that bounds services, reviews and score together. A dish page is read-first, edited in place behind a save bar, and comparison moves to a page of its own.
 - **Catalogue rules**: a dish hangs from a leaf category, and no two dishes share a name inside one; each refusal names what stands in the way.
-- Search tolerates a typo, in the catalogue as in the top bar.
-- The public menu and privacy pages share one shell: a full-width light backdrop with a centred, width-capped column, serving the mobile layout up to the TV breakpoint.
+- **Production deploys pinned GHCR images** (rollback via `MARIAM_TAG`) instead of building on the server, the push scheduler runs as its own service rather than inside every web worker, and image publishing is gated on the quality suite.
 - Redis ships with the deployment (`redis:8-alpine`) instead of a managed service; `REDIS_URL` still accepts a managed instance.
-- The supervision dashboard reuses the site dashboard's shell and tables, so navigation, theme and sorting behave identically on both.
-- The account page is shared by both dashboards, redesigned, and names the site or organization it belongs to.
-- Role names and icons come from a single catalog, in French everywhere, as one neutral badge per role.
-- Account counts are labelled "Comptes" rather than "Utilisateurs".
-- Account actions sit in one menu, and "Modifier" becomes "Rôle et accès", spelling out what each level allows. The accounts page points to support for the rest.
-- Users are bound to a restaurant/organization at activation.
-- **Production deploys pinned GHCR images** (rollback via `MARIAM_TAG`) instead of building on the server; near-zero-downtime redeploys.
-- **Push scheduler** runs as a single dedicated service, in development as in production, instead of inside every web worker, preventing duplicate notifications.
-- Gunicorn tuned (threaded workers, timeouts); container logs rotated and per-service resource limits set; nginx security headers added.
-- CI quality gate now runs on `main` and tags, and image publishing is gated on passing tests.
-- **Structured JSON logging** with a per-request `X-Request-ID` (level via `LOG_LEVEL`).
-- **Code-splitting**: the admin, organization and auth pages are now loaded on demand, so a public visitor no longer downloads the admin bundle (the public entry chunk roughly halved).
-- **Data fetching migrated to TanStack Query**: the public menu, the admin calendar and the dish catalogue now use React Query instead of hand-rolled caches and polling.
-- **Opt-in pagination** on the users and restaurants lists (`?page=`/`?per_page=`); the default response shape is unchanged.
-- Audit log now covers menu/event image upload and deletion and calendar-settings changes; added a `menu_items(menu_id, dish_id)` index.
+- **Frontend performance**: admin, organization and auth pages load on demand, so a public visitor no longer downloads the admin bundle, and data fetching moved to TanStack Query instead of hand-rolled caches and polling.
+- **Dashboard consistency**: both dashboards share one shell, one account page and one set of tables; notification preferences move to the account page and save on the spot; role names and icons come from a single catalog; search tolerates a typo; the settings entry becomes « Mon restaurant ».
+- Users are bound to a restaurant or organization at activation.
+- Operational tuning: threaded Gunicorn workers and timeouts, rotated container logs, per-service resource limits, nginx security headers, structured JSON logging with a per-request `X-Request-ID`, and opt-in pagination on the users and restaurants lists.
 
 ### Removed
 
@@ -78,32 +42,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Public pages were rate-limited per IP address at a per-visitor budget**, so a campus behind a single NAT address ran out of menu requests at lunchtime. Both nginx and the API now budget a whole site, tunable through `PUBLIC_RATE_LIMIT`.
-- The installed app and the install walkthrough both pointed at `/admin/menus`, a route that no longer exists.
 - Image uploads larger than 1 MB were rejected: nginx `client_max_body_size` is aligned with the 32 MB backend limit.
-- **Error boundaries** replace the previous full white-screen on an unexpected UI error (global fallback + a friendly one on public menu pages), with the error reported to Sentry.
-- **Service-worker updates** now prompt with a toast instead of reloading the page automatically; an unsaved-changes warning guards the event editor.
-- **Public visitors are no longer bounced to `/login`**: push-notification calls use a dedicated best-effort HTTP client that never redirects on 401.
-- **Dark-mode flash (FOUC)** removed via an inline pre-paint theme script.
-- Image previews no longer leak object URLs (effect cleanup now runs) and use stable keys; the TV display uses `transform` instead of the non-standard `zoom` (Firefox), stable keys, and guards invalid dates.
-- Public menu day selection uses the Europe/Paris day of week regardless of the viewer's timezone.
+- **Error boundaries** replace the previous full white-screen on an unexpected UI error, with the error reported to Sentry, and service-worker updates prompt with a toast instead of reloading the page.
+- Public pages no longer bounce a visitor to `/login` on a push-notification call, the dark-mode flash is gone, image previews no longer leak object URLs, and the public menu picks its day in Europe/Paris whatever the viewer's timezone.
 
 ### Security
 
-- Backend dependencies updated to close published advisories: gunicorn, Flask, Werkzeug, Flask-CORS, cryptography, PyJWT, marshmallow, urllib3, aiohttp, pyasn1 and idna.
-- Audit logs now include IP/browser data and configurable retention (`AUDIT_RETENTION_DAYS`, 180 days); notifications use `NOTIFICATION_RETENTION_DAYS` (90 days).
-- **Forwarding headers are rebuilt by nginx** from the connection's real address, so rate limiting keys on the real visitor IP behind Cloudflare; a request reaching the origin directly could otherwise forge it.
-- View counting refuses a beacon claiming a foreign origin, and caps what one visitor and one address can contribute per site and per day (`TELEMETRY_VISITOR_DAILY_CAP`, `TELEMETRY_IP_DAILY_CAP`, `TELEMETRY_IP_UNIQUE_CAP`). Addresses serve those caps alone, hashed with the daily salt, never stored in the clear.
-- The development compose file no longer carries credential values; local Web Push keys come from an untracked `.env` (see `.env.example`).
+- **Multi-tenant isolation enforced** on events, closures, users, settings, audit logs and imports (scoped to the caller's restaurant or organization). Requests are no longer implicitly scoped by a stored "active site", the "first active restaurant" fallback is gone, and cross-tenant access returns 404.
 - **A supervisor belongs to no site and manages only its peers**: it invites supervisors only and cannot touch site accounts, in either direction. A migration detaches existing supervisors from their site.
-- `X-Restaurant-Id` and `X-Step-Up-Token` added to the CORS allow-list, for cross-origin deployments.
-- **Multi-tenant isolation enforced** on events, closures, users, settings, audit logs and imports (scoped to the caller's restaurant/organization). Requests are no longer implicitly scoped by a stored "active site", the "first active restaurant" fallback is gone, and cross-tenant access returns 404.
 - **Token revocation on credential changes**: password change/reset and MFA reset invalidate all outstanding tokens; changing your own password requires re-login.
-- **Stored-XSS fixed** on the public event display (descriptions escaped before markdown rendering).
-- **Privilege-escalation guards** on role assignment and cross-scope user reassignment.
 - **MFA secrets encrypted at rest** (Fernet, `MFA_ENCRYPTION_KEY`, required in production).
-- **Hardened image uploads**: files are decoded and re-encoded through Pillow (rejects fake/polyglot images, strips EXIF) and the content type is derived server-side, not trusted from the client.
-- **Login anti-enumeration** (unknown email and wrong password are indistinguishable in message and timing); MFA login tokens are single-use; password reset is limited to 3/hour.
+- **Hardened image uploads**: files are decoded and re-encoded through Pillow (rejects fake and polyglot images, strips EXIF) and the content type is derived server-side, not trusted from the client.
+- **Stored-XSS fixed** on the public event display, and privilege-escalation guards added on role assignment and cross-scope user reassignment.
+- **Login anti-enumeration**: unknown email and wrong password are indistinguishable in message and timing; MFA login tokens are single-use; password reset is limited to 3 per hour.
+- **Forwarding headers are rebuilt by nginx** from the connection's real address, so rate limiting keys on the real visitor IP behind Cloudflare; a request reaching the origin directly could otherwise forge it.
+- View counting refuses a beacon claiming a foreign origin and caps what one visitor and one address can contribute per site and per day (`TELEMETRY_*_CAP`). Addresses serve those caps alone, hashed with the daily salt, never stored in the clear.
+- Audit logs record IP and browser with a configurable retention (`AUDIT_RETENTION_DAYS`, 180 days); notifications use `NOTIFICATION_RETENTION_DAYS` (90 days).
 - **Startup guard**: production refuses to boot without `MFA_ENCRYPTION_KEY`, `DATABASE_URL`, S3 credentials or `DEVICE_ID_SECRET`, or when `DEVICE_ID_SECRET` equals `JWT_SECRET_KEY`.
+- Backend dependencies updated to close published advisories: gunicorn, Flask, Werkzeug, Flask-CORS, cryptography, PyJWT, marshmallow, urllib3, aiohttp, pyasn1 and idna.
+- The development compose file no longer carries credential values; local Web Push keys come from an untracked `.env`.
 
 ## [0.13.0] - 2026-07-06
 
