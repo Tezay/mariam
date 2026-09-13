@@ -92,6 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Backend dependencies updated to close published advisories: gunicorn, Flask, Werkzeug, Flask-CORS, cryptography, PyJWT, marshmallow, urllib3, aiohttp, pyasn1 and idna. Redis ships as `redis:8-alpine`.
 - Audit logs now include IP/browser data and configurable retention (`AUDIT_RETENTION_DAYS`, 180 days); notifications use `NOTIFICATION_RETENTION_DAYS` (90 days).
 - The production guard now refuses to start without `DEVICE_ID_SECRET`, or when it equals `JWT_SECRET_KEY`.
 - **Forwarding headers are rebuilt by nginx** from the connection's real address; a request reaching the origin directly could otherwise forge the IP that rate limiting keys on.
