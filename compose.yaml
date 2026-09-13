@@ -73,7 +73,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: mariam_redis
     # Every key we store carries a TTL; volatile-ttl evicts the oldest of those
     # under pressure, where allkeys-* could drop a lock or a revoked token.
