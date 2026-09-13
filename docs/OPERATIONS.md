@@ -244,7 +244,7 @@ Images are published to GHCR on every tag.
 
 ```bash
 # in deploy/.env
-MARIAM_TAG=0.13.0
+MARIAM_TAG=0.14.0
 ./deploy/scripts/run.sh
 ```
 
