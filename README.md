@@ -1,234 +1,93 @@
-# MARIAM
+# Mariam
 
-> **Plateforme de Gestion des Menus Universitaires**
+Menu management for university restaurants.
 
-MARIAM est une solution moderne pour faciliter la communication des menus de restauration universitaire. Elle permet aux gestionnaires de RU de préparer et publier les menus, et aux étudiants de les consulter facilement sur mobile ou sur écrans TV.
+[![Quality Gates](https://img.shields.io/github/actions/workflow/status/Tezay/mariam/quality.yml?branch=main&label=quality%20gates)](https://github.com/Tezay/mariam/actions/workflows/quality.yml)
+[![Release](https://img.shields.io/github/v/release/Tezay/mariam?include_prereleases)](https://github.com/Tezay/mariam/releases)
+[![License](https://img.shields.io/badge/license-Source%20Available-blue)](LICENSE.md)
+[![mariam.app](https://img.shields.io/badge/mariam.app-informational)](https://mariam.app)
 
-## 📋 Fonctionnalités
+**English** | [Français](README.fr.md)
 
-### Pour les gestionnaires
-- **Calendrier unifié** - Vues jour/semaine/mois/année pour préparer et publier les menus
-- **Catalogue de plats** - Plats réutilisables par restaurant, avec image, tags, certifications et statistiques d'utilisation
-- **Éditeur simple** - Saisie rapide par catégorie (entrées, plat, VG, desserts) avec suggestions issues du catalogue
-- **Import CSV / Excel** - Import en masse des menus depuis un fichier
-- **Publication** - Publier un jour ou toute la semaine en un clic
-- **Événements & fermetures** - Annoncer les événements spéciaux et gérer les fermetures exceptionnelles
-- **Centre de notifications** - Alertes en temps réel (menu non publié, jour férié à venir) et préférences par utilisateur
-- **Mot du chef** - Note personnalisée affichée dans le bandeau TV
-- **Gestion des utilisateurs** - Inviter, modifier les rôles, réinitialiser MFA
+[![Mariam dashboard](docs/assets/dashboard.webp)](https://mariam.app)
 
-### Pour les étudiants
-- **Mobile-first** - Interface optimisée pour smartphone
-- **Mode TV** - Affichage plein écran pour les restaurants
-- **Tags alimentaires** - 17 tags (Végétarien, Sans porc, Sans gluten, Fait maison, Épicé…) avec icônes
-- **Certifications officielles** - 11 labels (AB, Label Rouge, Eurofeuille, MSC…) avec logos SVG
-- **Accès instantané** - Pas de connexion requise
+## Overview
 
-### Sécurité pour les gestionnaires
-- **Authentification MFA** - Double authentification obligatoire
-- **Mot de passe fort** - Validation de complexité
-- **Audit log** - Traçabilité des actions sensibles
-- **Sessions courtes** - Adapté aux postes partagés
+Mariam lets catering staff prepare and publish daily menus, and lets students read them on a phone
+or on in-restaurant screens, without an account.
 
-## 🏗️ Architecture
+It is multi-tenant: an organization owns any number of sites, each with its own dashboard, public
+page and data. Supervisors get a separate dashboard spanning every site they oversee. The same
+analytics views serve both, scoped by role.
 
-```
-┌──────────────────────────────┐
-│           Frontend           │
-│         React / Vite         │
-│          Port 5173           │
-└───────────────┬──────────────┘
-                │
-                │  HTTP + JWT
-                ▼
-┌──────────────────────────────┐
-│            Backend           │
-│           Flask API          │
-│           Port 5000          │
-└───────────┬──────────┬───────┘
-            │          │
-   SQL (TCP)│          │ S3 API
-            ▼          ▼
-┌──────────────┐ ┌─────────────┐
-│  PostgreSQL  │ │  Stockage   │
-│  Port 5432   │ │  S3 / MinIO │
-│              │ │  Port 9000  │
-└──────────────┘ └─────────────┘
-```
+## Features
 
-> **Stockage S3** : MinIO en développement, [Scaleway Object Storage](https://www.scaleway.com/en/object-storage/) en production. Utilisé pour les photos de plats du catalogue, les images d'événements et les logos.
+**For catering staff**
 
-## 🚀 Mise en Production
+- Unified calendar with day, week, month and year views
+- Dish catalogue with images, dietary labels, certifications and usage statistics
+- CSV import and export, round-trip safe
+- One-click publication, per day or per week
+- Events, exceptional closures and a chef's note
+- Real-time alerts, weekly email digest, per-user preferences
 
-Le guide complet pour le démarrage et la configuration en production est détaillé dans le fichier [./deploy/docs/INSTALL.md](./deploy/docs/INSTALL.md).
+**For students**
 
-## 🛠️ Démarrage en Développement
+- Mobile-first menu, no account required
+- Full-screen display mode for in-restaurant screens
+- Dietary labels and official certifications on every dish
+- Three-level satisfaction vote, anonymous and fraud-resistant
 
-### Prérequis
-- Docker & Docker Compose
+**For supervisors**
 
-### 1. Cloner
+- Cross-site overview: publication, traffic, satisfaction, site ranking
+- Per-site drill-down on the same views
+- Organization-wide dish catalogue, accounts and audit log
+
+## Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 18, TypeScript, Vite, Tailwind, shadcn/ui, Recharts, TanStack Query |
+| Backend | Flask 3, flask-smorest, SQLAlchemy 2, Alembic, Gunicorn |
+| Data | PostgreSQL 15, Redis 8, S3-compatible object storage |
+| Infrastructure | Docker Compose, Nginx, GitHub Actions |
+
+## Quick start
 
 ```bash
-cd Mariam
+git clone https://github.com/Tezay/mariam
+cd mariam
+docker compose up -d --build
 ```
 
-Aucune configuration n'est nécessaire : la stack de développement démarre avec
-les valeurs de test de `compose.yaml`. Pour surcharger une variable —
-activer les notifications push en local, par exemple — copiez `.env.example`
-en `.env` et remplissez ce dont vous avez besoin. La configuration de
-production, elle, se fait dans `deploy/.env` (voir
-[deploy/docs/INSTALL.md](./deploy/docs/INSTALL.md)).
+Frontend on `https://localhost:5173`, API on `http://localhost:5000`, OpenAPI at `/api/v1/docs`.
+See [docs/INSTALL.md](docs/INSTALL.md) for production.
 
-### 2. Lancer en développement
+## Documentation
 
-```bash
-docker compose up --build
-```
+| Document | Contents |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, multi-tenancy, data model |
+| [docs/INSTALL.md](docs/INSTALL.md) | Production installation and configuration |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md) | Deployment, backups, monitoring, provisioning |
+| [docs/API.md](docs/API.md) | REST reference |
+| [docs/TESTING.md](docs/TESTING.md) | Test suites and how to run them |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup and conventions |
+| [SECURITY.md](SECURITY.md) | Vulnerability reporting |
+| [CHANGELOG.md](CHANGELOG.md) | Release history |
 
-L'application sera accessible sur :
-- **Frontend** : http://localhost:5173
-- **API** : http://localhost:5000/health
-- **MinIO Console** : http://localhost:9001 (identifiants : `mariam_minio` / `mariam_minio_secret`)
-
-> MinIO démarre automatiquement via Docker Compose et fournit un stockage S3-compatible local. Le bucket `mariam-uploads` est créé automatiquement au premier lancement du backend.
-
-### 3. Créer le premier administrateur
-
-```bash
-# Générer le lien d'activation
-docker compose exec backend flask create-activation-link
-
-# Initialiser le restaurant par défaut
-docker compose exec backend flask init-restaurant
-```
-
-Ouvrez le lien affiché pour créer votre compte admin avec MFA.
-
-## 📁 Structure du Projet
+## Repository layout
 
 ```
-Mariam/
-├── compose.yaml                # Orchestration développement
-├── .env.example                # Surcharges facultatives du dev
-├── deploy/                     # Configuration production
-│   ├── compose.yaml
-│   ├── .env.example            # Variables de production (requises)
-│   ├── nginx/
-│   └── scripts/
-├── server/                     # Backend Flask
-│   ├── app/
-│   │   ├── __init__.py        # Factory pattern
-│   │   ├── data/              # taxonomy.py (registre tags & certifications)
-│   │   ├── models/            # User, Restaurant, Menu, DishCatalog, Event, Notification...
-│   │   ├── routes/            # auth, menus, catalog, inbox, events, closures, restaurant, users, audit, imports...
-│   │   └── services/
-│   │       ├── storage.py     # Service S3 (upload, delete, gestion bucket)
-│   │       ├── holidays.py    # Proxy jours fériés (cache Redis)
-│   │       └── notification_service.py  # Web Push + alertes
-│   ├── migrations/            # Alembic (schéma BDD)
-│   ├── tests/                 # Suites pytest
-│   ├── pyproject.toml         # Dépendances Python + config ruff/mypy/pytest
-│   └── uv.lock
-└── client/                    # Frontend React
-    └── src/
-        ├── pages/
-        │   ├── Login.tsx
-        │   ├── Activate.tsx
-        │   ├── admin/CataloguePage.tsx      # Catalogue de plats
-        │   ├── admin/calendar/              # Calendrier unifié (jour/semaine/mois/année)
-        │   ├── admin/settings/              # Onglets de la page Paramètres
-        │   └── public/MenuDisplay.tsx
-        ├── components/
-        │   └── layout/                      # Shell admin (sidebar, topbar)
-        └── lib/api.ts                       # Client API avec interceptors
+client/   React frontend
+server/   Flask backend, migrations, tests
+deploy/   Production compose, Nginx, scripts
+docs/     Technical documentation
 ```
 
-## 🔌 API
+## License
 
-L'API REST de MARIAM expose toutes ses ressources sous le préfixe `/v1`. Elle est destinée aux développeurs souhaitant intégrer les données de menu dans une application tierce (affichage dynamique, appli étudiante, etc.).
-
-- **Documentation interactive (Swagger UI)** : `https://<your-ru>.mariam.app/docs`
-- **Référence complète** : [docs/API.md](./docs/API.md)
-
-## 🖥️ Mode TV
-
-Pour afficher le menu sur un écran TV, utilisez :
-
-```
-http://localhost:5173/menu?mode=tv
-```
-
-Ou laissez la détection automatique fonctionner (> 1920px de large).
-
-## Stockage S3 (Images)
-
-MARIAM utilise un stockage **S3-compatible** pour gérer les images uploadées par les gestionnaires.
-
-### Utilisation
-
-| Fonctionnalité | Limite | Préfixe S3 |
-|----------------|--------|------------|
-| Photos de plats (catalogue) | 1 par plat | `catalog/` |
-| Images événements | 10 par événement | `events/` |
-| Logos restaurant | 1 par restaurant | `logos/` |
-
-**Contraintes** : 5 Mo max par image, formats acceptés : JPG, PNG, GIF, WebP.
-
-### En développement
-
-MinIO est inclus dans le `compose.yaml` et démarre automatiquement :
-- **API S3** : `http://localhost:9000`
-- **Console web** : `http://localhost:9001`
-- **Identifiants** : `mariam_minio` / `mariam_minio_secret`
-
-Le bucket `mariam-uploads` est créé automatiquement par le backend au démarrage.
-
-### En production
-
-En production, configurez un fournisseur S3-compatible (ex : Scaleway Object Storage) via les variables d'environnement :
-
-| Variable | Description | Exemple |
-|----------|-------------|---------|
-| `S3_ENDPOINT_URL` | URL du service S3 | `https://s3.fr-par.scw.cloud` |
-| `S3_ACCESS_KEY_ID` | Clé d'accès | — |
-| `S3_SECRET_ACCESS_KEY` | Clé secrète | — |
-| `S3_BUCKET_NAME` | Nom du bucket | `mariam-uploads` |
-| `S3_REGION` | Région | `fr-par` |
-| `S3_PUBLIC_URL` | URL publique du bucket | `https://mariam-uploads.s3.fr-par.scw.cloud` |
-
-> Voir le guide complet dans [deploy/docs/INSTALL.md](./deploy/docs/INSTALL.md#configuration-scaleway-object-storage).
-
-### Architecture du service
-
-Le service `StorageService` (`server/app/services/storage.py`) encapsule toute l'interaction S3 via boto3 :
-- Initialisation automatique du client et création du bucket
-- Upload avec génération de noms uniques (UUID)
-- Suppression par URL publique
-- Validation du type MIME et de la taille
-
-## 📦 Technologies
-
-- **Backend** : Flask, SQLAlchemy, Flask-JWT-Extended, PyOTP, boto3
-- **Frontend** : React, Vite, TailwindCSS, Shadcn/UI, Lucide React
-- **Base de données** : PostgreSQL
-- **Stockage** : S3-compatible (MinIO en dev, Scaleway Object Storage en prod)
-- **Conteneurisation** : Docker, Docker Compose
-
-## 📄 Licence
-
-Ce projet est distribué sous la **MARIAM Source Available License 1.0.0** (basée sur PolyForm Noncommercial).
-
-### Résumé des droits
-- **Usage Personnel** : Gratuit et libre pour un usage domestique ou de test.
-- **Usage Commercial & Institutionnel** : Interdit sans licence. Cela inclut l'usage en **Restaurant Universitaire**, cantine, entreprise, ou toute structure administrative.
-
-### Usage Professionnel
-Pour utiliser MARIAM dans un cadre professionnel (Restaurant Universitaire, Entreprise, Administration), **vous devez acquérir une licence commerciale**.
-
-👉 [Voir la licence complète](./LICENSE.md)  
-👉 [Voir un modèle de contrat commercial](./COMMERCIAL_LICENSE_TEMPLATE.md)
-
----
-
-**MARIAM** - *Gestion des menus, simplement.*
+Source available, not open source: see [LICENSE.md](LICENSE.md). Non-commercial use is granted
+under those terms; commercial use requires a separate agreement, see
+[COMMERCIAL_LICENSE_TEMPLATE.md](COMMERCIAL_LICENSE_TEMPLATE.md).

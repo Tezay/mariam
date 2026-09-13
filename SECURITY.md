@@ -6,8 +6,8 @@ Only the latest released version is actively supported with security fixes.
 
 | Version | Supported |
 |---------|-----------|
-| latest  | ✅ |
-| < latest | ❌ |
+| latest | Yes |
+| earlier | No |
 
 ## Reporting a Vulnerability
 
@@ -23,10 +23,11 @@ Send a report to **contact@mariam.app** with:
 
 The following areas are in scope:
 
-- **Authentication & session management** — JWT handling, MFA/TOTP, Passkeys/WebAuthn
-- **Authorization** — role enforcement (admin / editor / reader), route access control
-- **File uploads** — MIME type validation, storage isolation
-- **Public API data exposure** — ensuring draft menus and private data are never visible anonymously
-- **Rate limiting** — bypass or circumvention of brute-force protections
+- **Authentication & session management:** JWT handling, MFA/TOTP, Passkeys/WebAuthn
+- **Authorization:** role enforcement (org_admin / admin / editor / reader), route access control
+- **Tenant isolation:** data of one organization or site reachable from another
+- **File uploads:** MIME type validation, storage isolation
+- **Public API data exposure:** ensuring draft menus and private data are never visible anonymously
+- **Rate limiting:** bypass or circumvention of brute-force protections
 
 Out of scope: social engineering, phishing, issues in third-party dependencies without a proof-of-concept exploit against this application.

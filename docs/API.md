@@ -1,12 +1,12 @@
-# MARIAM — API Reference
+# API Reference
 
-The MARIAM API follows REST conventions. All endpoints are prefixed with `/v1`. Responses are JSON.
+The Mariam API follows REST conventions. All endpoints are prefixed with `/v1`. Responses are JSON.
 
 **Interactive documentation (Swagger UI):** `https://<your-ru>.mariam.app/docs`
 
 ## Authentication
 
-MARIAM supports two login methods: **passkey** (biometric / FIDO2, passwordless) and **email + password + TOTP**. Every account must have at least one active 2FA method (TOTP or at least one passkey) at all times.
+Mariam supports two login methods: **passkey** (biometric / FIDO2, passwordless) and **email + password + TOTP**. Every account must have at least one active 2FA method (TOTP or at least one passkey) at all times.
 
 Authenticated requests must include the access token as a Bearer token in the `Authorization` header.
 
