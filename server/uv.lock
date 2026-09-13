@@ -1309,7 +1309,7 @@ requires-dist = [
     { name = "flask-smorest", specifier = "==0.44.0" },
     { name = "flask-sqlalchemy", specifier = "==3.1.1" },
     { name = "gunicorn", specifier = "==26.2.0" },
-    { name = "marshmallow", specifier = "==3.21.0" },
+    { name = "marshmallow", specifier = "==3.26.2" },
     { name = "openpyxl", specifier = ">=3.1.0" },
     { name = "pillow", specifier = ">=10.0.0" },
     { name = "pillow-heif", specifier = ">=0.16.0" },
@@ -1413,14 +1413,14 @@ wheels = [
 
 [[package]]
 name = "marshmallow"
-version = "3.21.0"
+version = "3.26.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "packaging" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/86/14/0dec31a81b16d39b6cfcb5ddd7e560d46dc5ea0d1d1bca0bb275a679071f/marshmallow-3.21.0.tar.gz", hash = "sha256:20f53be28c6e374a711a16165fb22a8dc6003e3f7cda1285e3ca777b9193885b", size = 176342, upload-time = "2024-02-26T19:45:08.392Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/55/79/de6c16cc902f4fc372236926b0ce2ab7845268dcc30fb2fbb7f71b418631/marshmallow-3.26.2.tar.gz", hash = "sha256:bbe2adb5a03e6e3571b573f42527c6fe926e17467833660bebd11593ab8dfd57", size = 222095, upload-time = "2025-12-22T06:53:53.309Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f5/97/6e4ddd6713bba5ede1d18f3959d7bffde38e56f7f7ae7c031c9a3d746b95/marshmallow-3.21.0-py3-none-any.whl", hash = "sha256:e7997f83571c7fd476042c2c188e4ee8a78900ca5e74bd9c8097afa56624e9bd", size = 49357, upload-time = "2024-02-26T19:45:04.728Z" },
+    { url = "https://files.pythonhosted.org/packages/be/2f/5108cb3ee4ba6501748c4908b908e55f42a5b66245b4cfe0c99326e1ef6e/marshmallow-3.26.2-py3-none-any.whl", hash = "sha256:013fa8a3c4c276c24d26d84ce934dc964e2aa794345a0f8c7e5a7191482c8a73", size = 50964, upload-time = "2025-12-22T06:53:51.801Z" },
 ]
 
 [[package]]
