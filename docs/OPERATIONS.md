@@ -37,10 +37,10 @@ An organization is a client; its slug is the public subdomain, `<slug>.mariam.ap
 docker compose -f deploy/compose.yaml exec backend \
   flask create-org --name "Example Organization" --slug example-org
 
-# 2. Invite the supervisor, attached to one site
-#    (--restaurant takes an id or the slug of an existing restaurant)
+# 2. Invite the supervisor, attached to the organization and to no site
+#    (--org takes an id or a slug; site roles take --restaurant instead)
 docker compose -f deploy/compose.yaml exec backend \
-  flask create-invite --email supervisor@example.com --role org_admin --restaurant site-a
+  flask create-invite --email supervisor@example.com --role org_admin --org example-org
 ```
 
 The command prints an activation URL (`/activate/<token>`, valid 72 hours, single use).
@@ -194,13 +194,76 @@ git pull origin main
 ./deploy/scripts/run.sh restart
 ```
 
+## Migrating a tenant to a new hostname
+
+Renaming a tenant's public hostname touches passkeys, cached service workers and printed QR codes.
+Run it while the service is closed, in this order.
+
+Before anything, list who would be locked out. A passkey is sealed to the hostname that registered
+it, so a rename invalidates every one of them; an account holding only passkeys has no way back in.
+
+```sql
+SELECT u.id, u.email, (u.mfa_secret IS NOT NULL) AS totp,
+       (SELECT COUNT(*) FROM passkeys p WHERE p.user_id = u.id) AS passkeys
+FROM users u ORDER BY u.id;
+```
+
+Any row with passkeys and no TOTP must enrol one first, or wait for an admin to reset its MFA
+afterwards. Keep one administrator account whose TOTP you control: it is what lets you reset the
+others.
+
+1. Publish the new hostname and leave the old one serving. Behind a Cloudflare Tunnel, add a public
+   hostname pointing at the same service; the CNAME is created for you. Add the domain to the
+   frontend application and redeploy it, or the proxy answers 404.
+2. Set `WEBAUTHN_RP_ID` to the apex domain rather than the tenant host, so future passkeys survive
+   every later rename. `WEBAUTHN_ORIGIN` and `FRONTEND_URL` take the new hostname; both accept a
+   single origin for WebAuthn.
+3. Update the slug, then redeploy the backend and the scheduler. The public menu answers 404 for the
+   minute it takes the containers to swap, since the slug and the deployed configuration must agree.
+
+```sql
+UPDATE organizations SET slug='new-slug' WHERE slug='old-slug';
+```
+
+4. Check the new hostname end to end before redirecting anything: public menu, then an admin login
+   with password and TOTP.
+5. Redirect the old hostname with a 301 that preserves the path, or printed QR codes pointing at
+   `/menu` land on a root. Keep its DNS record: the rule only fires if the name still resolves.
+6. Drop the dead credentials, then tell their owners to enrol again.
+
+```sql
+DELETE FROM passkeys;
+```
+
+A device that already visited the old hostname serves the app from its service worker cache without
+touching the network, so the redirect never reaches it. Two measures help. Exclude the service
+worker scripts (`/sw*`) from the redirect, so the browser can still fetch them, and add
+`Clear-Site-Data: "storage"` on responses from the old hostname, which unregisters the workers and
+clears the origin. Support is wide but not universal, so set `CANONICAL_HOST` on the old
+deployment: the app then unregisters its own worker and redirects, which is the only measure that
+covers every browser.
+
 ## Troubleshooting
 
 **The application does not start.** Read `./deploy/scripts/run.sh logs`, check that every required
 variable is set in `.env`, and that the port is free (`lsof -i :80`).
 
 **Database connection errors.** Check the db container with `./deploy/scripts/run.sh status`, then
-the credentials in `.env`.
+the credentials in `.env`. `Database connection failed after 30 attempts` also appears when the
+startup guard rejects the configuration: the entrypoint probes the database with `flask db current`,
+which loads the app, so a missing secret surfaces as a connection failure. Check the variables
+before suspecting Postgres.
+
+**A healthcheck reporting `curl: not found`.** The backend image carries neither `curl` nor `wget`.
+An orchestrator that shells out for an HTTP check needs the Python equivalent, the one
+`deploy/compose.yaml` uses:
+
+```bash
+python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=3)"
+```
+
+Give it a start period long enough to cover the migrations, which run before Gunicorn accepts a
+connection.
 
 **Full reset**, which destroys all data:
 

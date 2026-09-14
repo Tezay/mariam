@@ -85,8 +85,10 @@ that is empty.
 
 ### DNS
 
-A wildcard `*.mariam.app` record (A/AAAA or CNAME) proxied through Cloudflare. `server_name _`
-accepts every subdomain and forwards the host.
+One proxied Cloudflare record per tenant host, or a wildcard `*.mariam.app` where the deployment
+allows it. Behind a Cloudflare Tunnel, each public hostname declared on the tunnel creates its own
+CNAME, so a tenant is added by declaring its hostname rather than by relying on a wildcard.
+`server_name _` accepts every subdomain and forwards the host.
 
 ### SEO shell
 

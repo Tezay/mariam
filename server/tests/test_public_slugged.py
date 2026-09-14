@@ -79,3 +79,33 @@ class TestPublicOtherEndpoints:
         res = client.get('/v1/public/efrei/restaurant', headers=HOST)
         assert res.status_code == 200
         assert res.get_json()['restaurant']['code'] == 'EFREI'
+
+
+class TestTenantHost:
+    """The API may answer on a domain of its own; Origin then names the tenant."""
+
+    def test_origin_wins_over_host(self, app, client):
+        _org_with_restaurant()
+        res = client.get('/v1/public/org', headers={
+            'Host': 'api.mariam.app',
+            'Origin': 'https://crous-test.mariam.app',
+        })
+        assert res.status_code == 200
+        assert res.get_json()['organization']['slug'] == 'crous-test'
+
+    def test_host_decides_without_origin(self, app, client):
+        _org_with_restaurant()
+        assert client.get('/v1/public/org', headers=HOST).status_code == 200
+
+    def test_opaque_origin_falls_back_to_host(self, app, client):
+        _org_with_restaurant()
+        res = client.get('/v1/public/org', headers={**HOST, 'Origin': 'null'})
+        assert res.status_code == 200
+
+    def test_unknown_origin_does_not_reach_another_org(self, app, client):
+        _org_with_restaurant()
+        res = client.get('/v1/public/org', headers={
+            'Host': 'crous-test.mariam.app',
+            'Origin': 'https://nope.mariam.app',
+        })
+        assert res.status_code == 404
