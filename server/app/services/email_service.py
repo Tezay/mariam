@@ -20,6 +20,7 @@ from jinja2 import TemplateNotFound
 
 from ..models import DishCatalog, Organization, Restaurant, User
 from ..utils.time import paris_now, paris_today
+from ..utils.urls import frontend_base_url
 from .access import accessible_restaurant_ids
 from .alerts import live_alerts
 from .analytics_stats import Scope, overview, satisfaction_stats, traffic_stats
@@ -145,7 +146,7 @@ def _scope_for(site_ids: list[int], start: date, end: date) -> Scope:
 
 
 def _base_url() -> str:
-    return os.environ.get('FRONTEND_URL', 'http://localhost:5173').split(',')[0].strip()
+    return frontend_base_url()
 
 
 def _number(value) -> str:

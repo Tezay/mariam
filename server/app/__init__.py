@@ -29,6 +29,7 @@ from .models import (
 )
 from .security import is_token_blacklisted, limiter
 from .services.storage import storage
+from .utils.urls import frontend_base_url
 
 
 def create_app(config_class=None):
@@ -443,7 +444,7 @@ Disallow: /v1/users/
         db.session.add(link)
         db.session.commit()
         
-        frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+        frontend_url = frontend_base_url()
         activation_url = f"{frontend_url}/activate/{link.token}"
         
         click.echo("\n" + "=" * 60)
@@ -559,7 +560,7 @@ Disallow: /v1/users/
 
         db.session.add(link)
         db.session.commit()
-        frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+        frontend_url = frontend_base_url()
         click.echo(f'✅ Invitation créée : {email} ({role}) → {destination}')
         click.echo(f'🔗 {frontend_url}/activate/{link.token}')
         click.echo('⚠️  Expire dans 72 h, usage unique.')
@@ -657,7 +658,7 @@ Disallow: /v1/users/
 
         db.session.commit()
 
-        frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+        frontend_url = frontend_base_url()
         reset_url = f"{frontend_url}/reset-password/{link.token}"
 
         click.echo("\n" + "=" * 60)

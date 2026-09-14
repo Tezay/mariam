@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Tenant resolution** now uses the request `Origin`, falling back to `Host`, removing the need for `BASE_DOMAIN` / `DEFAULT_ORG_SLUG` workarounds on dedicated API domains.
+- **Hostname migration**: `CANONICAL_HOST` redirects users from a retired hostname after clearing the service worker and caches.
+- Activation and password-reset links now support multi-origin `FRONTEND_URL` values.
+
+### Changed
+
+- Deployment documentation updated with WebAuthn RP ID requirements, supervisor invite usage, hostname migration steps, and production troubleshooting notes.
+
 ## [0.15.0] - 2026-09-14
 
 ### Added

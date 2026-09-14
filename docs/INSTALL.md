@@ -47,6 +47,11 @@ Also expected in any real deployment, though they fall back to development defau
 `S3_PUBLIC_URL`, and the `VAPID_*` keys. Leaving `WEBAUTHN_RP_ID` on its default breaks passkeys,
 since a credential is bound to the domain that created it.
 
+Set `WEBAUTHN_RP_ID` to the **apex domain**, not the tenant host. A credential is sealed to the
+value used at registration, and no mechanism migrates it afterwards: scoped to a tenant subdomain,
+every passkey dies the day that tenant is renamed. Scoped to the apex, they work across every
+tenant and survive.
+
 ### Object storage (Scaleway)
 
 1. Create a bucket in [console.scaleway.com](https://console.scaleway.com), Object Storage.

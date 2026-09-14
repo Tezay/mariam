@@ -1,6 +1,7 @@
 """
-Slugged public API for MARIAM — resolves the tenant from the request Host
-(subdomain = organization) and the restaurant slug in the path.
+Slugged public API for MARIAM — resolves the tenant from the request Origin,
+falling back to the Host (subdomain = organization), and the restaurant slug in
+the path.
 
     GET /v1/public/org                     -> organization + its sites (by Host)
     GET /v1/public/<restaurant_slug>/today
@@ -40,6 +41,7 @@ from ..services.votes import (
     voting_open,
 )
 from ..utils.time import paris_today
+from ..utils.urls import frontend_base_url
 from .menus import _format_menu_for_display
 
 public_bp = Blueprint('public', __name__, description='Public tenant-scoped display API')
@@ -81,9 +83,24 @@ def org_slug_from_host(host: str | None) -> str | None:
     return default  # apex or custom domain
 
 
+def _tenant_host() -> str | None:
+    """Hostname designating the tenant: Origin first, Host as the fallback.
+
+    The API may answer on a domain of its own, where Host names the API and not
+    the tenant. Origin is missing on same-origin GETs and on server-side calls,
+    which is precisely where Host is the right answer.
+    """
+    origin = (request.headers.get('Origin') or '').strip()
+    if origin and origin != 'null':
+        hostname = urlparse(origin).hostname
+        if hostname:
+            return hostname
+    return request.host
+
+
 def resolve_organization():
-    """Return the active Organization for the current request Host, or None."""
-    slug = org_slug_from_host(request.host)
+    """Return the active Organization for the current request, or None."""
+    slug = org_slug_from_host(_tenant_host())
     if not slug:
         return None
     return Organization.query.filter_by(slug=slug, is_active=True).first()
@@ -426,5 +443,5 @@ def unsubscribe(token: str):
     return render_template(
         'public/unsubscribe.html',
         done=user is not None,
-        url=os.environ.get('FRONTEND_URL', 'http://localhost:5173').split(',')[0].strip(),
+        url=frontend_base_url(),
     )

@@ -22,6 +22,7 @@ declare global {
   interface Window {
     __RUNTIME_CONFIG__?: {
       API_URL?: string;
+      CANONICAL_HOST?: string;
       UMAMI_WEBSITE_ID?: string;
       SENTRY_DSN?: string;
       SENTRY_ENVIRONMENT?: string;
