@@ -13,7 +13,7 @@ from datetime import time, timedelta
 
 from pywebpush import WebPushException, webpush
 
-from ..utils.time import paris_now, paris_today
+from ..utils.time import format_date_fr, paris_now, paris_today, weekday_fr
 from .redis_client import acquire_job_lock
 
 logger = logging.getLogger(__name__)
@@ -168,11 +168,9 @@ def build_tomorrow_menu_payload(menu_items: list[dict]) -> dict | None:
         return None
 
     tomorrow = paris_today() + timedelta(days=1)
-    day_names = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
-    day_name = day_names[tomorrow.weekday()]
 
     return {
-        'title': f'\U0001F37D\uFE0F Menu de demain ({day_name})',
+        'title': f'\U0001F37D\uFE0F Menu de demain ({weekday_fr(tomorrow)})',
         'body': body,
         'icon': '/web-app-manifest-192x192.png',
         'badge': '/favicon-96x96.png',
@@ -330,8 +328,6 @@ def _check_event_notifications(db, now, sent_count: int) -> int:
     target_7d = today + timedelta(days=7)
     target_1d = today + timedelta(days=1)
 
-    day_names = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
-
     # Événements publiés à J-7 ou J-1
     events = Event.query.filter(
         Event.status == 'published',
@@ -347,7 +343,7 @@ def _check_event_notifications(db, now, sent_count: int) -> int:
         if not is_7d and not is_1d:
             continue
 
-        date_str = day_names[event.event_date.weekday()] + ' ' + event.event_date.strftime('%d/%m')
+        date_str = format_date_fr(event.event_date, weekday=True, year=False)
 
         if is_1d:
             payload = build_event_payload(event.title, date_str, reminder='tomorrow')
@@ -406,9 +402,10 @@ def _check_closure_notifications(db, now, sent_count: int) -> int:
 
         # Formater la plage de dates
         if closure.start_date == closure.end_date:
-            date_label = closure.start_date.strftime('%d/%m')
+            date_label = format_date_fr(closure.start_date, year=False)
         else:
-            date_label = f"{closure.start_date.strftime('%d/%m')} au {closure.end_date.strftime('%d/%m')}"
+            date_label = (f'du {format_date_fr(closure.start_date, year=False)} '
+                          f'au {format_date_fr(closure.end_date, year=False)}')
 
         reason_suffix = f' — {closure.reason}' if closure.reason else ''
         title = 'Fermeture exceptionnelle'

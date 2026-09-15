@@ -12,7 +12,7 @@ from datetime import UTC, date, datetime, timedelta
 from ..extensions import db
 from ..models import AuditLog, Menu, Restaurant
 from ..models.restaurant import RestaurantServiceHours
-from ..utils.time import paris_now
+from ..utils.time import format_date_fr, paris_now
 from . import holidays
 from .analytics_stats import uniques_per_site, views_per_site, votes_per_site
 from .anti_abuse import env_cap
@@ -95,8 +95,9 @@ def _published_menu_ids(site_ids: list[int], day: date) -> set[int]:
 def _menu_today(context: Context) -> list[dict]:
     serves = _serves(context, context.today)
     published = _published_menu_ids(context.site_ids, context.today)
+    label = format_date_fr(context.today, weekday=True, year=False)
     missing = [
-        Finding(site.id, site.name, f"Le menu du {context.today.isoformat()} n'est pas encore publié.")
+        Finding(site.id, site.name, f"Le menu du {label} n'est pas encore publié.")
         for site in context.sites
         if serves.get(site.id) and site.id not in published
     ]
@@ -141,11 +142,12 @@ def _menu_tomorrow(context: Context) -> list[dict]:
     tomorrow = context.today + timedelta(days=1)
     serves = _serves(context, tomorrow)
     published = _published_menu_ids(context.site_ids, tomorrow)
+    label = format_date_fr(tomorrow, weekday=True, year=False)
     return _entry(
         f'menu_tomorrow:{tomorrow}', 'warning',
         'Menu de demain non préparé', '{count} site{s} sans menu demain',
         [
-            Finding(site.id, site.name, f"Le menu du {tomorrow.isoformat()} est encore vide.")
+            Finding(site.id, site.name, f"Le menu du {label} est encore vide.")
             for site in context.sites
             if serves.get(site.id) and site.id not in published
         ],
