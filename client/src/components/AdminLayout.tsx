@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { restaurantApi, ServiceHours } from '@/lib/api';
 import { isInServiceHours } from '@/lib/utils';
@@ -6,6 +7,8 @@ import { DashboardShell } from '@/components/layout/DashboardShell';
 import { type SidebarNavItem } from '@/components/layout/Sidebar';
 import { type PageTitleMap } from '@/components/layout/Topbar';
 import { usePwaOnboarding } from '@/hooks/usePwaOnboarding';
+import { useSecurityOnboarding } from '@/hooks/useSecurityOnboarding';
+import { TourHost } from '@/features/tour/TourHost';
 import {
   CalendarDays,
   ChartColumn,
@@ -36,9 +39,11 @@ const ADMIN_ONLY_PATHS = ['/admin/stats', '/admin/users', '/admin/settings', '/a
 
 export function AdminLayout() {
   const { user } = useAuth();
+  const { pathname } = useLocation();
   const [serviceHours, setServiceHours] = useState<ServiceHours>({});
   const [duringService, setDuringService] = useState(false);
 
+  useSecurityOnboarding(user, '/admin/securite');
   usePwaOnboarding('/admin/install', user?.role === 'admin' || user?.role === 'editor');
 
   // Identify in Umami by role — intentionally re-runs on id change only
@@ -98,17 +103,27 @@ export function AdminLayout() {
     (item) => !ADMIN_ONLY_PATHS.includes(item.to) || user?.role === 'admin'
   );
 
+  // One of its steps points at the calendar's own toolbar.
+  const onCalendar = pathname === '/admin' || pathname.startsWith('/admin/calendar');
+
   return (
-    <DashboardShell
-      navItems={filteredNavItems}
-      homePath="/admin"
-      bottomNavPaths={BOTTOM_NAV_PATHS}
-      pageTitles={PAGE_TITLES}
-      fallbackTitle="Admin"
-      showSearch
-      showNotifications
-      accountPath="/admin/account"
-      tenant={user?.restaurant_name ? { label: 'Site', name: user.restaurant_name } : undefined}
-    />
+    <>
+      <DashboardShell
+        navItems={filteredNavItems}
+        homePath="/admin"
+        bottomNavPaths={BOTTOM_NAV_PATHS}
+        pageTitles={PAGE_TITLES}
+        fallbackTitle="Admin"
+        showSearch
+        showNotifications
+        accountPath="/admin/account"
+        tenant={user?.restaurant_name ? { label: 'Site', name: user.restaurant_name } : undefined}
+      />
+      <TourHost
+        tour="orientation"
+        enabled={onCalendar && (user?.role === 'admin' || user?.role === 'editor')}
+        canSeeStats={user?.role === 'admin'}
+      />
+    </>
   );
 }

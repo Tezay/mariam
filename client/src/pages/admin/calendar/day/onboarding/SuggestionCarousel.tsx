@@ -20,8 +20,10 @@ interface SuggestionCarouselProps {
   onSelect: (dish: DishCatalogItem, sourceEl: HTMLElement) => void;
 }
 
-/** Durées par rangée — vitesses volontairement désynchronisées. */
-const ROW_DURATIONS_S = [30, 42, 34, 46];
+// Pixels per second, deliberately out of sync between rows. Speed, not
+// duration: a fixed duration makes a long row race, and a row is as long as
+// the catalogue is deep.
+const ROW_SPEEDS_PX_S = [18, 14, 20, 16];
 
 /** Marge latérale (px) des rangées statiques — réservée dans la mesure de
  *  débordement pour que le choix statique/boucle soit stable. */
@@ -72,31 +74,27 @@ function CarouselRow({
   dishes,
   color,
   onSelect,
-  duration,
+  speed,
   reverse,
   animate,
 }: {
   dishes: DishCatalogItem[];
   color: CategoryColor;
   onSelect: SuggestionCarouselProps['onSelect'];
-  duration: number;
+  speed: number;
   reverse: boolean;
   animate: boolean;
 }) {
   const outerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const [overflowing, setOverflowing] = useState(false);
+  const [width, setWidth] = useState({ content: 0, outer: 0 });
   const [paused, setPaused] = useState(false);
 
-  // La boucle (et donc la duplication) ne s'active que si la rangée déborde
-  // de l'espace disponible marges comprises — la mesure ne dépend pas du
-  // padding appliqué ensuite, donc pas d'oscillation statique/boucle.
   useLayoutEffect(() => {
     const outer = outerRef.current;
     const content = contentRef.current;
     if (!outer || !content) return;
-    const measure = () =>
-      setOverflowing(content.scrollWidth > outer.clientWidth - 2 * STATIC_ROW_PADDING_PX);
+    const measure = () => setWidth({ content: content.scrollWidth, outer: outer.clientWidth });
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(outer);
@@ -104,7 +102,13 @@ function CarouselRow({
     return () => observer.disconnect();
   }, [dishes]);
 
-  const looping = animate && overflowing;
+  // La boucle (et donc la duplication) ne s'active que si la rangée déborde
+  // de l'espace disponible marges comprises — la mesure ne dépend pas du
+  // padding appliqué ensuite, donc pas d'oscillation statique/boucle.
+  const looping = animate && width.content > width.outer - 2 * STATIC_ROW_PADDING_PX;
+  // The animation travels exactly one copy of the row, so this holds the speed
+  // whatever its length.
+  const duration = Math.max(width.content, 1) / speed;
 
   return (
     <div
@@ -174,7 +178,7 @@ export function SuggestionCarousel({ dishes, color, onSelect }: SuggestionCarous
           dishes={rowDishes}
           color={color}
           onSelect={onSelect}
-          duration={ROW_DURATIONS_S[idx % ROW_DURATIONS_S.length]}
+          speed={ROW_SPEEDS_PX_S[idx % ROW_SPEEDS_PX_S.length]}
           reverse={idx % 2 === 1}
           animate={!reducedMotion}
         />

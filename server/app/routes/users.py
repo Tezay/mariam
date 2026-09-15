@@ -1,7 +1,8 @@
 """
 User and invitation management routes for MARIAM.
 
-All endpoints require the admin role.
+All endpoints require the admin role, except the /me ones, which any
+authenticated user calls on its own account.
 
 Endpoints:
 - GET  /v1/users                    List users
@@ -11,15 +12,23 @@ Endpoints:
 - POST /v1/users/<id>/reset-mfa     Reset a user's MFA
 - POST /v1/users/invite             Create an invitation link
 - GET  /v1/users/invitations        List pending invitations
+- GET  /v1/users/me/ui-preferences  Interface state of the current user
+- PUT  /v1/users/me/ui-preferences  Update it
 """
 from flask import jsonify, request
-from flask_jwt_extended import get_jwt_identity
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_smorest import Blueprint
 
 from ..extensions import db
 from ..models import ActivationLink, AuditLog, User
 from ..schemas.common import ErrorSchema, MessageSchema
-from ..schemas.users import InvitationSchema, InviteSchema, UserAdminSchema, UserUpdateSchema
+from ..schemas.users import (
+    InvitationSchema,
+    InviteSchema,
+    UiPreferencesSchema,
+    UserAdminSchema,
+    UserUpdateSchema,
+)
 from ..security import get_client_ip
 from ..services.step_up import consume_step_up_token
 from .helpers import (
@@ -352,3 +361,40 @@ def reset_user_mfa(user_id):
             'expires_at': link.expires_at.isoformat(),
         },
     }), 200
+
+
+# ============================================================
+# UI PREFERENCES — self-service, any authenticated role
+# ============================================================
+
+@users_bp.route('/me/ui-preferences', methods=['GET'])
+@jwt_required()
+@users_bp.response(200, UiPreferencesSchema)
+@users_bp.alt_response(401, schema=ErrorSchema, description='Not authenticated')
+def get_ui_preferences():
+    """Return the interface state of the current user."""
+    user = User.query.get(int(get_jwt_identity()))
+    if not user:
+        return jsonify({'error': 'Non authentifié'}), 401
+    return jsonify(user.get_ui_preferences()), 200
+
+
+@users_bp.route('/me/ui-preferences', methods=['PUT'])
+@jwt_required()
+@users_bp.response(200, UiPreferencesSchema)
+@users_bp.alt_response(401, schema=ErrorSchema, description='Not authenticated')
+def update_ui_preferences():
+    """Update the interface state of the current user."""
+    user = User.query.get(int(get_jwt_identity()))
+    if not user:
+        return jsonify({'error': 'Non authentifié'}), 401
+
+    data = request.get_json(silent=True) or {}
+    allowed = {'tour_done', 'tour_catalog_done', 'tour_stats_done'}
+    current = user.get_ui_preferences()
+    for key in allowed & data.keys():
+        current[key] = bool(data[key])
+
+    user.ui_preferences = current
+    db.session.commit()
+    return jsonify(current), 200

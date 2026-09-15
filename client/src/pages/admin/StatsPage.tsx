@@ -9,6 +9,7 @@ import { AnalyticsTabs, type AnalyticsTab } from '@/features/analytics/ui/Analyt
 import { PublicationsView } from '@/features/analytics/PublicationsView';
 import { SatisfactionView } from '@/features/analytics/SatisfactionView';
 import { TrafficView } from '@/features/analytics/TrafficView';
+import { TourHost } from '@/features/tour/TourHost';
 
 export function StatsPage() {
   const navigate = useNavigate();
@@ -23,6 +24,8 @@ export function StatsPage() {
         <SatisfactionView onDishClick={(dish) => navigate(`/admin/catalogue/${dish.dish_id}`)} />
       )}
       {tab === 'publications' && <PublicationsView />}
+
+      <TourHost tour="stats" enabled={tab === 'traffic'} />
     </div>
   );
 }
