@@ -206,6 +206,7 @@ export function WeekDayColumn({
                 />
                 <button
                   type="button"
+                  data-tour="calendar-publish"
                   disabled={locked}
                   onClick={showPublished ? editor.unpublishMenu : editor.publishMenu}
                   title={title}

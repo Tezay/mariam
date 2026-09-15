@@ -130,6 +130,7 @@ function MobileDrawer({
 function MobileBottomNav({ items }: { items: SidebarNavItem[] }) {
   return (
     <motion.nav
+      data-tour="nav-mobile"
       className="fixed bottom-4 left-1/2 z-30 flex items-center gap-0.5 rounded-full border border-border/40 bg-background/70 p-1.5 shadow-lg shadow-black/10 backdrop-blur-xl backdrop-saturate-150 sidebar:hidden"
       // framer-motion drives the transform, so the -translate-x-1/2 centering
       // has to go through `x` or a Tailwind class would be overwritten.

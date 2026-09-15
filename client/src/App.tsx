@@ -56,6 +56,7 @@ const ClosuresPage = lazy(() =>
 const ServicePage = lazy(() =>
   import('./pages/admin/ServicePage').then((m) => ({ default: m.ServicePage }))
 );
+const SecurityPage = lazy(() => import('./pages/admin/SecurityPage'));
 const InstallPage = lazy(() =>
   import('./pages/admin/InstallPage').then((m) => ({ default: m.InstallPage }))
 );
@@ -269,6 +270,23 @@ function App() {
 
           {/* Réinitialisation de mot de passe */}
           <Route path="/reset-password/:token" element={<ResetPassword />} />
+
+          <Route
+            path="/admin/securite"
+            element={
+              <ProtectedRoute>
+                <SecurityPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/org/securite"
+            element={
+              <ProtectedRoute>
+                <SecurityPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Onboarding installation PWA (admin/editor, affiché une seule fois) */}
           <Route

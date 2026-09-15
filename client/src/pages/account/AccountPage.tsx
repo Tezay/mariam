@@ -7,6 +7,7 @@
  * - Changement de mot de passe (TOTP ou passkey selon ce qui est disponible)
  */
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { RoleBadge } from '@/components/dashboard/RoleBadge';
 import { authApi, inboxApi, type NotifPreferences } from '@/lib/api';
@@ -16,6 +17,7 @@ import {
 } from '@/features/notifications/NotificationPreferences';
 import { notify } from '@/lib/toast';
 import { usePwaInstall } from '@/contexts/PwaInstallContext';
+import { useUpdateUiPreferences } from '@/hooks/useUiPreferences';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,6 +37,7 @@ import {
   Key,
   AlertCircle,
   Check,
+  Compass,
   Fingerprint,
   Smartphone,
   ShieldCheck,
@@ -127,6 +130,33 @@ function AppInstallSection() {
           </Button>
         </div>
       )}
+    </section>
+  );
+}
+
+function TourSection() {
+  const navigate = useNavigate();
+  const update = useUpdateUiPreferences();
+
+  const replay = () =>
+    update.mutate(
+      { tour_done: false, tour_catalog_done: false, tour_stats_done: false },
+      { onSuccess: () => navigate('/admin/calendar') }
+    );
+
+  return (
+    <section className="space-y-4">
+      <h2 className="text-sm font-semibold text-foreground">Visite guidée</h2>
+
+      <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+        <p className="text-sm text-muted-foreground">
+          Revoyez la présentation du tableau de bord, du catalogue et des statistiques.
+        </p>
+        <Button onClick={replay} disabled={update.isPending} className="gap-2">
+          <Compass className="h-4 w-4" />
+          Rejouer la visite
+        </Button>
+      </div>
     </section>
   );
 }
@@ -660,7 +690,12 @@ export function AccountPage() {
         <NotificationSection />
 
         {/* Application — installation PWA (admin/editor uniquement) */}
-        {(user?.role === 'admin' || user?.role === 'editor') && <AppInstallSection />}
+        {(user?.role === 'admin' || user?.role === 'editor') && (
+          <>
+            <AppInstallSection />
+            <TourSection />
+          </>
+        )}
 
         {/* Not role-gated, unlike the section above: every account is audited. */}
         <div className="border-t border-border pt-4">

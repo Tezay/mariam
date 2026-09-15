@@ -470,6 +470,14 @@ Requires `admin` role.
 | `POST` | `/v1/users/invite` | Create an invitation link |
 | `GET` | `/v1/users/invitations` | List pending invitations |
 
+The two routes below are the exception: any authenticated user reads and writes
+its own.
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/v1/users/me/ui-preferences` | Interface state carried by the account: the guided tours already seen |
+| `PUT` | `/v1/users/me/ui-preferences` | Update those flags; unknown keys are ignored |
+
 ---
 
 ## Audit Log

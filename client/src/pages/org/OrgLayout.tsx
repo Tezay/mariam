@@ -18,6 +18,7 @@ import { type SidebarNavItem } from '@/components/layout/Sidebar';
 import { type PageTitleMap } from '@/components/layout/Topbar';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePwaOnboarding } from '@/hooks/usePwaOnboarding';
+import { useSecurityOnboarding } from '@/hooks/useSecurityOnboarding';
 
 const NAV_ITEMS: SidebarNavItem[] = [
   {
@@ -65,6 +66,7 @@ const BOTTOM_NAV_PATHS = ['/org', '/org/analytics/traffic', '/org/sites', '/org/
 export function OrgLayout() {
   const { user } = useAuth();
 
+  useSecurityOnboarding(user, '/org/securite');
   usePwaOnboarding('/org/install', user?.role === 'org_admin');
 
   return (

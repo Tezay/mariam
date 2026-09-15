@@ -328,7 +328,7 @@ export function CalendarToolbar({
         {canEdit && (
           <DropdownMenu open={dropdownOpen} onOpenChange={handleDropdownOpenChange}>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" className="gap-1.5 rounded-xl">
+              <Button size="sm" data-tour="calendar-new" className="gap-1.5 rounded-xl">
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">Nouveau</span>
               </Button>

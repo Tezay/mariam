@@ -142,7 +142,7 @@ export function Sidebar({ navItems, homePath = '/admin', tenant }: SidebarProps)
           </div>
         )}
 
-        <nav className="flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden p-2">
+        <nav data-tour="nav" className="flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden p-2">
           {navItems.map((item) => (
             <SidebarItem key={item.to} item={item} isCollapsed={isCollapsed} />
           ))}

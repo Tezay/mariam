@@ -53,6 +53,9 @@ class User(db.Model):
     # Préférences de notifications in-app
     notification_preferences = db.Column(db.JSON, nullable=True, default=None)
 
+    # Account-scoped so it survives a change of device, unlike localStorage.
+    ui_preferences = db.Column(db.JSON, nullable=True, default=None)
+
     # Passkeys WebAuthn
     passkeys = db.relationship('Passkey', back_populates='user', lazy='dynamic', cascade='all, delete-orphan')
     
@@ -154,6 +157,14 @@ class User(db.Model):
             'digest_hour': 8,
         }
         return {**defaults, **(self.notification_preferences or {})}
+
+    def get_ui_preferences(self) -> dict:
+        defaults = {
+            'tour_done': False,
+            'tour_catalog_done': False,
+            'tour_stats_done': False,
+        }
+        return {**defaults, **(self.ui_preferences or {})}
 
     def update_last_login(self):
         """Met à jour la date de dernière connexion."""

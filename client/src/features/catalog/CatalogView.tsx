@@ -26,6 +26,7 @@ import {
 import { useCatalogFilters } from './hooks/useCatalogFilters';
 import { isAscending, nextSort } from './rules';
 import { useRubberBand } from '@/hooks/useRubberBand';
+import { TourHost } from '@/features/tour/TourHost';
 import { useBulkActions } from './hooks/useBulkActions';
 import { BulkBar } from './ui/BulkBar';
 import { DishContextMenu } from './ui/DishContextMenu';
@@ -242,6 +243,7 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
   const list = (
     <div
       ref={listRef}
+      data-tour="catalog-list"
       className="relative"
       onContextMenu={(event) => {
         lasso.reset();
@@ -355,6 +357,9 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
           onCompare={() => compare(selectedKeys)}
         />
       )}
+
+      {/* Two of its three steps aim at dishes, so an empty catalogue waits. */}
+      <TourHost tour="catalog" enabled={!isOrg && rows.length > 0} />
 
       {!isOrg && (
         <>

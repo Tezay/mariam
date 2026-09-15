@@ -41,6 +41,7 @@ export function AnalyticsTabs({
     <div
       role="tablist"
       aria-label="Vues statistiques"
+      data-tour="stats-tabs"
       className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-muted p-1 sm:grid sm:grid-cols-3 sm:overflow-visible"
     >
       {TABS.map((tab) => {
