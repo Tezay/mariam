@@ -9,6 +9,7 @@ site's own analytics history, leaving every other site untouched.
 Usage:
     docker compose exec backend flask seed-demo
 """
+import json
 import random
 import secrets
 import string
@@ -84,7 +85,7 @@ def register_commands(app):
     def seed_demo():
         """Create demo restaurant, admin user, and a published week of menus."""
         # 1. Ensure taxonomy is seeded first
-        click.echo('\n⏳ Vérification de la taxonomie...')
+        click.echo('\n⏳ Checking reference taxonomy...')
         _upsert_dietary_tag_categories()
         _upsert_dietary_tags()
         _upsert_dietary_tag_keywords()
@@ -132,24 +133,24 @@ def register_commands(app):
         ).count()
         menu_path = '/menu' if site_count == 1 else f'/{restaurant.slug}/menu'
         click.echo('\n' + '=' * 55)
-        click.echo('  DEMO — Données de présentation créées')
+        click.echo('  DEMO — Presentation dataset ready')
         click.echo('=' * 55)
-        click.echo(f'  Organisation : {organization.name} ({len(restaurants)} sites)')
+        click.echo(f'  Organization : {organization.name} ({len(restaurants)} sites)')
         for site in restaurants:
             click.echo(f'    · {site.name} (code: {site.code})')
-        click.echo(f'  Menus        : {menu_count} jours, {item_count} plats')
-        click.echo(f'  Analytics    : {view_count} consultations, {vote_count} votes')
-        click.echo('  Identifiants :')
-        click.echo(f'    Admin de site : {_DEMO_EMAIL}')
-        click.echo(f'    Directeur     : {_DIRECTOR_EMAIL}')
-        click.echo(f'    Mot de passe  : {password}')
+        click.echo(f'  Menus        : {menu_count} days, {item_count} dishes')
+        click.echo(f'  Analytics    : {view_count} views, {vote_count} votes')
+        click.echo('  Credentials  :')
+        click.echo(f'    Site admin  : {_DEMO_EMAIL}')
+        click.echo(f'    Supervisor  : {_DIRECTOR_EMAIL}')
+        click.echo(f'    Password    : {password}')
         click.echo(f'  Service      : {_DEMO_OPEN_TIME}–{_DEMO_CLOSE_TIME}, '
-                   f'vote ouvert dès {_DEMO_OPEN_TIME} (heure de Paris)')
-        click.echo(f'  URL admin    : {frontend_url}/admin/')
-        click.echo(f'  Vue TV       : {frontend_url}{menu_path}?mode=tv')
-        click.echo(f'  Vue mobile   : {frontend_url}{menu_path}')
+                   f'voting opens at {_DEMO_OPEN_TIME} (Paris time)')
+        click.echo(f'  Admin URL    : {frontend_url}/admin/')
+        click.echo(f'  TV view      : {frontend_url}{menu_path}?mode=tv')
+        click.echo(f'  Mobile view  : {frontend_url}{menu_path}')
         click.echo('=' * 55)
-        click.echo('  ✅  Prêt pour la démo !\n')
+        click.echo('  ✅  Ready for the demo.\n')
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -175,9 +176,9 @@ def _ensure_demo_restaurant(organization: Organization, site: dict) -> Restauran
     if not restaurant:
         restaurant = Restaurant(name=site['name'], code=site['code'], is_active=True)
         db.session.add(restaurant)
-        click.echo(f'  ✓ Site créé : {site["name"]}')
+        click.echo(f'  ✓ Site created: {site["name"]}')
     else:
-        click.echo(f'  ✓ Site réutilisé : {site["name"]} (ID {restaurant.id})')
+        click.echo(f'  ✓ Site reused: {site["name"]} (id {restaurant.id})')
 
     restaurant.organization_id = organization.id
     restaurant.slug = restaurant.slug or site['slug']
@@ -295,7 +296,7 @@ def _ensure_menu_categories(restaurant_id: int) -> dict:
 
             result[child_label] = existing[child_label].id
 
-    click.echo(f'  ✓ {len(result)} catégories de menu')
+    click.echo(f'  ✓ {len(result)} menu categories')
     return result
 
 
@@ -322,12 +323,12 @@ def _ensure_demo_user(password: str, restaurant_id: int) -> User:
             restaurant_id=restaurant_id,
         )
         db.session.add(user)
-        click.echo(f'  ✓ Utilisateur demo créé ({_DEMO_EMAIL})')
+        click.echo(f'  ✓ Demo account created ({_DEMO_EMAIL})')
     else:
         user.password_hash = generate_password_hash(password)
         user.is_active = True
         user.mfa_enabled = False
-        click.echo(f'  ✓ Mot de passe demo réinitialisé ({_DEMO_EMAIL})')
+        click.echo(f'  ✓ Demo password reset ({_DEMO_EMAIL})')
     user.notification_preferences = {
         **user.get_notification_preferences(), 'weekly_digest': True
     }
@@ -506,7 +507,7 @@ def _create_demo_menus(
 
         menu_count += 1
 
-    click.echo(f'  ✓ {menu_count} menus créés/mis à jour ({item_count} plats)')
+    click.echo(f'  ✓ {menu_count} menus created/updated ({item_count} dishes)')
     return menu_count, item_count
 
 
@@ -542,7 +543,7 @@ def _ensure_demo_director(password: str, organization_id: int) -> User:
             mfa_enabled=False,
         )
         db.session.add(user)
-        click.echo(f'  ✓ Directeur créé ({_DIRECTOR_EMAIL})')
+        click.echo(f'  ✓ Supervisor created ({_DIRECTOR_EMAIL})')
     user.password_hash = generate_password_hash(password)
     user.is_active = True
     user.mfa_enabled = False
@@ -558,7 +559,8 @@ def _seed_activity(restaurants: list[Restaurant], user_id: int) -> None:
     """An audit trail behind the published menus.
 
     Without it every demo site looks abandoned to the inactivity alert, which
-    reads the last recorded action.
+    reads the last recorded action. Written row by row rather than through
+    `AuditLog.log`, which has no reason to let a caller backdate an entry.
     """
     today = paris_today()
     AuditLog.query.filter(
@@ -576,7 +578,7 @@ def _seed_activity(restaurants: list[Restaurant], user_id: int) -> None:
                 user_id=user_id,
                 action=AuditLog.ACTION_MENU_PUBLISH,
                 target_type='menu',
-                details={'date': day.isoformat(), 'demo': True},
+                details=json.dumps({'date': day.isoformat(), 'demo': True}),
                 created_at=datetime.combine(day, time(15, 0)),
             ))
 

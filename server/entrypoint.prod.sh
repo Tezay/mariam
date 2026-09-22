@@ -50,7 +50,9 @@ flask create-activation-link || echo "ℹ️  Admin already exists, skipping act
 # ========================================
 if [ -n "$RESET_PASSWORD_EMAIL" ]; then
     echo "🔐 Password reset requested for: $RESET_PASSWORD_EMAIL"
-    flask create-password-reset-link
+    # Non-fatal under `set -e`: a typo in the variable must not stop the boot.
+    flask user reset-password "$RESET_PASSWORD_EMAIL" \
+        || echo "⚠️  No reset link issued, see the error above"
 fi
 
 # ========================================

@@ -1,4 +1,4 @@
-.PHONY: dev install test lint format db-migrate db-upgrade db-downgrade db-seed db-demo db-seed-categories logs
+.PHONY: dev install test lint format db-migrate db-upgrade db-downgrade db-seed db-demo db-seed-categories user logs
 
 dev:
 	docker compose up -d --build
@@ -38,6 +38,12 @@ db-demo:
 
 db-seed-categories:
 	docker compose exec backend flask seed-categories
+
+# make user ARGS="show demo@mariam.app"
+# make user ARGS="reset-2fa demo@mariam.app --passkeys"
+# make user ARGS="list --role admin"
+user:
+	docker compose exec backend flask user $(ARGS)
 
 logs:
 	docker compose logs -f backend

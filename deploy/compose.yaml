@@ -160,6 +160,7 @@ services:
     mem_limit: 128m
     cpus: 0.5
     environment:
+      APP_VERSION: ${MARIAM_TAG:-dev}
       UMAMI_WEBSITE_ID: ${UMAMI_WEBSITE_ID:-}
       CANONICAL_HOST: ${CANONICAL_HOST:-}
       SENTRY_DSN: ${FRONTEND_SENTRY_DSN:-}

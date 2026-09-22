@@ -114,7 +114,16 @@ class User(db.Model):
         """Désactive le MFA (admin only, pour reset)."""
         self.mfa_secret = None
         self.mfa_enabled = False
-    
+
+    def has_second_factor(self) -> bool:
+        """True when the account is protected by a code or by a passkey.
+
+        A guard written against the TOTP secret alone turns an account whose
+        only method is a passkey into an unprotected one.
+        """
+        return bool(self.mfa_enabled) or self.passkeys.count() > 0
+
+
     def is_org_admin(self):
         """Return True if the user supervises every site of an organization."""
         return self.role == self.ROLE_ORG_ADMIN

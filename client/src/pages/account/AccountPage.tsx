@@ -10,12 +10,20 @@ import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { RoleBadge } from '@/components/dashboard/RoleBadge';
-import { authApi, inboxApi, type NotifPreferences } from '@/lib/api';
+import {
+  APP_ENVIRONMENT,
+  APP_VERSION,
+  authApi,
+  inboxApi,
+  publicApi,
+  type NotifPreferences,
+} from '@/lib/api';
 import {
   NotificationPreferences,
   type SaveState,
 } from '@/features/notifications/NotificationPreferences';
 import { notify } from '@/lib/toast';
+import { nowInstant } from '@/lib/date-utils';
 import { usePwaInstall } from '@/contexts/PwaInstallContext';
 import { useUpdateUiPreferences } from '@/hooks/useUiPreferences';
 import { Button } from '@/components/ui/button';
@@ -36,11 +44,17 @@ import {
   Clock,
   Key,
   AlertCircle,
+  AppWindow,
   Check,
+  ClipboardCopy,
   Compass,
   Fingerprint,
+  FlaskConical,
+  MonitorSmartphone,
+  Server,
   Smartphone,
   ShieldCheck,
+  Wrench,
 } from 'lucide-react';
 import { PasskeyManager } from '@/components/PasskeyManager';
 import { TotpManager } from '@/components/TotpManager';
@@ -275,6 +289,87 @@ function PrivacyDialog({ tenant }: { tenant?: string | null }) {
             </p>
           </div>
         </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AboutDialog({ tenant }: { tenant?: string | null }) {
+  const { user } = useAuth();
+  const { isInstalled } = usePwaInstall();
+  const [open, setOpen] = useState(false);
+  const [serverVersion, setServerVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || serverVersion) return;
+    let active = true;
+    publicApi
+      .getServerVersion()
+      .then((version) => {
+        if (active) setServerVersion(version);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [open, serverVersion]);
+
+  const copyDiagnostics = async () => {
+    const lines = [
+      'Mariam - informations de diagnostic',
+      `Client : ${APP_VERSION}`,
+      `Serveur : ${serverVersion ?? 'indisponible'}`,
+      `Environnement : ${APP_ENVIRONMENT}`,
+      `Compte : ${user?.role ?? '—'}${tenant ? ` · ${tenant}` : ''}`,
+      `Affichage : ${isInstalled ? 'application installée' : 'navigateur'}`,
+      `Navigateur : ${navigator.userAgent}`,
+      `Horodatage : ${nowInstant().toISOString()}`,
+    ];
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      notify.success('Informations copiées', 'Collez-les dans votre message au support.');
+    } catch {
+      notify.error('Copie impossible', 'Votre navigateur a refusé l’accès au presse-papiers.');
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Wrench className="h-3.5 w-3.5 shrink-0" />
+          Mariam {APP_VERSION}
+        </button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>À propos</DialogTitle>
+          <DialogDescription>
+            Version en service sur cette instance. Joignez ces informations à toute demande
+            d’assistance.
+          </DialogDescription>
+        </DialogHeader>
+
+        <dl className="divide-y divide-border rounded-xl border border-border">
+          <DetailRow icon={AppWindow} label="Client" value={APP_VERSION} />
+          <DetailRow icon={Server} label="Serveur" value={serverVersion} />
+          {APP_ENVIRONMENT !== 'production' && (
+            <DetailRow icon={FlaskConical} label="Environnement" value={APP_ENVIRONMENT} />
+          )}
+          <DetailRow
+            icon={MonitorSmartphone}
+            label="Affichage"
+            value={isInstalled ? 'Application installée' : 'Navigateur'}
+          />
+        </dl>
+
+        <Button variant="outline" size="sm" onClick={copyDiagnostics} className="w-full gap-2">
+          <ClipboardCopy className="h-4 w-4" />
+          Copier les infos de diagnostic
+        </Button>
       </DialogContent>
     </Dialog>
   );
@@ -698,8 +793,9 @@ export function AccountPage() {
         )}
 
         {/* Not role-gated, unlike the section above: every account is audited. */}
-        <div className="border-t border-border pt-4">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border pt-4">
           <PrivacyDialog tenant={tenant} />
+          <AboutDialog tenant={tenant} />
         </div>
       </div>
     </div>

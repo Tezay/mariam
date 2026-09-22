@@ -41,14 +41,14 @@ def register_commands(app):
         db.session.commit()
 
         click.echo('\n' + '=' * 50)
-        click.echo('  SEED — Taxonomie')
+        click.echo('  SEED — Reference taxonomy')
         click.echo('=' * 50)
-        click.echo(f'  Tags catégories     : {tag_cat_count}')
-        click.echo(f'  Tags alimentaires   : {tag_count}  ({kw_count} mots-clés)')
-        click.echo(f'  Cert. catégories    : {cert_cat_count}')
-        click.echo(f'  Certifications      : {cert_count}  ({cert_kw_count} mots-clés)')
+        click.echo(f'  Tag categories      : {tag_cat_count}')
+        click.echo(f'  Dietary tags        : {tag_count}  ({kw_count} keywords)')
+        click.echo(f'  Cert. categories    : {cert_cat_count}')
+        click.echo(f'  Certifications      : {cert_count}  ({cert_kw_count} keywords)')
         click.echo('=' * 50)
-        click.echo('  ✅  Terminé — base à jour.\n')
+        click.echo('  ✅  Done — database up to date.\n')
 
 
 def _upsert_dietary_tag_categories() -> int:

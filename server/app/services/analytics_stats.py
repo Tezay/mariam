@@ -589,48 +589,46 @@ def votes_per_site(site_ids, start: date, end: date) -> dict[int, tuple[int, flo
     return _votes_grouped(site_ids, start, end, MenuVote.restaurant_id)
 
 
-def uniques_per_site(site_ids, start: date, end: date) -> dict[int, int]:
+def _daily_uniques(site_ids, start: date, end: date) -> dict[tuple[int, date], int]:
+    """The estimate of each site and day of the window, summable over either axis.
+
+    Today's stored row trails Redis between two flushes: comparing the two rather
+    than adding them keeps the same visitors from being counted twice.
+    """
     rows = (
         db.session.query(
-            VisitorDailyUnique.restaurant_id, db.func.sum(VisitorDailyUnique.unique_visitors)
+            VisitorDailyUnique.restaurant_id,
+            VisitorDailyUnique.date,
+            VisitorDailyUnique.unique_visitors,
         )
         .filter(
             VisitorDailyUnique.restaurant_id.in_(site_ids),
             VisitorDailyUnique.date >= start,
             VisitorDailyUnique.date <= end,
         )
-        .group_by(VisitorDailyUnique.restaurant_id)
         .all()
     )
-    totals = {site_id: int(count or 0) for site_id, count in rows}
+    daily = {(site_id, day): int(count or 0) for site_id, day, count in rows}
 
-    # The day close runs at 00:30, so today's estimate normally lives only in
-    # Redis. Take the larger of the two rather than their sum: a close already
-    # run for today would otherwise be counted twice.
     today = paris_today()
     if start <= today <= end:
         for site_id, count in live_uniques(site_ids, today).items():
-            totals[site_id] = max(totals.get(site_id, 0), count)
+            daily[(site_id, today)] = max(daily.get((site_id, today), 0), count)
+    return daily
+
+
+def uniques_per_site(site_ids, start: date, end: date) -> dict[int, int]:
+    """Daily estimates summed over the window, per site."""
+    totals: dict[int, int] = {}
+    for (site_id, _), count in _daily_uniques(site_ids, start, end).items():
+        totals[site_id] = totals.get(site_id, 0) + count
     return totals
 
 
 def _uniques_by_date(site_ids, start: date, end: date) -> dict[date, int]:
-    rows = (
-        db.session.query(VisitorDailyUnique.date, db.func.sum(VisitorDailyUnique.unique_visitors))
-        .filter(
-            VisitorDailyUnique.restaurant_id.in_(site_ids),
-            VisitorDailyUnique.date >= start,
-            VisitorDailyUnique.date <= end,
-        )
-        .group_by(VisitorDailyUnique.date)
-        .all()
-    )
-    totals = {day: int(count or 0) for day, count in rows}
-    today = paris_today()
-    if start <= today <= end:
-        live = sum(live_uniques(site_ids, today).values())
-        if live:
-            totals[today] = max(totals.get(today, 0), live)
+    totals: dict[date, int] = {}
+    for (_, day), count in _daily_uniques(site_ids, start, end).items():
+        totals[day] = totals.get(day, 0) + count
     return totals
 
 

@@ -220,6 +220,16 @@ class TestDayCloseAndPurge:
 
         assert VisitorDailyUnique.query.filter_by(restaurant_id=rid).one().unique_visitors == 1
 
+    def test_the_flush_writes_the_day_in_progress(self, app, client, monkeypatch):
+        _use_fake_redis(monkeypatch)
+        _, rid = _org_with_site(monkeypatch, 'live-org', 'LIV')
+
+        _track(client, 'today', 'liv')
+        telemetry.run_flush_job(app)
+
+        row = VisitorDailyUnique.query.filter_by(restaurant_id=rid).one()
+        assert (row.date, row.unique_visitors) == (paris_today(), 1)
+
     def test_purge_drops_rows_past_retention(self, app, monkeypatch):
         _, rid = _org_with_site(monkeypatch, 'purge-org', 'PUR')
         old = paris_today() - datetime.timedelta(days=500)
@@ -273,6 +283,36 @@ class TestTrafficEndpoint:
         body = client.get('/v1/analytics/traffic?period=7d', headers=auth_headers(token)).get_json()
 
         assert body['totals']['unique_visitors'] == 1
+
+    def test_the_window_total_adds_today_to_the_days_already_closed(
+        self, app, client, monkeypatch
+    ):
+        _use_fake_redis(monkeypatch)
+        org_id, rid = _org_with_site(monkeypatch, 'traffic-org-4', 'TRA4')
+        self._supervisor(org_id, rid)
+
+        today = paris_today()
+        for offset, count in ((1, 12), (2, 9), (3, 7)):
+            db.session.add(VisitorDailyUnique(
+                restaurant_id=rid,
+                date=today - datetime.timedelta(days=offset),
+                unique_visitors=count,
+            ))
+        db.session.commit()
+
+        for agent in ('a', 'b', 'c', 'd', 'e'):
+            _track(client, 'today', 'tra4', user_agent=agent)
+
+        token = get_token(client, email='sup@mariam.app')
+        window = client.get(
+            '/v1/analytics/traffic?period=7d', headers=auth_headers(token)
+        ).get_json()
+        day = client.get(
+            '/v1/analytics/traffic?period=1d', headers=auth_headers(token)
+        ).get_json()
+
+        assert window['totals']['unique_visitors'] == 33
+        assert day['totals']['unique_visitors'] == 5
 
     def test_site_list_views_stay_out_of_site_totals(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)

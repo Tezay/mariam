@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`flask user` command group** for account administration: `list`, `show`, `invite`, `reset-password`, `reset-2fa`, `set-email`, `set-role`, `enable`, `disable`, `delete`. Every write is audited and a failure exits non-zero; `make user ARGS="…"` wraps it in development.
+- **Running version** at the foot of **Mon compte**: interface and server versions, the environment when it is not production, and a button that copies the diagnostic details for support.
+
+### Changed
+
+- **`flask create-invite` and `flask create-password-reset-link`** are replaced by `flask user invite` and `flask user reset-password`, which takes the address as an argument instead of an environment variable.
+- **CLI output** is now in English throughout.
+
+### Fixed
+
+- **Unique visitors** answer the selected period: the running day is added to the days already closed instead of replacing the window total, and the estimate reaches the database at every flush rather than only at the nightly close.
+- **Audit log access** accepts any second factor: an account whose only method is a passkey was refused.
+- **Guided tour**: dismissing a tour is recorded at once and the write is retried, so a closed tour no longer replays when that write is slow or fails.
+- **`flask seed-demo`** no longer fails on the audit trail it backfills.
+
 ## [0.16.0] - 2026-09-15
 
 ### Added

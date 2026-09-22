@@ -11,6 +11,7 @@ CONFIG_FILE="/usr/share/nginx/html/config.js"
 # Replace placeholders with environment variables
 # Default to /api if API_URL is not set (for docker-compose with nginx proxy)
 API_URL="${API_URL:-/v1}"
+APP_VERSION="${APP_VERSION:-dev}"
 CANONICAL_HOST="${CANONICAL_HOST:-}"
 UMAMI_WEBSITE_ID="${UMAMI_WEBSITE_ID:-}"
 SENTRY_DSN="${SENTRY_DSN:-}"
@@ -25,6 +26,7 @@ cat > "$CONFIG_FILE" << EOF
 // Runtime configuration - generated at container startup
 window.__RUNTIME_CONFIG__ = {
   API_URL: "$API_URL",
+  APP_VERSION: "$APP_VERSION",
   CANONICAL_HOST: "$CANONICAL_HOST",
   UMAMI_WEBSITE_ID: "$UMAMI_WEBSITE_ID",
   SENTRY_DSN: "$SENTRY_DSN",
