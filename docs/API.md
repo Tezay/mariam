@@ -482,7 +482,7 @@ its own.
 
 ## Audit Log
 
-Requires `admin` role with active MFA session.
+Requires the `admin` role and an account carrying a second factor, code or passkey.
 
 | Method | Route | Description |
 |--------|-------|-------------|
