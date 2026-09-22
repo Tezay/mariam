@@ -184,46 +184,56 @@ def flush_view_counters(app, days: list[date] | None = None) -> int:
         return written
 
 
-def close_day_uniques(app, day: date | None = None) -> int:
-    """Freeze a day's unique-visitor estimate before its salt expires."""
+def persist_uniques(app, days: list[date] | None = None) -> int:
+    """Write the visitor estimates of the given days (today by default) to Postgres.
+
+    GREATEST on conflict keeps this monotonic, so a day still in progress can be
+    written at every flush rather than only once, at its close.
+    """
     client = get_redis()
     if client is None:
         return 0
 
-    target = day or (paris_today() - timedelta(days=1))
-    flush_view_counters(app, days=[target])
-
+    targets = days if days is not None else [paris_today()]
     with app.app_context():
         written = 0
         try:
-            for token in client.smembers(_dirty_key(target)) or set():
-                if not token.startswith('r'):
-                    continue
-                restaurant_id = int(token[1:])
-                count = client.pfcount(_uniques_key(restaurant_id, target))
-                if not count:
-                    continue
-                statement = insert(VisitorDailyUnique).values(
-                    restaurant_id=restaurant_id, date=target, unique_visitors=count
-                )
-                db.session.execute(
-                    statement.on_conflict_do_update(
-                        constraint='uq_uv_site_date',
-                        set_={
-                            'unique_visitors': db.func.greatest(
-                                VisitorDailyUnique.unique_visitors,
-                                statement.excluded.unique_visitors,
-                            )
-                        },
+            for target in targets:
+                for token in client.smembers(_dirty_key(target)) or set():
+                    if not token.startswith('r'):
+                        continue
+                    restaurant_id = int(token[1:])
+                    count = client.pfcount(_uniques_key(restaurant_id, target))
+                    if not count:
+                        continue
+                    statement = insert(VisitorDailyUnique).values(
+                        restaurant_id=restaurant_id, date=target, unique_visitors=count
                     )
-                )
-                written += 1
+                    db.session.execute(
+                        statement.on_conflict_do_update(
+                            constraint='uq_uv_site_date',
+                            set_={
+                                'unique_visitors': db.func.greatest(
+                                    VisitorDailyUnique.unique_visitors,
+                                    statement.excluded.unique_visitors,
+                                )
+                            },
+                        )
+                    )
+                    written += 1
             db.session.commit()
         except Exception:
             db.session.rollback()
-            logger.exception('Unique-visitor day close failed')
+            logger.exception('Unique-visitor write failed')
             return 0
         return written
+
+
+def close_day_uniques(app, day: date | None = None) -> int:
+    """Freeze a day's unique-visitor estimate before its salt expires."""
+    target = day or (paris_today() - timedelta(days=1))
+    flush_view_counters(app, days=[target])
+    return persist_uniques(app, [target])
 
 
 def purge_telemetry(app) -> int:
@@ -260,6 +270,7 @@ def live_uniques(site_ids, day: date) -> dict[int, int]:
 def run_flush_job(app) -> None:
     if acquire_job_lock(f'mariam:tel_flush_lock:{paris_now():%Y%m%d%H%M}', 240):
         flush_view_counters(app)
+        persist_uniques(app)
 
 
 def run_day_close_job(app) -> None:
