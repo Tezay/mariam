@@ -20,12 +20,37 @@ Day-to-day commands for running Mariam in production. Scripts live in `deploy/sc
 ./deploy/scripts/init.sh
 ```
 
-### Accounts and restaurants
+### Instance bootstrap
 
 ```bash
 docker compose -f deploy/compose.yaml exec backend flask create-activation-link
 docker compose -f deploy/compose.yaml exec backend flask init-restaurant
 ```
+
+### Accounts
+
+`flask user` covers what the dashboard does not expose. Every write records an audit entry
+with no author and no address, carrying `via: cli` in its details, and returns a non-zero exit
+code on failure.
+
+| Command | What it does |
+| --- | --- |
+| `user list [--role] [--site] [--org] [--all]` | Accounts with their tenant and second factor |
+| `user show EMAIL` | Full state: role, tenant, TOTP, passkeys, last login |
+| `user invite EMAIL --role R [--restaurant S] [--org O]` | Activation link for a new account |
+| `user reset-password EMAIL` | Password reset link (72 h, single use) |
+| `user reset-2fa EMAIL [--totp] [--passkeys]` | Removes the second factor and revokes live sessions |
+| `user set-email EMAIL NEW_EMAIL` | Changes the address |
+| `user set-role EMAIL ROLE [--restaurant S] [--org O]` | Changes the role and tenant |
+| `user enable EMAIL` / `user disable EMAIL` | Turns an account off without deleting it |
+| `user delete EMAIL [--yes]` | Deletes the account and its passkeys; audit entries are kept |
+
+In development, `make user ARGS="show demo@mariam.app"` wraps the same group.
+
+An account left with no second factor is sent to the enrolment page on its next sign-in and
+cannot leave it until a passkey or an authenticator application is registered — which is what
+makes `user reset-2fa` the safe way to unlock someone who lost both their phone and their
+laptop.
 
 ### Provisioning a new client
 
@@ -40,30 +65,27 @@ docker compose -f deploy/compose.yaml exec backend \
 # 2. Invite the supervisor, attached to the organization and to no site
 #    (--org takes an id or a slug; site roles take --restaurant instead)
 docker compose -f deploy/compose.yaml exec backend \
-  flask create-invite --email supervisor@example.com --role org_admin --org example-org
+  flask user invite supervisor@example.com --role org_admin --org example-org
 ```
 
 The command prints an activation URL (`/activate/<token>`, valid 72 hours, single use).
-`create-invite` works for any role (`org_admin`, `admin`, `editor`, `reader`) and is the generic
+`user invite` works for any role (`org_admin`, `admin`, `editor`, `reader`) and is the generic
 way to create an account in production when inviting from the UI is not possible, such as the
 first user of a new organization.
 
-### Resetting a password without a terminal
-
-On serverless environments, set the variable and redeploy:
+### Resetting a password
 
 ```bash
-RESET_PASSWORD_EMAIL=user@example.com
+docker compose -f deploy/compose.yaml exec backend flask user reset-password user@example.com
 ```
 
-A reset link is generated at container start and printed in the logs. Then:
+Without a terminal, on serverless environments, set `RESET_PASSWORD_EMAIL=user@example.com`
+and redeploy: the entrypoint runs the same command at container start and prints the URL in
+the logs. Remove the variable afterwards, otherwise a new link is issued on every restart.
 
-1. Set `RESET_PASSWORD_EMAIL`
-2. Redeploy, read the URL from the startup logs
-3. Send it to the user
-4. Remove the variable and redeploy, otherwise a new link is issued on every restart
-
-The link still requires MFA, so only the phone holder can complete the reset.
+Completing the reset still requires the account's second factor — its code or its passkey —
+so holding the link is not enough. An account with neither is refused: re-enrol it with
+`user invite` instead.
 
 ### MFA encryption key
 

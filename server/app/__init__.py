@@ -431,7 +431,7 @@ Disallow: /v1/users/
         # Vérifier s'il existe déjà des utilisateurs admin
         existing_admin = User.query.filter_by(role='admin').first()
         if existing_admin:
-            click.echo("❌ Un administrateur existe déjà. Utilisez l'interface admin pour inviter des utilisateurs.")
+            click.echo("❌ An administrator already exists. Invite users from the dashboard.")
             return
         
         link = ActivationLink.create_first_admin_link(expires_hours=24)
@@ -448,11 +448,11 @@ Disallow: /v1/users/
         activation_url = f"{frontend_url}/activate/{link.token}"
         
         click.echo("\n" + "=" * 60)
-        click.echo("🔐 LIEN D'ACTIVATION PREMIER ADMINISTRATEUR")
+        click.echo("🔐 FIRST ADMINISTRATOR ACTIVATION LINK")
         click.echo("=" * 60)
-        click.echo(f"\nURL : {activation_url}")
-        click.echo("\n⚠️  Ce lien expire dans 24 heures.")
-        click.echo("⚠️  Ce lien ne peut être utilisé qu'une seule fois.")
+        click.echo(f"\nURL: {activation_url}")
+        click.echo("\n⚠️  This link expires in 24 hours.")
+        click.echo("⚠️  This link can only be used once.")
         click.echo("=" * 60 + "\n")
     
     @app.cli.command('init-restaurant')
@@ -462,7 +462,7 @@ Disallow: /v1/users/
 
         existing = Restaurant.query.first()
         if existing:
-            click.echo(f"ℹ️  Restaurant existant : {existing.name} ({existing.code})")
+            click.echo(f"ℹ️  Existing restaurant: {existing.name} ({existing.code})")
             return
 
         # Default organization (its slug is the public subdomain).
@@ -485,8 +485,8 @@ Disallow: /v1/users/
         _create_default_categories(restaurant.id)
         db.session.commit()
 
-        click.echo(f"✅ Restaurant créé : {restaurant.name} (ID: {restaurant.id})")
-        click.echo("✅ Catégories par défaut créées.")
+        click.echo(f"✅ Restaurant created: {restaurant.name} (id {restaurant.id})")
+        click.echo("✅ Default categories created.")
 
     @app.cli.command('create-org')
     @click.option('--name', required=True, help="Nom de l'organisation")
@@ -497,73 +497,15 @@ Disallow: /v1/users/
 
         slug = normalize_slug(slug)
         if not is_valid_slug(slug):
-            click.echo('❌ Slug invalide ou réservé.')
+            click.echo('❌ Invalid or reserved slug.')
             return
         if Organization.query.filter_by(slug=slug).first():
-            click.echo(f"ℹ️  L'organisation « {slug} » existe déjà.")
+            click.echo(f"ℹ️  Organization « {slug} » already exists.")
             return
         org = Organization(name=name, slug=slug)
         db.session.add(org)
         db.session.commit()
-        click.echo(f'✅ Organisation créée : {name} ({slug}), id={org.id}')
-
-    @app.cli.command('create-invite')
-    @click.option('--email', required=True, help="Email de l'invité")
-    @click.option('--role', required=True, help='org_admin | admin | editor | reader')
-    @click.option('--restaurant', default=None, help='Site cible (id ou slug) — rôles de site')
-    @click.option('--org', default=None, help='Organisation (id ou slug) — rôle org_admin')
-    def create_invite(email, role, restaurant, org):
-        """Crée un lien d'activation pour un utilisateur de n'importe quel rôle."""
-        if role not in User.VALID_ROLES:
-            click.echo(f'❌ Rôle invalide. Valeurs : {User.VALID_ROLES}')
-            return
-        if User.query.filter_by(email=email).first():
-            click.echo(f'❌ Un utilisateur avec {email} existe déjà.')
-            return
-
-        # A supervisor sits above the sites: it is attached to the organization
-        # and to no restaurant.
-        if role == User.ROLE_ORG_ADMIN:
-            if not org:
-                click.echo('❌ --org est requis pour le rôle org_admin.')
-                return
-            organization = Organization.query.get(int(org)) if org.isdigit() else None
-            if organization is None:
-                organization = Organization.query.filter_by(slug=org).first()
-            if organization is None:
-                click.echo(f'❌ Organisation introuvable : {org}')
-                return
-            link = ActivationLink.create_invite_link(
-                email=email,
-                role=role,
-                restaurant_id=None,
-                organization_id=organization.id,
-            )
-            destination = organization.name
-        else:
-            if not restaurant:
-                click.echo('❌ --restaurant est requis pour un rôle de site.')
-                return
-            target = Restaurant.query.get(int(restaurant)) if restaurant.isdigit() else None
-            if target is None:
-                target = Restaurant.query.filter_by(slug=restaurant).first()
-            if target is None:
-                click.echo(f'❌ Restaurant introuvable : {restaurant}')
-                return
-            link = ActivationLink.create_invite_link(
-                email=email,
-                role=role,
-                restaurant_id=target.id,
-                organization_id=target.organization_id,
-            )
-            destination = target.name
-
-        db.session.add(link)
-        db.session.commit()
-        frontend_url = frontend_base_url()
-        click.echo(f'✅ Invitation créée : {email} ({role}) → {destination}')
-        click.echo(f'🔗 {frontend_url}/activate/{link.token}')
-        click.echo('⚠️  Expire dans 72 h, usage unique.')
+        click.echo(f'✅ Organization created: {name} ({slug}), id={org.id}')
 
     @app.cli.command('seed-categories')
     def seed_categories_cmd():
@@ -573,14 +515,14 @@ Disallow: /v1/users/
 
         restaurant = Restaurant.query.filter_by(is_active=True).first()
         if not restaurant:
-            click.echo("❌ Aucun restaurant actif trouvé.")
+            click.echo("❌ No active restaurant found.")
             return
         if MenuCategory.query.filter_by(restaurant_id=restaurant.id).count() > 0:
-            click.echo(f"ℹ️  {restaurant.name} a déjà des catégories — rien à faire.")
+            click.echo(f"ℹ️  {restaurant.name} already has categories — nothing to do.")
             return
         _create_default_categories(restaurant.id)
         db.session.commit()
-        click.echo(f"✅ Catégories par défaut créées pour : {restaurant.name}")
+        click.echo(f"✅ Default categories created for {restaurant.name}")
 
     @app.cli.command('send-digest')
     @click.option('--to', required=True, help='Email du destinataire, qui doit avoir un compte')
@@ -593,91 +535,38 @@ Disallow: /v1/users/
 
         user = User.query.filter_by(email=to).first()
         if not user:
-            click.echo(f'❌ Aucun utilisateur avec {to}.')
+            click.echo(f'❌ No account with {to}.')
             return
         site_ids = sorted(accessible_restaurant_ids(user))
         if not site_ids:
-            click.echo(f"❌ {to} n'a accès à aucun site.")
+            click.echo(f"❌ {to} has access to no site.")
             return
 
         start, end = email_service.last_week()
         digest = email_service.build_digest(user, site_ids, start, end)
         if html_out:
             Path(html_out).write_text(digest['html'], encoding='utf-8')
-            click.echo(f'✅ Rendu HTML écrit dans {html_out}.')
+            click.echo(f'✅ HTML output written to {html_out}.')
         if dry_run:
             click.echo(digest['subject'])
             click.echo('─' * 40)
             click.echo(digest['text'])
             return
         if not email_service.is_configured():
-            click.echo('❌ SMTP non configuré (SMTP_HOST, SMTP_SENDER).')
+            click.echo('❌ SMTP not configured (SMTP_HOST, SMTP_SENDER).')
             return
         ok = email_service.send_email(to, digest['subject'], digest['text'], digest['html'])
-        click.echo(f'✅ Digest envoyé à {to}.' if ok else f"❌ L'envoi à {to} a échoué.")
+        click.echo(f'✅ Digest sent to {to}.' if ok else f'❌ Sending to {to} failed.')
 
-    @app.cli.command('create-password-reset-link')
-    def create_password_reset_link_cmd():
-        """
-        Crée un lien de réinitialisation de mot de passe.
-        Lit l'email depuis la variable d'environnement RESET_PASSWORD_EMAIL.
-        """
-        email = os.environ.get('RESET_PASSWORD_EMAIL', '').strip()
-        if not email:
-            click.echo("❌ Variable d'environnement RESET_PASSWORD_EMAIL non définie.")
-            return
-
-        user = User.query.filter_by(email=email).first()
-        if not user:
-            click.echo(f"❌ Aucun utilisateur trouvé avec l'email : {email}")
-            return
-
-        if not user.is_active:
-            click.echo(f"❌ Le compte {email} est désactivé.")
-            return
-
-        if not user.mfa_enabled:
-            click.echo(f"⚠️  Le compte {email} n'a pas de MFA configuré. Réinitialisation impossible.")
-            return
-
-        # Créer le lien de reset
-        link = ActivationLink.create_password_reset_link(
-            email=email,
-            expires_hours=72
-        )
-        db.session.add(link)
-
-        # Logger
-        AuditLog.log(
-            action=AuditLog.ACTION_PASSWORD_RESET_REQUEST,
-            target_type='user',
-            target_id=user.id,
-            details={'email': email, 'method': 'env_var_startup'},
-            ip_address='container-startup'
-        )
-
-        db.session.commit()
-
-        frontend_url = frontend_base_url()
-        reset_url = f"{frontend_url}/reset-password/{link.token}"
-
-        click.echo("\n" + "=" * 60)
-        click.echo("🔐 LIEN DE RÉINITIALISATION DE MOT DE PASSE")
-        click.echo("=" * 60)
-        click.echo(f"\nUtilisateur : {email}")
-        click.echo(f"URL : {reset_url}")
-        click.echo("\n⚠️  Ce lien expire dans 72 heures.")
-        click.echo("⚠️  Ce lien ne peut être utilisé qu'une seule fois.")
-        click.echo("⚠️  L'authentification MFA sera requise.")
-        click.echo("=" * 60 + "\n")
-    
     # ========================================
-    # COMMANDES CLI — seed & demo
+    # COMMANDES CLI — seed, demo & comptes
     # ========================================
     from .commands.demo import register_commands as register_demo
     from .commands.seed import register_commands as register_seed
+    from .commands.user import register_commands as register_user
     register_seed(app)
     register_demo(app)
+    register_user(app)
 
     # ========================================
     # SCHEDULER — Notifications push planifiées
