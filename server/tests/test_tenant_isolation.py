@@ -168,16 +168,20 @@ class TestSettingsTenantIsolation:
 
 class TestAuditTenantIsolation:
     def test_audit_logs_scoped_to_tenant(self, app, client):
+        from flask_jwt_extended import create_access_token
+
         rid_a, rid_b = _two_tenants()
-        # MFA required to read the audit log
-        User.query.filter_by(email='a@mariam.app').first().mfa_secret = 'JBSWY3DPEHPK3PXP'
+        # Reading the audit log needs a second factor, and password login stops
+        # at it: the session is minted directly.
+        reader = User.query.filter_by(email='a@mariam.app').first()
+        reader.set_mfa_secret('JBSWY3DPEHPK3PXP')
         from app.models import AuditLog
-        AuditLog.log(action='login', user_id=User.query.filter_by(email='a@mariam.app').first().id,
-                     restaurant_id=rid_a)
+        AuditLog.log(action='login', user_id=reader.id, restaurant_id=rid_a)
         AuditLog.log(action='login', user_id=User.query.filter_by(email='b@mariam.app').first().id,
                      restaurant_id=rid_b)
         db.session.commit()
-        token_a = get_token(client, email='a@mariam.app')
+        with app.app_context():
+            token_a = create_access_token(identity=str(reader.id))
         logs = client.get('/v1/audit-logs', headers=auth_headers(token_a)).get_json()['logs']
         # No log must come from restaurant B
         assert all(log.get('user_email') != 'b@mariam.app' for log in logs)

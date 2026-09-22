@@ -99,7 +99,7 @@ def export_audit_logs():
     current_user_id = int(get_jwt_identity())
     user = User.query.get(current_user_id)
 
-    if not user.mfa_secret:
+    if not user.has_second_factor():
         return jsonify({
             'error': 'MFA_REQUIRED',
             'message': "L'export des logs nécessite l'activation de l'authentification à deux facteurs",
@@ -164,7 +164,7 @@ def get_audit_logs():
     current_user_id = int(get_jwt_identity())
     user = User.query.get(current_user_id)
 
-    if not user.mfa_secret:
+    if not user.has_second_factor():
         return jsonify({
             'error': 'MFA_REQUIRED',
             'message': "La consultation des logs nécessite l'activation de l'authentification à deux facteurs",
