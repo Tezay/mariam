@@ -106,6 +106,11 @@ export default defineConfig({
                 target: apiProxyTarget,
                 changeOrigin: true,
             },
+            // Unversioned, like Nginx serves it in production.
+            '/health': {
+                target: apiProxyTarget,
+                changeOrigin: true,
+            },
         },
         watch: {
             // Ignore config file changes in Docker to prevent Vite restart crashes

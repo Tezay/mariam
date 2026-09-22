@@ -22,6 +22,7 @@ declare global {
   interface Window {
     __RUNTIME_CONFIG__?: {
       API_URL?: string;
+      APP_VERSION?: string;
       CANONICAL_HOST?: string;
       UMAMI_WEBSITE_ID?: string;
       SENTRY_DSN?: string;
@@ -53,6 +54,14 @@ const getApiUrl = (): string => {
 };
 
 export const API_URL = getApiUrl();
+
+/** Deployment tag of the running frontend image; 'dev' outside a built container. */
+export const APP_VERSION = window.__RUNTIME_CONFIG__?.APP_VERSION || 'dev';
+
+// The entrypoint always writes SENTRY_ENVIRONMENT, with or without a DSN, so it
+// names the deployment rather than the error tracker.
+export const APP_ENVIRONMENT = window.__RUNTIME_CONFIG__?.SENTRY_ENVIRONMENT || 'development';
+
 const PUBLIC_API_TIMEOUT_MS = 20000;
 
 // ========================================
@@ -2070,5 +2079,13 @@ export const publicApi = {
   getTaxonomy: async (): Promise<TaxonomyData> => {
     const response = await publicAxios.get('/taxonomy', { timeout: PUBLIC_API_TIMEOUT_MS });
     return response.data as TaxonomyData;
+  },
+
+  // /health sits outside the versioned API, so it is addressed from the API root.
+  getServerVersion: async (): Promise<string | null> => {
+    const response = await axios.get(API_URL.replace(/\/v1\/?$/, '') + '/health', {
+      timeout: PUBLIC_API_TIMEOUT_MS,
+    });
+    return (response.data as { version?: string }).version ?? null;
   },
 };
