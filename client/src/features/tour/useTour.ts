@@ -18,8 +18,6 @@ export function useTour(tour: TourName, enabled: boolean) {
 
   const flag = TOUR_FLAGS[tour];
   const finish = useCallback(() => {
-    // A tour that stays on screen because the write failed is worse than one
-    // replayed on the next visit.
     update.mutate({ [flag]: true });
   }, [flag, update]);
 
