@@ -1,6 +1,6 @@
 [project]
 name = "mariam-backend"
-version = "0.16.0"
+version = "0.16.1"
 description = "MARIAM - Gérez les menus simplement."
 requires-python = ">=3.11"
 dependencies = [
