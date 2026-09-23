@@ -17,8 +17,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # GitHub's dependency graph does not read bun.lock, so nothing else watches
-  # these packages.
+  # Runtime dependencies only: the build toolchain is out of scope. GitHub's
+  # dependency graph does not read bun.lock, so nothing else watches these.
   frontend:
     name: Frontend dependencies (bun audit)
     runs-on: ubuntu-latest
@@ -29,15 +29,16 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Install dependencies
-        working-directory: client
-        run: bun install --frozen-lockfile
-
-      # lodash ships inside recharts 2 and no release of lodash fixes it; the
-      # recharts 3 upgrade is what clears this.
+      # No install step: bun audit reads bun.lock. None of these four has a fix
+      # in the majors we run — lodash leaves with recharts 3, router with v7.
       - name: Audit
         working-directory: client
-        run: bun audit --prod --audit-level=high --ignore GHSA-r5fr-rjxr-66jc
+        run: >
+          bun audit --prod --audit-level=moderate
+          --ignore GHSA-r5fr-rjxr-66jc
+          --ignore GHSA-f23m-r3pf-42rh
+          --ignore GHSA-337j-9hxr-rhxg
+          --ignore GHSA-wrjc-x8rr-h8h6
 
   backend:
     name: Backend dependencies (uv audit)
