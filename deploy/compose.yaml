@@ -60,7 +60,6 @@ x-backend-env: &backend-env
   WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:?Définissez WEBAUTHN_RP_ID dans .env (ex. mariam.app)}
   WEBAUTHN_RP_NAME: ${WEBAUTHN_RP_NAME:-MARIAM}
   WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:?Définissez WEBAUTHN_ORIGIN dans .env (ex. https://mariam.app)}
-  APP_VERSION: ${MARIAM_TAG:-dev}
   SENTRY_DSN: ${SENTRY_DSN:-}
   SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
@@ -160,7 +159,6 @@ services:
     mem_limit: 128m
     cpus: 0.5
     environment:
-      APP_VERSION: ${MARIAM_TAG:-dev}
       UMAMI_WEBSITE_ID: ${UMAMI_WEBSITE_ID:-}
       CANONICAL_HOST: ${CANONICAL_HOST:-}
       SENTRY_DSN: ${FRONTEND_SENTRY_DSN:-}
