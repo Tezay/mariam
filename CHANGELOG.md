@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **`react-router-dom` 6.30.6**, closing an XSS through open redirect rated high, and **TipTap 3.31.3**, closing two more.
+- **Dependency advisories checked in CI**, per PR and weekly: `bun audit` on the frontend, `uv audit` on the backend.
+- **`tailwindcss-animate` moved to `devDependencies`**: a build-time plugin was pulling the PostCSS toolchain into the runtime tree.
+
 ### Changed
 
 - **Deployed images carry their version**: `APP_VERSION` is baked from the image tag, so /health and the UI report the running version automatically.
+- `baseUrl` dropped from `tsconfig.json`, unneeded under `moduleResolution: bundler`.
 
 ## [0.16.1] - 2026-09-22
 
