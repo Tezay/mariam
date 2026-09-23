@@ -33,6 +33,11 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
+# Last on purpose: this changes at every release and would otherwise invalidate
+# the layers above. A variable set at runtime still overrides it.
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
+
 EXPOSE 80
 
 ENTRYPOINT ["/docker-entrypoint.sh"]

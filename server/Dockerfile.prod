@@ -33,6 +33,11 @@ ENV PYTHONUNBUFFERED=1
 COPY --chown=appuser:appuser entrypoint.prod.sh .
 RUN chmod +x entrypoint.prod.sh
 
+# Last on purpose: this changes at every release and would otherwise invalidate
+# the layers above. A variable set at runtime still overrides it.
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
+
 EXPOSE 5000
 
 CMD ["./entrypoint.prod.sh"]
