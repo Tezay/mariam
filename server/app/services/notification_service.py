@@ -246,7 +246,7 @@ def check_and_send_notifications(app):
                     by_restaurant.setdefault(sub.restaurant_id, []).append(sub)
 
                 for restaurant_id, subs in by_restaurant.items():
-                    restaurant = Restaurant.query.get(restaurant_id)
+                    restaurant = db.session.get(Restaurant, restaurant_id)
                     if not restaurant:
                         continue
 
@@ -279,7 +279,7 @@ def check_and_send_notifications(app):
                     by_restaurant.setdefault(sub.restaurant_id, []).append(sub)
 
                 for restaurant_id, subs in by_restaurant.items():
-                    restaurant = Restaurant.query.get(restaurant_id)
+                    restaurant = db.session.get(Restaurant, restaurant_id)
                     if not restaurant:
                         continue
 

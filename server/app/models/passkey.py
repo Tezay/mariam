@@ -5,9 +5,9 @@ Chaque utilisateur peut enregistrer plusieurs passkeys (un par appareil).
 La clé privée reste dans le secure enclave de l'appareil ; on stocke uniquement
 la clé publique, l'identifiant de credential et le compteur de signatures.
 """
-from datetime import datetime
 
 from ..extensions import db
+from ..utils.time import utc_now_naive
 
 
 class Passkey(db.Model):
@@ -38,7 +38,7 @@ class Passkey(db.Model):
     # Nom de l'appareil affiché à l'utilisateur
     device_name = db.Column(db.String(100), nullable=True)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now_naive)
     last_used_at = db.Column(db.DateTime, nullable=True)
 
     user = db.relationship('User', back_populates='passkeys')

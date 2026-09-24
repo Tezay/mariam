@@ -18,6 +18,7 @@ from flask import current_app, render_template
 from itsdangerous import BadSignature, URLSafeSerializer
 from jinja2 import TemplateNotFound
 
+from ..extensions import db
 from ..models import DishCatalog, Organization, Restaurant, User
 from ..utils.time import paris_now, paris_today
 from ..utils.urls import frontend_base_url
@@ -115,7 +116,7 @@ def unsubscribe_token(user_id: int) -> str:
 
 def user_from_token(token: str) -> User | None:
     try:
-        return User.query.get(int(_serializer().loads(token)))
+        return db.session.get(User, int(_serializer().loads(token)))
     except (BadSignature, TypeError, ValueError):
         return None
 
@@ -385,7 +386,7 @@ def build_digest(user, site_ids: list[int], start: date, end: date) -> dict:
     }
 
     if multi:
-        organization = Organization.query.get(user.organization_id)
+        organization = db.session.get(Organization, user.organization_id)
         return render_email(
             'weekly_digest_org',
             org_name=organization.name if organization else 'Votre organisation',
@@ -394,7 +395,7 @@ def build_digest(user, site_ids: list[int], start: date, end: date) -> dict:
             **_org_blocks(data),
         )
 
-    site = Restaurant.query.get(site_ids[0])
+    site = db.session.get(Restaurant, site_ids[0])
     blocks = _site_blocks(data, satisfaction, traffic_stats(scope))
     return render_email(
         'weekly_digest_site',

@@ -23,7 +23,7 @@ class TestRead:
     def test_show_reports_the_second_factor(self, app):
         uid = make_user(app, email='show@mariam.app')
         _with_passkey(uid)
-        User.query.get(uid).mfa_enabled = True
+        db.session.get(User, uid).mfa_enabled = True
         db.session.commit()
 
         result = _run(app, 'show', 'show@mariam.app')
@@ -40,7 +40,7 @@ class TestRead:
 
     def test_list_hides_disabled_accounts_unless_asked(self, app):
         uid = make_user(app, email='gone@mariam.app')
-        User.query.get(uid).is_active = False
+        db.session.get(User, uid).is_active = False
         db.session.commit()
 
         assert 'gone@mariam.app' not in _run(app, 'list').output
@@ -51,14 +51,14 @@ class TestSecondFactor:
     def test_reset_clears_both_methods_and_revokes_sessions(self, app):
         uid = make_user(app, email='reset@mariam.app')
         _with_passkey(uid, b'cli-cred-2')
-        user = User.query.get(uid)
+        user = db.session.get(User, uid)
         user.mfa_enabled = True
         db.session.commit()
 
         result = _run(app, 'reset-2fa', 'reset@mariam.app')
 
         assert result.exit_code == 0
-        user = User.query.get(uid)
+        user = db.session.get(User, uid)
         assert user.mfa_enabled is False
         assert user.passkeys.count() == 0
         assert user.tokens_valid_after is not None
@@ -66,12 +66,12 @@ class TestSecondFactor:
     def test_a_targeted_reset_leaves_the_other_method_alone(self, app):
         uid = make_user(app, email='partial@mariam.app')
         _with_passkey(uid, b'cli-cred-3')
-        User.query.get(uid).mfa_enabled = True
+        db.session.get(User, uid).mfa_enabled = True
         db.session.commit()
 
         _run(app, 'reset-2fa', 'partial@mariam.app', '--passkeys')
 
-        user = User.query.get(uid)
+        user = db.session.get(User, uid)
         assert user.passkeys.count() == 0
         assert user.mfa_enabled is True
 
@@ -131,7 +131,7 @@ class TestEdit:
         result = _run(app, 'set-role', 'promote@mariam.app', 'org_admin', '--org', 'cli-org')
 
         assert result.exit_code == 0
-        user = User.query.get(uid)
+        user = db.session.get(User, uid)
         assert (user.role, user.restaurant_id, user.organization_id) == (
             'org_admin', None, org.id
         )
@@ -200,5 +200,5 @@ def test_restaurants_are_untouched_by_account_commands(app):
 
     _run(app, 'delete', 'safe@mariam.app', '--yes')
 
-    assert Restaurant.query.get(rid) is not None
-    assert User.query.get(uid) is None
+    assert db.session.get(Restaurant, rid) is not None
+    assert db.session.get(User, uid) is None

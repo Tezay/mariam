@@ -7,9 +7,10 @@ Utilisé pour :
 - Réinitialiser les accès en cas de problème
 """
 import secrets
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from ..extensions import db
+from ..utils.time import utc_now_naive
 
 
 class ActivationLink(db.Model):
@@ -24,7 +25,7 @@ class ActivationLink(db.Model):
     role = db.Column(db.String(20), default='editor')  # Rôle attribué à l'activation
     expires_at = db.Column(db.DateTime, nullable=False)
     used_at = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now_naive)
     created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=True)
@@ -48,7 +49,7 @@ class ActivationLink(db.Model):
             token=cls.generate_token(),
             link_type='first_admin',
             role='admin',
-            expires_at=datetime.utcnow() + timedelta(hours=expires_hours)
+            expires_at=utc_now_naive() + timedelta(hours=expires_hours)
         )
     
     @classmethod
@@ -60,7 +61,7 @@ class ActivationLink(db.Model):
             email=email,
             link_type='invite',
             role=role,
-            expires_at=datetime.utcnow() + timedelta(hours=expires_hours),
+            expires_at=utc_now_naive() + timedelta(hours=expires_hours),
             created_by_id=created_by_id,
             restaurant_id=restaurant_id,
             organization_id=organization_id,
@@ -86,17 +87,17 @@ class ActivationLink(db.Model):
             email=email,
             link_type='password_reset',
             role=None,  # Pas de changement de rôle
-            expires_at=datetime.utcnow() + timedelta(hours=expires_hours),
+            expires_at=utc_now_naive() + timedelta(hours=expires_hours),
             created_by_id=created_by_id
         )
     
     def is_valid(self):
         """Vérifie si le lien est encore valide (non expiré et non utilisé)."""
-        return self.used_at is None and datetime.utcnow() < self.expires_at
+        return self.used_at is None and utc_now_naive() < self.expires_at
     
     def mark_as_used(self):
         """Marque le lien comme utilisé."""
-        self.used_at = datetime.utcnow()
+        self.used_at = utc_now_naive()
     
     def to_dict(self, include_token=False):
         """Sérialise le lien en dictionnaire JSON."""

@@ -14,7 +14,7 @@ def _token(app, user_id):
 
 def _reader(app, email):
     make_restaurant(app, name='RU Audit', code='RU_AUDIT')
-    return User.query.get(make_user(app, email=email))
+    return db.session.get(User, make_user(app, email=email))
 
 
 def _with_passkey(user_id, credential):

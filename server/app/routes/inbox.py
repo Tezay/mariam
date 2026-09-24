@@ -161,7 +161,7 @@ def delete_notification(notif_id: int):
 @inbox_bp.alt_response(401, schema=ErrorSchema)
 def get_notification_preferences():
     """Retourne les préférences de notification de l'utilisateur courant."""
-    user = User.query.get(int(get_jwt_identity()))
+    user = db.session.get(User, int(get_jwt_identity()))
     if not user:
         return jsonify({'error': 'Non authentifié'}), 401
     return jsonify(user.get_notification_preferences()), 200
@@ -174,7 +174,7 @@ def get_notification_preferences():
 def update_notification_preferences():
     """Met à jour les préférences de notification de l'utilisateur courant."""
     from flask import request
-    user = User.query.get(int(get_jwt_identity()))
+    user = db.session.get(User, int(get_jwt_identity()))
     if not user:
         return jsonify({'error': 'Non authentifié'}), 401
 
@@ -211,7 +211,7 @@ def get_live_alerts():
     Le périmètre suit le rôle : son site pour un admin, tous ceux de son
     organisation pour un directeur. Aucune persistance.
     """
-    user = User.query.get(int(get_jwt_identity()))
+    user = db.session.get(User, int(get_jwt_identity()))
     if not user:
         return jsonify({'alerts': []}), 200
     return jsonify({'alerts': live_alerts(user, sorted(accessible_restaurant_ids(user)))}), 200

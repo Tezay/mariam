@@ -67,7 +67,7 @@ def list_closures():
         verify_jwt_in_request(optional=True)
         identity = get_jwt_identity()
         if identity:
-            user = User.query.get(int(identity))
+            user = db.session.get(User, int(identity))
             is_editor = user is not None and user.is_editor()
     except Exception:
         pass
@@ -144,7 +144,7 @@ def list_closures():
 def create_closure(data):
     """Create a new exceptional closure."""
     current_user_id = int(get_jwt_identity())
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     today = paris_today()
 
     start_date = parse_iso_date(data.get('start_date'))

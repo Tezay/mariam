@@ -162,7 +162,7 @@ def verify_mfa(data):
     if jti and is_token_blacklisted(jti):
         return jsonify({'error': 'Token MFA invalide ou expiré'}), 401
 
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
 
@@ -336,7 +336,7 @@ def verify_mfa_setup():
     except Exception:
         return jsonify({'error': 'setup_token invalide ou expiré'}), 401
 
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
 
@@ -379,7 +379,7 @@ def mfa_setup():
     Returns: { qr_code, secret }
     """
     current_user_id = int(get_jwt_identity())
-    user = User.query.get(current_user_id)
+    user = db.session.get(User, current_user_id)
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
 
@@ -425,7 +425,7 @@ def mfa_setup_confirm():
         return jsonify({'error': 'code requis'}), 400
 
     current_user_id = int(get_jwt_identity())
-    user = User.query.get(current_user_id)
+    user = db.session.get(User, current_user_id)
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
 
@@ -461,7 +461,7 @@ def disable_mfa():
     Rejected if the user has no registered passkey (at least one 2FA method must remain active).
     """
     current_user_id = int(get_jwt_identity())
-    user = User.query.get(current_user_id)
+    user = db.session.get(User, current_user_id)
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
 
@@ -551,7 +551,7 @@ def logout():
 def get_current_user():
     """Get the currently authenticated user's profile."""
     current_user_id = int(get_jwt_identity())
-    user = User.query.get(current_user_id)
+    user = db.session.get(User, current_user_id)
 
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
@@ -703,7 +703,7 @@ def change_password(data):
         return jsonify({'error': 'Mot de passe actuel, nouveau mot de passe et code MFA requis'}), 400
 
     current_user_id = int(get_jwt_identity())
-    user = User.query.get(current_user_id)
+    user = db.session.get(User, current_user_id)
 
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
@@ -881,7 +881,7 @@ def passkey_register_begin():
 
     rp_id, rp_name, _ = _get_webauthn_config()
     current_user_id = int(get_jwt_identity())
-    user = User.query.get(current_user_id)
+    user = db.session.get(User, current_user_id)
 
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
@@ -950,7 +950,7 @@ def passkey_register_complete():
     if token_user_id != current_user_id:
         return jsonify({'error': 'Token invalide'}), 401
 
-    user = User.query.get(current_user_id)
+    user = db.session.get(User, current_user_id)
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
 
@@ -1009,7 +1009,7 @@ def passkey_register_complete():
 def list_passkeys():
     """List all registered passkeys for the authenticated user."""
     current_user_id = int(get_jwt_identity())
-    user = User.query.get(current_user_id)
+    user = db.session.get(User, current_user_id)
 
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
@@ -1028,7 +1028,7 @@ def delete_passkey(passkey_id):
     Rejected if it is the last passkey and TOTP is not active (2FA constraint).
     """
     current_user_id = int(get_jwt_identity())
-    user = User.query.get(current_user_id)
+    user = db.session.get(User, current_user_id)
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
 
@@ -1166,7 +1166,7 @@ def passkey_login_complete():
     if not passkey:
         return jsonify({'error': 'Passkey inconnue'}), 404
 
-    user = User.query.get(passkey.user_id)
+    user = db.session.get(User, passkey.user_id)
     if not user or not user.is_active:
         return jsonify({'error': 'Utilisateur non trouvé ou désactivé'}), 404
 
@@ -1252,7 +1252,7 @@ def passkey_setup_begin():
     except Exception:
         return jsonify({'error': 'setup_token invalide ou expiré'}), 401
 
-    user = User.query.get(int(user_id))
+    user = db.session.get(User, int(user_id))
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
 
@@ -1316,7 +1316,7 @@ def passkey_setup_complete():
     if not user_id or not challenge_token or not credential_data:
         return jsonify({'error': 'user_id, challenge_token et credential requis'}), 400
 
-    user = User.query.get(int(user_id))
+    user = db.session.get(User, int(user_id))
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
 
@@ -1390,7 +1390,7 @@ def step_up_password():
     Body: { password, mfa_code }
     """
     data = request.get_json() or {}
-    user = User.query.get(int(get_jwt_identity()))
+    user = db.session.get(User, int(get_jwt_identity()))
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
 
@@ -1417,7 +1417,7 @@ def step_up_passkey_begin():
         UserVerificationRequirement,
     )
 
-    user = User.query.get(int(get_jwt_identity()))
+    user = db.session.get(User, int(get_jwt_identity()))
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
 
@@ -1544,7 +1544,7 @@ def passkey_change_password_begin():
         return jsonify({'error': 'current_password requis'}), 400
 
     current_user_id = int(get_jwt_identity())
-    user = User.query.get(current_user_id)
+    user = db.session.get(User, current_user_id)
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
 
@@ -1626,7 +1626,7 @@ def passkey_change_password_complete():
     if token_user_id != current_user_id:
         return jsonify({'error': 'Token invalide'}), 401
 
-    user = User.query.get(current_user_id)
+    user = db.session.get(User, current_user_id)
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
 
@@ -1801,7 +1801,7 @@ def passkey_reset_password_complete():
     if not link.is_valid():
         return jsonify({'error': 'Lien de réinitialisation expiré ou déjà utilisé'}), 400
 
-    user = User.query.get(token_user_id)
+    user = db.session.get(User, token_user_id)
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
     if not user.is_active:
@@ -1892,7 +1892,7 @@ def session_transfer_generate():
     Returns: { transfer_token, expires_in }
     """
     user_id = int(get_jwt_identity())
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user or not user.is_active:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
 
@@ -1931,7 +1931,7 @@ def session_transfer_validate():
         return jsonify({'error': 'Ce lien a déjà été utilisé'}), 401
 
     user_id = int(decoded['sub'])
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
     if not user.is_active:

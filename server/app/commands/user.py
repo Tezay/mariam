@@ -43,7 +43,7 @@ def _find_user(email: str) -> User:
 
 
 def _find_restaurant(value: str) -> Restaurant:
-    site = Restaurant.query.get(int(value)) if value.isdigit() else None
+    site = db.session.get(Restaurant, int(value)) if value.isdigit() else None
     if site is None:
         site = Restaurant.query.filter_by(slug=value).first()
     if site is None:
@@ -52,7 +52,7 @@ def _find_restaurant(value: str) -> Restaurant:
 
 
 def _find_organization(value: str) -> Organization:
-    org = Organization.query.get(int(value)) if value.isdigit() else None
+    org = db.session.get(Organization, int(value)) if value.isdigit() else None
     if org is None:
         org = Organization.query.filter_by(slug=value).first()
     if org is None:
@@ -92,10 +92,10 @@ def _audit(action: str, user: User, **details) -> None:
 
 def _tenant_label(user: User) -> str:
     if user.restaurant_id:
-        site = Restaurant.query.get(user.restaurant_id)
+        site = db.session.get(Restaurant, user.restaurant_id)
         return site.name if site else f'site #{user.restaurant_id}'
     if user.organization_id:
-        org = Organization.query.get(user.organization_id)
+        org = db.session.get(Organization, user.organization_id)
         return org.name if org else f'org #{user.organization_id}'
     return '—'
 

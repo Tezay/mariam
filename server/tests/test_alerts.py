@@ -28,7 +28,7 @@ def _quiet(user, **overrides):
 
 
 def _serves_every_day(restaurant_id):
-    restaurant = Restaurant.query.get(restaurant_id)
+    restaurant = db.session.get(Restaurant, restaurant_id)
     restaurant.service_days = [0, 1, 2, 3, 4, 5, 6]
     db.session.commit()
 
@@ -59,14 +59,14 @@ def _attach_org(restaurant_id, slug='org-alerts'):
         org = Organization(name='Org', slug=slug)
         db.session.add(org)
         db.session.commit()
-    Restaurant.query.get(restaurant_id).organization_id = org.id
+    db.session.get(Restaurant, restaurant_id).organization_id = org.id
     db.session.commit()
     return org.id
 
 
 def _votes(restaurant_id, day, count, rating):
     """A vote hangs from an organization and from the menu it judges."""
-    org_id = Restaurant.query.get(restaurant_id).organization_id or _attach_org(restaurant_id)
+    org_id = db.session.get(Restaurant, restaurant_id).organization_id or _attach_org(restaurant_id)
     menu = Menu.query.filter_by(restaurant_id=restaurant_id, date=day).first()
     if menu is None:
         menu = Menu(restaurant_id=restaurant_id, date=day, status='published')
@@ -83,7 +83,7 @@ def _votes(restaurant_id, day, count, rating):
 class TestMenuRules:
     def test_today_without_menu_alerts(self, app, client):
         rid = make_restaurant(app)
-        user = User.query.get(make_user(app))
+        user = db.session.get(User, make_user(app))
         _serves_every_day(rid)
         _quiet(user, notify_menu_unpublished=True)
 
@@ -93,7 +93,7 @@ class TestMenuRules:
 
     def test_a_published_menu_silences_it(self, app, client):
         rid = make_restaurant(app)
-        user = User.query.get(make_user(app))
+        user = db.session.get(User, make_user(app))
         _serves_every_day(rid)
         _published_menu(rid, paris_today(), make_category(app, rid))
         _quiet(user, notify_menu_unpublished=True)
@@ -102,7 +102,7 @@ class TestMenuRules:
 
     def test_a_disabled_preference_silences_it(self, app, client):
         rid = make_restaurant(app)
-        user = User.query.get(make_user(app))
+        user = db.session.get(User, make_user(app))
         _serves_every_day(rid)
         _quiet(user)
 
@@ -112,7 +112,7 @@ class TestMenuRules:
 class TestActivityRules:
     def test_traffic_drop_fires_under_half_the_usual(self, app, client):
         rid = make_restaurant(app)
-        user = User.query.get(make_user(app))
+        user = db.session.get(User, make_user(app))
         _quiet(user, notify_traffic_drop=True)
         yesterday = paris_today() - timedelta(days=1)
         for week in range(1, 5):
@@ -126,7 +126,7 @@ class TestActivityRules:
 
     def test_traffic_drop_ignores_a_quiet_site(self, app, client):
         rid = make_restaurant(app)
-        user = User.query.get(make_user(app))
+        user = db.session.get(User, make_user(app))
         _quiet(user, notify_traffic_drop=True)
         yesterday = paris_today() - timedelta(days=1)
         for week in range(1, 5):
@@ -136,7 +136,7 @@ class TestActivityRules:
 
     def test_low_satisfaction_needs_enough_votes(self, app, client):
         rid = make_restaurant(app)
-        user = User.query.get(make_user(app))
+        user = db.session.get(User, make_user(app))
         _quiet(user, notify_low_satisfaction=True)
         _votes(rid, paris_today(), 10, rating=1)
 
@@ -150,7 +150,7 @@ class TestActivityRules:
 
     def test_vote_anomaly_compares_votes_to_visitors(self, app, client):
         rid = make_restaurant(app)
-        user = User.query.get(make_user(app))
+        user = db.session.get(User, make_user(app))
         _quiet(user, notify_vote_anomaly=True)
         yesterday = paris_today() - timedelta(days=1)
         _votes(rid, yesterday, 40, rating=3)
@@ -171,10 +171,10 @@ class TestOrgScope:
         first = make_restaurant(app, name='Créteil', code='RU_A')
         second = make_restaurant(app, name='Villejuif', code='RU_B')
         for rid in (first, second):
-            restaurant = Restaurant.query.get(rid)
+            restaurant = db.session.get(Restaurant, rid)
             restaurant.organization_id = org.id
             restaurant.service_days = [0, 1, 2, 3, 4, 5, 6]
-        director = User.query.get(make_user(app, email='dir@mariam.app', role='org_admin',
+        director = db.session.get(User, make_user(app, email='dir@mariam.app', role='org_admin',
                                             restaurant_id=first))
         director.restaurant_id = None
         director.organization_id = org.id
@@ -202,7 +202,7 @@ class TestOrgScope:
     def test_another_organization_never_shows(self, app, client):
         _, first, second, director = self._org_with_two_sites(app)
         stranger = make_restaurant(app, name='Ailleurs', code='RU_X')
-        Restaurant.query.get(stranger).service_days = [0, 1, 2, 3, 4, 5, 6]
+        db.session.get(Restaurant, stranger).service_days = [0, 1, 2, 3, 4, 5, 6]
         db.session.commit()
         _quiet(director, notify_menu_unpublished=True)
 

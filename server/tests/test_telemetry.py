@@ -40,7 +40,7 @@ def _org_with_site(monkeypatch, slug='tel-org', code='TEL'):
     db.session.add(org)
     db.session.commit()
     rid = make_restaurant(None, name=code, code=code)
-    site = Restaurant.query.get(rid)
+    site = db.session.get(Restaurant, rid)
     site.organization_id = org.id
     site.slug = code.lower()
     db.session.commit()
@@ -250,7 +250,7 @@ class TestDayCloseAndPurge:
 class TestTrafficEndpoint:
     def _supervisor(self, org_id, rid):
         uid = make_user(None, email='sup@mariam.app', role='org_admin', restaurant_id=None)
-        User.query.get(uid).organization_id = org_id
+        db.session.get(User, uid).organization_id = org_id
         db.session.commit()
 
     def test_traffic_excludes_screens_from_the_totals(self, app, client, monkeypatch):

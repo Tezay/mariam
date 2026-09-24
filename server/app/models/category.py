@@ -7,9 +7,9 @@ Structure :
 - is_protected : ne peut pas être supprimé (ex: Plat principal, Protéines, Accompagnements)
 - is_highlighted : items affichés en grand format avec image visible par défaut
 """
-from datetime import datetime
 
 from ..extensions import db
+from ..utils.time import utc_now_naive
 
 
 class MenuCategory(db.Model):
@@ -29,8 +29,8 @@ class MenuCategory(db.Model):
     is_protected = db.Column(db.Boolean, nullable=False, default=False)
     is_highlighted = db.Column(db.Boolean, nullable=False, default=False)
     color_key = db.Column(db.String(30), nullable=True, default=None)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now_naive)
+    updated_at = db.Column(db.DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 
     # Sous-catégories (relation enfants)
     subcategories = db.relationship(

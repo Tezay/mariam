@@ -8,9 +8,9 @@ admin/editor is confined to a single restaurant.
 
 Hierarchy: Organization -> Restaurant -> (Menu, Event, User, ...).
 """
-from datetime import datetime
 
 from ..extensions import db
+from ..utils.time import utc_now_naive
 
 # Slugs that cannot be assigned to an organization (technical / marketing
 # subdomains of mariam.app).
@@ -29,7 +29,7 @@ class Organization(db.Model):
     name = db.Column(db.String(150), nullable=False)
     slug = db.Column(db.String(63), unique=True, nullable=False, index=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False, server_default='true')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now_naive)
 
     restaurants = db.relationship(
         'Restaurant',

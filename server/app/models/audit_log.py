@@ -8,9 +8,10 @@ Enregistre les actions critiques pour la sécurité et la traçabilité :
 - Modifications de configuration
 """
 import json
-from datetime import UTC, datetime
+from datetime import UTC
 
 from ..extensions import db
+from ..utils.time import utc_now_naive
 
 
 class AuditLog(db.Model):
@@ -29,7 +30,7 @@ class AuditLog(db.Model):
     details = db.Column(db.Text, nullable=True)  # JSON
     ip_address = db.Column(db.String(45), nullable=True)  # IPv4 ou IPv6
     user_agent = db.Column(db.String(500), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    created_at = db.Column(db.DateTime, default=utc_now_naive, index=True)
     
     # Relation
     user = db.relationship('User', backref='audit_logs', foreign_keys=[user_id])

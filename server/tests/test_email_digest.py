@@ -48,7 +48,7 @@ def _subscribe(user_id, value=True, slot='now'):
     """Subscribe a user, by default in the slot the job is about to serve."""
     now = paris_now()
     hour = now.hour if slot == 'now' else (now.hour + 1) % 24
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     user.notification_preferences = {
         'weekly_digest': value, 'digest_day': now.weekday(), 'digest_hour': hour,
     }
@@ -96,7 +96,7 @@ class TestRecipients:
 class TestContent:
     def test_a_site_admin_reads_about_its_restaurant(self, app, client):
         rid = make_restaurant(app)
-        user = User.query.get(make_user(app))
+        user = db.session.get(User, make_user(app))
         start, end = email_service.last_week()
 
         digest = email_service.build_digest(user, [rid], start, end)
@@ -113,8 +113,8 @@ class TestContent:
         first = make_restaurant(app, name='Créteil', code='RU_A')
         second = make_restaurant(app, name='Villejuif', code='RU_B')
         for rid in (first, second):
-            Restaurant.query.get(rid).organization_id = org.id
-        director = User.query.get(
+            db.session.get(Restaurant, rid).organization_id = org.id
+        director = db.session.get(User, 
             make_user(app, email='dir@mariam.app', role='org_admin', restaurant_id=first)
         )
         director.restaurant_id = None
@@ -146,7 +146,7 @@ class TestUnsubscribe:
             token = email_service.unsubscribe_token(uid)
 
         assert client.post(f'/v1/public/unsubscribe/{token}').status_code == 204
-        assert User.query.get(uid).get_notification_preferences()['weekly_digest'] is False
+        assert db.session.get(User, uid).get_notification_preferences()['weekly_digest'] is False
 
     def test_the_link_renders_a_confirmation(self, app, client):
         make_restaurant(app)
@@ -167,4 +167,4 @@ class TestUnsubscribe:
 
         assert res.status_code == 200
         assert "n'est plus valide" in res.get_data(as_text=True)
-        assert User.query.get(uid).get_notification_preferences()['weekly_digest'] is True
+        assert db.session.get(User, uid).get_notification_preferences()['weekly_digest'] is True

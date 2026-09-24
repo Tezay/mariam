@@ -14,6 +14,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..extensions import db
 from ..services.crypto import EncryptedSecret
+from ..utils.time import utc_now_naive
 
 
 class User(db.Model):
@@ -44,7 +45,7 @@ class User(db.Model):
     )
 
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now_naive)
     last_login = db.Column(db.DateTime, nullable=True)
     # Token revocation: any JWT issued (iat) before this instant is rejected.
     # Set on password change/reset and MFA reset.
@@ -177,7 +178,7 @@ class User(db.Model):
 
     def update_last_login(self):
         """Met à jour la date de dernière connexion."""
-        self.last_login = datetime.utcnow()
+        self.last_login = utc_now_naive()
     
     def to_dict(self, include_sensitive=False, include_tenant=False):
         """
@@ -206,7 +207,7 @@ class User(db.Model):
 
             data['restaurant_name'] = self.restaurant.name if self.restaurant else None
             organization = (
-                Organization.query.get(self.organization_id) if self.organization_id else None
+                db.session.get(Organization, self.organization_id) if self.organization_id else None
             )
             data['organization_name'] = organization.name if organization else None
 

@@ -8,9 +8,9 @@ Structure :
 - Chaque Menu peut avoir une "note du chef"
 - Statuts : brouillon (draft) ou publié (published)
 """
-from datetime import datetime
 
 from ..extensions import db
+from ..utils.time import utc_now_naive
 
 
 class Menu(db.Model):
@@ -24,8 +24,8 @@ class Menu(db.Model):
     status = db.Column(db.String(20), default='draft')  # draft, published
     published_at = db.Column(db.DateTime, nullable=True)
     published_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now_naive)
+    updated_at = db.Column(db.DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 
     # Note du chef — courte phrase / citation affichée en TV
     chef_note = db.Column(db.String(300), nullable=True)
@@ -138,7 +138,7 @@ class MenuImage(db.Model):
     url = db.Column(db.String(500), nullable=False)
     filename = db.Column(db.String(255), nullable=True)
     order = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now_naive)
 
     def to_dict(self):
         return {

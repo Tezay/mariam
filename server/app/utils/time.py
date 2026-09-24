@@ -14,8 +14,13 @@ def paris_now() -> datetime:
     return datetime.now(PARIS_TZ)
 
 
+def utc_now_naive() -> datetime:
+    """Now in UTC, without a timezone, for the columns declared without one."""
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
 def utc_naive_to_paris(value: datetime) -> datetime:
-    """Stamp a naive-UTC column (datetime.utcnow) as Paris time before comparing it."""
+    """Stamp a naive-UTC column as Paris time before comparing it."""
     return value.replace(tzinfo=UTC).astimezone(PARIS_TZ)
 
 

@@ -31,7 +31,7 @@ def _make_org(name='Test Org', slug='test-org'):
 
 def _make_user(email, role, restaurant_id, organization_id=None, with_mfa=False):
     uid = make_user(None, email=email, role=role, restaurant_id=restaurant_id)
-    user = User.query.get(uid)
+    user = db.session.get(User, uid)
     user.organization_id = organization_id
     if with_mfa:
         user.mfa_secret = 'JBSWY3DPEHPK3PXP'
@@ -45,8 +45,8 @@ def _two_tenants():
     org_a, org_b = _make_org(slug='org-a'), _make_org(slug='org-b')
     rid_a = make_restaurant(None, name='RU A', code='RU_A')
     rid_b = make_restaurant(None, name='RU B', code='RU_B')
-    Restaurant.query.get(rid_a).organization_id = org_a
-    Restaurant.query.get(rid_b).organization_id = org_b
+    db.session.get(Restaurant, rid_a).organization_id = org_a
+    db.session.get(Restaurant, rid_b).organization_id = org_b
     db.session.commit()
     _make_user('a@mariam.app', 'admin', rid_a, org_a)
     _make_user('b@mariam.app', 'admin', rid_b, org_b)
@@ -77,7 +77,7 @@ class TestEventTenantIsolation:
         res = client.put(f'/v1/events/{event_id}',
                          json={'title': 'hacked'}, headers=auth_headers(token_a))
         assert res.status_code == 404
-        assert Event.query.get(event_id).title == 'Event'
+        assert db.session.get(Event, event_id).title == 'Event'
 
     def test_cannot_delete_or_publish_other_tenant_event(self, app, client):
         _, rid_b = _two_tenants()
@@ -85,7 +85,7 @@ class TestEventTenantIsolation:
         token_a = get_token(client, email='a@mariam.app')
         assert client.delete(f'/v1/events/{event_id}', headers=auth_headers(token_a)).status_code == 404
         assert client.post(f'/v1/events/{event_id}/publish', headers=auth_headers(token_a)).status_code == 404
-        assert Event.query.get(event_id) is not None
+        assert db.session.get(Event, event_id) is not None
 
     def test_cannot_delete_other_tenant_event_image(self, app, client):
         from app.models import EventImage
@@ -98,7 +98,7 @@ class TestEventTenantIsolation:
         res = client.delete(f'/v1/events/{event_id}/images/{img.id}',
                             headers=auth_headers(token_a))
         assert res.status_code == 404
-        assert EventImage.query.get(img.id) is not None  # not deleted
+        assert db.session.get(EventImage, img.id) is not None  # not deleted
 
     def test_create_event_ignores_body_restaurant_id(self, app, client):
         rid_a, rid_b = _two_tenants()
@@ -156,13 +156,13 @@ class TestSettingsTenantIsolation:
 
     def test_update_settings_targets_own_restaurant(self, app, client):
         rid_a, rid_b = _two_tenants()
-        name_b_before = Restaurant.query.get(rid_b).name
+        name_b_before = db.session.get(Restaurant, rid_b).name
         token_b = get_token(client, email='b@mariam.app')
         res = client.put('/v1/settings', json={'name': 'Renamed by B'},
                          headers=auth_headers(token_b))
         assert res.status_code == 200
-        assert Restaurant.query.get(rid_b).name == 'Renamed by B'
-        assert Restaurant.query.get(rid_a).name == 'RU A'  # A untouched
+        assert db.session.get(Restaurant, rid_b).name == 'Renamed by B'
+        assert db.session.get(Restaurant, rid_a).name == 'RU A'  # A untouched
         assert name_b_before != 'Renamed by B'
 
 
@@ -221,8 +221,8 @@ class TestOrgAdminScope:
         org = _make_org(slug='multi')
         rid1 = make_restaurant(None, name='Site 1', code='S1')
         rid2 = make_restaurant(None, name='Site 2', code='S2')
-        Restaurant.query.get(rid1).organization_id = org
-        Restaurant.query.get(rid2).organization_id = org
+        db.session.get(Restaurant, rid1).organization_id = org
+        db.session.get(Restaurant, rid2).organization_id = org
         db.session.commit()
         _make_user('director@mariam.app', 'org_admin', restaurant_id=rid1, organization_id=org)
         _make_user('siteadmin@mariam.app', 'admin', restaurant_id=rid1, organization_id=org)
@@ -245,7 +245,7 @@ class TestActiveRestaurant:
         rids = []
         for code in codes:
             rid = make_restaurant(None, name=code, code=code)
-            Restaurant.query.get(rid).organization_id = org
+            db.session.get(Restaurant, rid).organization_id = org
             rids.append(rid)
         db.session.commit()
         _make_user('dir@mariam.app', 'org_admin', restaurant_id=rids[0], organization_id=org)
@@ -287,7 +287,7 @@ class TestSupervisorManagesOnlyPeers:
     def _org_with_site_admin(self, slug='peer-org'):
         org = _make_org(slug=slug)
         rid = make_restaurant(None, name='PEER', code='PEER_SITE')
-        Restaurant.query.get(rid).organization_id = org
+        db.session.get(Restaurant, rid).organization_id = org
         db.session.commit()
         _make_user('sup@mariam.app', 'org_admin', restaurant_id=None, organization_id=org)
         site_admin = _make_user('siteadmin@mariam.app', 'admin', rid, org)
@@ -298,7 +298,7 @@ class TestSupervisorManagesOnlyPeers:
         token = get_token(client, email='sup@mariam.app')
         res = client.delete(f'/v1/users/{site_admin}', headers=auth_headers(token))
         assert res.status_code == 404
-        assert User.query.get(site_admin) is not None
+        assert db.session.get(User, site_admin) is not None
 
     def test_cannot_reset_mfa_of_a_site_account(self, app, client):
         _, _, site_admin = self._org_with_site_admin('peer-org-2')
@@ -315,7 +315,7 @@ class TestSupervisorManagesOnlyPeers:
             headers=auth_headers(token),
         )
         assert res.status_code == 404
-        assert User.query.get(site_admin).role == 'admin'
+        assert db.session.get(User, site_admin).role == 'admin'
 
     def test_site_admin_cannot_promote_to_supervisor(self, app, client):
         _, rid, _ = self._org_with_site_admin('peer-org-4')
@@ -327,7 +327,7 @@ class TestSupervisorManagesOnlyPeers:
             headers=auth_headers(token),
         )
         assert res.status_code == 403
-        assert User.query.get(editor).role == 'editor'
+        assert db.session.get(User, editor).role == 'editor'
 
 
 class TestDeletionNeedsStepUp:
@@ -336,7 +336,7 @@ class TestDeletionNeedsStepUp:
     def _pair(self, slug='step-org'):
         org = _make_org(slug=slug)
         rid = make_restaurant(None, name='STEP', code='STEP_SITE')
-        Restaurant.query.get(rid).organization_id = org
+        db.session.get(Restaurant, rid).organization_id = org
         db.session.commit()
         _make_user('boss@mariam.app', 'admin', rid, org)
         victim = _make_user('victim@mariam.app', 'editor', rid, org)
@@ -356,7 +356,7 @@ class TestDeletionNeedsStepUp:
         token = get_token(client, email='boss@mariam.app')
         res = client.delete(f'/v1/users/{victim}', headers=auth_headers(token))
         assert res.status_code == 401
-        assert User.query.get(victim) is not None
+        assert db.session.get(User, victim) is not None
 
     def test_wrong_password_yields_no_proof(self, app, client):
         self._pair('step-org-2')
@@ -377,7 +377,7 @@ class TestDeletionNeedsStepUp:
             headers={**auth_headers(token), 'X-Step-Up-Token': proof},
         )
         assert res.status_code == 200
-        assert User.query.get(victim) is None
+        assert db.session.get(User, victim) is None
 
 
 class TestDirectorIsReadOnlyOnContent:
@@ -386,7 +386,7 @@ class TestDirectorIsReadOnlyOnContent:
     def _director_and_site(self, slug='ro-org'):
         org = _make_org(slug=slug)
         rid = make_restaurant(None, name='RO', code='RO_SITE')
-        Restaurant.query.get(rid).organization_id = org
+        db.session.get(Restaurant, rid).organization_id = org
         db.session.commit()
         _make_user('ro@mariam.app', 'org_admin', restaurant_id=rid, organization_id=org)
         return rid
@@ -408,7 +408,7 @@ class TestDirectorIsReadOnlyOnContent:
         token = get_token(client, email='ro@mariam.app')
         res = client.delete(f'/v1/events/{event_id}', headers=auth_headers(token))
         assert res.status_code == 403
-        assert Event.query.get(event_id) is not None
+        assert db.session.get(Event, event_id) is not None
 
     def test_cannot_open_a_site_through_the_api(self, app, client):
         self._director_and_site('ro-org-4')
@@ -436,7 +436,7 @@ class TestOrgDashboard:
         rids = []
         for code in codes:
             rid = make_restaurant(None, name=code, code=code)
-            Restaurant.query.get(rid).organization_id = org
+            db.session.get(Restaurant, rid).organization_id = org
             rids.append(rid)
         db.session.commit()
         _make_user('u@mariam.app', role, restaurant_id=rids[0], organization_id=org)
@@ -455,7 +455,7 @@ class TestOrgDashboard:
 
     def test_a_closed_day_is_not_reported_as_a_missing_menu(self, app, client):
         _, rids = self._org('ov-closed', ['OVC'])
-        restaurant = Restaurant.query.get(rids[0])
+        restaurant = db.session.get(Restaurant, rids[0])
         restaurant.service_days = list(range(7))
         today = paris_today()
         db.session.add(
@@ -553,7 +553,7 @@ class TestAnalyticsScope:
         rids = []
         for code in codes:
             rid = make_restaurant(None, name=code, code=code)
-            Restaurant.query.get(rid).organization_id = org
+            db.session.get(Restaurant, rid).organization_id = org
             rids.append(rid)
         db.session.commit()
         return org, rids

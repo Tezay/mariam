@@ -25,7 +25,7 @@ def _org(slug='cat-org'):
 
 def _site(org_id, code):
     rid = make_restaurant(None, name=code, code=code)
-    site = Restaurant.query.get(rid)
+    site = db.session.get(Restaurant, rid)
     site.organization_id = org_id
     db.session.commit()
     return rid
@@ -70,7 +70,7 @@ def _vote(org_id, rid, menu, dish, rating, device):
 
 def _director(rid, org_id, email='dir@mariam.app'):
     uid = make_user(None, email=email, role='org_admin', restaurant_id=rid)
-    User.query.get(uid).organization_id = org_id
+    db.session.get(User, uid).organization_id = org_id
     db.session.commit()
     return uid
 

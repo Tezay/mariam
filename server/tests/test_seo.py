@@ -94,7 +94,7 @@ def _org(slug='org-seo', name='Org SEO'):
 
 def _site(org_id, name, code, slug, is_active=True):
     rid = make_restaurant(None, name=name, code=code)
-    r = Restaurant.query.get(rid)
+    r = db.session.get(Restaurant, rid)
     r.organization_id = org_id
     r.slug = slug
     r.is_active = is_active

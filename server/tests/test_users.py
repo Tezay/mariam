@@ -180,13 +180,13 @@ class TestLastFactorGuard:
         from app.models import User
         make_restaurant(app)
         uid = make_user(app)
-        User.query.get(uid).mfa_enabled = True
+        db.session.get(User, uid).mfa_enabled = True
         db.session.commit()
 
         res = client.delete('/v1/auth/mfa', headers=auth_headers(self._token(app, uid)))
 
         assert res.status_code == 409
-        assert User.query.get(uid).mfa_enabled is True
+        assert db.session.get(User, uid).mfa_enabled is True
 
     def test_the_last_passkey_cannot_go_without_totp(self, app, client):
         make_restaurant(app)
@@ -205,7 +205,7 @@ class TestLastFactorGuard:
         make_restaurant(app)
         uid = make_user(app)
         passkey_id = self._with_passkey(uid)
-        User.query.get(uid).mfa_enabled = True
+        db.session.get(User, uid).mfa_enabled = True
         db.session.commit()
 
         res = client.delete(

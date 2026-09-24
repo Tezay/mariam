@@ -97,7 +97,7 @@ def export_audit_logs():
     ID, Date, User, Action, Target, IP, Details.
     """
     current_user_id = int(get_jwt_identity())
-    user = User.query.get(current_user_id)
+    user = db.session.get(User, current_user_id)
 
     if not user.has_second_factor():
         return jsonify({
@@ -162,7 +162,7 @@ def get_audit_logs():
     - `end_date` — End date (ISO format)
     """
     current_user_id = int(get_jwt_identity())
-    user = User.query.get(current_user_id)
+    user = db.session.get(User, current_user_id)
 
     if not user.has_second_factor():
         return jsonify({

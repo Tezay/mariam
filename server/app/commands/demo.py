@@ -647,7 +647,7 @@ def _create_demo_analytics(restaurant: Restaurant, site: dict) -> tuple[int, int
                 device_id=f'demo{restaurant.id}{day.isoformat()}{index:04d}'.replace('-', ''),
                 rating=rng.choices([1, 2, 3], weights=site['ratings'])[0],
                 dishes=[
-                    DishCatalog.query.get(rng.choice(group)) for group in groups
+                    db.session.get(DishCatalog, rng.choice(group)) for group in groups
                 ],
             ))
             votes += 1

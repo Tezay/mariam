@@ -225,7 +225,7 @@ class TestDishSatisfaction:
         db.session.add(org)
         db.session.commit()
 
-        site = Restaurant.query.get(rid)
+        site = db.session.get(Restaurant, rid)
         site.organization_id = org.id
         site.vote_enabled = enabled
         site.vote_category_ids = [category] if votable else []

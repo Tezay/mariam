@@ -64,7 +64,7 @@ def get_restaurant_info():
     restaurant_id = request.args.get('restaurant_id', type=int)
 
     if restaurant_id:
-        restaurant = Restaurant.query.get(restaurant_id)
+        restaurant = db.session.get(Restaurant, restaurant_id)
     else:
         restaurant = Restaurant.query.filter_by(is_active=True).first()
 
@@ -283,7 +283,7 @@ def list_restaurants():
 @restaurant_bp.response(200, RestaurantSchema)
 def get_calendar_settings():
     """Retourne les paramètres calendrier du restaurant actif."""
-    user = User.query.get(int(get_jwt_identity()))
+    user = db.session.get(User, int(get_jwt_identity()))
     if not user:
         return jsonify({'error': 'Non authentifié'}), 401
 
@@ -310,7 +310,7 @@ def get_calendar_settings():
 def update_calendar_settings():
     """Met à jour les paramètres calendrier du restaurant actif (admin only)."""
     data = request.get_json(silent=True) or {}
-    user = User.query.get(int(get_jwt_identity()))
+    user = db.session.get(User, int(get_jwt_identity()))
     if not user:
         return jsonify({'error': 'Non authentifié'}), 401
 

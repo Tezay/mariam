@@ -373,7 +373,7 @@ def reset_user_mfa(user_id):
 @users_bp.alt_response(401, schema=ErrorSchema, description='Not authenticated')
 def get_ui_preferences():
     """Return the interface state of the current user."""
-    user = User.query.get(int(get_jwt_identity()))
+    user = db.session.get(User, int(get_jwt_identity()))
     if not user:
         return jsonify({'error': 'Non authentifié'}), 401
     return jsonify(user.get_ui_preferences()), 200
@@ -385,7 +385,7 @@ def get_ui_preferences():
 @users_bp.alt_response(401, schema=ErrorSchema, description='Not authenticated')
 def update_ui_preferences():
     """Update the interface state of the current user."""
-    user = User.query.get(int(get_jwt_identity()))
+    user = db.session.get(User, int(get_jwt_identity()))
     if not user:
         return jsonify({'error': 'Non authentifié'}), 401
 

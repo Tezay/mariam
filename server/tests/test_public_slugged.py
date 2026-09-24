@@ -18,7 +18,7 @@ def _org_with_restaurant(org_slug='crous-test', r_slug='efrei'):
     db.session.add(org)
     db.session.commit()
     rid = make_restaurant(None, name='EFREI', code='EFREI')
-    restaurant = Restaurant.query.get(rid)
+    restaurant = db.session.get(Restaurant, rid)
     restaurant.organization_id = org.id
     restaurant.slug = r_slug
     db.session.commit()

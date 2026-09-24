@@ -22,7 +22,7 @@ def editor_required(f):
     @jwt_required()
     def decorated_function(*args, **kwargs):
         current_user_id = int(get_jwt_identity())
-        user = User.query.get(current_user_id)
+        user = db.session.get(User, current_user_id)
         if not user or not user.is_editor():
             return jsonify({'error': 'Accès réservé aux éditeurs'}), 403
         if user.is_org_admin() and request.method != 'GET':
@@ -39,7 +39,7 @@ def admin_required(f):
     @jwt_required()
     def decorated_function(*args, **kwargs):
         current_user_id = int(get_jwt_identity())
-        user = User.query.get(current_user_id)
+        user = db.session.get(User, current_user_id)
         if not user or not user.is_admin():
             return jsonify({'error': 'Accès réservé aux administrateurs'}), 403
         return f(*args, **kwargs)
@@ -52,7 +52,7 @@ def org_admin_required(f):
     @jwt_required()
     def decorated_function(*args, **kwargs):
         current_user_id = int(get_jwt_identity())
-        user = User.query.get(current_user_id)
+        user = db.session.get(User, current_user_id)
         if not user or not user.is_org_admin() or not user.organization_id:
             return jsonify({'error': 'Réservé aux superviseurs'}), 403
         return f(*args, **kwargs)
@@ -74,7 +74,7 @@ def get_current_user():
     identity = get_jwt_identity()
     if not identity:
         return None
-    return User.query.get(int(identity))
+    return db.session.get(User, int(identity))
 
 
 def get_user_and_restaurant():
@@ -106,8 +106,8 @@ def get_active_restaurant(user):
         except (TypeError, ValueError):
             target = None
         if target is not None and target in accessible_restaurant_ids(user):
-            return Restaurant.query.get(target)
-    return Restaurant.query.get(user.restaurant_id) if user.restaurant_id else None
+            return db.session.get(Restaurant, target)
+    return db.session.get(Restaurant, user.restaurant_id) if user.restaurant_id else None
 
 
 def user_can_access_restaurant(user, restaurant_id):

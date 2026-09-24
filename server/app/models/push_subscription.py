@@ -10,9 +10,10 @@ Chaque souscription contient :
 - Les horaires de notification choisis par l'utilisateur
 - La plateforme détectée (analytics)
 """
-from datetime import datetime, time
+from datetime import time
 
 from ..extensions import db
+from ..utils.time import utc_now_naive
 
 
 class PushSubscription(db.Model):
@@ -48,8 +49,8 @@ class PushSubscription(db.Model):
     # Métadonnées
     # ========================================
     platform = db.Column(db.String(20), nullable=True)  # android, ios, desktop
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utc_now_naive, nullable=False)
+    updated_at = db.Column(db.DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)
     last_notified_at = db.Column(db.DateTime, nullable=True)
 
     # Relations
