@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CalendarClock, ChevronRight, X, Calendar, Megaphone, ChevronLeft } from 'lucide-react';
 import { generateEventPalette } from '@/lib/color-utils';
+import { isRichTextHtml } from '@/lib/rich-text';
 import type { EventData } from '../menu-types';
 
 // ─── Utilitaires ────────────────────────────────────────────────────────────
@@ -11,16 +12,26 @@ function escapeHtml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// The editor's HTML is sanitised server side, so it renders as written; only the
+// Markdown of older descriptions still goes through the escape above, and only
+// it needs the surrounding paragraph.
 function formatEventDescription(text: string): string {
+  if (isRichTextHtml(text)) return text;
+  return `<p>${markdownToHtml(text)}</p>`;
+}
+
+// Plain tags: the .rich-text class styles them, the same way it styles the
+// markup the editor produces.
+function markdownToHtml(text: string): string {
   return escapeHtml(text)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/^### (.+)$/gm, '<h3 class="text-lg font-bold mt-4 mb-1">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold mt-4 mb-2">$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mt-4 mb-2">$1</h1>')
-    .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
-    .replace(/(<li.*<\/li>\n?)+/g, (m) => `<ul class="my-2 space-y-1">${m}</ul>`)
-    .replace(/\n{2,}/g, '</p><p class="mt-3">')
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, (m) => `<ul>${m}</ul>`)
+    .replace(/\n{2,}/g, '</p><p>')
     .replace(/\n/g, '<br/>');
 }
 
@@ -109,9 +120,9 @@ function MobileEventDetailOverlay({ event, onClose }: { event: EventData; onClos
         {event.description && (
           <div className="p-5">
             <div
-              className="prose prose-sm max-w-none leading-relaxed text-gray-700"
+              className="rich-text leading-relaxed text-gray-700"
               dangerouslySetInnerHTML={{
-                __html: `<p>${formatEventDescription(event.description)}</p>`,
+                __html: formatEventDescription(event.description),
               }}
             />
           </div>

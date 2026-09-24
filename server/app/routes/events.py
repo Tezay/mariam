@@ -34,6 +34,7 @@ from ..schemas.events import (
     PublicEventsResponseSchema,
 )
 from ..security import get_client_ip
+from ..services.rich_text import sanitize_html
 from ..services.storage import storage
 from ..utils.time import paris_today
 from .helpers import (
@@ -58,6 +59,17 @@ events_bp = Blueprint(
 # LISTE DES ÉVÉNEMENTS — route unifiée public/éditeur
 # (définie AVANT les routes paramétrées /<int:event_id>)
 # ============================================================
+
+def _public_event(event: Event) -> dict:
+    """Serialise for the menu pages, which render the description as markup.
+
+    Sanitising again on the way out covers the rows written before the write
+    path did it, which no migration can reach without losing their content.
+    """
+    data = event.to_dict(include_images=True)
+    data['description'] = sanitize_html(data['description'])
+    return data
+
 
 @events_bp.route('', methods=['GET'])
 @events_bp.response(200, PublicEventsResponseSchema)
@@ -153,15 +165,15 @@ def list_events():
 
         for event in events:
             if event.event_date == today:
-                today_event = event.to_dict(include_images=True)
+                today_event = _public_event(event)
             else:
-                upcoming_events.append(event.to_dict(include_images=True))
+                upcoming_events.append(_public_event(event))
 
         return jsonify({
             'today_event': today_event,
             'upcoming_events': upcoming_events,
             # Rétrocompatibilité
-            'events': [event.to_dict(include_images=True) for event in events],
+            'events': [_public_event(event) for event in events],
         }), 200
 
 
@@ -207,7 +219,7 @@ def create_event(data):
         restaurant_id=restaurant_id,
         title=title,
         subtitle=data.get('subtitle'),
-        description=data.get('description'),
+        description=sanitize_html(data.get('description')),
         color=color,
         event_date=event_date,
         status=status,
@@ -277,7 +289,7 @@ def update_event(data, event_id):
         event.subtitle = data['subtitle']
 
     if 'description' in data:
-        event.description = data['description']
+        event.description = sanitize_html(data['description'])
 
     if 'color' in data:
         color = data['color']

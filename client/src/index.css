@@ -142,6 +142,47 @@ body {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
     @apply bg-muted text-muted-foreground;
   }
+
+  /* Event descriptions, in the editor and on the menu pages. Preflight strips
+     list markers and heading sizes, and the tags below are exactly those the
+     server's sanitiser keeps. */
+  .rich-text ul {
+    @apply my-2 list-disc pl-5;
+  }
+
+  .rich-text ol {
+    @apply my-2 list-decimal pl-5;
+  }
+
+  .rich-text h1,
+  .rich-text h2,
+  .rich-text h3 {
+    @apply mb-1 mt-4 font-bold;
+  }
+
+  .rich-text h1 {
+    @apply text-xl;
+  }
+
+  .rich-text h2 {
+    @apply text-lg;
+  }
+
+  .rich-text blockquote {
+    @apply my-2 border-l-2 border-border pl-3 italic;
+  }
+
+  .rich-text code {
+    @apply rounded bg-muted px-1 py-0.5 font-mono text-[0.9em];
+  }
+
+  .rich-text a {
+    @apply text-primary underline;
+  }
+
+  .rich-text hr {
+    @apply my-3 border-border;
+  }
 }
 
 /* ========================================

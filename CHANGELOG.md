@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Deployed images carry their version**: `APP_VERSION` is baked from the image tag, so /health and the UI report the running version automatically.
 - `baseUrl` dropped from `tsconfig.json`, unneeded under `moduleResolution: bundler`.
 
+### Fixed
+
+- **Event descriptions** from the rich text editor showed as raw tags on the public menu; they render now, sanitised server side.
+
 ## [0.16.1] - 2026-09-22
 
 ### Added
