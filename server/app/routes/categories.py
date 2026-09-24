@@ -52,7 +52,7 @@ def list_categories():
     Returns top-level categories in order, each with their subcategories nested.
     Accessible to any authenticated user.
     """
-    user = User.query.get(int(get_jwt_identity()))
+    user = db.session.get(User, int(get_jwt_identity()))
     if not user:
         return jsonify({'error': 'Non authentifié'}), 401
 
@@ -79,7 +79,7 @@ def create_category(data):
     Pass `parent_id` to create a subcategory (max 1 level deep).
     Subcategories can only be created under top-level categories.
     """
-    user = User.query.get(int(get_jwt_identity()))
+    user = db.session.get(User, int(get_jwt_identity()))
     restaurant = _get_restaurant(user)
     if not restaurant:
         return jsonify({'error': 'Aucun restaurant configuré'}), 404
@@ -151,7 +151,7 @@ def reorder_categories(data):
 
     JSON body: `{ "items": [{"id": 1, "order": 0}, {"id": 2, "order": 1}] }`
     """
-    user = User.query.get(int(get_jwt_identity()))
+    user = db.session.get(User, int(get_jwt_identity()))
     restaurant = _get_restaurant(user)
     if not restaurant:
         return jsonify({'error': 'Aucun restaurant configuré'}), 404
@@ -174,7 +174,7 @@ def reorder_categories(data):
 @admin_required
 def update_category(data, category_id):
     """Update a category: label, order, or is_highlighted."""
-    user = User.query.get(int(get_jwt_identity()))
+    user = db.session.get(User, int(get_jwt_identity()))
     restaurant = _get_restaurant(user)
     if not restaurant:
         return jsonify({'error': 'Aucun restaurant configuré'}), 404
@@ -218,7 +218,7 @@ def delete_category(category_id):
     Forbidden if `is_protected=True`.
     Cascades to subcategories and their menu items (FK cascade).
     """
-    user = User.query.get(int(get_jwt_identity()))
+    user = db.session.get(User, int(get_jwt_identity()))
     restaurant = _get_restaurant(user)
     if not restaurant:
         return jsonify({'error': 'Aucun restaurant configuré'}), 404

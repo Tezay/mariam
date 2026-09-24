@@ -40,7 +40,7 @@ def _org(slug='an-org'):
 
 def _site(org_id, code, service_days=WEEKDAYS):
     rid = make_restaurant(None, name=code, code=code)
-    site = Restaurant.query.get(rid)
+    site = db.session.get(Restaurant, rid)
     site.organization_id = org_id
     site.service_days = list(service_days)
     db.session.commit()
@@ -77,7 +77,7 @@ def _item(menu_id, rid, category_id, name, image_url=None):
 def _director(rid, org_id, email='dir@mariam.app'):
     from app.models import User
     uid = make_user(None, email=email, role='org_admin', restaurant_id=rid)
-    User.query.get(uid).organization_id = org_id
+    db.session.get(User, uid).organization_id = org_id
     db.session.commit()
     return uid
 
@@ -161,7 +161,7 @@ class TestVoteSettings:
     def test_a_single_site_reports_what_it_offers(self, app, client):
         org = _org('vs1')
         rid = _site(org, 'VS1')
-        site = Restaurant.query.get(rid)
+        site = db.session.get(Restaurant, rid)
         site.vote_enabled = False
         site.vote_icon_preset = 'stars'
         db.session.commit()
@@ -178,9 +178,9 @@ class TestVoteSettings:
         org = _org('vs2')
         first = _site(org, 'VS2A')
         second = _site(org, 'VS2B')
-        Restaurant.query.get(first).vote_icon_preset = 'thumbs'
-        Restaurant.query.get(second).vote_icon_preset = 'faces'
-        Restaurant.query.get(second).vote_enabled = False
+        db.session.get(Restaurant, first).vote_icon_preset = 'thumbs'
+        db.session.get(Restaurant, second).vote_icon_preset = 'faces'
+        db.session.get(Restaurant, second).vote_enabled = False
         db.session.commit()
         _director(first, org)
         token = get_token(client, email='dir@mariam.app')

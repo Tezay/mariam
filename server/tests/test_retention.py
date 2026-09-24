@@ -5,6 +5,7 @@ from datetime import UTC
 from app.extensions import db
 from app.models import AuditLog, Notification
 from app.services import retention
+from app.utils.time import utc_now_naive
 from conftest import make_restaurant
 
 
@@ -14,7 +15,7 @@ def _audit(rid, days_ago):
         action='menu_publish',
         ip_address='198.51.100.4',
         user_agent='Mozilla/5.0',
-        created_at=datetime.datetime.utcnow() - datetime.timedelta(days=days_ago),
+        created_at=utc_now_naive() - datetime.timedelta(days=days_ago),
     )
 
 

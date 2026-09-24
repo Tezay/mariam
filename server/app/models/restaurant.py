@@ -7,10 +7,10 @@ Pensé dès le départ pour le multi-RU :
 - Les utilisateurs peuvent être associés à un restaurant spécifique
 - Configuration personnalisable (jours, catégories, tags/certifications)
 """
-from datetime import datetime
 
 from ..data.taxonomy import DEFAULT_ENABLED_CERT_IDS, DEFAULT_ENABLED_TAG_IDS
 from ..extensions import db
+from ..utils.time import utc_now_naive
 from .taxonomy import (
     Certification,
     DietaryTag,
@@ -32,7 +32,7 @@ class Restaurant(db.Model):
     code = db.Column(db.String(20), unique=True, nullable=False)
     logo_url = db.Column(db.String(500), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now_naive)
 
     # Multi-tenant: link to an organization
     organization_id = db.Column(

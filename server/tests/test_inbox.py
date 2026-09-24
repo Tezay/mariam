@@ -10,7 +10,7 @@ from conftest import auth_headers, get_token, make_restaurant, make_user
 
 def _serving_today(restaurant_id: int) -> int:
     """Pin the weekly schedule so the alert does not depend on the run date."""
-    restaurant = Restaurant.query.get(restaurant_id)
+    restaurant = db.session.get(Restaurant, restaurant_id)
     restaurant.service_days = list(range(7))
     db.session.commit()
     return restaurant_id
@@ -161,7 +161,7 @@ class TestLiveAlerts:
     def test_no_menu_alert_when_the_site_does_not_serve_today(self, app, client):
         """A missing menu is only a gap on a day the restaurant opens."""
         rid = make_restaurant(app)
-        restaurant = Restaurant.query.get(rid)
+        restaurant = db.session.get(Restaurant, rid)
         restaurant.service_days = [(paris_today().weekday() + 1) % 7]
         db.session.commit()
         make_user(app, restaurant_id=rid)

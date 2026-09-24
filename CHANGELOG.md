@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Deployed images carry their version**: `APP_VERSION` is baked from the image tag, so /health and the UI report the running version automatically.
 - `baseUrl` dropped from `tsconfig.json`, unneeded under `moduleResolution: bundler`.
+- **`Query.get()` and `datetime.utcnow()` retired** from the backend, ahead of their removal in the next SQLAlchemy and Python majors.
 
 ### Fixed
 

@@ -9,9 +9,9 @@ Permet d'informer les étudiants d'événements spéciaux :
 Chaque événement possède un titre, sous-titre, description (HTML assaini),
 une couleur symbolique et jusqu'à 6 images stockées sur S3.
 """
-from datetime import datetime
 
 from ..extensions import db
+from ..utils.time import utc_now_naive
 
 
 class Event(db.Model):
@@ -41,8 +41,8 @@ class Event(db.Model):
     notified_1d = db.Column(db.Boolean, default=False, nullable=False)
 
     # Metadata
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now_naive)
+    updated_at = db.Column(db.DateTime, default=utc_now_naive, onupdate=utc_now_naive)
     created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
     # Relations
@@ -91,7 +91,7 @@ class EventImage(db.Model):
     url = db.Column(db.String(500), nullable=False)  # URL publique
     filename = db.Column(db.String(255), nullable=True)  # Nom original
     order = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now_naive)
 
     def to_dict(self):
         """Sérialise l'image en dictionnaire JSON."""

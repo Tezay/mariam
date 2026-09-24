@@ -214,7 +214,7 @@ def create_app(config_class=None):
             from datetime import UTC
 
             from .models import User
-            user = User.query.get(int(sub))
+            user = db.session.get(User, int(sub))
             if user and user.tokens_valid_after:
                 cutoff = user.tokens_valid_after.replace(tzinfo=UTC).timestamp()
                 if iat < cutoff:

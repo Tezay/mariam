@@ -4,9 +4,10 @@ MARIAM - Modèle ImportSession
 Stocke temporairement les fichiers CSV parsés en base de données.
 """
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from ..extensions import db
+from ..utils.time import utc_now_naive
 
 
 class ImportSession(db.Model):
@@ -19,7 +20,7 @@ class ImportSession(db.Model):
     filename = db.Column(db.String(255), nullable=False)
     columns = db.Column(db.Text, nullable=False)  # JSON array
     rows = db.Column(db.Text, nullable=False)     # JSON array
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now_naive)
     expires_at = db.Column(db.DateTime, nullable=False)
     
     def __init__(self, id, user_id, filename, columns, rows, expires_minutes=30):
@@ -28,7 +29,7 @@ class ImportSession(db.Model):
         self.filename = filename
         self.columns = json.dumps(columns)
         self.rows = json.dumps(rows)
-        self.expires_at = datetime.utcnow() + timedelta(minutes=expires_minutes)
+        self.expires_at = utc_now_naive() + timedelta(minutes=expires_minutes)
     
     def get_columns(self) -> list:
         """Retourne les colonnes comme liste Python."""
@@ -40,12 +41,12 @@ class ImportSession(db.Model):
     
     def is_expired(self) -> bool:
         """Vérifie si la session a expiré."""
-        return datetime.utcnow() > self.expires_at
+        return utc_now_naive() > self.expires_at
     
     @classmethod
     def cleanup_expired(cls):
         """Supprime les sessions expirées."""
-        cls.query.filter(cls.expires_at < datetime.utcnow()).delete()
+        cls.query.filter(cls.expires_at < utc_now_naive()).delete()
         db.session.commit()
     
     @classmethod

@@ -50,7 +50,7 @@ class TestLoginHardening:
 
     def test_disabled_account_cannot_login(self, app, client):
         uid = make_user(None, email='off@mariam.app', role='admin')
-        User.query.get(uid).is_active = False
+        db.session.get(User, uid).is_active = False
         db.session.commit()
 
         res = client.post('/v1/auth/login',
@@ -68,7 +68,7 @@ class TestMfaTokenSingleUse:
 
         secret = pyotp.random_base32()
         uid = make_user(None, email='mfa@mariam.app', role='admin')
-        user = User.query.get(uid)
+        user = db.session.get(User, uid)
         user.mfa_secret = secret
         user.mfa_enabled = True
         db.session.commit()

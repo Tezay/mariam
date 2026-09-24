@@ -34,7 +34,7 @@ class TestEncryptedColumn:
     def test_column_stores_ciphertext_reads_plaintext(self, app, monkeypatch):
         monkeypatch.setenv('MFA_ENCRYPTION_KEY', Fernet.generate_key().decode())
         uid = make_user(None, email='enc@mariam.app')
-        user = User.query.get(uid)
+        user = db.session.get(User, uid)
         user.mfa_secret = 'JBSWY3DPEHPK3PXP'
         db.session.commit()
 
@@ -44,4 +44,4 @@ class TestEncryptedColumn:
         assert raw != 'JBSWY3DPEHPK3PXP'  # stored encrypted
 
         db.session.expire(user)
-        assert User.query.get(uid).mfa_secret == 'JBSWY3DPEHPK3PXP'  # read decrypted
+        assert db.session.get(User, uid).mfa_secret == 'JBSWY3DPEHPK3PXP'  # read decrypted

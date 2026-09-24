@@ -94,7 +94,7 @@ def list_events():
         verify_jwt_in_request(optional=True)
         identity = get_jwt_identity()
         if identity:
-            user = User.query.get(int(identity))
+            user = db.session.get(User, int(identity))
             is_editor = user is not None and user.is_editor()
     except Exception:
         pass
@@ -185,7 +185,7 @@ def list_events():
 def create_event(data):
     """Create a new event."""
     current_user_id = int(get_jwt_identity())
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
 
     title = data.get('title')
     event_date_str = data.get('event_date')

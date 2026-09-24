@@ -65,7 +65,7 @@ class TestRoutes:
             headers=auth_headers(token),
         )
 
-        stored = Event.query.get(event_id).description
+        stored = db.session.get(Event, event_id).description
         assert 'onerror' not in stored
         assert 'Autre' in stored
 
@@ -73,8 +73,8 @@ class TestRoutes:
         rid, token = _editor(app, client)
         event_id = _create(client, token, '<p>Menu</p>').get_json()['event']['id']
         # Straight into the column, as a row predating the write path would be.
-        Event.query.get(event_id).description = '<p>Menu</p><script>alert(1)</script>'
-        Event.query.get(event_id).status = 'published'
+        db.session.get(Event, event_id).description = '<p>Menu</p><script>alert(1)</script>'
+        db.session.get(Event, event_id).status = 'published'
         db.session.commit()
 
         body = client.get(f'/v1/events?restaurant_id={rid}').get_json()

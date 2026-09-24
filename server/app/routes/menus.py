@@ -241,7 +241,7 @@ def get_today_menu():
         restaurant_id=restaurant_id, date=today, status='published'
     ).first()
 
-    restaurant = Restaurant.query.get(restaurant_id)
+    restaurant = db.session.get(Restaurant, restaurant_id)
     day_names = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
     return jsonify({
@@ -270,7 +270,7 @@ def get_tomorrow_menu():
         restaurant_id=restaurant_id, date=tomorrow, status='published'
     ).first()
 
-    restaurant = Restaurant.query.get(restaurant_id)
+    restaurant = db.session.get(Restaurant, restaurant_id)
     day_names = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
     return jsonify({
@@ -301,7 +301,7 @@ def get_week_menu():
         verify_jwt_in_request(optional=True)
         identity = get_jwt_identity()
         if identity:
-            user = User.query.get(int(identity))
+            user = db.session.get(User, int(identity))
             is_editor = user is not None and user.is_editor()
     except Exception:
         pass
@@ -312,7 +312,7 @@ def get_week_menu():
             return jsonify({'error': 'Aucun restaurant configuré', 'menus': {}}), 200
         restaurant_id = restaurant.id
     elif restaurant_id:
-        restaurant = Restaurant.query.get(restaurant_id)
+        restaurant = db.session.get(Restaurant, restaurant_id)
     else:
         restaurant = get_default_restaurant()
         if restaurant:

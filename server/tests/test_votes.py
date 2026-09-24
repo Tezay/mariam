@@ -40,7 +40,7 @@ def _site_with_menu(monkeypatch, slug='vote-org', code='VOTE', dishes=('Bœuf bo
     db.session.commit()
 
     rid = make_restaurant(None, name=code, code=code)
-    site = Restaurant.query.get(rid)
+    site = db.session.get(Restaurant, rid)
     site.organization_id = org.id
     site.slug = code.lower()
 
@@ -175,7 +175,7 @@ class TestOneVotePerOrganization:
         org_id, first_rid, _, _ = _site_with_menu(monkeypatch, 'vote-org-7', 'VOTE7')
 
         second_rid = make_restaurant(None, name='VOTE7B', code='VOTE7B')
-        second = Restaurant.query.get(second_rid)
+        second = db.session.get(Restaurant, second_rid)
         second.organization_id = org_id
         second.slug = 'vote7b'
         category = MenuCategory(
@@ -351,7 +351,7 @@ class TestVotableCategories:
         ])
         db.session.commit()
 
-        site = Restaurant.query.get(rid)
+        site = db.session.get(Restaurant, rid)
 
         assert site.vote_category_ids is None
         assert site.get_votable_category_ids() == [first.id]
@@ -363,7 +363,7 @@ class TestVotableCategories:
         token = _token(client)
         assert _cast(client, 'vote21', token, dish_ids=dish_ids[:1]).status_code == 200
 
-        Restaurant.query.get(rid).vote_category_ids = []
+        db.session.get(Restaurant, rid).vote_category_ids = []
         db.session.commit()
 
         assert _state(client, 'vote21', token)['dish_groups'] == []
@@ -381,7 +381,7 @@ class TestVotableCategories:
             menu_id=menu.id, category_id=dessert.id, dish_id=tart.id, order=9
         ))
         main = MenuCategory.query.filter_by(restaurant_id=rid, is_highlighted=True).one()
-        Restaurant.query.get(rid).vote_category_ids = [main.id, dessert.id]
+        db.session.get(Restaurant, rid).vote_category_ids = [main.id, dessert.id]
         db.session.commit()
         token = _token(client)
 
@@ -407,7 +407,7 @@ class TestVotableCategories:
     def test_a_site_can_turn_the_vote_off(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
         _, rid, _, _ = _site_with_menu(monkeypatch, 'vote-org-19', 'VOTE19')
-        Restaurant.query.get(rid).vote_enabled = False
+        db.session.get(Restaurant, rid).vote_enabled = False
         db.session.commit()
         token = _token(client)
 
@@ -422,7 +422,7 @@ class TestVotableCategories:
         """
         _use_fake_redis(monkeypatch)
         _, rid, _, _ = _site_with_menu(monkeypatch, 'vote-org-22', 'VOTE22')
-        site = Restaurant.query.get(rid)
+        site = db.session.get(Restaurant, rid)
         site.organization_id = None
         db.session.commit()
 
@@ -438,7 +438,7 @@ class TestIconPreset:
         """Comparing two presets must not mean comparing two weeks of menus."""
         _use_fake_redis(monkeypatch)
         _, rid, _, _ = _site_with_menu(monkeypatch, 'vote-org-22', 'VOTE22')
-        Restaurant.query.get(rid).vote_icon_preset = 'faces'
+        db.session.get(Restaurant, rid).vote_icon_preset = 'faces'
         db.session.commit()
         token = _token(client)
 
@@ -453,7 +453,7 @@ class TestIconPreset:
         token = _token(client)
         _cast(client, 'vote23', token, rating=3)
 
-        Restaurant.query.get(rid).vote_icon_preset = 'stars'
+        db.session.get(Restaurant, rid).vote_icon_preset = 'stars'
         db.session.commit()
         _cast(client, 'vote23', token, rating=1)
 
@@ -462,7 +462,7 @@ class TestIconPreset:
     def test_an_unknown_preset_is_ignored_by_the_settings(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
         _, rid, _, _ = _site_with_menu(monkeypatch, 'vote-org-24', 'VOTE24')
-        site = Restaurant.query.get(rid)
+        site = db.session.get(Restaurant, rid)
         site.vote_icon_preset = 'faces'
         db.session.commit()
 
@@ -481,7 +481,7 @@ class TestDeviceTokenLifetime:
         token = _token(client)
         _cast(client, 'vote27', token)
         db.session.add(MenuVote(
-            organization_id=Restaurant.query.get(rid).organization_id,
+            organization_id=db.session.get(Restaurant, rid).organization_id,
             restaurant_id=rid,
             menu_id=menu.id,
             date=paris_today() - timedelta(days=3),
@@ -504,7 +504,7 @@ class TestDeviceTokenLifetime:
 
         _use_fake_redis(monkeypatch)
         _, rid, menu, _ = _site_with_menu(monkeypatch, 'vote-org-28', 'VOTE28')
-        org_id = Restaurant.query.get(rid).organization_id
+        org_id = db.session.get(Restaurant, rid).organization_id
         yesterday = paris_today() - timedelta(days=2)
         for index in range(3):
             db.session.add(MenuVote(
@@ -528,7 +528,7 @@ class TestRetention:
         _use_fake_redis(monkeypatch)
         _, rid, menu, _ = _site_with_menu(monkeypatch, 'vote-org-15', 'VOTE15')
         db.session.add(MenuVote(
-            organization_id=Restaurant.query.get(rid).organization_id,
+            organization_id=db.session.get(Restaurant, rid).organization_id,
             restaurant_id=rid,
             menu_id=menu.id,
             date=date(2020, 1, 1),
