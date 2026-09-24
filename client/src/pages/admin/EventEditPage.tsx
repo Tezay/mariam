@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, useEditorState, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import { eventsApi, Event, EventImage } from '@/lib/api';
 import { EVENT_PRESET_COLORS, generateEventPalette } from '@/lib/color-utils';
@@ -24,14 +23,26 @@ import {
   Loader2,
   Calendar,
   Palette,
-  Eye,
-  EyeOff,
   Image as ImageIcon,
 } from 'lucide-react';
+import { isRichTextHtml } from '@/lib/rich-text';
 import { cn } from '@/lib/utils';
 
 // ── Tiptap toolbar ────────────────────────────────────────────────────────
-function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
+export function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
+  // Tiptap's state lives outside React: without this subscription a button only
+  // reflects what was true the last time the page happened to re-render.
+  const active = useEditorState({
+    editor,
+    selector: ({ editor }) => ({
+      bold: editor?.isActive('bold') ?? false,
+      italic: editor?.isActive('italic') ?? false,
+      bulletList: editor?.isActive('bulletList') ?? false,
+      orderedList: editor?.isActive('orderedList') ?? false,
+      link: editor?.isActive('link') ?? false,
+    }),
+  });
+
   if (!editor) return null;
 
   const setLink = () => {
@@ -50,31 +61,31 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
       label: 'Gras',
       icon: <Bold className="h-3.5 w-3.5" />,
       action: () => editor.chain().focus().toggleBold().run(),
-      active: editor.isActive('bold'),
+      active: active?.bold,
     },
     {
       label: 'Italique',
       icon: <Italic className="h-3.5 w-3.5" />,
       action: () => editor.chain().focus().toggleItalic().run(),
-      active: editor.isActive('italic'),
+      active: active?.italic,
     },
     {
       label: 'Liste à puces',
       icon: <List className="h-3.5 w-3.5" />,
       action: () => editor.chain().focus().toggleBulletList().run(),
-      active: editor.isActive('bulletList'),
+      active: active?.bulletList,
     },
     {
       label: 'Liste numérotée',
       icon: <ListOrdered className="h-3.5 w-3.5" />,
       action: () => editor.chain().focus().toggleOrderedList().run(),
-      active: editor.isActive('orderedList'),
+      active: active?.orderedList,
     },
     {
       label: 'Lien',
       icon: <LinkIcon className="h-3.5 w-3.5" />,
       action: setLink,
-      active: editor.isActive('link'),
+      active: active?.link,
     },
   ];
 
@@ -140,7 +151,6 @@ export function EventEditPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
 
   // Form fields
   const [title, setTitle] = useState('');
@@ -173,8 +183,9 @@ export function EventEditPage() {
   // Tiptap editor
   const editor = useEditor({
     extensions: [
-      StarterKit,
-      Link.configure({ openOnClick: false }),
+      // StarterKit already carries Link; registering it again makes Tiptap warn
+      // about a duplicate extension.
+      StarterKit.configure({ link: { openOnClick: false } }),
       Placeholder.configure({ placeholder: "Décrivez l'événement…" }),
     ],
     content: '',
@@ -202,8 +213,7 @@ export function EventEditPage() {
         setServerImages(event.images ?? []);
         // Insert description into Tiptap — treat as plain text if no HTML tags
         if (editor && event.description) {
-          const isHtml = /<[a-z][\s\S]*>/i.test(event.description);
-          if (isHtml) {
+          if (isRichTextHtml(event.description)) {
             editor.commands.setContent(event.description);
           } else {
             editor.commands.setContent(
@@ -427,36 +437,15 @@ export function EventEditPage() {
 
           {/* Tiptap editor */}
           <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Description
-              </Label>
-              <button
-                type="button"
-                onClick={() => setShowPreview(!showPreview)}
-                className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {showPreview ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                {showPreview ? 'Éditer' : 'Aperçu'}
-              </button>
-            </div>
+            <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Description
+            </Label>
 
-            {showPreview ? (
-              <div
-                className="prose prose-sm min-h-32 max-w-none rounded-xl border border-border bg-muted/20 p-4 text-sm"
-                dangerouslySetInnerHTML={{ __html: editor?.getHTML() ?? '' }}
-              />
-            ) : (
-              <>
-                <EditorToolbar editor={editor} />
-                <div className="relative">
-                  <EditorContent
-                    editor={editor}
-                    className="min-h-32 rounded-xl border border-border bg-background px-4 py-3 text-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1 [&_.tiptap]:min-h-28 [&_.tiptap]:outline-none [&_.tiptap_a]:text-primary [&_.tiptap_a]:underline [&_.tiptap_ol]:list-decimal [&_.tiptap_ol]:pl-5 [&_.tiptap_p.is-editor-empty:first-child::before]:pointer-events-none [&_.tiptap_p.is-editor-empty:first-child::before]:float-left [&_.tiptap_p.is-editor-empty:first-child::before]:text-muted-foreground [&_.tiptap_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.tiptap_ul]:list-disc [&_.tiptap_ul]:pl-5"
-                  />
-                </div>
-              </>
-            )}
+            <EditorToolbar editor={editor} />
+            <EditorContent
+              editor={editor}
+              className="rich-text min-h-32 rounded-xl border border-border bg-background px-4 py-3 text-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1 [&_.tiptap]:min-h-28 [&_.tiptap]:outline-none [&_.tiptap_p.is-editor-empty:first-child::before]:pointer-events-none [&_.tiptap_p.is-editor-empty:first-child::before]:float-left [&_.tiptap_p.is-editor-empty:first-child::before]:text-muted-foreground [&_.tiptap_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]"
+            />
             <p className="text-[10px] text-muted-foreground">
               Visible au clic sur la vignette mobile.
             </p>

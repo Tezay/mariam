@@ -6,7 +6,7 @@ Permet d'informer les étudiants d'événements spéciaux :
 - Fermetures exceptionnelles
 - Animations
 
-Chaque événement possède un titre, sous-titre, description (Markdown),
+Chaque événement possède un titre, sous-titre, description (HTML assaini),
 une couleur symbolique et jusqu'à 6 images stockées sur S3.
 """
 from datetime import datetime
@@ -25,7 +25,9 @@ class Event(db.Model):
     # Contenu
     title = db.Column(db.String(100), nullable=False)
     subtitle = db.Column(db.String(200), nullable=True)
-    description = db.Column(db.Text, nullable=True)  # Markdown
+    # Sanitised on write (services/rich_text); rows predating the rich text
+    # editor still hold Markdown.
+    description = db.Column(db.Text, nullable=True)
     color = db.Column(db.String(7), nullable=True, default='#3498DB')  # Hex (#RRGGBB)
 
     # Planification
