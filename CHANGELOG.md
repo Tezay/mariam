@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Event descriptions** from the rich text editor showed as raw tags on the public menu; they render now, sanitised server side.
+- **Menu assistant** offered no dish on a category holding subcategories; it now walks down to the leaves, which carry them.
 
 ## [0.16.1] - 2026-09-22
 

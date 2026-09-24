@@ -1,7 +1,7 @@
 import type { MenuCategory, DietaryTag, CertificationItem } from '@/lib/api';
 
-/** Catégorie "aplatie" parcourue par le wizard (les sous-catégories des
- *  catégories mises en avant deviennent des groupes à part entière). */
+/** Catégorie "aplatie" parcourue par le wizard : seules les feuilles portent
+ *  des plats, donc une catégorie à sous-catégories cède sa place aux siennes. */
 export interface CatGroup {
   category: MenuCategory;
   parentLabel?: string;
@@ -31,7 +31,7 @@ export interface TagConfig {
 export function buildCatGroups(topCategories: MenuCategory[]): CatGroup[] {
   const groups: CatGroup[] = [];
   for (const cat of topCategories) {
-    if (cat.is_highlighted && (cat.subcategories?.length ?? 0) > 0) {
+    if ((cat.subcategories?.length ?? 0) > 0) {
       for (const sub of cat.subcategories!) {
         groups.push({ category: sub, parentLabel: cat.label, catId: sub.id });
       }
