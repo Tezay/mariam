@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { analyticsApi, orgApi, type AnalyticsQuery } from '@/lib/api';
+import { analyticsApi, type AnalyticsQuery } from '@/lib/api/analytics';
+import { orgApi } from '@/lib/api/org';
 
 export function useAnalyticsOverview(query: AnalyticsQuery) {
   return useQuery({

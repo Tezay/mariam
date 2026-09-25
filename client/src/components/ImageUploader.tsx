@@ -5,7 +5,7 @@
  */
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, X, ArrowLeft, ArrowRight, AlertCircle } from 'lucide-react';
-import type { EventImage } from '@/lib/api';
+import type { EventImage } from '@/lib/api/events';
 
 interface ImageUploaderProps {
   /** Images déjà stockées côté serveur */

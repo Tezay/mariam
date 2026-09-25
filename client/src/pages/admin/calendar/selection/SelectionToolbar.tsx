@@ -1,5 +1,5 @@
 import { X, Trash2, PackageX, Package, Copy } from 'lucide-react';
-import type { MenuItem } from '@/lib/api';
+import type { MenuItem } from '@/lib/api/menus';
 import { Button } from '@/components/ui/button';
 import { MenuCopyPopover } from './MenuCopyPopover';
 import type { UseSelectionReturn } from './useSelection';

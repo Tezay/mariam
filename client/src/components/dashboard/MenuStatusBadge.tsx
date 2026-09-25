@@ -1,4 +1,4 @@
-import type { MenuDayStatus } from '@/lib/api';
+import type { MenuDayStatus } from '@/lib/api/menus';
 import { MENU_STATUSES } from '@/lib/menu-status';
 import { cn } from '@/lib/utils';
 

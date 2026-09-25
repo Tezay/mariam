@@ -5,7 +5,9 @@ import { ArrowLeft, BookOpen, ImagePlus, Pencil, Scale, Trash2 } from 'lucide-re
 import { DynamicIcon as Icon } from 'lucide-react/dynamic';
 import type { IconName } from 'lucide-react/dynamic';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
-import { catalogApi, categoriesApi, publicApi, type CatalogPeriod } from '@/lib/api';
+import { catalogApi, type CatalogPeriod } from '@/lib/api/catalog';
+import { categoriesApi } from '@/lib/api/categories';
+import { publicApi } from '@/lib/api/public';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {

@@ -1,13 +1,9 @@
 import { useState } from 'react';
 import { ChevronRight, Check } from 'lucide-react';
-import { csvImportApi } from '@/lib/api';
+import { csvImportApi } from '@/lib/api/imports';
 import { notify } from '@/lib/toast';
-import type {
-  CsvUploadResponse,
-  ImportPreviewResponse,
-  ColumnMapping,
-  MenuCategory,
-} from '@/lib/api';
+import type { CsvUploadResponse, ImportPreviewResponse, ColumnMapping } from '@/lib/api/imports';
+import type { MenuCategory } from '@/lib/api/categories';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet';
 import { CsvStepIndicator } from '@/components/csv-import/CsvStepIndicator';

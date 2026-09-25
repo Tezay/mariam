@@ -3,7 +3,8 @@
  * pour le restaurant (sauvegardés via le bouton Enregistrer global).
  */
 import { useState, useEffect } from 'react';
-import { publicApi, DietaryTagCategory, CertificationCategory } from '@/lib/api';
+import { publicApi } from '@/lib/api/public';
+import { DietaryTagCategory, CertificationCategory } from '@/lib/api/taxonomy';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { DynamicIcon as Icon } from 'lucide-react/dynamic';
 import type { IconName } from 'lucide-react/dynamic';

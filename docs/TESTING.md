@@ -124,7 +124,8 @@ describe('MyComponent', () => {
 ```
 
 Pure functions first: dates, colours, validation, matching. Components get smoke tests and the
-accessibility cases that matter. Mock API calls with `vi.mock('@/lib/api')`.
+accessibility cases that matter. Mock API calls on the module the code imports, such as
+`vi.mock('@/lib/api/admin')`.
 
 ## CI
 

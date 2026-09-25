@@ -8,7 +8,8 @@ import { useState } from 'react';
 import { startAuthentication } from '@simplewebauthn/browser';
 import type { PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser';
 import { AlertTriangle, Fingerprint, Loader2 } from 'lucide-react';
-import { authApi, getApiErrorMessage } from '@/lib/api';
+import { authApi } from '@/lib/api/auth';
+import { getApiErrorMessage } from '@/lib/api/errors';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   Dialog,

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { adminApi, type UiPreferences } from '@/lib/api';
+import { adminApi, type UiPreferences } from '@/lib/api/admin';
 
 const KEY = ['ui-preferences'];
 

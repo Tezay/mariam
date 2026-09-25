@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { closuresApi, ExceptionalClosure } from '@/lib/api';
+import { closuresApi, ExceptionalClosure } from '@/lib/api/closures';
 import { notify } from '@/lib/toast';
 import { parisNow, parisToday } from '@/lib/date-utils';
 import { useAuth } from '@/contexts/AuthContext';

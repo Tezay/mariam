@@ -2,13 +2,12 @@ import { useState, useMemo } from 'react';
 import { Check, BookOpen } from 'lucide-react';
 import {
   catalogImportApi,
-  getApiErrorMessage,
   type CatalogImportUploadResponse,
   type CatalogImportPreviewResponse,
-  type MenuCategory,
-  type DietaryTag,
-  type CertificationItem,
-} from '@/lib/api';
+} from '@/lib/api/imports';
+import { getApiErrorMessage } from '@/lib/api/errors';
+import { type MenuCategory } from '@/lib/api/categories';
+import { type DietaryTag, type CertificationItem } from '@/lib/api/taxonomy';
 import { notify } from '@/lib/toast';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';

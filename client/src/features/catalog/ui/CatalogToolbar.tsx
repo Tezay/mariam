@@ -13,7 +13,8 @@ import {
 } from 'lucide-react';
 import { DynamicIcon as Icon } from 'lucide-react/dynamic';
 import type { IconName } from 'lucide-react/dynamic';
-import type { CertificationItem, DietaryTag, MenuCategory } from '@/lib/api';
+import type { CertificationItem, DietaryTag } from '@/lib/api/taxonomy';
+import type { MenuCategory } from '@/lib/api/categories';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';

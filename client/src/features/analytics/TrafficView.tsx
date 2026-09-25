@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { AlertTriangle, Clock, Eye, MonitorPlay, TrendingUp, Users } from 'lucide-react';
-import type { TrafficSiteRow } from '@/lib/api';
+import type { TrafficSiteRow } from '@/lib/api/analytics';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { DataTable, type DataTableColumn } from '@/components/dashboard/DataTable';
 import { KpiCard } from './ui/KpiCard';

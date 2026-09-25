@@ -7,7 +7,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { trackPageView } from '@/lib/telemetry';
 import { Zap, CalendarOff } from 'lucide-react';
-import { ExceptionalClosure } from '@/lib/api';
+import { ExceptionalClosure } from '@/lib/api/closures';
 import { InlineError, getErrorType } from '@/components/InlineError';
 import { jsDayToMariamDay, getNextOpeningDate } from '@/lib/service-utils';
 import { parisToday, addDays, parisDayOfWeek } from '@/lib/date-utils';

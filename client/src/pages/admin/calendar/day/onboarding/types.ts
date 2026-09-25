@@ -1,4 +1,5 @@
-import type { MenuCategory, DietaryTag, CertificationItem } from '@/lib/api';
+import type { MenuCategory } from '@/lib/api/categories';
+import type { DietaryTag, CertificationItem } from '@/lib/api/taxonomy';
 
 /** Catégorie "aplatie" parcourue par le wizard : seules les feuilles portent
  *  des plats, donc une catégorie à sous-catégories cède sa place aux siennes. */

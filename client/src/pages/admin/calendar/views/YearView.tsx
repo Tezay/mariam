@@ -1,6 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
-import { closuresApi, menusApi, adminApi } from '@/lib/api';
-import type { ExceptionalClosure, CalendarSettings } from '@/lib/api';
+import { closuresApi } from '@/lib/api/closures';
+import { menusApi } from '@/lib/api/menus';
+import { adminApi } from '@/lib/api/admin';
+import type { ExceptionalClosure } from '@/lib/api/closures';
+import type { CalendarSettings } from '@/lib/api/admin';
 import { addDays, parisToday } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
 import type { CalendarData } from '../useCalendarData';

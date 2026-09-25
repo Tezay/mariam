@@ -1,5 +1,5 @@
 import { BookOpen, Eye, Pencil, Shield, type LucideIcon } from 'lucide-react';
-import type { User } from '@/lib/api';
+import type { User } from '@/lib/api/auth';
 
 type Role = User['role'];
 

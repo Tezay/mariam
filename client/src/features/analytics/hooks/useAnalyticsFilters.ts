@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { AnalyticsQuery } from '@/lib/api';
+import type { AnalyticsQuery } from '@/lib/api/analytics';
 
 export const PERIOD_OPTIONS = [
   { value: '1d', label: "Aujourd'hui" },

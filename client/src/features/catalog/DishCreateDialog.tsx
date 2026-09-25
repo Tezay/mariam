@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { catalogApi, type MenuCategory } from '@/lib/api';
+import { catalogApi } from '@/lib/api/catalog';
+import { type MenuCategory } from '@/lib/api/categories';
 import {
   Dialog,
   DialogContent,

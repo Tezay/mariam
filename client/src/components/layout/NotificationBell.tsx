@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Bell, CheckCheck, Trash2, Info, AlertTriangle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { inboxApi, type InboxNotification, type LiveAlert } from '@/lib/api';
+import { inboxApi, type InboxNotification, type LiveAlert } from '@/lib/api/inbox';
 import { cn } from '@/lib/utils';
 
 const POLL_INTERVAL_MS = 15_000;

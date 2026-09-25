@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { CatalogPeriod } from '@/lib/api';
+import type { CatalogPeriod } from '@/lib/api/catalog';
 
 export interface CatalogFilters {
   q: string;

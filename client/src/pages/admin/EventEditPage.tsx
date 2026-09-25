@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEditor, useEditorState, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
-import { eventsApi, Event, EventImage } from '@/lib/api';
+import { eventsApi, Event, EventImage } from '@/lib/api/events';
 import { EVENT_PRESET_COLORS, generateEventPalette } from '@/lib/color-utils';
 import { notify } from '@/lib/toast';
 import { ImageUploader } from '@/components/ImageUploader';

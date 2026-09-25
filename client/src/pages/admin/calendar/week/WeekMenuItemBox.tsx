@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { useDraggable } from '@dnd-kit/core';
-import type { MenuItem } from '@/lib/api';
+import type { MenuItem } from '@/lib/api/menus';
 import type { CategoryColor } from '@/lib/category-colors';
 import { cn } from '@/lib/utils';
 

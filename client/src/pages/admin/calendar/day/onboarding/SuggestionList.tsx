@@ -3,7 +3,7 @@
  * hors plats déjà au menu). Purement présentational — le filtrage est fait
  * par l'appelant (ItemPickStep).
  */
-import type { DishCatalogItem } from '@/lib/api';
+import type { DishCatalogItem } from '@/lib/api/catalog';
 import type { CategoryColor } from '@/lib/category-colors';
 
 interface SuggestionListProps {

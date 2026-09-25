@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Copy, Plus } from 'lucide-react';
-import { closuresApi } from '@/lib/api';
-import type { Event, ExceptionalClosure, MenuCategory, MenuItem } from '@/lib/api';
+import { closuresApi } from '@/lib/api/closures';
+import type { Event } from '@/lib/api/events';
+import type { ExceptionalClosure } from '@/lib/api/closures';
+import type { MenuCategory } from '@/lib/api/categories';
+import type { MenuItem } from '@/lib/api/menus';
 import { addDays, parisToday } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
 import { getCategoryColor } from '@/lib/category-colors';

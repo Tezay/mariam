@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { isAxiosError } from 'axios';
-import { categoriesApi, MenuCategory } from '@/lib/api';
+import { categoriesApi, MenuCategory } from '@/lib/api/categories';
 import { notify } from '@/lib/toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';

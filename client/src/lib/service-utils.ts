@@ -124,7 +124,7 @@ export function groupConsecutiveHours(
   return groups;
 }
 
-import type { ExceptionalClosure } from './api';
+import type { ExceptionalClosure } from './api/closures';
 
 /**
  * Retourne la fermeture exceptionnelle active pour une date donnée (YYYY-MM-DD), ou null.

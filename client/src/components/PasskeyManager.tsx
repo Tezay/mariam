@@ -8,7 +8,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { authApi, type PasskeyInfo } from '@/lib/api';
+import { authApi, type PasskeyInfo } from '@/lib/api/auth';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,

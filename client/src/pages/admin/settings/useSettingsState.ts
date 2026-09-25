@@ -12,14 +12,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { notify } from '@/lib/toast';
 import { DEFAULT_PRESET_ID } from '@/features/rating/scale';
-import {
-  adminApi,
-  DietaryTag,
-  CertificationItem,
-  ServiceHours,
-  RestaurantWithConfig,
-  CalendarSettings,
-} from '@/lib/api';
+import { adminApi, CalendarSettings } from '@/lib/api/admin';
+import { DietaryTag, CertificationItem } from '@/lib/api/taxonomy';
+import { ServiceHours, RestaurantWithConfig } from '@/lib/api/restaurant';
 import {
   validateEmail,
   validatePhone,

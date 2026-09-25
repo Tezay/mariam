@@ -8,7 +8,10 @@
  * flashing an error, and cached data stays on screen during a failed refresh.
  */
 import { useQuery } from '@tanstack/react-query';
-import { menusApi, eventsApi, closuresApi, publicApi, type ExceptionalClosure } from '@/lib/api';
+import { menusApi } from '@/lib/api/menus';
+import { eventsApi } from '@/lib/api/events';
+import { closuresApi, type ExceptionalClosure } from '@/lib/api/closures';
+import { publicApi } from '@/lib/api/public';
 import type { MenuData, EventData, RestaurantPublic } from './menu-types';
 
 const REFETCH_INTERVAL_MS = 5 * 60 * 1000;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { MenuCategory } from '@/lib/api';
+import type { MenuCategory } from '@/lib/api/categories';
 import { buildCatGroups } from '@/pages/admin/calendar/day/onboarding/types';
 
 function category(id: number, label: string, extra: Partial<MenuCategory> = {}): MenuCategory {

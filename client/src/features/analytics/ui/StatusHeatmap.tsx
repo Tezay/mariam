@@ -1,4 +1,4 @@
-import type { PublicationDayStatus, PublicationsReport } from '@/lib/api';
+import type { PublicationDayStatus, PublicationsReport } from '@/lib/api/analytics';
 import { cn } from '@/lib/utils';
 import { formatDayLabel } from '../format';
 

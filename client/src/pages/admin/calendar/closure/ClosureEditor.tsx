@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Trash2, CalendarOff } from 'lucide-react';
-import { closuresApi } from '@/lib/api';
-import type { ExceptionalClosure } from '@/lib/api';
+import { closuresApi } from '@/lib/api/closures';
+import type { ExceptionalClosure } from '@/lib/api/closures';
 import {
   Dialog,
   DialogContent,

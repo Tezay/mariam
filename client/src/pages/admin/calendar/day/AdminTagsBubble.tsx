@@ -1,6 +1,6 @@
 import { DynamicIcon as Icon } from 'lucide-react/dynamic';
 import type { IconName } from 'lucide-react/dynamic';
-import type { MenuItem } from '@/lib/api';
+import type { MenuItem } from '@/lib/api/menus';
 
 interface AdminTagsBubbleProps {
   item: MenuItem;

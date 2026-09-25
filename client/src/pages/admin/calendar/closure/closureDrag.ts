@@ -1,4 +1,4 @@
-import type { ExceptionalClosure } from '@/lib/api';
+import type { ExceptionalClosure } from '@/lib/api/closures';
 
 export type DragMode =
   | { kind: 'selecting'; start: string; hover: string }

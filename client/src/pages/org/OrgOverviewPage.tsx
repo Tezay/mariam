@@ -9,7 +9,9 @@ import {
   TrendingUp,
   UtensilsCrossed,
 } from 'lucide-react';
-import type { AnalyticsOverviewSite, MenuDayStatus, OrgSite } from '@/lib/api';
+import type { AnalyticsOverviewSite } from '@/lib/api/analytics';
+import type { MenuDayStatus } from '@/lib/api/menus';
+import type { OrgSite } from '@/lib/api/org';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { MenuStatusBadge } from '@/components/dashboard/MenuStatusBadge';
 import { MENU_STATUS_RANK } from '@/lib/menu-status';

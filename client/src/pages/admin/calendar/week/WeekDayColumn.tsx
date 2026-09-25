@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { CalendarOff, Pencil } from 'lucide-react';
-import type { DishCatalogItem, Event, MenuCategory, MenuItem } from '@/lib/api';
+import type { DishCatalogItem } from '@/lib/api/catalog';
+import type { Event } from '@/lib/api/events';
+import type { MenuCategory } from '@/lib/api/categories';
+import type { MenuItem } from '@/lib/api/menus';
 import type { DayData } from '../useCalendarData';
 import { EventCard } from '../EventCard';
 import { useMenuEditor } from '../day/useMenuEditor';

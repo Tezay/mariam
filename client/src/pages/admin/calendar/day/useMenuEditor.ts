@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { menusApi } from '@/lib/api';
-import type { Menu, MenuItem, DishCatalogItem } from '@/lib/api';
+import { menusApi } from '@/lib/api/menus';
+import type { Menu, MenuItem } from '@/lib/api/menus';
+import type { DishCatalogItem } from '@/lib/api/catalog';
 import { notify } from '@/lib/toast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

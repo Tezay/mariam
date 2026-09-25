@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { MenuItem } from '@/lib/api';
+import type { MenuItem } from '@/lib/api/menus';
 
 export interface SelectionEntry {
   type: 'item';

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { orgApi, type SatisfactionDishRow } from '@/lib/api';
+import { orgApi } from '@/lib/api/org';
+import { type SatisfactionDishRow } from '@/lib/api/analytics';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatNumber, formatScore, plural } from '@/features/analytics/format';
 

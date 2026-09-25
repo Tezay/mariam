@@ -7,7 +7,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { categoriesApi, type MenuCategory } from '@/lib/api';
+import { categoriesApi, type MenuCategory } from '@/lib/api/categories';
 import { addDays, parisToday } from '@/lib/date-utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';

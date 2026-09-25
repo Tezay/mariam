@@ -6,7 +6,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
-import { adminApi, restaurantApi, type AdminSite } from '@/lib/api';
+import { adminApi } from '@/lib/api/admin';
+import { restaurantApi, type AdminSite } from '@/lib/api/restaurant';
 import { notify } from '@/lib/toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { accountPathForRole } from '@/lib/dashboard-routes';

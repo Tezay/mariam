@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { menusApi } from '@/lib/api';
-import type { MenuItem } from '@/lib/api';
+import { menusApi } from '@/lib/api/menus';
+import type { MenuItem } from '@/lib/api/menus';
 import { notify } from '@/lib/toast';
 
 export type ConflictMode = 'replace' | 'ignore' | 'add';

@@ -3,7 +3,7 @@
  * mise en avant, suppression) et liste triable.
  */
 import { useState, useEffect } from 'react';
-import { MenuCategory } from '@/lib/api';
+import { MenuCategory } from '@/lib/api/categories';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';

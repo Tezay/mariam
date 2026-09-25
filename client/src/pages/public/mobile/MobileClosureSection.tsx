@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CalendarOff, ChevronRight } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
-import type { ExceptionalClosure } from '@/lib/api';
+import type { ExceptionalClosure } from '@/lib/api/closures';
 
 function formatClosureDateRange(start: string, end: string): string {
   const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long' };

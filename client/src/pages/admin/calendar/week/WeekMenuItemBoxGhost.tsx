@@ -1,4 +1,4 @@
-import type { MenuItem } from '@/lib/api';
+import type { MenuItem } from '@/lib/api/menus';
 import type { CategoryColor } from '@/lib/category-colors';
 
 interface WeekMenuItemBoxGhostProps {

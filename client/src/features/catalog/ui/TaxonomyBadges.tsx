@@ -1,6 +1,6 @@
 import { DynamicIcon as Icon } from 'lucide-react/dynamic';
 import type { IconName } from 'lucide-react/dynamic';
-import type { CertificationItem, DietaryTag } from '@/lib/api';
+import type { CertificationItem, DietaryTag } from '@/lib/api/taxonomy';
 import { cn } from '@/lib/utils';
 
 export function CertificationLogo({
