@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query';
-import { menusApi, eventsApi, closuresApi, Menu, Event, ExceptionalClosure } from '@/lib/api';
+import { menusApi, Menu } from '@/lib/api/menus';
+import { eventsApi, Event } from '@/lib/api/events';
+import { closuresApi, ExceptionalClosure } from '@/lib/api/closures';
 import { parisToday, addDays } from '@/lib/date-utils';
 
 export interface DayData {

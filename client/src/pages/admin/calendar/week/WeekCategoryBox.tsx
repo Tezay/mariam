@@ -1,5 +1,6 @@
 import { ArrowLeftRight } from 'lucide-react';
-import type { MenuItem, MenuCategory } from '@/lib/api';
+import type { MenuItem } from '@/lib/api/menus';
+import type { MenuCategory } from '@/lib/api/categories';
 import { getCategoryColor } from '@/lib/category-colors';
 import { cn } from '@/lib/utils';
 import { WeekMenuItemBox } from './WeekMenuItemBox';

@@ -23,8 +23,11 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
-import { menusApi, catalogApi } from '@/lib/api';
-import type { DishCatalogItem, MenuCategory, MenuItem } from '@/lib/api';
+import { menusApi } from '@/lib/api/menus';
+import { catalogApi } from '@/lib/api/catalog';
+import type { DishCatalogItem } from '@/lib/api/catalog';
+import type { MenuCategory } from '@/lib/api/categories';
+import type { MenuItem } from '@/lib/api/menus';
 import { getCategoryColor } from '@/lib/category-colors';
 import { addDays, parisToday } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
@@ -74,7 +77,7 @@ interface WeekViewProps {
   categories: MenuCategory[];
   onReload: () => void;
   onDirtyChange?: (dirty: boolean) => void;
-  onEditEvent?: (event: import('@/lib/api').Event) => void;
+  onEditEvent?: (event: import('@/lib/api/events').Event) => void;
   onStartOnboarding?: (date: string) => void;
 }
 

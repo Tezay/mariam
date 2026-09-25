@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CalendarOff, Pencil } from 'lucide-react';
-import type { Event, MenuCategory } from '@/lib/api';
+import type { Event } from '@/lib/api/events';
+import type { MenuCategory } from '@/lib/api/categories';
 import { addDays, parisToday } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
 import {
@@ -16,7 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { AdminDayDisplay } from './day/AdminDayDisplay';
 import type { CalendarData } from './useCalendarData';
-import type { ExceptionalClosure } from '@/lib/api';
+import type { ExceptionalClosure } from '@/lib/api/closures';
 import { CLOSURE_HATCH_STYLE } from './closure/closureStyle';
 import { ClosureEditor } from './closure/ClosureEditor';
 

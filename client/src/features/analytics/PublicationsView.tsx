@@ -1,5 +1,5 @@
 import { AlertTriangle, CalendarCheck, Clock, ImageIcon, Timer } from 'lucide-react';
-import type { PublicationSiteRow } from '@/lib/api';
+import type { PublicationSiteRow } from '@/lib/api/analytics';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { KpiCard } from './ui/KpiCard';
 import { PeriodSelector } from './ui/PeriodSelector';

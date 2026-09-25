@@ -5,7 +5,8 @@
  */
 import { useState, useEffect } from 'react';
 import { trackPageView } from '@/lib/telemetry';
-import { ExceptionalClosure, CertificationItem } from '@/lib/api';
+import { ExceptionalClosure } from '@/lib/api/closures';
+import { CertificationItem } from '@/lib/api/taxonomy';
 import { generateEventPalette } from '@/lib/color-utils';
 import { DynamicIcon as Icon } from 'lucide-react/dynamic';
 import { InlineError, getErrorType } from '@/components/InlineError';

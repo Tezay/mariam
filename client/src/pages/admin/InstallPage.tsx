@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { dashboardPathForRole } from '@/lib/dashboard-routes';
 import { QRCodeSVG } from 'qrcode.react';
-import { authApi } from '@/lib/api';
+import { authApi } from '@/lib/api/auth';
 import { detectPlatform } from '@/lib/push';
 import { usePwaInstall } from '@/contexts/PwaInstallContext';
 import { Logo } from '@/components/Logo';

@@ -7,7 +7,7 @@
  * lists the sites, each reachable at /:slug/menu).
  */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { publicApi, type PublicOrg, type PublicSite } from '@/lib/api';
+import { publicApi, type PublicOrg, type PublicSite } from '@/lib/api/public';
 
 interface TenantState {
   loading: boolean;

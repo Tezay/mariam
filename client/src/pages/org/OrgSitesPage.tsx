@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, ChevronRight } from 'lucide-react';
-import { orgApi, type OrgSite } from '@/lib/api';
+import { orgApi, type OrgSite } from '@/lib/api/org';
 import { PageHeader, StatusPill } from './ui';
 import { AddSiteButton } from './AddSiteButton';
 import { EmptyState } from '@/components/dashboard/EmptyState';

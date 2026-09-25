@@ -10,7 +10,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { eventsApi, Event } from '@/lib/api';
+import { eventsApi, Event } from '@/lib/api/events';
 import { notify } from '@/lib/toast';
 import { parisToday } from '@/lib/date-utils';
 import { useAuth } from '@/contexts/AuthContext';

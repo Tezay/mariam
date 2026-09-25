@@ -7,16 +7,10 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  menusApi,
-  categoriesApi,
-  closuresApi,
-  restaurantApi,
-  Menu,
-  MenuItem,
-  MenuCategory,
-  ServiceHours,
-} from '@/lib/api';
+import { menusApi, Menu, MenuItem } from '@/lib/api/menus';
+import { categoriesApi, MenuCategory } from '@/lib/api/categories';
+import { closuresApi } from '@/lib/api/closures';
+import { restaurantApi, ServiceHours } from '@/lib/api/restaurant';
 import { backendWeekday, isInServiceHours } from '@/lib/utils';
 import { formatParisTime, nowInstant, parisNow, parisToday } from '@/lib/date-utils';
 import { Button } from '@/components/ui/button';

@@ -2,13 +2,9 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { DynamicIcon as Icon } from 'lucide-react/dynamic';
 import type { IconName } from 'lucide-react/dynamic';
-import {
-  catalogApi,
-  type BulkDeleteResult,
-  type CertificationItem,
-  type DietaryTag,
-  type MenuCategory,
-} from '@/lib/api';
+import { catalogApi, type BulkDeleteResult } from '@/lib/api/catalog';
+import { type CertificationItem, type DietaryTag } from '@/lib/api/taxonomy';
+import { type MenuCategory } from '@/lib/api/categories';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,

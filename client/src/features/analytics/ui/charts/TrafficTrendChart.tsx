@@ -5,7 +5,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
-import type { TrafficSeriesPoint } from '@/lib/api';
+import type { TrafficSeriesPoint } from '@/lib/api/analytics';
 import { formatDayLabel } from '../../format';
 
 const CHART_CONFIG: ChartConfig = {

@@ -7,7 +7,7 @@ import {
   Star,
   UtensilsCrossed,
 } from 'lucide-react';
-import type { MenuCategory } from '@/lib/api';
+import type { MenuCategory } from '@/lib/api/categories';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getCategoryColor } from '@/lib/category-colors';
 import { formatNumber, formatScore } from '@/features/analytics/format';

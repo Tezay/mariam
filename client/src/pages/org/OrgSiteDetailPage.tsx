@@ -6,7 +6,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Building2, Users, CalendarClock, CheckCircle2 } from 'lucide-react';
-import { orgApi, adminApi, type OrgSite, type User } from '@/lib/api';
+import { orgApi, type OrgSite } from '@/lib/api/org';
+import { adminApi } from '@/lib/api/admin';
+import { type User } from '@/lib/api/auth';
 import { StatTile, StatusPill, PrimaryButton } from './ui';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { RoleBadge } from '@/components/dashboard/RoleBadge';

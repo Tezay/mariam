@@ -6,7 +6,7 @@
  * because clearing one of them is the cheapest way to vote twice; any surviving
  * copy restores the others.
  */
-import { voteApi } from './api';
+import { voteApi } from './api/votes';
 
 const KEY = 'mariam-device-id';
 const DB_NAME = 'mariam';

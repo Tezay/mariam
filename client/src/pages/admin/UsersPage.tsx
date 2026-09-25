@@ -9,7 +9,10 @@
  * - Réinitialiser le MFA
  */
 import { useCallback, useMemo, useState, useEffect } from 'react';
-import { adminApi, restaurantApi, getApiErrorMessage, AdminSite, User } from '@/lib/api';
+import { adminApi } from '@/lib/api/admin';
+import { restaurantApi, AdminSite } from '@/lib/api/restaurant';
+import { getApiErrorMessage } from '@/lib/api/errors';
+import { User } from '@/lib/api/auth';
 import { notify } from '@/lib/toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { ROLES, SITE_ROLES } from '@/lib/roles';

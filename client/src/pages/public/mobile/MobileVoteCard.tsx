@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PartyPopper, Pencil } from 'lucide-react';
-import { voteApi, type VoteDishGroup, type VoteState } from '@/lib/api';
+import { voteApi, type VoteDishGroup, type VoteState } from '@/lib/api/votes';
 import { getDeviceId } from '@/lib/device-id';
 import { deviceFingerprint } from '@/lib/device-fingerprint';
 import {

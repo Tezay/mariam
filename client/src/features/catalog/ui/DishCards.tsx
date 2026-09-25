@@ -1,5 +1,5 @@
 import { Building2, ImageOff } from 'lucide-react';
-import type { MenuCategory } from '@/lib/api';
+import type { MenuCategory } from '@/lib/api/categories';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getCategoryColor } from '@/lib/category-colors';
 import { formatNumber } from '@/features/analytics/format';

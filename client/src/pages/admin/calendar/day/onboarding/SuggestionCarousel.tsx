@@ -10,7 +10,7 @@
  */
 import { useRef, useState, useLayoutEffect } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import type { DishCatalogItem } from '@/lib/api';
+import type { DishCatalogItem } from '@/lib/api/catalog';
 import type { CategoryColor } from '@/lib/category-colors';
 import { cn } from '@/lib/utils';
 

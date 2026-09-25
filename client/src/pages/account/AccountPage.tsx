@@ -10,14 +10,10 @@ import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { RoleBadge } from '@/components/dashboard/RoleBadge';
-import {
-  APP_ENVIRONMENT,
-  APP_VERSION,
-  authApi,
-  inboxApi,
-  publicApi,
-  type NotifPreferences,
-} from '@/lib/api';
+import { APP_ENVIRONMENT, APP_VERSION } from '@/lib/runtime-config';
+import { authApi } from '@/lib/api/auth';
+import { inboxApi, type NotifPreferences } from '@/lib/api/inbox';
+import { publicApi } from '@/lib/api/public';
 import {
   NotificationPreferences,
   type SaveState,

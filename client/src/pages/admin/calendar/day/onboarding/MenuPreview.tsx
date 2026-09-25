@@ -5,7 +5,7 @@
  */
 import { X, UtensilsCrossed } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { MenuItem } from '@/lib/api';
+import type { MenuItem } from '@/lib/api/menus';
 import { getCategoryColor } from '@/lib/category-colors';
 import type { UseMenuEditorReturn } from '../useMenuEditor';
 import type { CatGroup } from './types';

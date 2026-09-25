@@ -1,5 +1,6 @@
 import { ArrowLeftRight } from 'lucide-react';
-import type { MenuItem, MenuCategory } from '@/lib/api';
+import type { MenuItem } from '@/lib/api/menus';
+import type { MenuCategory } from '@/lib/api/categories';
 import { getCategoryColor } from '@/lib/category-colors';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AdminMenuItemCard } from './AdminMenuItemCard';

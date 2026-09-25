@@ -4,7 +4,7 @@
  * Fire-and-forget by design: a menu must render whether or not the counter is
  * reachable, so nothing here is awaited and every failure is swallowed.
  */
-import { API_URL } from './api';
+import { API_URL } from './runtime-config';
 
 const TRACK_URL = `${API_URL}/public/track`;
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { restaurantApi, ServiceHours } from '@/lib/api';
+import { restaurantApi, ServiceHours } from '@/lib/api/restaurant';
 import { isInServiceHours } from '@/lib/utils';
 import { DashboardShell } from '@/components/layout/DashboardShell';
 import { type SidebarNavItem } from '@/components/layout/Sidebar';

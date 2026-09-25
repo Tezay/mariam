@@ -1,5 +1,5 @@
 import { Pencil } from 'lucide-react';
-import type { Event } from '@/lib/api';
+import type { Event } from '@/lib/api/events';
 
 interface EventCardProps {
   event: Event;

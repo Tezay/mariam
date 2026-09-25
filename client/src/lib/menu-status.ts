@@ -1,4 +1,4 @@
-import type { MenuDayStatus } from '@/lib/api';
+import type { MenuDayStatus } from '@/lib/api/menus';
 
 interface MenuStatusDefinition {
   label: string;

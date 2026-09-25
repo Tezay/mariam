@@ -1,7 +1,7 @@
 /**
  * Constantes et helpers partagés entre les onglets de la page Mon restaurant.
  */
-import { ServiceHours } from '@/lib/api';
+import { ServiceHours } from '@/lib/api/restaurant';
 
 export const DAY_NAMES = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 

@@ -1,7 +1,7 @@
 /**
  * Onglet Horaires : jours de service et horaires d'ouverture.
  */
-import { ServiceHours } from '@/lib/api';
+import { ServiceHours } from '@/lib/api/restaurant';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';

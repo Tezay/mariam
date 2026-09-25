@@ -10,7 +10,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import Fuse from 'fuse.js';
 import { Search, ChevronRight, SkipForward, Plus } from 'lucide-react';
-import type { DishCatalogItem } from '@/lib/api';
+import type { DishCatalogItem } from '@/lib/api/catalog';
 import { getCategoryColor } from '@/lib/category-colors';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';

@@ -5,14 +5,9 @@
  */
 import { useState } from 'react';
 import { parisYear } from '@/lib/date-utils';
-import {
-  adminApi,
-  closuresApi,
-  menusApi,
-  CalendarSettings,
-  VacanceScolaire,
-  JourFerie,
-} from '@/lib/api';
+import { adminApi, CalendarSettings, VacanceScolaire } from '@/lib/api/admin';
+import { closuresApi } from '@/lib/api/closures';
+import { menusApi, JourFerie } from '@/lib/api/menus';
 import { notify } from '@/lib/toast';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';

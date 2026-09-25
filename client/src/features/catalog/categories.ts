@@ -1,4 +1,4 @@
-import type { MenuCategory } from '@/lib/api';
+import type { MenuCategory } from '@/lib/api/categories';
 
 /** Only leaves carry dishes; a category with subcategories groups them. */
 export function leafCategories(categories: MenuCategory[]): MenuCategory[] {

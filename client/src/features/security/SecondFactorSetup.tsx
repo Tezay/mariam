@@ -10,7 +10,7 @@ import { Fingerprint, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { getApiErrorMessage } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/api/errors';
 
 export interface SecondFactorEnrolment {
   /** Registers the passkey and updates the session. */

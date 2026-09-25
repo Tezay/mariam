@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Check, Info, SmilePlus } from 'lucide-react';
-import { categoriesApi, type MenuCategory } from '@/lib/api';
+import { categoriesApi, type MenuCategory } from '@/lib/api/categories';
 import { getCategoryColor, type CategoryColor } from '@/lib/category-colors';
 import { RATING_LEVELS, RATING_PRESETS, ratingPreset } from '@/features/rating/scale';
 import { RatingIcons } from '@/features/rating/RatingIcons';

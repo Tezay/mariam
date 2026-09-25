@@ -1,6 +1,7 @@
 import { DynamicIcon as Icon } from 'lucide-react/dynamic';
 import type { IconName } from 'lucide-react/dynamic';
-import type { CertificationItem, DietaryTag, MenuCategory } from '@/lib/api';
+import type { CertificationItem, DietaryTag } from '@/lib/api/taxonomy';
+import type { MenuCategory } from '@/lib/api/categories';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';

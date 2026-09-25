@@ -6,14 +6,9 @@ import {
   Star,
   UtensilsCrossed,
 } from 'lucide-react';
-import type {
-  CertificationItem,
-  DietaryTag,
-  DishCatalogItem,
-  DishSort,
-  OrgCatalogDish,
-  OrgCatalogSort,
-} from '@/lib/api';
+import type { CertificationItem, DietaryTag } from '@/lib/api/taxonomy';
+import type { DishCatalogItem, DishSort } from '@/lib/api/catalog';
+import type { OrgCatalogDish, OrgCatalogSort } from '@/lib/api/org';
 
 export type CatalogScope = 'site' | 'org';
 

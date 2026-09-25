@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import type { User } from '@/lib/api';
+import type { User } from '@/lib/api/auth';
 
 export function needsSecuritySetup(user?: Pick<User, 'mfa_enabled' | 'passkeys_count'> | null) {
   if (!user) return false;

@@ -1,5 +1,5 @@
 import { CalendarRange, Check } from 'lucide-react';
-import type { CatalogPeriod } from '@/lib/api';
+import type { CatalogPeriod } from '@/lib/api/catalog';
 import {
   DropdownMenu,
   DropdownMenuContent,

@@ -9,8 +9,8 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { catalogApi } from '@/lib/api';
-import type { DishCatalogItem } from '@/lib/api';
+import { catalogApi } from '@/lib/api/catalog';
+import type { DishCatalogItem } from '@/lib/api/catalog';
 import type { UseMenuEditorReturn } from './useMenuEditor';
 
 interface AddDishComboboxProps {

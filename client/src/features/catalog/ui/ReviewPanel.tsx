@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { MessageSquareOff, Trophy } from 'lucide-react';
-import type { DishSatisfaction } from '@/lib/api';
+import type { DishSatisfaction } from '@/lib/api/catalog';
 import { RatingDistribution } from '@/features/analytics/ui/RatingDistribution';
 import { SatisfactionTrendChart } from '@/features/analytics/ui/charts/SatisfactionTrendChart';
 import { formatNumber, formatScore, plural } from '@/features/analytics/format';

@@ -4,7 +4,7 @@
  * Gère l'état d'authentification global (support MFA).
  */
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authApi, User } from '@/lib/api';
+import { authApi, User } from '@/lib/api/auth';
 
 interface AuthContextType {
   user: User | null;

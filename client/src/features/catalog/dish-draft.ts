@@ -1,4 +1,4 @@
-import type { CertificationItem, DietaryTag } from '@/lib/api';
+import type { CertificationItem, DietaryTag } from '@/lib/api/taxonomy';
 
 export interface DishDraft {
   name: string;

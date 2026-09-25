@@ -18,7 +18,7 @@ import {
 } from '@/features/security/SecondFactorSetup';
 import { useAuth } from '@/contexts/AuthContext';
 import { needsSecuritySetup } from '@/hooks/useSecurityOnboarding';
-import { authApi } from '@/lib/api';
+import { authApi } from '@/lib/api/auth';
 import { dashboardPathForRole } from '@/lib/dashboard-routes';
 
 export default function SecurityPage() {

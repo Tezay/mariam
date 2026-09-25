@@ -9,7 +9,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
-import type { MenuCategory, DishCatalogItem } from '@/lib/api';
+import type { MenuCategory } from '@/lib/api/categories';
+import type { DishCatalogItem } from '@/lib/api/catalog';
 import { getCategoryColor } from '@/lib/category-colors';
 import { useSidebar } from '@/contexts/SidebarContext';
 import {

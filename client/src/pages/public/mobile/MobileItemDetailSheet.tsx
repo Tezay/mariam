@@ -1,6 +1,6 @@
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import type { MenuItemData } from '../menu-types';
-import type { DietaryTag, CertificationItem } from '@/lib/api';
+import type { DietaryTag, CertificationItem } from '@/lib/api/taxonomy';
 import { DynamicIcon as Icon } from 'lucide-react/dynamic';
 import type { IconName } from 'lucide-react/dynamic';
 

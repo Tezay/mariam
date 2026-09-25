@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Check, Minus } from 'lucide-react';
-import { orgApi } from '@/lib/api';
+import { orgApi } from '@/lib/api/org';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RatingDistribution } from '@/features/analytics/ui/RatingDistribution';

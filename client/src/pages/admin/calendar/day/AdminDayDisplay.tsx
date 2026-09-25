@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { PlusCircle, FileUp, Table2, ChefHat, MoreHorizontal, Trash2, Copy } from 'lucide-react';
-import { menusApi } from '@/lib/api';
-import type { Event, Menu, MenuCategory } from '@/lib/api';
+import { menusApi } from '@/lib/api/menus';
+import type { Event } from '@/lib/api/events';
+import type { Menu } from '@/lib/api/menus';
+import type { MenuCategory } from '@/lib/api/categories';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {

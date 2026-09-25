@@ -2,14 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, BookOpen } from 'lucide-react';
-import {
-  catalogApi,
-  categoriesApi,
-  orgApi,
-  publicApi,
-  type DishSort,
-  type OrgCatalogSort,
-} from '@/lib/api';
+import { catalogApi, type DishSort } from '@/lib/api/catalog';
+import { categoriesApi } from '@/lib/api/categories';
+import { orgApi, type OrgCatalogSort } from '@/lib/api/org';
+import { publicApi } from '@/lib/api/public';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { useDebounce } from '@/hooks/useDebounce';
 import { downloadBlob } from '@/lib/download';

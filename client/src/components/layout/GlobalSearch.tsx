@@ -14,7 +14,9 @@ import {
   Shield,
   CornerDownRight,
 } from 'lucide-react';
-import { catalogApi, eventsApi, closuresApi } from '@/lib/api';
+import { catalogApi } from '@/lib/api/catalog';
+import { eventsApi } from '@/lib/api/events';
+import { closuresApi } from '@/lib/api/closures';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';

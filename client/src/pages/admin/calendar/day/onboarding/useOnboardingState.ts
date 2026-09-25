@@ -8,8 +8,13 @@
  * de menu est auto-sauvegardé (débouncé) après chaque modification.
  */
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import api, { catalogApi, menusApi } from '@/lib/api';
-import type { Menu, MenuCategory, DietaryTag, CertificationItem, DishCatalogItem } from '@/lib/api';
+import { catalogApi } from '@/lib/api/catalog';
+import { menusApi } from '@/lib/api/menus';
+import { restaurantApi } from '@/lib/api/restaurant';
+import type { Menu } from '@/lib/api/menus';
+import type { MenuCategory } from '@/lib/api/categories';
+import type { DietaryTag, CertificationItem } from '@/lib/api/taxonomy';
+import type { DishCatalogItem } from '@/lib/api/catalog';
 import { notify } from '@/lib/toast';
 import { useMenuEditor, type UseMenuEditorReturn } from '../useMenuEditor';
 import {
@@ -23,8 +28,7 @@ import {
 const AUTOSAVE_DELAY_MS = 1500;
 
 async function fetchTagConfig(): Promise<TagConfig> {
-  const res = await api.get('/settings');
-  const r = res.data.restaurant;
+  const r = await restaurantApi.getMine();
   return {
     dietary_tags: r.config?.dietary_tags ?? [],
     certifications: r.config?.certifications ?? [],

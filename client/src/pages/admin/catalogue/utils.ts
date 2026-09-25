@@ -1,4 +1,4 @@
-import { MenuCategory } from '@/lib/api';
+import { MenuCategory } from '@/lib/api/categories';
 
 /** Aplatit l'arbre de catégories (parents suivis de leurs sous-catégories). */
 export function flattenCategories(cats: MenuCategory[]): MenuCategory[] {

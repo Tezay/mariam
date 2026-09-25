@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, MessageSquareHeart, SmilePlus, Users, Utensils } from 'lucide-react';
-import type { SatisfactionDishRow, SatisfactionSiteRow } from '@/lib/api';
+import type { SatisfactionDishRow, SatisfactionSiteRow } from '@/lib/api/analytics';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { DataTable, type DataTableColumn } from '@/components/dashboard/DataTable';

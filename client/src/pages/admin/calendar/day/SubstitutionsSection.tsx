@@ -5,8 +5,8 @@
  */
 import { useState, useEffect } from 'react';
 import { X, Plus, Search } from 'lucide-react';
-import type { DishCatalogItem } from '@/lib/api';
-import { catalogApi } from '@/lib/api';
+import type { DishCatalogItem } from '@/lib/api/catalog';
+import { catalogApi } from '@/lib/api/catalog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Command,

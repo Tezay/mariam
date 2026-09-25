@@ -1,4 +1,5 @@
-import type { DietaryTag, CertificationItem, DishCatalogItem } from '@/lib/api';
+import type { DietaryTag, CertificationItem } from '@/lib/api/taxonomy';
+import type { DishCatalogItem } from '@/lib/api/catalog';
 
 export type { DietaryTag, CertificationItem, DishCatalogItem };
 
