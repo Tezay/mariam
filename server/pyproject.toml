@@ -55,6 +55,8 @@ dev = [
     "pytest-cov>=5",
     "factory-boy>=3.3",
     "types-requests>=2.31",
+    "cbor2>=5.6",
+    "cryptography>=42",
 ]
 
 [tool.ruff]

@@ -288,7 +288,7 @@ def passkey_setup_begin():
         ],
     )
 
-    challenge_token = _make_challenge_token(user.id, options.challenge)
+    challenge_token = _make_challenge_token(user.id, options.challenge, 'setup')
     options_dict = json.loads(options_to_json(options))
 
     return jsonify({
@@ -334,7 +334,7 @@ def passkey_setup_complete():
         return jsonify({'error': 'Compte déjà activé avec TOTP'}), 400
 
     try:
-        token_user_id, challenge_bytes = _decode_challenge_token(challenge_token)
+        token_user_id, challenge_bytes = _decode_challenge_token(challenge_token, 'setup')
     except Exception:
         return jsonify({'error': 'challenge_token invalide ou expiré'}), 401
 
@@ -362,6 +362,7 @@ def passkey_setup_complete():
             expected_challenge=challenge_bytes,
             expected_rp_id=rp_id,
             expected_origin=origin,
+            require_user_verification=True,
         )
     except Exception as e:
         return jsonify({'error': f'Vérification échouée : {str(e)}'}), 400

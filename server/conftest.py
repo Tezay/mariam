@@ -106,6 +106,14 @@ def no_ambient_redis(monkeypatch):
         monkeypatch.setattr(module, 'get_redis', lambda: None)
 
 
+@pytest.fixture()
+def revocations(monkeypatch):
+    """Token revocations held in memory for one test, instead of the ambient Redis."""
+    store = MemoryRevocations()
+    monkeypatch.setattr('app.security._get_blacklist_redis', lambda: store)
+    return store
+
+
 @pytest.fixture(autouse=True)
 def clean_db(app):
     """
@@ -182,6 +190,19 @@ class FakeRedis:
 
     def pfcount(self, key):
         return len(self.hll.get(key, set()))
+
+
+class MemoryRevocations:
+    """The two calls the token blacklist makes on Redis."""
+
+    def __init__(self):
+        self.keys: set[str] = set()
+
+    def setex(self, key, _ttl, _value):
+        self.keys.add(key)
+
+    def exists(self, key):
+        return int(key in self.keys)
 
 
 # Sentinel: distinguishes "auto-attach" from an explicit None.

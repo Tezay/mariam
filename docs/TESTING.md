@@ -36,7 +36,7 @@ One file per domain in `server/tests/`, grouped roughly as:
 
 | Area | Files |
 |---|---|
-| Authentication and hardening | `test_auth.py`, `test_crypto.py`, `test_hardening.py` |
+| Authentication and hardening | `test_auth.py`, `test_auth_<module>.py` (one per module of `routes/auth/`), `test_crypto.py`, `test_hardening.py` |
 | Menus and catalogue | `test_menus.py`, `test_categories.py`, `test_catalog.py`, `test_csv_import.py` |
 | Public surface | `test_public_menu.py`, `test_public_slugged.py`, `test_seo.py` |
 | Analytics | `test_analytics_stats.py`, `test_telemetry.py`, `test_votes.py` |
@@ -45,6 +45,12 @@ One file per domain in `server/tests/`, grouped roughly as:
 
 `test_tenant_isolation.py` is the one to extend whenever an endpoint is added: every route that
 resolves a scope belongs there.
+
+Passkey flows run against `tests/webauthn_authenticator.py`, a software authenticator that
+answers the routes' options with genuine attestations and signed assertions, so the real
+WebAuthn verification runs. `tests/auth_support.py` puts an account in the states the routes
+branch on (TOTP enabled, passkey enrolled, reset link). A test that relies on a revoked or
+single-use token takes the `revocations` fixture, which keeps the blacklist in memory.
 
 ### Writing one
 

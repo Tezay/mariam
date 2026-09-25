@@ -65,7 +65,7 @@ def _get_webauthn_config():
     )
 
 
-def _make_challenge_token(user_id: int, challenge_bytes: bytes) -> str:
+def _make_challenge_token(user_id: int, challenge_bytes: bytes, ceremony: str) -> str:
     """
     Encode a WebAuthn challenge into a short-lived JWT (120 s).
     Avoids storing state server-side.
@@ -73,18 +73,24 @@ def _make_challenge_token(user_id: int, challenge_bytes: bytes) -> str:
     challenge_b64 = base64.urlsafe_b64encode(challenge_bytes).rstrip(b'=').decode()
     return create_access_token(
         identity=str(user_id),
-        additional_claims={'webauthn_challenge': challenge_b64, 'webauthn_pending': True},
+        additional_claims={
+            'webauthn_challenge': challenge_b64,
+            'webauthn_pending': True,
+            'webauthn_ceremony': ceremony,
+        },
         expires_delta=timedelta(seconds=120),
     )
 
 
-def _decode_challenge_token(token: str):
+def _decode_challenge_token(token: str, ceremony: str):
     """
     Decode a challenge token.
     Returns (user_id, challenge_bytes) or raises an exception.
     """
     decoded = decode_token(token)
-    if not decoded.get('webauthn_pending'):
+    # A challenge answers the ceremony that issued it: one begun with a mere reset
+    # link must not complete a passkey setup, which opens a session.
+    if not decoded.get('webauthn_pending') or decoded.get('webauthn_ceremony') != ceremony:
         raise ValueError('Token invalide')
     user_id = int(decoded['sub'])
     challenge_b64 = decoded['webauthn_challenge']

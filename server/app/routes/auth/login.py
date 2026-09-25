@@ -183,7 +183,7 @@ def passkey_login_begin():
     )
 
     # user_id=0 : on ne connaît pas encore l'utilisateur
-    challenge_token = _make_challenge_token(0, options.challenge)
+    challenge_token = _make_challenge_token(0, options.challenge, 'login')
     options_dict = json.loads(options_to_json(options))
 
     return jsonify({
@@ -219,7 +219,7 @@ def passkey_login_complete():
         return jsonify({'error': 'challenge_token et credential requis'}), 400
 
     try:
-        _, challenge_bytes = _decode_challenge_token(challenge_token)
+        _, challenge_bytes = _decode_challenge_token(challenge_token, 'login')
     except Exception:
         return jsonify({'error': 'challenge_token invalide ou expiré'}), 401
 

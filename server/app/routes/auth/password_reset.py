@@ -177,7 +177,7 @@ def passkey_reset_password_begin():
         user_verification=UserVerificationRequirement.REQUIRED,
     )
 
-    challenge_token = _make_challenge_token(user.id, options.challenge)
+    challenge_token = _make_challenge_token(user.id, options.challenge, 'reset_password')
     options_dict = json.loads(options_to_json(options))
 
     return jsonify({
@@ -215,7 +215,7 @@ def passkey_reset_password_complete():
         return jsonify({'error': 'new_password, challenge_token, credential et reset_token requis'}), 400
 
     try:
-        token_user_id, challenge_bytes = _decode_challenge_token(challenge_token)
+        token_user_id, challenge_bytes = _decode_challenge_token(challenge_token, 'reset_password')
     except Exception:
         return jsonify({'error': 'challenge_token invalide ou expiré'}), 401
 
@@ -287,6 +287,7 @@ def passkey_reset_password_complete():
     passkey.sign_count = verification.new_sign_count
     passkey.last_used_at = db.func.now()
     user.set_password(new_password)
+    user.revoke_tokens()
     link.mark_as_used()
 
     AuditLog.log(

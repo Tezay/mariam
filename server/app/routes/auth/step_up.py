@@ -75,7 +75,7 @@ def step_up_passkey_begin():
     )
     return jsonify({
         'options': json.loads(options_to_json(options)),
-        'challenge_token': _make_challenge_token(user.id, options.challenge),
+        'challenge_token': _make_challenge_token(user.id, options.challenge, 'step_up'),
     }), 200
 
 
@@ -102,7 +102,7 @@ def step_up_passkey_complete():
 
     current_user_id = int(get_jwt_identity())
     try:
-        token_user_id, challenge_bytes = _decode_challenge_token(challenge_token)
+        token_user_id, challenge_bytes = _decode_challenge_token(challenge_token, 'step_up')
     except Exception:
         return jsonify({'error': 'challenge_token invalide ou expiré'}), 401
     if token_user_id != current_user_id:

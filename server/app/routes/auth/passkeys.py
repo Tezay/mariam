@@ -32,6 +32,8 @@ def passkey_register_begin():
     from webauthn.helpers.cose import COSEAlgorithmIdentifier
     from webauthn.helpers.structs import (
         AuthenticatorSelectionCriteria,
+        AuthenticatorTransport,
+        PublicKeyCredentialDescriptor,
         ResidentKeyRequirement,
         UserVerificationRequirement,
     )
@@ -49,10 +51,19 @@ def passkey_register_begin():
         user_id=str(user.id).encode(),
         user_name=user.email,
         user_display_name=user.username or user.email,
-        exclude_credentials=[],
+        exclude_credentials=[
+            PublicKeyCredentialDescriptor(
+                id=p.credential_id,
+                transports=[AuthenticatorTransport(t) for t in (p.transports or [])
+                            if t in {e.value for e in AuthenticatorTransport}],
+            )
+            for p in user.passkeys
+        ],
+        # Once TOTP is off, this passkey may be the only factor left: it has to
+        # serve passwordless login, as the ones created at activation do.
         authenticator_selection=AuthenticatorSelectionCriteria(
-            resident_key=ResidentKeyRequirement.PREFERRED,
-            user_verification=UserVerificationRequirement.PREFERRED,
+            resident_key=ResidentKeyRequirement.REQUIRED,
+            user_verification=UserVerificationRequirement.REQUIRED,
         ),
         supported_pub_key_algs=[
             COSEAlgorithmIdentifier.ECDSA_SHA_256,
@@ -60,7 +71,7 @@ def passkey_register_begin():
         ],
     )
 
-    challenge_token = _make_challenge_token(user.id, options.challenge)
+    challenge_token = _make_challenge_token(user.id, options.challenge, 'register')
     options_dict = json.loads(options_to_json(options))
 
     return jsonify({
@@ -100,7 +111,7 @@ def passkey_register_complete():
     current_user_id = int(get_jwt_identity())
 
     try:
-        token_user_id, challenge_bytes = _decode_challenge_token(challenge_token)
+        token_user_id, challenge_bytes = _decode_challenge_token(challenge_token, 'register')
     except Exception:
         return jsonify({'error': 'challenge_token invalide ou expiré'}), 401
 
@@ -132,6 +143,7 @@ def passkey_register_complete():
             expected_challenge=challenge_bytes,
             expected_rp_id=rp_id,
             expected_origin=origin,
+            require_user_verification=True,
         )
     except Exception as e:
         return jsonify({'error': f'Vérification échouée : {str(e)}'}), 400
