@@ -1,6 +1,6 @@
 # Postgres backup sidecar: periodic pg_dump pushed to an S3 bucket (Scaleway).
 # Based on postgres:15-alpine so pg_dump matches the database major version.
-FROM postgres:15-alpine
+FROM postgres:18-alpine
 
 # MinIO client (mc) — S3-compatible, used to upload dumps to Scaleway.
 RUN apk add --no-cache curl \
