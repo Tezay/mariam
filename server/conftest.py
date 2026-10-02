@@ -106,6 +106,37 @@ def no_ambient_redis(monkeypatch):
         monkeypatch.setattr(module, 'get_redis', lambda: None)
 
 
+@pytest.fixture(scope='session', autouse=True)
+def documented_auth_responses(app):
+    """Fail any test whose auth route answers something its OpenAPI doc does not declare.
+
+    flask-smorest writes 422 itself, from the request schema, so it is left out.
+    """
+    from flask import current_app, request
+
+    @app.after_request
+    def check(response):
+        endpoint = request.endpoint or ''
+        if not endpoint.startswith('auth.') or response.status_code == 422:
+            return response
+        # flask-smorest records the declared responses only in this private attribute.
+        declared = current_app.view_functions[endpoint]._apidoc['response']['responses']
+        assert response.status_code in declared, (
+            f'{endpoint} answered an undocumented {response.status_code}'
+        )
+        errors = declared[response.status_code][0]['schema'].validate(response.get_json())
+        assert not errors, f'{endpoint} {response.status_code} strays from its schema: {errors}'
+        return response
+
+
+@pytest.fixture()
+def revocations(monkeypatch):
+    """Token revocations held in memory for one test, instead of the ambient Redis."""
+    store = MemoryRevocations()
+    monkeypatch.setattr('app.security._get_blacklist_redis', lambda: store)
+    return store
+
+
 @pytest.fixture(autouse=True)
 def clean_db(app):
     """
@@ -182,6 +213,19 @@ class FakeRedis:
 
     def pfcount(self, key):
         return len(self.hll.get(key, set()))
+
+
+class MemoryRevocations:
+    """The two calls the token blacklist makes on Redis."""
+
+    def __init__(self):
+        self.keys: set[str] = set()
+
+    def setex(self, key, _ttl, _value):
+        self.keys.add(key)
+
+    def exists(self, key):
+        return int(key in self.keys)
 
 
 # Sentinel: distinguishes "auto-attach" from an explicit None.

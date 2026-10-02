@@ -4,6 +4,26 @@ The Mariam API follows REST conventions. All endpoints are prefixed with `/v1`. 
 
 **Interactive documentation (Swagger UI):** `https://<your-ru>.mariam.app/docs`
 
+## Errors
+
+A refused request answers with a 4xx status and a JSON body whose `error` is a French message
+meant for display. Some add a `message` with details, and a few carry a flag the client acts on,
+such as `passkey_only` on `POST /v1/auth/login`.
+
+```json
+{ "error": "Lien de réinitialisation expiré ou déjà utilisé" }
+```
+
+A route that declares a request schema refuses a body that does not match it before running,
+with `422` and the flask-smorest format, which names each faulty field:
+
+```json
+{ "code": 422, "status": "Unprocessable Entity",
+  "errors": { "json": { "credential": ["Missing data for required field."] } } }
+```
+
+The Swagger UI lists, for each route, the statuses it answers and the body of each.
+
 ## Authentication
 
 Mariam supports two login methods: **passkey** (biometric / FIDO2, passwordless) and **email + password + TOTP**. Every account must have at least one active 2FA method (TOTP or at least one passkey) at all times.
@@ -33,25 +53,27 @@ Authorization: Bearer <access_token>
 
 ### Account activation
 
-Invitation links support two activation paths depending on the user's choice of 2FA method.
+Both paths start alike: `GET /v1/auth/check-activation/<token>` validates the link, then
+`POST /v1/auth/activate` creates the account, without a second factor yet. Its `mfa_setup`
+carries a TOTP secret with its QR code, and a `setup_token` valid 15 minutes. The user then
+picks a second factor.
 
 **Path A — Passkey**
 
-1. `GET /v1/auth/check-activation/<token>` — validate the link, retrieve user info
-2. `POST /v1/auth/passkey/setup/begin` — generate a WebAuthn registration challenge
-3. `POST /v1/auth/passkey/setup/complete` — store passkey, receive JWT (immediate login)
+1. `POST /v1/auth/passkey/setup/begin` — with the `setup_token`, generate a registration challenge
+2. `POST /v1/auth/passkey/setup/complete` — store the passkey, receive JWT (immediate login)
 
 **Path B — TOTP**
 
-1. `GET /v1/auth/check-activation/<token>` — validate the link
-2. `POST /v1/auth/activate` — set password and verify TOTP code, receive JWT
+1. `POST /v1/auth/mfa/verify-setup` — with the `setup_token` and a first code, enable TOTP and
+   receive JWT
 
 ### Token management
 
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
 | `POST` | `/v1/auth/refresh` | refresh token | Issue a new access token |
-| `POST` | `/v1/auth/logout` | bearer | Invalidate the current access token |
+| `POST` | `/v1/auth/logout` | refresh token | Revoke the refresh token, and the access token passed in the body |
 | `GET` | `/v1/auth/me` | bearer | Current user profile |
 
 ### Session transfer
@@ -67,7 +89,7 @@ Invitation links support two activation paths depending on the user's choice of 
 |--------|-------|------|-------------|
 | `POST` | `/v1/auth/mfa/setup` | bearer | Generate a new TOTP secret; returns QR code and raw secret |
 | `POST` | `/v1/auth/mfa/setup/confirm` | bearer | Verify code and activate TOTP |
-| `POST` | `/v1/auth/mfa/verify-setup` | bearer | Verify code during initial account activation |
+| `POST` | `/v1/auth/mfa/verify-setup` | setup token | Verify the first code at activation (Path B) |
 | `POST` | `/v1/auth/mfa/verify` | mfa token | Verify TOTP code at login (step 2 of Flow B) |
 | `DELETE` | `/v1/auth/mfa` | bearer | Disable TOTP — rejected if no passkey is registered |
 
@@ -82,8 +104,8 @@ Invitation links support two activation paths depending on the user's choice of 
 | `DELETE` | `/v1/auth/passkey/<id>` | bearer | Delete a passkey — rejected if it is the last one and TOTP is disabled |
 | `POST` | `/v1/auth/passkey/login/begin` | none | Start discoverable passkey login (Flow A, step 1) |
 | `POST` | `/v1/auth/passkey/login/complete` | none | Finish passkey login, receive JWT (Flow A, step 2) |
-| `POST` | `/v1/auth/passkey/setup/begin` | none | Start passkey registration during activation (Path A, step 2) |
-| `POST` | `/v1/auth/passkey/setup/complete` | none | Finish passkey registration during activation, receive JWT (Path A, step 3) |
+| `POST` | `/v1/auth/passkey/setup/begin` | setup token | Start passkey registration during activation (Path A, step 1) |
+| `POST` | `/v1/auth/passkey/setup/complete` | challenge token | Finish passkey registration during activation, receive JWT (Path A, step 2) |
 
 ### Step-up authentication
 

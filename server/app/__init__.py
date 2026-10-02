@@ -278,7 +278,12 @@ def create_app(config_class=None):
     # API v1 — Flask-Smorest (OpenAPI / Swagger)
     # ========================================
     from flask_smorest import Api
+
+    from .schemas.common import ErrorSchema
     api = Api(app)
+    # flask-smorest documents its own error body as "Error"; ours has another shape
+    # and needs its own name, or apispec renames it "Error1".
+    api.spec.components.schema('ApiError', schema=ErrorSchema)
 
     from .routes.analytics import analytics_bp
     from .routes.audit import audit_bp

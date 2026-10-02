@@ -61,9 +61,9 @@ class TestLoginHardening:
 class TestMfaTokenSingleUse:
     def test_mfa_token_cannot_be_replayed(self, app, client, monkeypatch):
         revoked: set[str] = set()
-        monkeypatch.setattr('app.routes.auth.blacklist_token',
+        monkeypatch.setattr('app.routes.auth.login.blacklist_token',
                             lambda jti, ttl: revoked.add(jti))
-        monkeypatch.setattr('app.routes.auth.is_token_blacklisted',
+        monkeypatch.setattr('app.routes.auth.login.is_token_blacklisted',
                             lambda jti: jti in revoked)
 
         secret = pyotp.random_base32()

@@ -55,6 +55,8 @@ dev = [
     "pytest-cov>=5",
     "factory-boy>=3.3",
     "types-requests>=2.31",
+    "cbor2>=5.6",
+    "cryptography>=42",
 ]
 
 [tool.ruff]
@@ -68,6 +70,8 @@ ignore = ["B008", "E501"]  # B008: Flask default-arg patterns; E501: line length
 [tool.ruff.lint.per-file-ignores]
 # Models imported for SQLAlchemy registration (side-effect imports)
 "app/__init__.py" = ["F401"]
+# Route modules imported for the routes they register on the blueprint
+"app/routes/auth/__init__.py" = ["F401"]
 
 [tool.mypy]
 python_version = "3.11"
