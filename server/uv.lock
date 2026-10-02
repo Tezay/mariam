@@ -867,7 +867,7 @@ wheels = [
 
 [[package]]
 name = "flask-smorest"
-version = "0.44.0"
+version = "0.47.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "apispec", extra = ["marshmallow"] },
@@ -876,9 +876,9 @@ dependencies = [
     { name = "webargs" },
     { name = "werkzeug" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e7/4f/901bf249e7e19cdfd496247379f58c4ef2f1136c3df0bb542ca0d26a88bd/flask-smorest-0.44.0.tar.gz", hash = "sha256:13f6e39d807c8847a56dc40656c2bbc0a2b2a430d8a4bb4a21836046757f7cef", size = 78610, upload-time = "2024-02-26T21:00:12.121Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/99/b0/5edd5f3231ea26b52e786588c45d786df26929d2be8fec634bcb871b2a3f/flask_smorest-0.47.0.tar.gz", hash = "sha256:a415ce7db3d7e63dd854eb16d59047686dbf5d31c4913e245fa5657f88e7788d", size = 77600, upload-time = "2026-03-22T11:59:22.079Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a5/de/19708b55a2bece77793916d6f0eed5bb68c2b17bb98990ae1d9437809ec8/flask_smorest-0.44.0-py3-none-any.whl", hash = "sha256:a35d088d0f62e9ff7e94ed996601e04fcc17cbacfb43b52543b596b933db4f72", size = 33093, upload-time = "2024-02-26T21:00:09.715Z" },
+    { url = "https://files.pythonhosted.org/packages/4e/19/53cc4e4d4a3d61362053acd359a425f3e9f2c792698dd4dbb5f5441b5f97/flask_smorest-0.47.0-py3-none-any.whl", hash = "sha256:9329d8697f8710ea6446e9b7876a4f58af2dbc02116d10ebac6f24a7c0ebdea9", size = 32379, upload-time = "2026-03-22T11:59:20.449Z" },
 ]
 
 [[package]]
@@ -1309,7 +1309,7 @@ requires-dist = [
     { name = "flask-jwt-extended", specifier = "==4.6.0" },
     { name = "flask-limiter", specifier = ">=3.5.0" },
     { name = "flask-migrate", specifier = "==4.0.5" },
-    { name = "flask-smorest", specifier = "==0.44.0" },
+    { name = "flask-smorest", specifier = "==0.47.0" },
     { name = "flask-sqlalchemy", specifier = "==3.1.1" },
     { name = "gunicorn", specifier = "==26.2.0" },
     { name = "marshmallow", specifier = "==3.26.2" },
