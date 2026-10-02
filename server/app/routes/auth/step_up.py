@@ -1,152 +1,110 @@
-import json
-from datetime import UTC, datetime
-
-import pyotp
-from flask import jsonify, request
-from flask_jwt_extended import (
-    get_jwt_identity,
-    jwt_required,
-)
+from flask import jsonify
+from flask_jwt_extended import jwt_required
 
 from ...extensions import db
-from ...models import Passkey, User
+from ...models import Passkey
+from ...schemas.auth import (
+    PasskeyAssertionSchema,
+    StepUpPasswordSchema,
+    StepUpTokenSchema,
+    WebAuthnOptionsSchema,
+)
+from ...schemas.common import ErrorSchema
 from ...security import limiter
+from ...services import passkeys, totp
+from ...services.passkeys import Ceremony
 from ...services.step_up import issue_step_up_token
-from ._webauthn import _decode_challenge_token, _get_webauthn_config, _make_challenge_token
+from ..helpers import get_current_user
+from ._common import NO_SESSION, user_not_found
 from .blueprint import auth_bp
 
 
 @auth_bp.route('/step-up/password', methods=['POST'])
-@limiter.limit("5 per minute")
+@limiter.limit('5 per minute')
 @jwt_required()
-def step_up_password():
-    """Re-authenticate with password (and TOTP when enabled) before a sensitive action.
+@auth_bp.arguments(StepUpPasswordSchema)
+@auth_bp.response(200, StepUpTokenSchema)
+@auth_bp.alt_response(401, schema=ErrorSchema, description=f'Wrong password or code. {NO_SESSION}')
+@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
+def step_up_password(data):
+    """Confirm identity with the password before a sensitive action
 
-    Body: { password, mfa_code }
+    Asks for the TOTP code as well when the account has TOTP enabled.
     """
-    data = request.get_json() or {}
-    user = db.session.get(User, int(get_jwt_identity()))
+    user = get_current_user()
     if not user:
-        return jsonify({'error': 'Utilisateur non trouvé'}), 404
+        return user_not_found()
 
-    if not user.check_password(data.get('password') or ''):
+    if not user.check_password(data['password']):
         return jsonify({'error': 'Mot de passe incorrect'}), 401
 
-    if user.mfa_enabled and user.mfa_secret:
-        code = data.get('mfa_code') or ''
-        if not pyotp.TOTP(user.mfa_secret).verify(code, valid_window=1):
-            return jsonify({'error': 'Code MFA invalide'}), 401
+    if user.mfa_enabled and user.mfa_secret and not totp.code_matches(
+        user.mfa_secret, data.get('mfa_code') or ''
+    ):
+        return jsonify({'error': 'Code MFA invalide'}), 401
 
     return jsonify({'step_up_token': issue_step_up_token(user.id)}), 200
 
 
 @auth_bp.route('/step-up/passkey/begin', methods=['POST'])
-@limiter.limit("5 per minute")
+@limiter.limit('5 per minute')
 @jwt_required()
+@auth_bp.response(200, WebAuthnOptionsSchema)
+@auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
+@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted, or without passkey.')
 def step_up_passkey_begin():
-    """Challenge the caller's registered passkeys before a sensitive action."""
-    from webauthn import generate_authentication_options, options_to_json
-    from webauthn.helpers.structs import (
-        AuthenticatorTransport,
-        PublicKeyCredentialDescriptor,
-        UserVerificationRequirement,
-    )
-
-    user = db.session.get(User, int(get_jwt_identity()))
+    """Start confirming identity with a passkey"""
+    user = get_current_user()
     if not user:
-        return jsonify({'error': 'Utilisateur non trouvé'}), 404
+        return user_not_found()
 
-    passkeys = list(user.passkeys)
-    if not passkeys:
+    registered = list(user.passkeys)
+    if not registered:
         return jsonify({'error': 'Aucune passkey enregistrée'}), 404
 
-    rp_id, _, _ = _get_webauthn_config()
-    options = generate_authentication_options(
-        rp_id=rp_id,
-        allow_credentials=[
-            PublicKeyCredentialDescriptor(
-                id=p.credential_id,
-                transports=[AuthenticatorTransport(tr) for tr in (p.transports or [])
-                            if tr in {e.value for e in AuthenticatorTransport}],
-            )
-            for p in passkeys
-        ],
-        user_verification=UserVerificationRequirement.REQUIRED,
-    )
-    return jsonify({
-        'options': json.loads(options_to_json(options)),
-        'challenge_token': _make_challenge_token(user.id, options.challenge, 'step_up'),
-    }), 200
+    return jsonify(passkeys.begin_authentication(user.id, registered, Ceremony.STEP_UP)), 200
 
 
 @auth_bp.route('/step-up/passkey/complete', methods=['POST'])
-@limiter.limit("5 per minute")
+@limiter.limit('5 per minute')
 @jwt_required()
-def step_up_passkey_complete():
-    """Verify the passkey assertion and return the proof.
+@auth_bp.arguments(PasskeyAssertionSchema)
+@auth_bp.response(200, StepUpTokenSchema)
+@auth_bp.alt_response(400, schema=ErrorSchema, description='Malformed credential id.')
+@auth_bp.alt_response(
+    401,
+    schema=ErrorSchema,
+    description=f'Challenge invalid, expired or issued to another account, '
+                f'or a signature that fails. {NO_SESSION}',
+)
+@auth_bp.alt_response(404, schema=ErrorSchema, description='Unknown passkey.')
+def step_up_passkey_complete(data):
+    """Finish confirming identity with a passkey"""
+    user = get_current_user()
+    if not user:
+        return user_not_found()
 
-    Body: { challenge_token, credential }
-    """
-    from webauthn import verify_authentication_response
-    from webauthn.helpers import base64url_to_bytes
-    from webauthn.helpers.structs import (
-        AuthenticationCredential,
-        AuthenticatorAssertionResponse,
-    )
-
-    data = request.get_json() or {}
-    challenge_token = data.get('challenge_token')
-    credential_data = data.get('credential')
-    if not challenge_token or not credential_data:
-        return jsonify({'error': 'challenge_token et credential requis'}), 400
-
-    current_user_id = int(get_jwt_identity())
     try:
-        token_user_id, challenge_bytes = _decode_challenge_token(challenge_token, 'step_up')
-    except Exception:
+        token_user_id, challenge = passkeys.read_challenge(
+            data['challenge_token'], Ceremony.STEP_UP
+        )
+        raw_id = passkeys.credential_id(data['credential'])
+    except passkeys.InvalidChallenge:
         return jsonify({'error': 'challenge_token invalide ou expiré'}), 401
-    if token_user_id != current_user_id:
-        return jsonify({'error': 'Token invalide'}), 401
-
-    try:
-        raw_id_bytes = base64url_to_bytes(credential_data['id'])
-    except Exception:
+    except passkeys.InvalidCredential:
         return jsonify({'error': 'credential_id invalide'}), 400
 
-    passkey = Passkey.query.filter_by(
-        user_id=current_user_id, credential_id=raw_id_bytes
-    ).first()
+    if token_user_id != user.id:
+        return jsonify({'error': 'Token invalide'}), 401
+
+    passkey = Passkey.query.filter_by(user_id=user.id, credential_id=raw_id).first()
     if not passkey:
         return jsonify({'error': 'Passkey inconnue'}), 404
 
-    rp_id, _, origin = _get_webauthn_config()
     try:
-        resp = credential_data.get('response', {})
-        verification = verify_authentication_response(
-            credential=AuthenticationCredential(
-                id=credential_data['id'],
-                raw_id=raw_id_bytes,
-                response=AuthenticatorAssertionResponse(
-                    client_data_json=base64url_to_bytes(resp['clientDataJSON']),
-                    authenticator_data=base64url_to_bytes(resp['authenticatorData']),
-                    signature=base64url_to_bytes(resp['signature']),
-                    user_handle=(
-                        base64url_to_bytes(resp['userHandle']) if resp.get('userHandle') else None
-                    ),
-                ),
-            ),
-            expected_challenge=challenge_bytes,
-            expected_rp_id=rp_id,
-            expected_origin=origin,
-            credential_public_key=passkey.public_key,
-            credential_current_sign_count=passkey.sign_count,
-            require_user_verification=True,
-        )
-    except Exception:
+        passkeys.verify_assertion(passkey, data['credential'], challenge)
+    except passkeys.VerificationFailed:
         return jsonify({'error': 'Vérification de la passkey échouée'}), 401
-
-    passkey.sign_count = verification.new_sign_count
-    passkey.last_used_at = datetime.now(UTC)
     db.session.commit()
 
-    return jsonify({'step_up_token': issue_step_up_token(current_user_id)}), 200
+    return jsonify({'step_up_token': issue_step_up_token(user.id)}), 200

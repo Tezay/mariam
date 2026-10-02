@@ -1,95 +1,66 @@
-import base64
-import io
-
-import pyotp
-import qrcode
-from flask import current_app, jsonify, request
-from flask_jwt_extended import (
-    get_jwt_identity,
-    jwt_required,
-)
+from flask import jsonify
+from flask_jwt_extended import jwt_required
 
 from ...extensions import db
-from ...models import AuditLog, User
+from ...models import AuditLog
+from ...schemas.auth import AccountUpdateSchema, TotpCodeSchema, TotpEnrolmentSchema
+from ...schemas.common import ErrorSchema
 from ...security import get_client_ip, limiter
+from ...services import totp
+from ..helpers import get_current_user
+from ._common import NO_SESSION, user_not_found
 from .blueprint import auth_bp
 
 
 @auth_bp.route('/mfa/setup', methods=['POST'])
-@limiter.limit("5 per minute")
+@limiter.limit('5 per minute')
 @jwt_required()
+@auth_bp.response(200, TotpEnrolmentSchema)
+@auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
+@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
 def mfa_setup():
-    """
-    Generate a new TOTP secret for the authenticated user (account settings).
+    """Start enabling TOTP from the account settings
 
-    Stores the secret without activating it — activation happens via /mfa/setup/confirm.
-    Returns: { qr_code, secret }
+    Stores a new secret, inactive until `/mfa/setup/confirm` checks a first code.
     """
-    current_user_id = int(get_jwt_identity())
-    user = db.session.get(User, current_user_id)
+    user = get_current_user()
     if not user:
-        return jsonify({'error': 'Utilisateur non trouvé'}), 404
+        return user_not_found()
 
-    mfa_secret = pyotp.random_base32()
-    user.mfa_secret = mfa_secret
+    user.mfa_secret = totp.new_secret()
     db.session.commit()
 
-    issuer = current_app.config.get('MFA_ISSUER_NAME', 'MARIAM')
-    totp = pyotp.TOTP(mfa_secret)
-    provisioning_uri = totp.provisioning_uri(name=user.email, issuer_name=issuer)
-
-    qr = qrcode.QRCode(version=1, box_size=5, border=2)
-    qr.add_data(provisioning_uri)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-
-    buffer = io.BytesIO()
-    img.save(buffer, format='PNG')
-    qr_base64 = base64.b64encode(buffer.getvalue()).decode()
-
     return jsonify({
-        'qr_code': f'data:image/png;base64,{qr_base64}',
-        'secret': mfa_secret,
+        'qr_code': totp.provisioning_qr(user.mfa_secret, user.email),
+        'secret': user.mfa_secret,
     }), 200
 
 
 @auth_bp.route('/mfa/setup/confirm', methods=['POST'])
-@limiter.limit("10 per minute")
+@limiter.limit('10 per minute')
 @jwt_required()
-def mfa_setup_confirm():
+@auth_bp.arguments(TotpCodeSchema)
+@auth_bp.response(200, AccountUpdateSchema)
+@auth_bp.alt_response(400, schema=ErrorSchema, description='No secret waiting for confirmation.')
+@auth_bp.alt_response(401, schema=ErrorSchema, description=f'Wrong code. {NO_SESSION}')
+@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
+def mfa_setup_confirm(data):
+    """Enable TOTP with a first code
+
+    Also switches an account that already has TOTP over to the new secret.
     """
-    Verify a TOTP code and activate authenticator-app 2FA.
-
-    Can be called whether TOTP is already active or not (re-configuration supported).
-    Body: { code }
-    """
-    data = request.get_json()
-    if not data:
-        return jsonify({'error': 'Données manquantes'}), 400
-
-    code = data.get('code')
-    if not code:
-        return jsonify({'error': 'code requis'}), 400
-
-    current_user_id = int(get_jwt_identity())
-    user = db.session.get(User, current_user_id)
+    user = get_current_user()
     if not user:
-        return jsonify({'error': 'Utilisateur non trouvé'}), 404
+        return user_not_found()
 
     if not user.mfa_secret:
         return jsonify({'error': 'Aucun secret TOTP en attente de confirmation'}), 400
 
-    totp = pyotp.TOTP(user.mfa_secret)
-    if not totp.verify(code, valid_window=1):
+    if not totp.code_matches(user.mfa_secret, data['code']):
         return jsonify({'error': 'Code invalide'}), 401
 
     user.mfa_enabled = True
-
-    AuditLog.log(
-        action=AuditLog.ACTION_MFA_SETUP,
-        user_id=user.id,
-        ip_address=get_client_ip(),
-    )
+    AuditLog.log(action=AuditLog.ACTION_MFA_SETUP, user_id=user.id, ip_address=get_client_ip())
     db.session.commit()
 
     return jsonify({
@@ -99,36 +70,35 @@ def mfa_setup_confirm():
 
 
 @auth_bp.route('/mfa', methods=['DELETE'])
-@limiter.limit("5 per minute")
+@limiter.limit('5 per minute')
 @jwt_required()
+@auth_bp.response(200, AccountUpdateSchema)
+@auth_bp.alt_response(400, schema=ErrorSchema, description='TOTP not enabled.')
+@auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
+@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
+@auth_bp.alt_response(409, schema=ErrorSchema, description='No passkey would remain.')
 def disable_mfa():
-    """
-    Disable TOTP authentication for the authenticated user.
+    """Disable TOTP
 
-    Rejected if the user has no registered passkey (at least one 2FA method must remain active).
+    Refused unless the account keeps a passkey as its second factor.
     """
-    current_user_id = int(get_jwt_identity())
-    user = db.session.get(User, current_user_id)
+    user = get_current_user()
     if not user:
-        return jsonify({'error': 'Utilisateur non trouvé'}), 404
+        return user_not_found()
 
     if not user.mfa_enabled:
         return jsonify({'error': "L'authentification par code n'est pas activée"}), 400
 
     if user.passkeys.count() == 0:
         return jsonify({
-            'error': "Impossible de désactiver l'authentification par code sans passkey configurée. "
+            'error': "Impossible de désactiver l'authentification par code "
+                     "sans passkey configurée. "
                      "Enregistrez d'abord un appareil, puis désactivez le code.",
         }), 409
 
     user.mfa_enabled = False
     user.mfa_secret = None
-
-    AuditLog.log(
-        action=AuditLog.ACTION_MFA_DISABLED,
-        user_id=user.id,
-        ip_address=get_client_ip(),
-    )
+    AuditLog.log(action=AuditLog.ACTION_MFA_DISABLED, user_id=user.id, ip_address=get_client_ip())
     db.session.commit()
 
     return jsonify({

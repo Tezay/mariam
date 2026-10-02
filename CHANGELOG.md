@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `baseUrl` dropped from `tsconfig.json`, unneeded under `moduleResolution: bundler`.
 - **`Query.get()` and `datetime.utcnow()` retired** from the backend, ahead of their removal in the next SQLAlchemy and Python majors.
 - **`lib/api.ts` split** into one module per domain under `lib/api/`, with session tokens handled by `tokens.ts` alone.
+- **Auth routes** split by journey, each documenting its request and response bodies; a malformed body now gets a 422.
 
 ### Fixed
 

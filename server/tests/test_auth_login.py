@@ -62,6 +62,11 @@ class TestPasskeyLogin:
 
         assert Passkey.query.filter_by(user_id=uid).one().sign_count == 2
 
+    def test_a_body_without_credential_is_refused_by_its_schema(self, app, client):
+        res = client.post('/v1/auth/passkey/login/complete', json={'challenge_token': 'x'})
+
+        assert res.status_code == 422
+
     def test_an_unknown_passkey_is_refused(self, app, client):
         make_user(app)
 
