@@ -27,6 +27,10 @@ _DAY_TTL = 48 * 3600
 
 _DEFAULT_RETENTION_DAYS = 400
 
+# Outlives three five-minute flushes, so its absence means the scheduler stopped.
+_FLUSH_HEARTBEAT_KEY = 'mariam:tel_flush_ok'
+_FLUSH_STALE_AFTER = 15 * 60
+
 
 def _enabled() -> bool:
     return os.environ.get('TELEMETRY_ENABLED', '1') != '0'
@@ -181,6 +185,10 @@ def flush_view_counters(app, days: list[date] | None = None) -> int:
             db.session.rollback()
             logger.exception('Telemetry flush failed')
             return 0
+        try:
+            client.set(_FLUSH_HEARTBEAT_KEY, paris_now().isoformat(), ex=_FLUSH_STALE_AFTER)
+        except Exception:
+            logger.warning('Telemetry flush heartbeat not recorded')
         return written
 
 
@@ -254,6 +262,17 @@ def purge_telemetry(app) -> int:
             logger.exception('Analytics purge failed')
             return 0
         return deleted
+
+
+def flush_is_recent() -> bool | None:
+    """None without Redis, where no flush can run and there is nothing to judge."""
+    client = get_redis()
+    if client is None:
+        return None
+    try:
+        return bool(client.exists(_FLUSH_HEARTBEAT_KEY))
+    except Exception:
+        return False
 
 
 def live_uniques(site_ids, day: date) -> dict[int, int]:

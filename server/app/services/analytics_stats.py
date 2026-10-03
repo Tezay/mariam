@@ -461,7 +461,15 @@ def overview(scope: Scope, organization_id=None) -> dict:
 
     satisfaction = satisfaction_stats(scope) if scope.site_ids else None
     satisfaction_previous = satisfaction_stats(scope.previous()) if scope.site_ids else None
-    scores_by_date = {row['date']: row for row in (satisfaction['series'] if satisfaction else [])}
+    # Not read from the satisfaction series: over a single day it turns hourly.
+    daily_votes = (
+        _votes_grouped(scope.site_ids, scope.start, scope.end, MenuVote.date)
+        if scope.site_ids
+        else {}
+    )
+    scores_by_date = {
+        day: _score(count, average, 1) for day, (count, average) in daily_votes.items()
+    }
     scores_by_site = {row['site_id']: row for row in (satisfaction['by_site'] if satisfaction else [])}
 
     published_per_date: dict[date, int] = {}
@@ -477,7 +485,7 @@ def overview(scope: Scope, organization_id=None) -> dict:
             'published_sites': published_per_date.get(day, 0),
             'views': traffic_by_date.get(day.isoformat(), {}).get('views'),
             'unique_visitors': traffic_by_date.get(day.isoformat(), {}).get('unique_visitors'),
-            'score': scores_by_date.get(day.isoformat(), {}).get('score'),
+            'score': scores_by_date.get(day),
         })
         day += timedelta(days=1)
 

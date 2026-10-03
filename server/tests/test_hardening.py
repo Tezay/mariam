@@ -1,6 +1,8 @@
-"""Backend hardening tests: opt-in pagination and auth hardening."""
+"""Backend hardening tests: opt-in pagination, auth hardening and the production guard."""
 import pyotp
+import pytest
 
+from app import create_app
 from app.extensions import db
 from app.models import User
 from conftest import TEST_PASSWORD, auth_headers, get_token, make_user
@@ -87,3 +89,32 @@ class TestMfaTokenSingleUse:
         replay = client.post('/v1/auth/mfa/verify',
                             json={'mfa_token': mfa_token, 'code': pyotp.TOTP(secret).now()})
         assert replay.status_code == 401
+
+
+class TestProductionGuard:
+    @pytest.fixture()
+    def production_env(self, monkeypatch):
+        monkeypatch.delenv('FLASK_DEBUG', raising=False)
+        for name, value in {
+            'FLASK_ENV': 'production',
+            'SECRET_KEY': 'a-production-secret',
+            'JWT_SECRET_KEY': 'a-production-jwt-secret',
+            'DEVICE_ID_SECRET': 'a-production-device-secret',
+            'MFA_ENCRYPTION_KEY': 'a-production-mfa-key',
+            'DATABASE_URL': 'postgresql://mariam@db:5432/mariam_db',
+            'S3_ENDPOINT_URL': 'https://s3.example.org',
+            'S3_ACCESS_KEY_ID': 'key',
+            'S3_SECRET_ACCESS_KEY': 'secret',
+        }.items():
+            monkeypatch.setenv(name, value)
+        return monkeypatch
+
+    @pytest.mark.parametrize('redis_url', [None, '', 'memory://'])
+    def test_a_production_start_without_redis_is_refused(self, production_env, redis_url):
+        if redis_url is None:
+            production_env.delenv('REDIS_URL', raising=False)
+        else:
+            production_env.setenv('REDIS_URL', redis_url)
+
+        with pytest.raises(RuntimeError, match='REDIS_URL'):
+            create_app()

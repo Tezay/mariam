@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`tailwindcss-animate` moved to `devDependencies`**: a build-time plugin was pulling the PostCSS toolchain into the runtime tree.
 - **Account takeover through a password-reset link** closed on passkey-only accounts.
 - **Password change and reset by passkey** now end the other sessions.
+- **`REDIS_URL` required in production**: without it the backend let revoked tokens through and the scheduler silently dropped every traffic count; both now refuse to start.
+
+### Added
+
+- **Readiness probe watches the scheduler**: `/health/ready` turns degraded when no traffic-counter flush has succeeded for 15 minutes.
 
 ### Changed
 
@@ -28,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Event descriptions** from the rich text editor showed as raw tags on the public menu; they render now, sanitised server side.
 - **Menu assistant** offered no dish on a category holding subcategories; it now walks down to the leaves, which carry them.
 - **Passkeys added from the account** now work for passwordless sign-in, like those created at activation.
+- **Statistics on « Aujourd'hui »** showed no headline figure: the overview answered a 500 on a single-day period.
 
 ## [0.16.1] - 2026-09-22
 

@@ -210,6 +210,42 @@ class TestFlush:
         assert PageViewRollup.query.filter_by(restaurant_id=rid).one().views == 5
 
 
+class TestSchedulerProbe:
+    def test_a_recent_flush_keeps_the_service_ready(self, app, client, monkeypatch):
+        _use_fake_redis(monkeypatch)
+        telemetry.run_flush_job(app)
+
+        res = client.get('/health/ready')
+
+        assert res.status_code == 200
+        assert res.get_json()['checks']['scheduler'] is True
+
+    def test_no_recent_flush_degrades_the_service(self, app, client, monkeypatch):
+        _use_fake_redis(monkeypatch)
+
+        res = client.get('/health/ready')
+
+        assert res.status_code == 503
+        assert res.get_json()['checks']['scheduler'] is False
+
+    def test_a_failed_flush_leaves_no_heartbeat(self, app, monkeypatch):
+        _use_fake_redis(monkeypatch)
+
+        def unavailable(_rows):
+            raise RuntimeError('database unavailable')
+
+        monkeypatch.setattr(telemetry, '_upsert_views', unavailable)
+        telemetry.flush_view_counters(app)
+
+        assert telemetry.flush_is_recent() is False
+
+    def test_without_redis_the_scheduler_is_not_judged(self, app, client):
+        res = client.get('/health/ready')
+
+        assert res.status_code == 200
+        assert res.get_json()['checks']['scheduler'] is None
+
+
 class TestDayCloseAndPurge:
     def test_day_close_freezes_the_visitor_estimate(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
