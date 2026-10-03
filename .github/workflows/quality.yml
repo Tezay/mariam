@@ -73,6 +73,7 @@ jobs:
               - 'client/Dockerfile.prod'
               - 'client/docker-entrypoint.sh'
               - 'client/nginx.conf'
+              - 'client/nginx/**'
               - 'client/.dockerignore'
               - 'client/package.json'
               - 'client/bun.lock'

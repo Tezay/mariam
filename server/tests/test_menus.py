@@ -3,6 +3,9 @@ Tests de gestion des menus : création, publication, brouillon.
 """
 import datetime
 import pytest
+from app.extensions import db
+from app.models import Menu
+from app.utils.time import paris_today
 from conftest import make_restaurant, make_user, make_category, get_token, auth_headers
 
 
@@ -84,6 +87,46 @@ class TestPublishMenu:
         res = client.post(f'/v1/menus/{menu_id}/unpublish',
                           headers=auth_headers(token))
         assert res.status_code in (200, 204)
+
+
+class TestPublishWeek:
+    def _drafts_this_week_and_next(self, restaurant_id):
+        today = paris_today()
+        this_week = Menu(restaurant_id=restaurant_id, date=today, status='draft')
+        next_week = Menu(
+            restaurant_id=restaurant_id, date=today + datetime.timedelta(weeks=1), status='draft'
+        )
+        db.session.add_all([this_week, next_week])
+        db.session.commit()
+        return this_week.id, next_week.id
+
+    def _status(self, menu_id):
+        return db.session.get(Menu, menu_id).status
+
+    def test_week_offset_publishes_the_week_it_names(self, app, client):
+        restaurant_id = make_restaurant(app)
+        make_user(app)
+        this_week, next_week = self._drafts_this_week_and_next(restaurant_id)
+
+        res = client.post('/v1/menus/week/publish', json={'week_offset': 1},
+                          headers=auth_headers(get_token(client)))
+
+        assert res.status_code == 200
+        db.session.expire_all()
+        assert self._status(next_week) == 'published'
+        assert self._status(this_week) == 'draft'
+
+    def test_without_a_body_the_current_week_is_published(self, app, client):
+        restaurant_id = make_restaurant(app)
+        make_user(app)
+        this_week, next_week = self._drafts_this_week_and_next(restaurant_id)
+
+        res = client.post('/v1/menus/week/publish', headers=auth_headers(get_token(client)))
+
+        assert res.status_code == 200
+        db.session.expire_all()
+        assert self._status(this_week) == 'published'
+        assert self._status(next_week) == 'draft'
 
 
 class TestGetMenus:

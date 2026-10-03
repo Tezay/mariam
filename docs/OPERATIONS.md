@@ -387,4 +387,21 @@ TLS is terminated by Cloudflare in front of the VPS; nginx listens on `:80`.
   leg is encrypted too
 - Firewall the VPS to accept only Cloudflare addresses on `:80` and `:443`. Otherwise the origin
   is reachable directly and the nginx real-IP handling can be bypassed
-- Enable HSTS at Cloudflare; nginx sends it as well
+- Enable HSTS at Cloudflare; nginx sends it as well. Cloudflare also covers an API on its own host,
+  which has no nginx in front
+
+### Security headers
+
+The frontend image sends HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` and
+`Permissions-Policy` from
+[`client/nginx/security-headers.conf`](../client/nginx/security-headers.conf), whichever nginx
+config serves it. The API adds `X-Content-Type-Options` itself.
+
+The Content-Security-Policy is report-only for now. `client/docker-entrypoint.sh` writes it at
+container start, adding the API origin from `API_URL` and the Sentry host from `SENTRY_DSN`. To
+make it enforcing:
+
+1. Browse the admin, a public menu and the TV display with the browser console open, and clear
+   every `Content-Security-Policy-Report-Only` violation
+2. In `client/docker-entrypoint.sh`, rename the header to `Content-Security-Policy`
+3. Release, then check the console again

@@ -90,13 +90,15 @@ jobs:
     steps:
       - name: Summary
         run: |
-          echo "## 🐳 Docker Images Published" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** ${GITHUB_REF_NAME}" >> $GITHUB_STEP_SUMMARY
-          echo "**Platform:** linux/amd64" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Images" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "${{ env.REGISTRY }}/${{ github.repository }}-backend:${GITHUB_REF_NAME#v}" >> $GITHUB_STEP_SUMMARY
-          echo "${{ env.REGISTRY }}/${{ github.repository }}-frontend:${GITHUB_REF_NAME#v}" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## 🐳 Docker Images Published"
+            echo ""
+            echo "**Version:** ${GITHUB_REF_NAME}"
+            echo "**Platform:** linux/amd64"
+            echo ""
+            echo "### Images"
+            echo '```'
+            echo "${{ env.REGISTRY }}/${{ github.repository }}-backend:${GITHUB_REF_NAME#v}"
+            echo "${{ env.REGISTRY }}/${{ github.repository }}-frontend:${GITHUB_REF_NAME#v}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

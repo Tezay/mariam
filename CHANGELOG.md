@@ -15,12 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Account takeover through a password-reset link** closed on passkey-only accounts.
 - **Password change and reset by passkey** now end the other sessions.
 - **`REDIS_URL` required in production**: without it the backend let revoked tokens through and the scheduler silently dropped every traffic count; both now refuse to start.
+- **Security headers served by the frontend image**, with a report-only CSP; `nosniff` on the API.
 
 ### Added
 
 - **Readiness probe watches the scheduler**: `/health/ready` turns degraded when no traffic-counter flush has succeeded for 15 minutes.
 - **Production images built on pull requests** that touch a Dockerfile, an entrypoint, a manifest or a lockfile, so a broken image shows before the release tag.
 - **Release candidates**: a `vX.Y.Z-rc.N` tag publishes images under that version only, to test on a staging instance without moving `latest`.
+- **Third-party licences** of the frontend bundle at `/licenses/third-party.txt`.
 
 ### Changed
 
@@ -30,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`lib/api.ts` split** into one module per domain under `lib/api/`, with session tokens handled by `tokens.ts` alone.
 - **Auth routes** split by journey, each documenting its request and response bodies; a malformed body now gets a 422.
 - **CI runs what a change touches**: backend and frontend jobs follow `server/` and `client/`, so a documentation change runs nothing; version tags and manual runs still run everything.
+- **Inter self-hosted**: no request to Google Fonts; its OFL licence ships at `/licenses/Inter-OFL.txt`.
+- **Primary blue `#093EAA` everywhere**, browser theme colour and manifests included.
+- **Docker images pinned**: bun and uv no longer follow `latest`.
 
 ### Fixed
 
@@ -37,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Menu assistant** offered no dish on a category holding subcategories; it now walks down to the leaves, which carry them.
 - **Passkeys added from the account** now work for passwordless sign-in, like those created at activation.
 - **Statistics on « Aujourd'hui »** showed no headline figure: the overview answered a 500 on a single-day period.
+- **Week publication** ignored `week_offset` and always published the current week.
 
 ## [0.16.1] - 2026-09-22
 

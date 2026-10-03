@@ -52,6 +52,7 @@ from ..schemas.menus import (
     MenuUpdateSchema,
     PublicDayMenuSchema,
     WeekMenuSchema,
+    WeekPublishSchema,
 )
 from ..security import get_client_ip, limiter
 from ..services import holidays
@@ -460,7 +461,7 @@ def create_or_update_menu(data):
 
 
 @menus_bp.route('/week/publish', methods=['POST'])
-@menus_bp.arguments(MenuCreateSchema(partial=True))
+@menus_bp.arguments(WeekPublishSchema)
 @menus_bp.response(200, MessageSchema)
 @editor_required
 def publish_week(data):
@@ -470,7 +471,7 @@ def publish_week(data):
     """
     current_user_id = int(get_jwt_identity())
 
-    week_offset = data.get('week_offset', 0)
+    week_offset = data['week_offset']
     _, restaurant = get_user_and_restaurant()
     if not restaurant:
         return jsonify({'error': 'Aucun restaurant configuré'}), 400

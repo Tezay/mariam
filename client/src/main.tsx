@@ -8,6 +8,7 @@ import { registerSW } from 'virtual:pwa-register';
 import { toast } from 'sonner';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as Sentry from '@sentry/react';
+import '@fontsource-variable/inter';
 import './index.css';
 import App from './App.tsx';
 import { AuthProvider } from './contexts/AuthContext.tsx';

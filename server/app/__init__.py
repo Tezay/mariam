@@ -278,7 +278,13 @@ def create_app(config_class=None):
         allow_headers=['Content-Type', 'Authorization', 'X-Restaurant-Id', 'X-Step-Up-Token'],
         methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
     )
-    
+
+    # Deployed on its own host, the API has no nginx in front to add it.
+    @app.after_request
+    def _forbid_mime_sniffing(response):
+        response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+        return response
+
     # ========================================
     # API v1 — Flask-Smorest (OpenAPI / Swagger)
     # ========================================

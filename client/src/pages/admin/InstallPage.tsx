@@ -271,7 +271,7 @@ function DesktopInstructions({ onDone }: { onDone: () => void }) {
               <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
             </div>
           ) : (
-            <QRCodeSVG value={qrUrl} size={192} bgColor="#ffffff" fgColor="#001BB7" level="M" />
+            <QRCodeSVG value={qrUrl} size={192} bgColor="#ffffff" fgColor="#093EAA" level="M" />
           )}
           {expired && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl bg-background/90">

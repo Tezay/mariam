@@ -40,6 +40,7 @@ from .menus import (
     PublicDayMenuSchema,
     PublicMenuSchema,
     WeekMenuSchema,
+    WeekPublishSchema,
 )
 from .notifications import PreferencesUpdateSchema, SubscribeSchema
 from .restaurant import RestaurantConfigSchema, RestaurantSchema, RestaurantUpdateSchema
@@ -54,7 +55,7 @@ __all__ = [
     'ActivateAccountSchema', 'ResetPasswordSchema', 'ChangePasswordSchema',
     'TokenRefreshSchema', 'UserSchema',
     'MenuSchema', 'MenuItemSchema', 'MenuListSchema',
-    'MenuCreateSchema', 'MenuUpdateSchema',
+    'MenuCreateSchema', 'MenuUpdateSchema', 'WeekPublishSchema',
     'WeekMenuSchema', 'PublicMenuSchema', 'PublicDayMenuSchema',
     'EventSchema', 'EventCreateSchema', 'EventUpdateSchema', 'EventListSchema',
     'DishCatalogSchema', 'CategorySubstitutionSchema',
