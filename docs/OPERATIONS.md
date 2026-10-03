@@ -221,6 +221,22 @@ git pull origin main
 ./deploy/scripts/run.sh restart
 ```
 
+### Testing a release candidate
+
+A tag `vX.Y.Z-rc.N` runs the full release gate and publishes images tagged `X.Y.Z-rc.N` only.
+`latest` and `X.Y` stay on the last final release, so production does not move.
+
+1. Tag the commit to test on `main`: `git tag v0.17.0-rc.1 && git push origin v0.17.0-rc.1`
+2. On the staging instance, move the backend, the scheduler and the frontend to `0.17.0-rc.1`,
+   then redeploy all three
+3. Check it: `/health` reports `0.17.0-rc.1`, `/health/ready` answers `ready`, and the changes
+   work
+4. A fix goes through a pull request as usual and becomes `rc.2`. Once a candidate holds, cut
+   the release
+
+The staging database receives the candidate's migrations, and they cannot be rolled back. A
+candidate abandoned after a migration leaves the staging schema ahead of production.
+
 ## Migrating a tenant to a new hostname
 
 Renaming a tenant's public hostname touches passkeys, cached service workers and printed QR codes.

@@ -6,9 +6,12 @@ on:
   pull_request:
     branches: [main]
   workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
+  # paths-filter lists a pull request's files through the API.
+  pull-requests: read
 
 concurrency:
   # In a called workflow, ${{ github.workflow }} is the caller: groups would collide.
@@ -16,8 +19,117 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.decide.outputs.backend }}
+      frontend: ${{ steps.decide.outputs.frontend }}
+      image_backend: ${{ steps.decide.outputs.image_backend }}
+      image_frontend: ${{ steps.decide.outputs.image_frontend }}
+    steps:
+      - name: Choose mode
+        id: mode
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        # push/tag only comes through the publish workflow: a called workflow inherits its event.
+        run: |
+          case "$EVENT/$REF_TYPE" in
+            pull_request/* | push/branch) mode=filtered ;;
+            push/tag) mode=release ;;
+            *) mode=full ;;
+          esac
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        if: steps.mode.outputs.mode == 'filtered' && github.event_name == 'push'
+        with:
+          fetch-depth: 0
+
+      - name: Filter paths
+        id: filter
+        if: steps.mode.outputs.mode == 'filtered'
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            backend:
+              - 'server/**'
+              - '.github/workflows/quality.yml'
+            frontend:
+              - 'client/**'
+              # Prettier reads it.
+              - '.editorconfig'
+              - '.github/workflows/quality.yml'
+            image_backend:
+              - 'server/Dockerfile.prod'
+              - 'server/entrypoint.prod.sh'
+              - 'server/.dockerignore'
+              - 'server/pyproject.toml'
+              - 'server/uv.lock'
+              - '.github/workflows/quality.yml'
+            image_frontend:
+              - 'client/Dockerfile.prod'
+              - 'client/docker-entrypoint.sh'
+              - 'client/nginx.conf'
+              - 'client/.dockerignore'
+              - 'client/package.json'
+              - 'client/bun.lock'
+              - '.github/workflows/quality.yml'
+
+      - name: Decide
+        id: decide
+        env:
+          MODE: ${{ steps.mode.outputs.mode }}
+          BACKEND: ${{ steps.filter.outputs.backend }}
+          FRONTEND: ${{ steps.filter.outputs.frontend }}
+          IMAGE_BACKEND: ${{ steps.filter.outputs.image_backend }}
+          IMAGE_FRONTEND: ${{ steps.filter.outputs.image_frontend }}
+        run: |
+          case "$MODE" in
+            release) BACKEND=true FRONTEND=true IMAGE_BACKEND=false IMAGE_FRONTEND=false ;;
+            full) BACKEND=true FRONTEND=true IMAGE_BACKEND=true IMAGE_FRONTEND=true ;;
+          esac
+          for value in "$BACKEND" "$FRONTEND" "$IMAGE_BACKEND" "$IMAGE_FRONTEND"; do
+            if [ "$value" != true ] && [ "$value" != false ]; then
+              echo "::error::A path filter gave no decision in $MODE mode."
+              exit 1
+            fi
+          done
+          {
+            echo "backend=$BACKEND"
+            echo "frontend=$FRONTEND"
+            echo "image_backend=$IMAGE_BACKEND"
+            echo "image_frontend=$IMAGE_FRONTEND"
+          } >> "$GITHUB_OUTPUT"
+
+          row() {
+            if [ "$2" = true ]; then echo "| $1 | runs | $3 |"; else echo "| $1 | skipped | $3 |"; fi
+          }
+          {
+            echo "### Change detection: \`$MODE\`"
+            echo
+            case "$MODE" in
+              filtered) echo "Jobs run only for the paths this change touches: a skipped job was not needed, not passed." ;;
+              release) echo "Release gate: every check runs. The images are built by the publish workflow." ;;
+              full) echo "Manual run: everything runs." ;;
+            esac
+            echo
+            echo "| Jobs | Decision | Triggered by |"
+            echo "|---|---|---|"
+            row "Backend lint and tests" "$BACKEND" "\`server/\`"
+            row "Frontend lint, tests and build" "$FRONTEND" "\`client/\`, \`.editorconfig\`"
+            row "Backend image build" "$IMAGE_BACKEND" "packaging files in \`server/\`"
+            row "Frontend image build" "$IMAGE_FRONTEND" "packaging files in \`client/\`"
+            echo
+            echo "A change to this workflow runs every row."
+          } >> "$GITHUB_STEP_SUMMARY"
+
   lint-backend:
     name: Backend lint (ruff + mypy)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -40,6 +152,8 @@ jobs:
 
   test-backend:
     name: Backend tests (pytest)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -83,6 +197,8 @@ jobs:
 
   lint-frontend:
     name: Frontend lint (ESLint + Prettier)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -90,6 +206,13 @@ jobs:
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+
+      - name: Cache Bun packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('client/bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
 
       - name: Install dependencies
         working-directory: client
@@ -105,6 +228,8 @@ jobs:
 
   test-frontend:
     name: Frontend tests (Vitest)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -112,6 +237,13 @@ jobs:
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+
+      - name: Cache Bun packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('client/bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
 
       - name: Install dependencies
         working-directory: client
@@ -123,6 +255,8 @@ jobs:
 
   build-frontend:
     name: Frontend build (tsc + Vite)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -131,6 +265,13 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
+      - name: Cache Bun packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('client/bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+
       - name: Install dependencies
         working-directory: client
         run: bun install --frozen-lockfile
@@ -138,3 +279,69 @@ jobs:
       - name: Build
         working-directory: client
         run: bun run build
+
+  image-backend:
+    name: Backend image (build only)
+    needs: changes
+    if: needs.changes.outputs.image_backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build
+        uses: docker/build-push-action@v7
+        with:
+          context: ./server
+          file: ./server/Dockerfile.prod
+          push: false
+          platforms: linux/amd64
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+  image-frontend:
+    name: Frontend image (build only)
+    needs: changes
+    if: needs.changes.outputs.image_frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build
+        uses: docker/build-push-action@v7
+        with:
+          context: ./client
+          file: ./client/Dockerfile.prod
+          push: false
+          platforms: linux/amd64
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+  result:
+    name: CI result
+    needs:
+      - changes
+      - lint-backend
+      - test-backend
+      - lint-frontend
+      - test-frontend
+      - build-frontend
+      - image-backend
+      - image-frontend
+    # always(), not !cancelled(): a required check that is skipped counts as passed.
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail on a failed or cancelled job
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "::error::A job failed or was cancelled; see the jobs above."
+          exit 1

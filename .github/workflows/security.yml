@@ -6,21 +6,91 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: '0 6 * * 1'
+    - cron: '17 6 * * 1'
   workflow_dispatch:
 
 permissions:
   contents: read
+  # paths-filter lists a pull request's files through the API.
+  pull-requests: read
 
 concurrency:
   group: security-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.decide.outputs.backend }}
+      frontend: ${{ steps.decide.outputs.frontend }}
+    steps:
+      - name: Filter paths
+        id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            backend:
+              - 'server/pyproject.toml'
+              - 'server/uv.lock'
+              - '.github/workflows/security.yml'
+            frontend:
+              - 'client/package.json'
+              - 'client/bun.lock'
+              - '.github/workflows/security.yml'
+
+      - name: Decide
+        id: decide
+        env:
+          EVENT: ${{ github.event_name }}
+          BACKEND: ${{ steps.filter.outputs.backend }}
+          FRONTEND: ${{ steps.filter.outputs.frontend }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            mode=filtered
+          else
+            mode=full BACKEND=true FRONTEND=true
+          fi
+          for value in "$BACKEND" "$FRONTEND"; do
+            if [ "$value" != true ] && [ "$value" != false ]; then
+              echo "::error::A path filter gave no decision in $mode mode."
+              exit 1
+            fi
+          done
+          {
+            echo "backend=$BACKEND"
+            echo "frontend=$FRONTEND"
+          } >> "$GITHUB_OUTPUT"
+
+          row() {
+            if [ "$2" = true ]; then echo "| $1 | runs | $3 |"; else echo "| $1 | skipped | $3 |"; fi
+          }
+          {
+            echo "### Change detection: \`$mode\`"
+            echo
+            if [ "$mode" = filtered ]; then
+              echo "An audit runs only when its manifest or lockfile changes: a skipped audit was not run, not passed. The weekly run audits everything."
+            else
+              echo "Scheduled or manual run: both lockfiles are audited."
+            fi
+            echo
+            echo "| Audit | Decision | Triggered by |"
+            echo "|---|---|---|"
+            row "Backend (uv audit)" "$BACKEND" "\`server/pyproject.toml\`, \`server/uv.lock\`"
+            row "Frontend (bun audit)" "$FRONTEND" "\`client/package.json\`, \`client/bun.lock\`"
+            echo
+            echo "A change to this workflow runs every row."
+          } >> "$GITHUB_STEP_SUMMARY"
+
   # Runtime dependencies only: the build toolchain is out of scope. GitHub's
   # dependency graph does not read bun.lock, so nothing else watches these.
   frontend:
     name: Frontend dependencies (bun audit)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -42,6 +112,8 @@ jobs:
 
   backend:
     name: Backend dependencies (uv audit)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -55,3 +127,17 @@ jobs:
       - name: Audit
         working-directory: server
         run: uv audit --frozen --preview-features audit
+
+  result:
+    name: Security result
+    needs: [changes, frontend, backend]
+    # always(), not !cancelled(): a required check that is skipped counts as passed.
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail on a failed or cancelled job
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "::error::An audit failed or was cancelled; see the jobs above."
+          exit 1

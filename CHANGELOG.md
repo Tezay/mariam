@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - **`react-router-dom` 6.30.6**, closing an XSS through open redirect rated high, and **TipTap 3.31.3**, closing two more.
-- **Dependency advisories checked in CI**, per PR and weekly: `bun audit` on the frontend, `uv audit` on the backend.
+- **Dependency advisories checked in CI**, weekly and on every pull request that changes a manifest or a lockfile: `bun audit` on the frontend, `uv audit` on the backend.
 - **`tailwindcss-animate` moved to `devDependencies`**: a build-time plugin was pulling the PostCSS toolchain into the runtime tree.
 - **Account takeover through a password-reset link** closed on passkey-only accounts.
 - **Password change and reset by passkey** now end the other sessions.
@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Readiness probe watches the scheduler**: `/health/ready` turns degraded when no traffic-counter flush has succeeded for 15 minutes.
+- **Production images built on pull requests** that touch a Dockerfile, an entrypoint, a manifest or a lockfile, so a broken image shows before the release tag.
+- **Release candidates**: a `vX.Y.Z-rc.N` tag publishes images under that version only, to test on a staging instance without moving `latest`.
 
 ### Changed
 
@@ -27,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`Query.get()` and `datetime.utcnow()` retired** from the backend, ahead of their removal in the next SQLAlchemy and Python majors.
 - **`lib/api.ts` split** into one module per domain under `lib/api/`, with session tokens handled by `tokens.ts` alone.
 - **Auth routes** split by journey, each documenting its request and response bodies; a malformed body now gets a 422.
+- **CI runs what a change touches**: backend and frontend jobs follow `server/` and `client/`, so a documentation change runs nothing; version tags and manual runs still run everything.
 
 ### Fixed
 
