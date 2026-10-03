@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Readiness probe watches the scheduler**: `/health/ready` turns degraded when no traffic-counter flush has succeeded for 15 minutes.
 - **Production images built on pull requests** that touch a Dockerfile, an entrypoint, a manifest or a lockfile, so a broken image shows before the release tag.
 - **Release candidates**: a `vX.Y.Z-rc.N` tag publishes images under that version only, to test on a staging instance without moving `latest`.
+- **Third-party licences** of the frontend bundle at `/licenses/third-party.txt`.
 
 ### Changed
 

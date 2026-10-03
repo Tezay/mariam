@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import license from 'rollup-plugin-license'
 import path from 'path'
 import fs from 'fs'
 
@@ -95,6 +96,14 @@ export default defineConfig({
                 enabled: false,
             },
         }),
+        {
+            ...license({
+                thirdParty: {
+                    output: path.join(__dirname, 'dist', 'licenses', 'third-party.txt'),
+                },
+            }),
+            apply: 'build',
+        },
     ],
     resolve: {
         alias: {

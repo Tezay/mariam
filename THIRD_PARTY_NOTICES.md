@@ -11,6 +11,7 @@ not plain code dependencies, and where each licence travels with the software.
 
 ## Code dependencies
 
-- **Frontend**: the packages listed in `client/package.json` and pinned by `client/bun.lock`.
+- **Frontend**: the packages bundled into the JavaScript are listed with their licence texts in
+  `/licenses/third-party.txt`, generated at each build.
 - **Backend**: the packages listed in `server/pyproject.toml` and pinned by `server/uv.lock`. Each
   installed package keeps its licence files in the image's `site-packages`.
