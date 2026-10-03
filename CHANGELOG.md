@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`lib/api.ts` split** into one module per domain under `lib/api/`, with session tokens handled by `tokens.ts` alone.
 - **Auth routes** split by journey, each documenting its request and response bodies; a malformed body now gets a 422.
 - **CI runs what a change touches**: backend and frontend jobs follow `server/` and `client/`, so a documentation change runs nothing; version tags and manual runs still run everything.
+- **Inter self-hosted**: no request to Google Fonts; its OFL licence ships at `/licenses/Inter-OFL.txt`.
 
 ### Fixed
 

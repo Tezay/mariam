@@ -42,7 +42,11 @@ export default defineConfig({
             strategies: 'injectManifest',
             injectManifest: {
                 // Fichiers à mettre en cache (minimal, pas de mode offline complet)
-                globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
+                globPatterns: [
+                    '**/*.{js,css,html,ico,png,svg,webmanifest}',
+                    // Latin covers French, Œ and € included; other subsets load on demand.
+                    'assets/inter-latin-wght-normal-*.woff2',
+                ],
                 // config.js est généré au runtime par docker-entrypoint.sh
                 // Les manifests PWA sont exclus : le SW les sert dynamiquement
                 // via son propre fetch handler (resolveDynamicManifest).
