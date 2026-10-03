@@ -135,6 +135,36 @@ accessibility cases that matter. Mock API calls on the module the code imports, 
 
 ## CI
 
-Both suites run on every push to `main` and every pull request against it, alongside ruff, mypy,
-ESLint, Prettier and the frontend build. See
-[`.github/workflows/quality.yml`](../.github/workflows/quality.yml).
+Two workflows guard `main`. Each ends with a job that sums up the others, and that job is the
+check a pull request needs to merge.
+
+| Workflow | Required check | What it runs |
+|---|---|---|
+| [`quality.yml`](../.github/workflows/quality.yml) | `CI result` | ruff, mypy and pytest for `server/`; ESLint, Prettier, Vitest and the build for `client/`; the production images, built without being published |
+| [`security.yml`](../.github/workflows/security.yml) | `Security result` | `uv audit` and `bun audit` |
+
+What runs depends on the event and on the paths a change touches:
+
+| Event | Quality | Security |
+|---|---|---|
+| Pull request | the jobs whose paths changed | an audit when its manifest or lockfile changed |
+| Push to `main` | the jobs whose paths changed since the previous commit | none |
+| Version tag, the release gate | everything except the image builds, which the publish workflow does | none |
+| Manual run from the Actions tab | everything | everything |
+| Weekly, Monday at 06:17 UTC | none | everything |
+
+- **Backend jobs** follow `server/`.
+- **Frontend jobs** follow `client/` and `.editorconfig`, which Prettier reads.
+- **Image builds** follow the packaging files: `Dockerfile.prod`, the entrypoint, `nginx.conf`, `.dockerignore`, the manifest and the lockfile.
+- A change to a workflow runs everything that workflow holds.
+- `docs/`, `deploy/` and the other root files run nothing.
+
+**A green check can mean skipped.** A skipped job was not needed; it did not pass. The summary of
+each workflow's *Detect changes* job lists what ran, what was skipped, and which paths decide it.
+
+The required checks are not strict: a pull request does not have to catch up with `main` before
+merging, so its checks may have run against an older `main`. Two layers catch what two merges
+break together:
+
+- the run on `main` after each merge reports it;
+- the release gate runs everything before an image is published.

@@ -1,5 +1,6 @@
 # Build and push Docker images to GitHub Container Registry
-# Triggered only on version tags (v*)
+# Triggered only on version tags (v*). A release candidate (vX.Y.Z-rc.N) gets its own
+# version tag only: metadata-action leaves latest and X.Y on the last final release.
 name: Docker Publish
 
 on:
@@ -22,6 +23,10 @@ jobs:
   quality:
     name: Quality gates
     uses: ./.github/workflows/quality.yml
+    # quality.yml asks for pull-requests: read, and a called workflow gets no more than this.
+    permissions:
+      contents: read
+      pull-requests: read
 
   build:
     name: Publish ${{ matrix.component }} image
@@ -74,8 +79,8 @@ jobs:
           # Same source as the image tag, so the two cannot drift apart.
           build-args: |
             APP_VERSION=${{ steps.meta.outputs.version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
 
   summary:
     name: Summary
