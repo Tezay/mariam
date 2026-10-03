@@ -140,7 +140,7 @@ No authentication required.
 | Method | Route | Description |
 |--------|-------|-------------|
 | `GET` | `/health` | Liveness — the process is up |
-| `GET` | `/health/ready` | Readiness — checks DB and Redis; returns 503 when a dependency is down |
+| `GET` | `/health/ready` | Readiness — checks DB, Redis and a scheduler flush in the last 15 minutes; returns 503 otherwise |
 | `GET` | `/v1/restaurant` | Active restaurant info |
 | `GET` | `/v1/taxonomy` | Dietary tags and certifications catalog |
 | `GET` | `/v1/menus/today` | Today's published menu |
@@ -236,7 +236,7 @@ Requires `editor` role or above, except the public read routes listed above.
 | `POST` | `/v1/menus/<id>/publish` | Publish a menu |
 | `POST` | `/v1/menus/<id>/unpublish` | Revert a menu to draft |
 | `DELETE` | `/v1/menus/<id>` | Delete a menu |
-| `POST` | `/v1/menus/week/publish` | Publish the entire week |
+| `POST` | `/v1/menus/week/publish` | Publish the drafts of a week (`week_offset`, current week by default) |
 | `POST` | `/v1/menus/<id>/images` | Upload image (multipart/form-data) |
 | `DELETE` | `/v1/menus/<id>/images/<img_id>` | Delete an image |
 | `PUT` | `/v1/menus/<id>/images/reorder` | Reorder images |
