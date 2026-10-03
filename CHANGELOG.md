@@ -5,11 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.17.0] - 2026-10-03
 
 ### Security
 
 - **`react-router-dom` 6.30.6**, closing an XSS through open redirect rated high, and **TipTap 3.31.3**, closing two more.
+- **PyJWT 2.15.1 and urllib3 2.8.0**, closing the advisories published against 2.13.0 and 2.7.0.
 - **Dependency advisories checked in CI**, weekly and on every pull request that changes a manifest or a lockfile: `bun audit` on the frontend, `uv audit` on the backend.
 - **`tailwindcss-animate` moved to `devDependencies`**: a build-time plugin was pulling the PostCSS toolchain into the runtime tree.
 - **Account takeover through a password-reset link** closed on passkey-only accounts.
