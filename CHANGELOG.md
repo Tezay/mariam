@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Account takeover through a password-reset link** closed on passkey-only accounts.
 - **Password change and reset by passkey** now end the other sessions.
 - **`REDIS_URL` required in production**: without it the backend let revoked tokens through and the scheduler silently dropped every traffic count; both now refuse to start.
+- **Security headers served by the frontend image**, with a report-only CSP; `nosniff` on the API.
 
 ### Added
 

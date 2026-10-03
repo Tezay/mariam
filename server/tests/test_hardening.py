@@ -91,6 +91,13 @@ class TestMfaTokenSingleUse:
         assert replay.status_code == 401
 
 
+class TestResponseHeaders:
+    def test_responses_forbid_mime_sniffing(self, app, client):
+        res = client.get('/health')
+
+        assert res.headers['X-Content-Type-Options'] == 'nosniff'
+
+
 class TestProductionGuard:
     @pytest.fixture()
     def production_env(self, monkeypatch):
