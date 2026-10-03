@@ -1,7 +1,7 @@
 # MARIAM Frontend - Development Dockerfile
 # Uses Bun for fast package installation
 
-FROM oven/bun:latest
+FROM oven/bun:1.4.2
 
 WORKDIR /app
 
