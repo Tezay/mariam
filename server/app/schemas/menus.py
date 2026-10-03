@@ -1,4 +1,4 @@
-from marshmallow import EXCLUDE, Schema, fields
+from marshmallow import EXCLUDE, Schema, fields, validate
 
 from .catalog import DishCatalogSchema
 
@@ -91,6 +91,16 @@ class MenuUpdateSchema(Schema):
         unknown = EXCLUDE
     items = fields.List(fields.Dict(), description="List of menu items")
     chef_note = fields.Str(allow_none=True, description="Chef's note (max 300 chars)")
+
+
+class WeekPublishSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+    week_offset = fields.Int(
+        load_default=0,
+        validate=validate.Range(min=-52, max=52),
+        metadata={'description': 'Weeks from the current one: 1 publishes next week.'},
+    )
 
 
 class MenuItemStockSchema(Schema):

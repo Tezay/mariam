@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Menu assistant** offered no dish on a category holding subcategories; it now walks down to the leaves, which carry them.
 - **Passkeys added from the account** now work for passwordless sign-in, like those created at activation.
 - **Statistics on « Aujourd'hui »** showed no headline figure: the overview answered a 500 on a single-day period.
+- **Week publication** ignored `week_offset` and always published the current week.
 
 ## [0.16.1] - 2026-09-22
 
