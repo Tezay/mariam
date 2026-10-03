@@ -5,22 +5,14 @@ import license from 'rollup-plugin-license'
 import path from 'path'
 import fs from 'fs'
 
-// Proxy target for API requests in dev mode:
+// compose.yaml points it at the backend container.
 const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://localhost:5000'
 
-// ========================================
-// HTTPS conditionnel pour le développement
-// ========================================
-// Si des certificats mkcert sont présents dans certs/, Vite démarre en HTTPS
-// Sinon, il démarre en HTTP sans chiffrement
-//
-// Génération : ./scripts/generate-dev-certs.sh
-// ========================================
+// HTTPS from the mkcert certificates of scripts/generate-dev-certs.sh, when they exist.
 function getDevHttpsConfig() {
+    // /certs is the compose.yaml mount; ../certs the repository's folder, for Vite on the host.
     const certPaths = [
-        // Dans Docker container (volume monté)
         { key: '/certs/dev-key.pem', cert: '/certs/dev.pem' },
-        // En local (pour le développement hors Docker)
         { key: '../certs/dev-key.pem', cert: '../certs/dev.pem' },
     ];
     for (const p of certPaths) {
@@ -35,25 +27,23 @@ export default defineConfig({
     plugins: [
         react(),
         VitePWA({
-            // Le SW s'active immédiatement
             registerType: 'autoUpdate',
-            // Inclure le handler push personnalisé dans le SW
+            // injectManifest, not generateSW: the service worker carries the push handlers.
             srcDir: 'src',
             filename: 'sw-push.js',
             strategies: 'injectManifest',
             injectManifest: {
-                // Fichiers à mettre en cache (minimal, pas de mode offline complet)
                 globPatterns: [
                     '**/*.{js,css,html,ico,png,svg,webmanifest}',
                     // Latin covers French, Œ and € included; other subsets load on demand.
                     'assets/inter-latin-wght-normal-*.woff2',
                 ],
-                // config.js est généré au runtime par docker-entrypoint.sh
-                // Les manifests PWA sont exclus : le SW les sert dynamiquement
-                // via son propre fetch handler (resolveDynamicManifest).
+                // Never precached: config.js is written at container start, and the service
+                // worker builds the manifest response itself (resolveDynamicManifest).
                 globIgnores: ['config.js', '**/*.webmanifest'],
             },
-            // Le manifest est géré ici (remplace site.webmanifest statique)
+            // What the service worker serves for /site.webmanifest, unless the user's role
+            // selects the admin or the org manifest.
             manifest: {
                 name: 'Mariam',
                 short_name: 'Mariam',
@@ -61,7 +51,7 @@ export default defineConfig({
                 start_url: '/',
                 scope: '/',
                 display: 'standalone',
-                theme_color: '#001BB7',
+                theme_color: '#093EAA',
                 background_color: '#ffffff',
                 lang: 'fr-FR',
                 categories: ['food', 'lifestyle'],
@@ -91,7 +81,6 @@ export default defineConfig({
                     },
                 ],
             },
-            // Désactiver le mode développement intégré de VitePWA en dev
             devOptions: {
                 enabled: false,
             },
@@ -126,7 +115,7 @@ export default defineConfig({
             },
         },
         watch: {
-            // Ignore config file changes in Docker to prevent Vite restart crashes
+            // Restarting on a change to this file crashes Vite inside Docker.
             ignored: ['**/vite.config.ts'],
         },
     },

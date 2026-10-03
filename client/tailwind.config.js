@@ -11,7 +11,7 @@ export default {
                 sans: ['Inter Variable', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
             },
             colors: {
-                // Couleurs système (Shadcn)
+                // The names shadcn/ui components expect, mapped to the CSS variables in index.css.
                 border: "hsl(var(--border))",
                 input: "hsl(var(--input))",
                 ring: "hsl(var(--ring))",
@@ -45,9 +45,9 @@ export default {
                     DEFAULT: "hsl(var(--popover))",
                     foreground: "hsl(var(--popover-foreground))",
                 },
-                // Couleurs sémantiques MARIAM
+                // mariam.blue is the primary
                 mariam: {
-                    blue: '#001BB7',
+                    blue: '#093EAA',
                     white: '#FFFFFF',
                     gray: {
                         50: '#f6f6f6',
@@ -64,13 +64,11 @@ export default {
                 md: "calc(var(--radius) - 2px)",
                 sm: "calc(var(--radius) - 4px)",
             },
-            // Breakpoints pour TV
             screens: {
                 'sidebar': '1024px',
                 'tv': '1920px',
                 '4k': '2560px',
             },
-            // Tailles typographiques pour TV
             fontSize: {
                 'tv-sm': ['1.25rem', { lineHeight: '1.5' }],
                 'tv-base': ['1.75rem', { lineHeight: '1.5' }],
