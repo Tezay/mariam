@@ -200,6 +200,9 @@ class FakeRedis:
     def get(self, key):
         return self.strings.get(key)
 
+    def exists(self, key):
+        return int(key in self.strings)
+
     def incr(self, key):
         value = int(self.strings.get(key, 0)) + 1
         self.strings[key] = str(value)

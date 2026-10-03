@@ -89,6 +89,11 @@ def create_app(config_class=None):
             missing.append('MFA_ENCRYPTION_KEY')
         if not os.environ.get('DATABASE_URL'):
             missing.append('DATABASE_URL')
+        # Without it the token blacklist lets revoked tokens through, and the
+        # scheduler drops every traffic count without an error.
+        redis_url = os.environ.get('REDIS_URL', '')
+        if not redis_url or redis_url.startswith('memory://'):
+            missing.append('REDIS_URL')
         if not all(os.environ.get(k) for k in
                    ('S3_ENDPOINT_URL', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY')):
             missing.append('S3_ENDPOINT_URL/S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY')
@@ -339,12 +344,13 @@ def create_app(config_class=None):
     @app.route('/health/ready')
     @limiter.exempt
     def health_ready():
-        # Readiness: checks the critical dependencies (DB, Redis). Meant for the
-        # external uptime monitor; returns 503 when a dependency is unavailable.
+        # For the external uptime monitor only: as a container healthcheck it would
+        # pull a working backend out of rotation whenever the scheduler stops.
         from sqlalchemy import text
 
         from .security import _get_blacklist_redis
-        checks = {'db': False, 'redis': None}
+        from .services.telemetry import flush_is_recent
+        checks = {'db': False, 'redis': None, 'scheduler': None}
         healthy = True
 
         try:
@@ -361,6 +367,10 @@ def create_app(config_class=None):
             except Exception:
                 checks['redis'] = False
                 healthy = False
+
+        checks['scheduler'] = flush_is_recent()
+        if checks['scheduler'] is False:
+            healthy = False
 
         return (
             {'status': 'ready' if healthy else 'degraded', 'checks': checks},

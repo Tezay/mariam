@@ -106,6 +106,11 @@ Redis carries the JWT blacklist, rate limiting shared across workers, the analyt
 cache, traffic counters and scheduled-job locks. The production compose ships the service;
 `REDIS_URL` remains the abstraction, so a managed instance (`rediss://…`) works identically.
 
+`REDIS_URL` is required in production: the backend and the scheduler refuse to start without it,
+or with `memory://`. The scheduler runs the backend image with the backend's environment plus
+`ENABLE_SCHEDULER=1`. A platform that deploys them as separate resources, such as Coolify, needs
+the same variables and the same image tag on both, and both redeployed at each release.
+
 ```bash
 # Switching from a managed instance
 # 1. In deploy/.env: REDIS_URL=redis://redis:6379/0
@@ -346,8 +351,13 @@ dump if the schema has to go back too.
 
 ### External uptime monitoring
 
-`GET /health/ready` returns 200 when the database and Redis answer, 503 otherwise. It is distinct
-from `/health`, which is process liveness only.
+`GET /health/ready` returns 200 when the database and Redis answer and a traffic-counter flush
+succeeded within the last 15 minutes, 503 otherwise. `checks.scheduler` at `false` points at the
+scheduler: stopped, without Redis, or failing. Expect it degraded for up to five minutes after a
+first install or a Redis wipe, until the first flush.
+
+It is distinct from `/health`, which is process liveness only. Keep container healthchecks on
+`/health`: on `/health/ready`, a scheduler outage would take a working backend out of rotation.
 
 Point an external check (UptimeRobot, healthchecks.io) at `https://<domain>/health/ready` every
 one to five minutes, with email or SMS alerting.

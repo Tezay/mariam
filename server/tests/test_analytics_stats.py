@@ -9,6 +9,7 @@ from app.models import (
     Menu,
     MenuCategory,
     MenuItem,
+    MenuVote,
     Organization,
     Restaurant,
 )
@@ -142,6 +143,25 @@ class TestGranularity:
         assert satisfaction['granularity'] == 'hour'
         assert len(satisfaction['series']) == 24
         assert satisfaction['series'][0]['hour'] == 0
+
+    def test_a_single_day_overview_carries_the_days_score(self, app, client):
+        org = _org('gr3')
+        rid = _site(org, 'GR3')
+        _director(rid, org)
+        today = paris_today()
+        menu_id = _menu(rid, today)
+        for index, rating in enumerate((3, 2)):
+            db.session.add(MenuVote(
+                organization_id=org, restaurant_id=rid, menu_id=menu_id, date=today,
+                device_id=f'gr3-{index}', rating=rating,
+            ))
+        db.session.commit()
+        token = get_token(client, email='dir@mariam.app')
+
+        overview = _analytics(client, token, 'overview', 'period=1d')
+
+        assert [point['date'] for point in overview['trend']] == [today.isoformat()]
+        assert overview['trend'][0]['score'] == 2.5
 
     def test_a_longer_period_stays_daily(self, app, client):
         org = _org('gr2')
