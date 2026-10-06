@@ -47,10 +47,14 @@ code on failure.
 
 In development, `make user ARGS="show demo@mariam.app"` wraps the same group.
 
+Addresses are stored lowercase and ASCII-only, and the commands normalise the ones they are
+given: `user show Jean@Example.com` finds `jean@example.com`.
+
 An account left with no second factor is sent to the enrolment page on its next sign-in and
 cannot leave it until a passkey or an authenticator application is registered — which is what
 makes `user reset-2fa` the safe way to unlock someone who lost both their phone and their
-laptop.
+laptop. An administrator does the same from the users page, for the accounts it manages,
+after confirming its own identity.
 
 ### Provisioning a new client
 

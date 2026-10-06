@@ -1,6 +1,6 @@
 """`flask user` — account administration from the command line."""
 from app.extensions import db
-from app.models import AuditLog, Organization, Restaurant, User
+from app.models import ActivationLink, AuditLog, Organization, Restaurant, User
 from app.models.passkey import Passkey
 from conftest import make_restaurant, make_user
 
@@ -113,6 +113,25 @@ class TestEdit:
 
         assert result.exit_code == 0
         assert '/activate/' in result.output
+
+    def test_addresses_are_normalized(self, app):
+        rid = make_restaurant(app, name='RU Case', code='RU_CASE')
+        make_user(app, email='old@mariam.app')
+
+        _run(app, 'invite', 'Invited@Mariam.App', '--role', 'editor', '--restaurant', str(rid))
+        result = _run(app, 'set-email', 'OLD@mariam.app', 'New@Mariam.App')
+
+        assert result.exit_code == 0
+        assert ActivationLink.query.one().email == 'invited@mariam.app'
+        assert User.query.filter_by(email='new@mariam.app').count() == 1
+
+    def test_an_address_outside_ascii_is_refused(self, app):
+        make_user(app, email='ascii@mariam.app')
+
+        result = _run(app, 'set-email', 'ascii@mariam.app', 'jéan@mariam.app')
+
+        assert result.exit_code != 0
+        assert User.query.filter_by(email='ascii@mariam.app').count() == 1
 
     def test_an_unknown_role_is_refused(self, app):
         make_user(app, email='role@mariam.app')

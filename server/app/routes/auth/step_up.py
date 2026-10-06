@@ -4,6 +4,7 @@ from flask_jwt_extended import jwt_required
 from ...extensions import db
 from ...models import Passkey
 from ...schemas.auth import (
+    AuthErrorSchema,
     PasskeyAssertionSchema,
     StepUpPasswordSchema,
     StepUpTokenSchema,
@@ -25,22 +26,38 @@ from .blueprint import auth_bp
 @auth_bp.arguments(StepUpPasswordSchema)
 @auth_bp.response(200, StepUpTokenSchema)
 @auth_bp.alt_response(401, schema=ErrorSchema, description=f'Wrong password or code. {NO_SESSION}')
+@auth_bp.alt_response(
+    403,
+    schema=AuthErrorSchema,
+    description='No TOTP on the account: `passkey_required` is set when it has a passkey, '
+                '`second_factor_required` when it has no second factor at all.',
+)
 @auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
 def step_up_password(data):
-    """Confirm identity with the password before a sensitive action
+    """Confirm identity with the password and the TOTP code before a sensitive action
 
-    Asks for the TOTP code as well when the account has TOTP enabled.
+    A proof always attests a second factor. An account without TOTP confirms with its
+    passkey through `/step-up/passkey/*`; an account with neither cannot confirm.
     """
     user = get_current_user()
     if not user:
         return user_not_found()
 
+    if not (user.mfa_enabled and user.mfa_secret):
+        if user.passkeys.count() > 0:
+            return jsonify({
+                'error': 'Ce compte confirme son identité avec sa passkey',
+                'passkey_required': True,
+            }), 403
+        return jsonify({
+            'error': 'Configurez d’abord la double authentification',
+            'second_factor_required': True,
+        }), 403
+
     if not user.check_password(data['password']):
         return jsonify({'error': 'Mot de passe incorrect'}), 401
 
-    if user.mfa_enabled and user.mfa_secret and not totp.code_matches(
-        user.mfa_secret, data.get('mfa_code') or ''
-    ):
+    if not totp.code_matches(user.mfa_secret, data['mfa_code']):
         return jsonify({'error': 'Code MFA invalide'}), 401
 
     return jsonify({'step_up_token': issue_step_up_token(user.id)}), 200

@@ -206,7 +206,6 @@ export function Login() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="votre@email.fr"
                   required
                   className="mt-1"
                   autoFocus
@@ -220,7 +219,6 @@ export function Login() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
                   required
                   className="mt-1"
                 />

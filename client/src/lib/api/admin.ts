@@ -9,6 +9,16 @@ export interface UiPreferences {
   tour_stats_done: boolean;
 }
 
+export interface Invitation {
+  id: number;
+  token: string;
+  /** Suggested by the inviter; the invitee may enter another. */
+  email: string | null;
+  role: User['role'];
+  expires_at: string;
+  created_by_name: string | null;
+}
+
 export interface CalendarSettings {
   show_public_holidays: boolean;
   show_school_vacations: boolean;
@@ -46,27 +56,24 @@ export const adminApi = {
     await api.delete(`/users/${id}`, { headers: { 'X-Step-Up-Token': stepUpToken } });
   },
 
-  resetUserMfa: async (id: number) => {
-    const response = await api.post(`/users/${id}/reset-mfa`);
-    return response.data;
+  resetUserMfa: async (id: number, stepUpToken: string) => {
+    await api.post(`/users/${id}/reset-mfa`, null, {
+      headers: { 'X-Step-Up-Token': stepUpToken },
+    });
   },
 
-  createInvitation: async (
-    email: string,
-    role: 'org_admin' | 'admin' | 'editor' | 'reader',
-    restaurantId?: number
-  ) => {
-    const response = await api.post('/users/invite', {
-      email,
-      role,
-      restaurant_id: restaurantId,
-    });
+  createInvitation: async (role: User['role'], email?: string): Promise<Invitation> => {
+    const response = await api.post('/users/invite', { role, email });
     return response.data.invitation;
   },
 
-  listInvitations: async () => {
+  listInvitations: async (): Promise<Invitation[]> => {
     const response = await api.get('/users/invitations');
     return response.data.invitations;
+  },
+
+  revokeInvitation: async (id: number) => {
+    await api.delete(`/users/invitations/${id}`);
   },
 
   getAuditLogs: async (params?: {

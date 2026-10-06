@@ -25,6 +25,24 @@ class TestPassword:
         assert self._step_up(client, uid, '000000').status_code == 401
         assert 'step_up_token' in self._step_up(client, uid, pyotp.TOTP(secret).now()).get_json()
 
+    def test_the_password_alone_is_not_a_proof_on_a_passkey_account(self, app, client):
+        uid = make_user(app)
+        enroll_passkey(uid)
+
+        res = self._step_up(client, uid, '000000')
+
+        assert res.status_code == 403
+        assert res.get_json()['passkey_required'] is True
+
+    def test_an_account_without_second_factor_gets_no_proof(self, app, client):
+        uid = make_user(app)
+
+        res = self._step_up(client, uid, '000000')
+
+        assert res.status_code == 403
+        assert res.get_json()['second_factor_required'] is True
+        assert 'step_up_token' not in res.get_json()
+
 
 class TestPasskey:
     def _begin(self, client, user_id):

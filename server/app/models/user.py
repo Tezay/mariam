@@ -10,18 +10,23 @@ Différences par rapport à un modèle User classique :
 import re
 from datetime import UTC, datetime
 
+from sqlalchemy.orm import validates
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..extensions import db
 from ..services.crypto import EncryptedSecret
+from ..utils.email_address import canonical_email
 from ..utils.time import utc_now_naive
 
 
 class User(db.Model):
     """Utilisateur de MARIAM avec authentification sécurisée."""
-    
+
     __tablename__ = 'users'
-    
+    __table_args__ = (
+        db.CheckConstraint('email = lower(email)', name='ck_users_email_lowercase'),
+    )
+
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(256), nullable=False)
@@ -66,7 +71,13 @@ class User(db.Model):
     ROLE_EDITOR = 'editor'
     ROLE_READER = 'reader'
     VALID_ROLES = [ROLE_ORG_ADMIN, ROLE_ADMIN, ROLE_EDITOR, ROLE_READER]
-    
+
+    # On the model as well as in the request schemas: the CLI and the seed
+    # commands write addresses without going through a schema.
+    @validates('email')
+    def _canonical_email(self, _key, value):
+        return canonical_email(value)
+
     def set_password(self, password):
         """
         Hash et stocke le mot de passe.

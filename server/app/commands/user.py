@@ -20,6 +20,8 @@ from ..models.audit_log import AuditLog
 from ..models.organization import Organization
 from ..models.restaurant import Restaurant
 from ..models.user import User
+from ..services.account import reset_second_factor
+from ..utils.email_address import canonical_email
 from ..utils.time import utc_naive_to_paris
 from ..utils.urls import frontend_base_url
 
@@ -35,8 +37,15 @@ def register_commands(app):
 # ============================================================
 
 
+def _address(value: str) -> str:
+    try:
+        return canonical_email(value)
+    except ValueError as exc:
+        raise click.ClickException(f'Not a storable address: {value}') from exc
+
+
 def _find_user(email: str) -> User:
-    user = User.query.filter_by(email=email).first()
+    user = User.query.filter_by(email=_address(email)).first()
     if not user:
         raise click.ClickException(f'No account with {email}.')
     return user
@@ -202,6 +211,7 @@ def invite_user(email, role, restaurant, org):
     """Create an activation link for a new account."""
     if role not in User.VALID_ROLES:
         raise click.ClickException(f'Invalid role. Values: {User.VALID_ROLES}')
+    email = _address(email)
     if User.query.filter_by(email=email).first():
         raise click.ClickException(f'An account with {email} already exists.')
 
@@ -240,7 +250,7 @@ def reset_password(email):
             f'{email} has no second factor: use `user invite` to re-enrol the account.'
         )
 
-    link = ActivationLink.create_password_reset_link(email=email, expires_hours=72)
+    link = ActivationLink.create_password_reset_link(email=user.email, expires_hours=72)
     db.session.add(link)
     _audit(AuditLog.ACTION_PASSWORD_RESET_REQUEST, user, method='cli')
     db.session.commit()
@@ -260,14 +270,7 @@ def reset_2fa(email, only_totp, only_passkeys):
     drop_totp = only_totp or not only_passkeys
     drop_passkeys = only_passkeys or not only_totp
 
-    removed = 0
-    if drop_passkeys:
-        removed = user.passkeys.delete()
-    if drop_totp:
-        user.disable_mfa()
-
-    # A session opened with the factor being removed must not survive it.
-    user.revoke_tokens()
+    removed = reset_second_factor(user, totp=drop_totp, passkeys=drop_passkeys)
     _audit(
         AuditLog.ACTION_MFA_DISABLED,
         user,
@@ -297,11 +300,13 @@ def reset_2fa(email, only_totp, only_passkeys):
 def set_email(email, new_email):
     """Change an account's address."""
     user = _find_user(email)
+    new_email = _address(new_email)
     if User.query.filter_by(email=new_email).first():
         raise click.ClickException(f'An account with {new_email} already exists.')
 
+    previous = user.email
     user.email = new_email
-    _audit(AuditLog.ACTION_USER_UPDATE, user, field='email', old=email)
+    _audit(AuditLog.ACTION_USER_UPDATE, user, field='email', old=previous)
     db.session.commit()
     click.echo(f'✅ {email} → {new_email}')
 

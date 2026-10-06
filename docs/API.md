@@ -53,10 +53,16 @@ Authorization: Bearer <access_token>
 
 ### Account activation
 
-Both paths start alike: `GET /v1/auth/check-activation/<token>` validates the link, then
-`POST /v1/auth/activate` creates the account, without a second factor yet. Its `mfa_setup`
-carries a TOTP secret with its QR code, and a `setup_token` valid 15 minutes. The user then
-picks a second factor.
+Both paths start alike: `GET /v1/auth/check-activation/<token>` validates the link and names
+the site, the role and the address the inviter suggested, if any. `POST /v1/auth/activate`
+then creates the account, without a second factor yet. Its `mfa_setup` carries a TOTP secret
+with its QR code, and a `setup_token` valid 15 minutes. The user then picks a second factor.
+
+The invitee supplies the address and the display name; the role and the tenant come from the
+link and from nothing else. An address is stored lowercase and must be ASCII. A display name
+is 2 to 50 characters: letters, spaces, hyphens, apostrophes and periods. A link serves once:
+it is locked while the account is created, and only invitation links are accepted, never a
+password-reset link.
 
 **Path A — Passkey**
 
@@ -111,11 +117,15 @@ picks a second factor.
 
 Proves the caller re-authenticated moments ago. The returned `step_up_token` is
 single-use, valid 5 minutes, and passed as `X-Step-Up-Token` on the guarded
-request (currently `DELETE /v1/users/<id>`).
+request (currently `DELETE /v1/users/<id>` and `POST /v1/users/<id>/reset-mfa`).
+
+A proof always attests a second factor: the password route also takes the TOTP code, an
+account without TOTP confirms with its passkey (`403` with `passkey_required`), and an account
+with neither cannot confirm (`403` with `second_factor_required`).
 
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
-| `POST` | `/v1/auth/step-up/password` | bearer | Re-authenticate with password (and TOTP when enabled) |
+| `POST` | `/v1/auth/step-up/password` | bearer | Re-authenticate with password and TOTP code |
 | `POST` | `/v1/auth/step-up/passkey/begin` | bearer | Challenge the caller's passkeys |
 | `POST` | `/v1/auth/step-up/passkey/complete` | bearer | Verify the assertion and return the proof |
 
@@ -488,9 +498,15 @@ Requires `admin` role.
 | `GET` | `/v1/users/<id>` | User details |
 | `PUT` | `/v1/users/<id>` | Update a user |
 | `DELETE` | `/v1/users/<id>` | Delete a user (requires `X-Step-Up-Token`) |
-| `POST` | `/v1/users/<id>/reset-mfa` | Reset a user's MFA |
-| `POST` | `/v1/users/invite` | Create an invitation link |
+| `POST` | `/v1/users/<id>/reset-mfa` | Remove a user's TOTP and passkeys and end their sessions (requires `X-Step-Up-Token`) |
+| `POST` | `/v1/users/invite` | Create an invitation link; `email` is optional and only pre-fills the activation form |
 | `GET` | `/v1/users/invitations` | List pending invitations |
+| `DELETE` | `/v1/users/invitations/<id>` | Revoke a pending invitation |
+
+Invitations follow the same boundary as accounts: a supervisor lists and revokes supervisor
+invitations, a site admin those of its site. The reset leaves the account active: it signs in
+with its password and enrols a new method. It is refused on the caller's own account and on
+the rescue account.
 
 The two routes below are the exception: any authenticated user reads and writes
 its own.

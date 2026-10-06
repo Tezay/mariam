@@ -43,7 +43,7 @@ export function AdminLayout() {
   const [serviceHours, setServiceHours] = useState<ServiceHours>({});
   const [duringService, setDuringService] = useState(false);
 
-  useSecurityOnboarding(user, '/admin/securite');
+  useSecurityOnboarding(user, '/admin/security');
   usePwaOnboarding('/admin/install', user?.role === 'admin' || user?.role === 'editor');
 
   // Identify in Umami by role — intentionally re-runs on id change only

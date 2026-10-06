@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+
+- **Activation links serve once**, even under concurrent requests: the link is locked while its account is created.
+- **A password-reset link can no longer create an account**: activation accepts invitation links only.
+- **Email addresses stored lowercase and ASCII-only**, checked by the schemas, the models and the database; sign-in ignores letter case.
+- **Supervisors no longer receive site invitation links**: an administrator lists and revokes only the invitations it manages.
+- **A proof of identity always attests a second factor**: the password alone is refused, with or without a passkey on the account.
+- **Resetting a user's second factor asks for that proof**, and is refused on one's own account and on the rescue account.
+
+### Added
+
+- **Invitations without an address**: the address is optional and only pre-fills the form, where the invitee enters their own.
+- **Revoking an invitation** from the users page: its link stops working at once.
+- **Activation form** names the site and the role being joined.
+
+### Changed
+
+- **A display name is required at activation**: 2 to 50 letters, spaces, hyphens, apostrophes or periods.
+- **`GET /v1/users/invitations`** returns pending invitations only; `POST /v1/users/invite` returns the same object.
+- **`POST /v1/users/<id>/reset-mfa`** requires `X-Step-Up-Token` and no longer returns an activation link.
+- **`POST /v1/auth/step-up/password`** always takes the TOTP code.
+- **`/admin/securite` and `/org/securite`** renamed `/admin/security` and `/org/security`.
+- **Sign-in, activation and invitation forms** drop their placeholders.
+- **Upgrading**: the migration stops if an address holds an uppercase letter, and names the rows.
+
+### Fixed
+
+- **Second-factor reset from the dashboard** left the account disabled with a link that activation refused; it now behaves like `flask user reset-2fa`.
+- **Accounts disabled by that reset** are re-enabled from « Rôle et accès » or with `flask user enable`.
+
 ## [0.17.0] - 2026-10-03
 
 ### Security

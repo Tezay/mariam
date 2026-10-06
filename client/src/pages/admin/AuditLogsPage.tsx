@@ -71,6 +71,7 @@ const ACTION_LABELS: Record<string, string> = {
   event_update: 'Modif. événement',
   event_delete: 'Suppr. événement',
   activation_link_create: 'Création lien activation',
+  activation_link_revoke: 'Révocation lien activation',
   account_activate: 'Activation compte',
   audit_logs_access: 'Accès logs',
   audit_logs_export: 'Export logs',

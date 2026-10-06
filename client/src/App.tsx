@@ -272,7 +272,7 @@ function App() {
           <Route path="/reset-password/:token" element={<ResetPassword />} />
 
           <Route
-            path="/admin/securite"
+            path="/admin/security"
             element={
               <ProtectedRoute>
                 <SecurityPage />
@@ -280,7 +280,7 @@ function App() {
             }
           />
           <Route
-            path="/org/securite"
+            path="/org/security"
             element={
               <ProtectedRoute>
                 <SecurityPage />
