@@ -66,7 +66,7 @@ const BOTTOM_NAV_PATHS = ['/org', '/org/analytics/traffic', '/org/sites', '/org/
 export function OrgLayout() {
   const { user } = useAuth();
 
-  useSecurityOnboarding(user, '/org/securite');
+  useSecurityOnboarding(user, '/org/security');
   usePwaOnboarding('/org/install', user?.role === 'org_admin');
 
   return (

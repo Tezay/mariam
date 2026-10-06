@@ -26,6 +26,15 @@ class TestPasswordLogin:
         assert res.get_json()['passkey_only'] is True
         assert 'access_token' not in res.get_json()
 
+    def test_the_address_is_matched_whatever_its_case(self, app, client):
+        make_user(app)
+
+        res = client.post('/v1/auth/login', json={
+            'email': ' Admin@MARIAM.app ', 'password': TEST_PASSWORD,
+        })
+
+        assert res.status_code == 200
+
     def test_a_failed_attempt_is_audited(self, app, client):
         make_user(app)
 

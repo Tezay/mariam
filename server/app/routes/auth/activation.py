@@ -2,9 +2,11 @@ from datetime import timedelta
 
 from flask import jsonify, request
 from flask_jwt_extended import create_access_token, decode_token
+from psycopg2.errors import UniqueViolation
+from sqlalchemy.exc import IntegrityError
 
 from ...extensions import db
-from ...models import ActivationLink, AuditLog, User
+from ...models import ActivationLink, AuditLog, Organization, Restaurant, User
 from ...schemas.auth import (
     ActivateAccountSchema,
     ActivationLinkSchema,
@@ -44,25 +46,52 @@ def _setup_token_error(token: str, user_id: int):
     return None
 
 
+def _account_link(token: str):
+    """A password-reset link shares the table and must never create an account."""
+    return ActivationLink.query.filter(
+        ActivationLink.token == token,
+        ActivationLink.link_type.in_(ActivationLink.ACCOUNT_CREATION_TYPES),
+    )
+
+
+def _email_taken():
+    return jsonify({
+        'error': 'Cette adresse est déjà utilisée. Choisissez-en une autre ou contactez '
+                 'la personne qui vous a invité.',
+    }), 409
+
+
 @auth_bp.route('/check-activation/<token>', methods=['GET'])
 @auth_bp.response(200, ActivationLinkSchema)
-@auth_bp.alt_response(400, schema=InvalidLinkSchema, description='Link expired or already used.')
+@auth_bp.alt_response(
+    400, schema=InvalidLinkSchema, description='Link expired, revoked or already used.'
+)
 @auth_bp.alt_response(404, schema=InvalidLinkSchema, description='Unknown link.')
 def check_activation_link(token):
-    """Check an invitation link before the activation form"""
-    link = ActivationLink.query.filter_by(token=token).first()
+    """Check an invitation link before the activation form
+
+    `email` is the address the inviter suggested, if any: the form pre-fills it and the
+    invitee may change it.
+    """
+    link = _account_link(token).first()
 
     if not link:
         return jsonify({'valid': False, 'error': 'Lien invalide'}), 404
 
     if not link.is_valid():
-        return jsonify({'valid': False, 'error': 'Lien expiré ou déjà utilisé'}), 400
+        return jsonify({'valid': False, 'error': 'Lien expiré, révoqué ou déjà utilisé'}), 400
 
+    restaurant = db.session.get(Restaurant, link.restaurant_id) if link.restaurant_id else None
+    organization = (
+        db.session.get(Organization, link.organization_id) if link.organization_id else None
+    )
     return jsonify({
         'valid': True,
         'link_type': link.link_type,
         'email': link.email,
         'role': link.role,
+        'restaurant_name': restaurant.name if restaurant else None,
+        'organization_name': organization.name if organization else None,
     }), 200
 
 
@@ -71,38 +100,38 @@ def check_activation_link(token):
 @auth_bp.arguments(ActivateAccountSchema)
 @auth_bp.response(201, ActivationSchema)
 @auth_bp.alt_response(
-    400, schema=ErrorSchema, description='Link expired or used, password too weak, or no email.'
+    400, schema=ErrorSchema, description='Link expired, revoked or used, or password too weak.'
 )
 @auth_bp.alt_response(404, schema=ErrorSchema, description='Unknown link.')
 @auth_bp.alt_response(409, schema=ErrorSchema, description='Email already in use.')
 def activate_account(data):
     """Create an account from an invitation link
 
-    The account starts without a second factor. `mfa_setup` carries what the next step
-    needs, both valid fifteen minutes: a TOTP secret and its QR code for
+    The invitee chooses the address and the display name; the role and the tenant come
+    from the link. The account starts without a second factor. `mfa_setup` carries what
+    the next step needs, both valid fifteen minutes: a TOTP secret and its QR code for
     `/mfa/verify-setup`, and a setup token that `/passkey/setup/*` accepts as well.
     """
-    link = ActivationLink.query.filter_by(token=data['token']).first()
+    # Row-locked until commit: a second request with the same token waits here,
+    # then finds the link spent.
+    link = _account_link(data['token']).with_for_update().first()
 
     if not link:
         return jsonify({'error': "Lien d'activation invalide"}), 404
 
     if not link.is_valid():
-        return jsonify({'error': "Lien d'activation expiré ou déjà utilisé"}), 400
+        return jsonify({'error': "Lien d'activation expiré, révoqué ou déjà utilisé"}), 400
 
     if not User.validate_password_strength(data['password']):
         return weak_password()
 
-    email = data.get('email') or link.email
-    if not email:
-        return jsonify({'error': 'Email requis'}), 400
-
+    email = data['email']
     if User.query.filter_by(email=email).first():
-        return jsonify({'error': 'Cet email est déjà utilisé'}), 409
+        return _email_taken()
 
     user = User(
         email=email,
-        username=data.get('username'),
+        username=data['username'],
         role=link.role,
         restaurant_id=link.restaurant_id,
         organization_id=link.organization_id,
@@ -113,13 +142,30 @@ def activate_account(data):
 
     link.mark_as_used()
     db.session.add(user)
+    try:
+        db.session.flush()
+    except IntegrityError as exc:
+        db.session.rollback()
+        # Two invitees can pass the lookup above with the same address; the
+        # unique index decides between them.
+        if isinstance(exc.orig, UniqueViolation):
+            return _email_taken()
+        raise
 
     AuditLog.log(
         action=AuditLog.ACTION_ACCOUNT_ACTIVATE,
         user_id=None,
         restaurant_id=link.restaurant_id,
         target_type='user',
-        details={'email': email, 'role': link.role, 'link_type': link.link_type},
+        target_id=user.id,
+        details={
+            'email': email,
+            'invited_email': link.email,
+            'role': link.role,
+            'link_type': link.link_type,
+            'invitation_id': link.id,
+            'invited_by': link.created_by_id,
+        },
         ip_address=get_client_ip(),
     )
     db.session.commit()

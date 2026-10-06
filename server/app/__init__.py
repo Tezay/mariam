@@ -554,7 +554,7 @@ Disallow: /v1/users/
         from .services import email_service
         from .services.access import accessible_restaurant_ids
 
-        user = User.query.filter_by(email=to).first()
+        user = User.query.filter_by(email=to.strip().lower()).first()
         if not user:
             click.echo(f'❌ No account with {to}.')
             return

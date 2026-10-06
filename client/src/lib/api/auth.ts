@@ -20,6 +20,16 @@ export interface User {
   organization_name?: string | null;
 }
 
+export interface ActivationLinkInfo {
+  valid: boolean;
+  link_type: 'invite' | 'first_admin';
+  /** Suggested by the inviter; the invitee may enter another. */
+  email: string | null;
+  role: User['role'];
+  restaurant_name: string | null;
+  organization_name: string | null;
+}
+
 export interface PasskeyInfo {
   id: number;
   device_name: string;
@@ -77,13 +87,16 @@ export const authApi = {
     return user;
   },
 
-  checkActivationLink: async (token: string) => {
+  checkActivationLink: async (token: string): Promise<ActivationLinkInfo> => {
     const response = await api.get(`/auth/check-activation/${token}`);
     return response.data;
   },
 
-  activate: async (token: string, password: string, email?: string, username?: string) => {
-    const response = await api.post('/auth/activate', { token, password, email, username });
+  activate: async (
+    token: string,
+    account: { email: string; username: string; password: string }
+  ) => {
+    const response = await api.post('/auth/activate', { token, ...account });
     return response.data;
   },
 
@@ -128,7 +141,7 @@ export const authApi = {
     return !!getAccessToken();
   },
 
-  stepUpWithPassword: async (password: string, mfaCode?: string) => {
+  stepUpWithPassword: async (password: string, mfaCode: string) => {
     const response = await api.post('/auth/step-up/password', {
       password,
       mfa_code: mfaCode,

@@ -1,8 +1,9 @@
 /**
  * Re-authentication gate for an irreversible action.
  *
- * Offers whichever methods the account actually has (passkey, password, TOTP)
- * and hands back a single-use proof the caller attaches to its request.
+ * Offers the second factors the account has (passkey, or password with the
+ * TOTP code) and hands back a single-use proof the caller attaches to its
+ * request. The password alone is never offered: the server refuses it.
  */
 import { useState } from 'react';
 import { startAuthentication } from '@simplewebauthn/browser';
@@ -49,7 +50,7 @@ export function StepUpDialog({
   const [error, setError] = useState('');
 
   const hasPasskey = (user?.passkeys_count ?? 0) > 0;
-  const needsTotp = Boolean(user?.mfa_enabled);
+  const hasTotp = Boolean(user?.mfa_enabled);
 
   const reset = () => {
     setPassword('');
@@ -87,7 +88,7 @@ export function StepUpDialog({
 
   const confirmWithPassword = (event: React.FormEvent) => {
     event.preventDefault();
-    return run(() => authApi.stepUpWithPassword(password, needsTotp ? mfaCode : undefined));
+    return run(() => authApi.stepUpWithPassword(password, mfaCode));
   };
 
   return (
@@ -121,7 +122,7 @@ export function StepUpDialog({
           </Button>
         )}
 
-        {hasPasskey && (
+        {hasPasskey && hasTotp && (
           <div className="flex items-center gap-3">
             <span className="h-px flex-1 bg-border" />
             <span className="text-xs text-muted-foreground">ou</span>
@@ -129,20 +130,20 @@ export function StepUpDialog({
           </div>
         )}
 
-        <form onSubmit={confirmWithPassword} className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="step-up-password">Votre mot de passe</Label>
-            <Input
-              id="step-up-password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-            />
-          </div>
+        {hasTotp ? (
+          <form onSubmit={confirmWithPassword} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="step-up-password">Votre mot de passe</Label>
+              <Input
+                id="step-up-password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+              />
+            </div>
 
-          {needsTotp && (
             <div className="space-y-1.5">
               <Label htmlFor="step-up-mfa">Code de votre application</Label>
               <Input
@@ -156,25 +157,38 @@ export function StepUpDialog({
                 required
               />
             </div>
-          )}
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <div className="flex gap-2 pt-1">
-            <Button
-              type="submit"
-              variant="destructive"
-              className="flex-1 gap-2"
-              disabled={isWorking || !password || (needsTotp && mfaCode.length < 6)}
-            >
-              {isWorking && <Loader2 className="h-4 w-4 animate-spin" />}
-              {confirmLabel}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => close(false)}>
+            <div className="flex gap-2 pt-1">
+              <Button
+                type="submit"
+                variant="destructive"
+                className="flex-1 gap-2"
+                disabled={isWorking || !password || mfaCode.length < 6}
+              >
+                {isWorking && <Loader2 className="h-4 w-4 animate-spin" />}
+                {confirmLabel}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => close(false)}>
+                Annuler
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <div className="space-y-3">
+            {!hasPasskey && (
+              <p className="text-sm text-muted-foreground">
+                Cette action demande une double authentification. Configurez-la d'abord depuis Mon
+                compte.
+              </p>
+            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <Button type="button" variant="outline" className="w-full" onClick={() => close(false)}>
               Annuler
             </Button>
           </div>
-        </form>
+        )}
       </DialogContent>
     </Dialog>
   );

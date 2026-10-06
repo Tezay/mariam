@@ -1,20 +1,28 @@
 import pyotp
+import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
-from app.models import ActivationLink, AuditLog, Passkey, User
-from conftest import make_user
+from app.models import ActivationLink, AuditLog, Organization, Passkey, User
+from conftest import make_restaurant, make_user
 from tests.auth_support import enroll_passkey, invite_link, new_authenticator, reset_link
 
 STRONG_PASSWORD = 'NewAccount123!'
 
 
 def _activate(client, token, **overrides):
-    body = {'token': token, 'password': STRONG_PASSWORD, 'username': 'newcomer', **overrides}
+    body = {
+        'token': token,
+        'password': STRONG_PASSWORD,
+        'email': 'new@mariam.app',
+        'username': 'Newcomer',
+        **overrides,
+    }
     return client.post('/v1/auth/activate', json=body)
 
 
 def _activated(client, email='new@mariam.app'):
-    setup = _activate(client, invite_link(email)).get_json()['mfa_setup']
+    setup = _activate(client, invite_link(), email=email).get_json()['mfa_setup']
     return setup['user_id'], setup['secret'], setup['setup_token']
 
 
@@ -26,7 +34,22 @@ class TestLinkCheck:
 
         assert body == {
             'valid': True, 'link_type': 'invite', 'email': 'new@mariam.app', 'role': 'admin',
+            'restaurant_name': None, 'organization_name': None,
         }
+
+    def test_the_destination_is_named(self, app, client):
+        org = Organization(name='CROUS Test', slug='crous-test')
+        db.session.add(org)
+        db.session.commit()
+        rid = make_restaurant(app, name='RU Central')
+        link = ActivationLink.create_invite_link(restaurant_id=rid, organization_id=org.id)
+        db.session.add(link)
+        db.session.commit()
+
+        body = client.get(f'/v1/auth/check-activation/{link.token}').get_json()
+
+        assert (body['restaurant_name'], body['organization_name']) == ('RU Central', 'CROUS Test')
+        assert body['email'] is None
 
     def test_an_unknown_link_is_not_found(self, app, client):
         assert client.get('/v1/auth/check-activation/nope').status_code == 404
@@ -36,6 +59,20 @@ class TestLinkCheck:
         _activate(client, token)
 
         assert client.get(f'/v1/auth/check-activation/{token}').status_code == 400
+
+    def test_a_revoked_link_is_refused(self, app, client):
+        token = invite_link()
+        ActivationLink.query.filter_by(token=token).one().revoke()
+        db.session.commit()
+
+        assert client.get(f'/v1/auth/check-activation/{token}').status_code == 400
+
+    def test_a_reset_link_is_not_an_invitation(self, app, client):
+        make_user(app, email='owner@mariam.app')
+
+        res = client.get(f"/v1/auth/check-activation/{reset_link('owner@mariam.app')}")
+
+        assert res.status_code == 404
 
 
 class TestActivation:
@@ -61,10 +98,136 @@ class TestActivation:
 
     def test_an_email_already_in_use_is_refused(self, app, client):
         make_user(app, email='taken@mariam.app')
+        token = invite_link()
 
-        res = _activate(client, invite_link('taken@mariam.app'))
+        res = _activate(client, token, email='Taken@Mariam.app')
 
         assert res.status_code == 409
+        assert ActivationLink.query.filter_by(token=token).one().used_at is None
+
+    def test_the_invitee_chooses_the_address(self, app, client):
+        res = _activate(client, invite_link('suggested@mariam.app'), email='chosen@mariam.app')
+
+        assert res.status_code == 201
+        assert User.query.filter_by(email='chosen@mariam.app').count() == 1
+        assert User.query.filter_by(email='suggested@mariam.app').count() == 0
+
+    def test_an_invitation_without_address_needs_one_from_the_invitee(self, app, client):
+        res = client.post('/v1/auth/activate', json={
+            'token': invite_link(), 'password': STRONG_PASSWORD, 'username': 'Newcomer',
+        })
+
+        assert res.status_code == 422
+        assert User.query.count() == 0
+
+    def test_the_address_is_stored_lowercase_and_signs_in_either_way(self, app, client):
+        _activate(client, invite_link(), email='  Jean.Dupont@Mariam.App ')
+
+        res = client.post('/v1/auth/login', json={
+            'email': 'JEAN.DUPONT@mariam.app', 'password': STRONG_PASSWORD,
+        })
+
+        assert User.query.one().email == 'jean.dupont@mariam.app'
+        assert res.status_code == 200
+
+    @pytest.mark.parametrize('email', ['jéan@mariam.app', 'jean@mariаm.app', f"{'a' * 120}@m.app"])
+    def test_an_address_outside_ascii_or_too_long_is_refused(self, app, client, email):
+        res = _activate(client, invite_link(), email=email)
+
+        assert res.status_code == 422
+        assert User.query.count() == 0
+
+    @pytest.mark.parametrize('name', ['Jean Dupont', "Anne-Marie O'Neil", 'Zoë', 'J. Dupont', 'Юлия'])
+    def test_a_display_name_made_of_letters_is_kept(self, app, client, name):
+        res = _activate(client, invite_link(), username=f'  {name}  ')
+
+        assert res.status_code == 201
+        assert User.query.one().username == name
+
+    @pytest.mark.parametrize(
+        'name', [None, '', 'J', 'x' * 51, 'jean@mariam.app', 'Agent 007', 'Jean²', '-Jean']
+    )
+    def test_a_missing_or_malformed_display_name_is_refused(self, app, client, name):
+        res = _activate(client, invite_link(), username=name)
+
+        assert res.status_code == 422
+        assert User.query.count() == 0
+
+    def test_a_revoked_link_creates_nothing(self, app, client):
+        token = invite_link()
+        ActivationLink.query.filter_by(token=token).one().revoke()
+        db.session.commit()
+
+        assert _activate(client, token).status_code == 400
+        assert User.query.count() == 0
+
+    def test_a_link_works_once(self, app, client):
+        token = invite_link()
+        _activate(client, token)
+
+        res = _activate(client, token, email='second@mariam.app')
+
+        assert res.status_code == 400
+        assert User.query.count() == 1
+
+    def test_a_reset_link_creates_no_account(self, app, client):
+        make_user(app, email='owner@mariam.app')
+
+        res = _activate(client, reset_link('owner@mariam.app'), email='intruder@mariam.app')
+
+        assert res.status_code == 404
+        assert User.query.filter_by(email='intruder@mariam.app').count() == 0
+
+    def test_the_role_and_the_tenant_come_from_the_link(self, app, client):
+        rid = make_restaurant(app)
+        link = ActivationLink.create_invite_link(role='reader', restaurant_id=rid)
+        db.session.add(link)
+        db.session.commit()
+
+        _activate(client, link.token, role='admin', restaurant_id=rid + 1)
+
+        user = User.query.one()
+        assert (user.role, user.restaurant_id) == ('reader', rid)
+
+    def test_the_audit_entry_ties_the_account_to_its_invitation(self, app, client):
+        inviter = make_user(app)
+        link = ActivationLink.create_invite_link('suggested@mariam.app', created_by_id=inviter)
+        db.session.add(link)
+        db.session.commit()
+
+        _activate(client, link.token, email='chosen@mariam.app')
+
+        entry = AuditLog.query.filter_by(action=AuditLog.ACTION_ACCOUNT_ACTIVATE).one()
+        assert entry.target_id == User.query.filter_by(email='chosen@mariam.app').one().id
+        assert entry.get_details() == {
+            'email': 'chosen@mariam.app',
+            'invited_email': 'suggested@mariam.app',
+            'role': 'editor',
+            'link_type': 'invite',
+            'invitation_id': link.id,
+            'invited_by': inviter,
+        }
+
+
+class TestStoredAddress:
+    def test_the_model_normalizes_what_no_schema_saw(self, app):
+        uid = make_user(app, email='  Mixed.Case@Mariam.App ')
+
+        assert db.session.get(User, uid).email == 'mixed.case@mariam.app'
+
+    @pytest.mark.parametrize('email', ['', '   '])
+    def test_an_empty_address_is_not_storable(self, app, email):
+        with pytest.raises(ValueError):
+            User(email=email)
+
+    def test_the_database_refuses_an_uppercase_address(self, app):
+        uid = make_user(app)
+
+        with pytest.raises(IntegrityError):
+            db.session.execute(
+                db.text("UPDATE users SET email = 'Admin@mariam.app' WHERE id = :id"), {'id': uid}
+            )
+        db.session.rollback()
 
 
 class TestTotpSetup:

@@ -1,7 +1,7 @@
 from marshmallow import EXCLUDE, Schema, fields, validate
 
 from ..models.user import User
-from .common import ErrorSchema
+from .common import DisplayName, ErrorSchema, NormalizedEmail
 
 
 class _RequestSchema(Schema):
@@ -10,7 +10,7 @@ class _RequestSchema(Schema):
 
 
 class LoginSchema(_RequestSchema):
-    email = fields.Email(required=True)
+    email = NormalizedEmail(required=True)
     password = fields.Str(required=True)
 
 
@@ -24,8 +24,14 @@ class MFAVerifySchema(_RequestSchema):
 class ActivateAccountSchema(_RequestSchema):
     token = fields.Str(required=True, metadata={'description': 'Token from the invitation link.'})
     password = fields.Str(required=True)
-    email = fields.Email(metadata={'description': 'Required when the invitation names no address.'})
-    username = fields.Str()
+    email = NormalizedEmail(
+        required=True,
+        metadata={'description': 'Chosen by the invitee; the invitation only suggests one.'},
+    )
+    username = DisplayName(
+        required=True,
+        metadata={'description': 'Display name: 2 to 50 letters, spaces, hyphens, apostrophes.'},
+    )
 
 
 class MFAVerifySetupSchema(_RequestSchema):
@@ -68,7 +74,7 @@ class ResetPasswordSchema(_RequestSchema):
 class StepUpPasswordSchema(_RequestSchema):
     password = fields.Str(required=True)
     mfa_code = fields.Str(
-        allow_none=True, metadata={'description': 'Required when the account has TOTP enabled.'}
+        required=True, metadata={'description': 'Current authenticator-app code.'}
     )
 
 
@@ -177,8 +183,12 @@ class AccountUpdateSchema(Schema):
 class ActivationLinkSchema(Schema):
     valid = fields.Bool(required=True)
     link_type = fields.Str(required=True)
-    email = fields.Email(allow_none=True)
+    email = fields.Email(
+        allow_none=True, metadata={'description': 'Suggested by the inviter, if any.'}
+    )
     role = fields.Str(allow_none=True, validate=validate.OneOf(User.VALID_ROLES))
+    restaurant_name = fields.Str(allow_none=True)
+    organization_name = fields.Str(allow_none=True)
 
 
 class ResetLinkSchema(Schema):
@@ -267,5 +277,8 @@ class AuthErrorSchema(ErrorSchema):
         metadata={'description': 'The account signs in with a passkey only.'}
     )
     passkey_required = fields.Bool(
-        metadata={'description': 'Reset the password through /passkey/reset-password instead.'}
+        metadata={'description': 'The account has no TOTP: use the passkey route instead.'}
+    )
+    second_factor_required = fields.Bool(
+        metadata={'description': 'The account has no second factor to confirm with.'}
     )

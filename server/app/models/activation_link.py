@@ -9,7 +9,10 @@ Utilisé pour :
 import secrets
 from datetime import timedelta
 
+from sqlalchemy.orm import validates
+
 from ..extensions import db
+from ..utils.email_address import canonical_email
 from ..utils.time import utc_now_naive
 
 
@@ -20,11 +23,14 @@ class ActivationLink(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.String(128), unique=True, nullable=False, index=True)
-    email = db.Column(db.String(120), nullable=True)  # Pré-rempli pour les invitations
+    # An invitation's address is a suggestion; a reset link's names the account.
+    email = db.Column(db.String(120), nullable=True)
     link_type = db.Column(db.String(20), nullable=False)  # first_admin, invite, password_reset
     role = db.Column(db.String(20), default='editor')  # Rôle attribué à l'activation
     expires_at = db.Column(db.DateTime, nullable=False)
     used_at = db.Column(db.DateTime, nullable=True)
+    # Naive UTC like its neighbours, which is_valid() compares it with.
+    revoked_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=utc_now_naive)
     created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
@@ -36,7 +42,20 @@ class ActivationLink(db.Model):
     
     # Types de lien valides
     VALID_TYPES = ['first_admin', 'invite', 'password_reset']
-    
+    ACCOUNT_CREATION_TYPES = ('first_admin', 'invite')
+
+    @validates('email')
+    def _canonical_email(self, _key, value):
+        return canonical_email(value) if value else None
+
+    @classmethod
+    def pending_filter(cls):
+        return db.and_(
+            cls.used_at.is_(None),
+            cls.revoked_at.is_(None),
+            cls.expires_at > utc_now_naive(),
+        )
+
     @classmethod
     def generate_token(cls):
         """Génère un token sécurisé unique."""
@@ -53,7 +72,7 @@ class ActivationLink(db.Model):
         )
     
     @classmethod
-    def create_invite_link(cls, email, role='editor', created_by_id=None,
+    def create_invite_link(cls, email=None, role='editor', created_by_id=None,
                            expires_hours=72, restaurant_id=None, organization_id=None):
         """Crée un lien d'invitation pour un nouvel utilisateur."""
         return cls(
@@ -92,15 +111,22 @@ class ActivationLink(db.Model):
         )
     
     def is_valid(self):
-        """Vérifie si le lien est encore valide (non expiré et non utilisé)."""
-        return self.used_at is None and utc_now_naive() < self.expires_at
-    
+        return (
+            self.used_at is None
+            and self.revoked_at is None
+            and utc_now_naive() < self.expires_at
+        )
+
     def mark_as_used(self):
         """Marque le lien comme utilisé."""
         self.used_at = utc_now_naive()
-    
+
+    def revoke(self):
+        self.revoked_at = utc_now_naive()
+
     def to_dict(self, include_token=False):
         """Sérialise le lien en dictionnaire JSON."""
+        author = self.created_by
         data = {
             'id': self.id,
             'email': self.email,
@@ -109,7 +135,8 @@ class ActivationLink(db.Model):
             'expires_at': self.expires_at.isoformat() if self.expires_at else None,
             'is_used': self.used_at is not None,
             'is_valid': self.is_valid(),
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'created_by_name': (author.username or author.email) if author else None,
         }
         if include_token:
             data['token'] = self.token

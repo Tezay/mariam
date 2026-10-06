@@ -12,12 +12,14 @@ Endpoints:
 - POST /v1/users/<id>/reset-mfa     Reset a user's MFA
 - POST /v1/users/invite             Create an invitation link
 - GET  /v1/users/invitations        List pending invitations
+- DELETE /v1/users/invitations/<id> Revoke a pending invitation
 - GET  /v1/users/me/ui-preferences  Interface state of the current user
 - PUT  /v1/users/me/ui-preferences  Update it
 """
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_smorest import Blueprint
+from sqlalchemy.orm import joinedload
 
 from ..extensions import db
 from ..models import ActivationLink, AuditLog, User
@@ -30,6 +32,7 @@ from ..schemas.users import (
     UserUpdateSchema,
 )
 from ..security import get_client_ip
+from ..services.account import reset_second_factor
 from ..services.step_up import consume_step_up_token
 from .helpers import (
     accessible_restaurant_ids,
@@ -89,6 +92,26 @@ def _scoped_user(user_id):
         return None
     return target
 
+
+def _pending_invitations(caller):
+    """Same boundary as _scoped_user, for listing as for revoking: an
+    invitation's token is enough to create the account.
+    """
+    if caller.is_org_admin():
+        if not caller.organization_id:
+            return None
+        scope = db.and_(
+            ActivationLink.organization_id == caller.organization_id,
+            ActivationLink.restaurant_id.is_(None),
+        )
+    elif caller.restaurant_id:
+        scope = ActivationLink.restaurant_id == caller.restaurant_id
+    else:
+        return None
+    return ActivationLink.query.filter(
+        ActivationLink.link_type == 'invite', ActivationLink.pending_filter(), scope
+    )
+
 # ============================================================
 # ROUTES STATIQUES — avant /<int:user_id>
 # ============================================================
@@ -96,23 +119,21 @@ def _scoped_user(user_id):
 @users_bp.route('/invite', methods=['POST'])
 @users_bp.arguments(InviteSchema)
 @users_bp.response(201, InvitationSchema)
-@users_bp.alt_response(400, schema=ErrorSchema, description="Invalid email or role")
-@users_bp.alt_response(409, schema=ErrorSchema, description="Email already in use")
+@users_bp.alt_response(400, schema=ErrorSchema, description="Invalid role")
+@users_bp.alt_response(409, schema=ErrorSchema, description="Suggested email already in use")
 @admin_required
 def create_invitation(data):
     """Create an invitation link for a new user.
 
     Returns a token to send to the invitee so they can set up
-    their account and MFA via `/activate/<token>`.
+    their account and MFA via `/activate/<token>`. The email is optional and
+    only pre-fills the activation form: the invitee enters their own.
     """
     current_user_id = int(get_jwt_identity())
     inviter = get_current_user()
 
-    email = data.get('email')
+    email = data['email']
     role = data.get('role', 'editor')
-
-    if not email:
-        return jsonify({'error': 'Email requis'}), 400
 
     if role not in User.VALID_ROLES:
         return jsonify({'error': f'Rôle invalide. Valeurs possibles: {User.VALID_ROLES}'}), 400
@@ -130,7 +151,7 @@ def create_invitation(data):
         if not target_restaurant_id:
             return jsonify({'error': 'Aucun restaurant associé à votre compte'}), 400
 
-    if User.query.filter_by(email=email).first():
+    if email and User.query.filter_by(email=email).first():
         return jsonify({'error': 'Cet email est déjà utilisé'}), 409
 
     link = ActivationLink.create_invite_link(
@@ -141,11 +162,14 @@ def create_invitation(data):
         organization_id=inviter.organization_id,
     )
     db.session.add(link)
+    db.session.flush()
 
     AuditLog.log(
         action=AuditLog.ACTION_ACTIVATION_LINK_CREATE,
         user_id=current_user_id,
         restaurant_id=target_restaurant_id,
+        target_type='activation_link',
+        target_id=link.id,
         details={'email': email, 'role': role},
         ip_address=get_client_ip()
     )
@@ -154,12 +178,7 @@ def create_invitation(data):
 
     return jsonify({
         'message': 'Invitation créée',
-        'invitation': {
-            'token': link.token,
-            'email': email,
-            'role': role,
-            'expires_at': link.expires_at.isoformat(),
-        },
+        'invitation': link.to_dict(include_token=True),
     }), 201
 
 
@@ -167,27 +186,49 @@ def create_invitation(data):
 @users_bp.response(200, InvitationSchema(many=True))
 @admin_required
 def list_invitations():
-    """List pending invitations of the caller's tenant (50 most recent)."""
-    caller = get_current_user()
-    ids = accessible_restaurant_ids(caller)
-    scope = ActivationLink.restaurant_id.in_(ids)
-    if caller.is_org_admin() and caller.organization_id:
-        scope = db.or_(
-            scope,
-            db.and_(
-                ActivationLink.organization_id == caller.organization_id,
-                ActivationLink.restaurant_id.is_(None),
-            ),
-        )
+    """List the pending invitations the caller manages (50 most recent)."""
+    query = _pending_invitations(get_current_user())
     links = (
-        ActivationLink.query.filter(
-            ActivationLink.link_type == 'invite',
-            scope,
-        ).order_by(ActivationLink.created_at.desc()).limit(50).all()
-        if ids or caller.is_org_admin() else []
+        query.options(joinedload(ActivationLink.created_by))
+        .order_by(ActivationLink.created_at.desc())
+        .limit(50)
+        .all()
+        if query is not None else []
     )
 
     return jsonify({'invitations': [link.to_dict(include_token=True) for link in links]}), 200
+
+
+@users_bp.route('/invitations/<int:invitation_id>', methods=['DELETE'])
+@users_bp.response(200, MessageSchema)
+@users_bp.alt_response(404, schema=ErrorSchema, description="No such pending invitation")
+@admin_required
+def revoke_invitation(invitation_id):
+    """Revoke a pending invitation: its link stops working at once."""
+    caller = get_current_user()
+    query = _pending_invitations(caller)
+    # Locked like the activation that may be reading it: whichever commits
+    # first decides, and the other finds the link spent or revoked.
+    link = (
+        query.filter(ActivationLink.id == invitation_id).with_for_update().first()
+        if query is not None else None
+    )
+    if not link:
+        return jsonify({'error': 'Invitation non trouvée'}), 404
+
+    link.revoke()
+    AuditLog.log(
+        action=AuditLog.ACTION_ACTIVATION_LINK_REVOKE,
+        user_id=caller.id,
+        restaurant_id=link.restaurant_id,
+        target_type='activation_link',
+        target_id=link.id,
+        details={'email': link.email, 'role': link.role},
+        ip_address=get_client_ip()
+    )
+    db.session.commit()
+
+    return jsonify({'message': 'Invitation révoquée'}), 200
 
 
 # ============================================================
@@ -315,52 +356,50 @@ def delete_user(user_id):
 
 @users_bp.route('/<int:user_id>/reset-mfa', methods=['POST'])
 @users_bp.response(200, MessageSchema)
+@users_bp.alt_response(400, schema=ErrorSchema, description="Cannot reset your own account")
+@users_bp.alt_response(401, schema=ErrorSchema, description="Identity confirmation required")
+@users_bp.alt_response(403, schema=ErrorSchema, description="Rescue account cannot be modified")
 @users_bp.alt_response(404, schema=ErrorSchema, description="User not found")
 @admin_required
 def reset_user_mfa(user_id):
-    """Reset a user's MFA.
+    """Remove a user's second factor.
 
-    Disables current MFA, deactivates the account, and generates a new
-    activation link (valid 72 h) to send to the user.
+    Drops TOTP and passkeys and ends the user's sessions. The account stays
+    active: it signs in with its password and enrols a new method.
     """
     current_user_id = int(get_jwt_identity())
     user = _scoped_user(user_id)
     if not user:
         return jsonify({'error': 'Utilisateur non trouvé'}), 404
 
-    user.disable_mfa()
-    user.is_active = False
-    user.revoke_tokens()
+    # The account page keeps one factor on the caller's own account at all
+    # times; this route would be a way around it.
+    if user.id == current_user_id:
+        return jsonify(
+            {'error': 'Gérez votre propre double authentification depuis Mon compte'}
+        ), 400
 
-    link = ActivationLink.create_invite_link(
-        email=user.email,
-        role=user.role,
-        created_by_id=current_user_id,
-        expires_hours=72,
-        restaurant_id=user.restaurant_id,
-        organization_id=user.organization_id,
-    )
-    db.session.add(link)
+    if user.is_rescue_account:
+        return jsonify({'error': 'Le compte de secours ne peut pas être modifié'}), 403
+
+    if not consume_step_up_token(request.headers.get('X-Step-Up-Token', ''), current_user_id):
+        return jsonify({'error': 'Confirmation d’identité requise'}), 401
+
+    removed = reset_second_factor(user)
 
     AuditLog.log(
-        action=AuditLog.ACTION_USER_UPDATE,
+        action=AuditLog.ACTION_MFA_DISABLED,
         user_id=current_user_id,
         restaurant_id=user.restaurant_id,
         target_type='user',
         target_id=user.id,
-        details={'action': 'reset_mfa'},
+        details={'totp_removed': True, 'passkeys_removed': removed},
         ip_address=get_client_ip()
     )
 
     db.session.commit()
 
-    return jsonify({
-        'message': 'MFA réinitialisé',
-        'activation_link': {
-            'token': link.token,
-            'expires_at': link.expires_at.isoformat(),
-        },
-    }), 200
+    return jsonify({'message': 'Double authentification réinitialisée'}), 200
 
 
 # ============================================================

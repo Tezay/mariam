@@ -8,12 +8,21 @@ fallback.
 """
 import datetime
 
+import pyotp
 from flask_jwt_extended import decode_token
 
 from app.extensions import db
-from app.models import Event, ExceptionalClosure, Organization, Restaurant, User
+from app.models import (
+    ActivationLink,
+    Event,
+    ExceptionalClosure,
+    Organization,
+    Restaurant,
+    User,
+)
 from app.utils.time import paris_today
-from conftest import TEST_PASSWORD, auth_headers, get_token, make_restaurant, make_user
+from conftest import auth_headers, get_token, make_restaurant, make_user
+from tests.auth_support import enable_totp, identity_proof, session_headers
 
 
 def _today_iso():
@@ -149,6 +158,20 @@ class TestUserTenantIsolation:
         assert client.delete(f'/v1/users/{user_b.id}', headers=auth_headers(token_a)).status_code == 404
         assert client.post(f'/v1/users/{user_b.id}/reset-mfa',
                            headers=auth_headers(token_a)).status_code == 404
+
+    def test_cannot_see_or_revoke_other_tenant_invitation(self, app, client):
+        _, rid_b = _two_tenants()
+        link = ActivationLink.create_invite_link(restaurant_id=rid_b)
+        db.session.add(link)
+        db.session.commit()
+        token_a = get_token(client, email='a@mariam.app')
+
+        listed = client.get('/v1/users/invitations', headers=auth_headers(token_a)).get_json()
+        res = client.delete(f'/v1/users/invitations/{link.id}', headers=auth_headers(token_a))
+
+        assert listed['invitations'] == []
+        assert res.status_code == 404
+        assert db.session.get(ActivationLink, link.id).revoked_at is None
 
 
 class TestSettingsTenantIsolation:
@@ -306,6 +329,37 @@ class TestSupervisorManagesOnlyPeers:
         res = client.post(f'/v1/users/{site_admin}/reset-mfa', headers=auth_headers(token))
         assert res.status_code == 404
 
+    def _invitations(self, org, rid):
+        site = ActivationLink.create_invite_link(restaurant_id=rid, organization_id=org)
+        peer = ActivationLink.create_invite_link(role='org_admin', organization_id=org)
+        db.session.add_all([site, peer])
+        db.session.commit()
+        return site.id, peer.id
+
+    def _listed(self, client, token):
+        res = client.get('/v1/users/invitations', headers=auth_headers(token))
+        return {invitation['id'] for invitation in res.get_json()['invitations']}
+
+    def test_a_supervisor_handles_supervisor_invitations_only(self, app, client):
+        org, rid, _ = self._org_with_site_admin('peer-org-5')
+        site, peer = self._invitations(org, rid)
+        token = get_token(client, email='sup@mariam.app')
+
+        assert self._listed(client, token) == {peer}
+        res = client.delete(f'/v1/users/invitations/{site}', headers=auth_headers(token))
+        assert res.status_code == 404
+        assert db.session.get(ActivationLink, site).revoked_at is None
+
+    def test_a_site_admin_handles_its_site_invitations_only(self, app, client):
+        org, rid, _ = self._org_with_site_admin('peer-org-6')
+        site, peer = self._invitations(org, rid)
+        token = get_token(client, email='siteadmin@mariam.app')
+
+        assert self._listed(client, token) == {site}
+        res = client.delete(f'/v1/users/invitations/{peer}', headers=auth_headers(token))
+        assert res.status_code == 404
+        assert db.session.get(ActivationLink, peer).revoked_at is None
+
     def test_cannot_change_a_site_account(self, app, client):
         _, _, site_admin = self._org_with_site_admin('peer-org-3')
         token = get_token(client, email='sup@mariam.app')
@@ -338,43 +392,32 @@ class TestDeletionNeedsStepUp:
         rid = make_restaurant(None, name='STEP', code='STEP_SITE')
         db.session.get(Restaurant, rid).organization_id = org
         db.session.commit()
-        _make_user('boss@mariam.app', 'admin', rid, org)
+        boss = _make_user('boss@mariam.app', 'admin', rid, org)
         victim = _make_user('victim@mariam.app', 'editor', rid, org)
-        return victim
-
-    def _step_up(self, client, token):
-        res = client.post(
-            '/v1/auth/step-up/password',
-            json={'password': TEST_PASSWORD},
-            headers=auth_headers(token),
-        )
-        assert res.status_code == 200, res.get_json()
-        return res.get_json()['step_up_token']
+        return boss, victim
 
     def test_delete_without_proof_is_rejected(self, app, client):
-        victim = self._pair()
-        token = get_token(client, email='boss@mariam.app')
-        res = client.delete(f'/v1/users/{victim}', headers=auth_headers(token))
+        boss, victim = self._pair()
+        res = client.delete(f'/v1/users/{victim}', headers=session_headers(boss))
         assert res.status_code == 401
         assert db.session.get(User, victim) is not None
 
     def test_wrong_password_yields_no_proof(self, app, client):
-        self._pair('step-org-2')
-        token = get_token(client, email='boss@mariam.app')
+        boss, _ = self._pair('step-org-2')
+        secret = enable_totp(boss)
         res = client.post(
             '/v1/auth/step-up/password',
-            json={'password': 'WrongPass123!'},
-            headers=auth_headers(token),
+            json={'password': 'WrongPass123!', 'mfa_code': pyotp.TOTP(secret).now()},
+            headers=session_headers(boss),
         )
         assert res.status_code == 401
 
     def test_delete_succeeds_with_a_fresh_proof(self, app, client):
-        victim = self._pair('step-org-3')
-        token = get_token(client, email='boss@mariam.app')
-        proof = self._step_up(client, token)
+        boss, victim = self._pair('step-org-3')
+        proof = identity_proof(client, boss)
         res = client.delete(
             f'/v1/users/{victim}',
-            headers={**auth_headers(token), 'X-Step-Up-Token': proof},
+            headers={**session_headers(boss), 'X-Step-Up-Token': proof},
         )
         assert res.status_code == 200
         assert db.session.get(User, victim) is None

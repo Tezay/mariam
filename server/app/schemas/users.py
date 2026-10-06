@@ -1,5 +1,7 @@
 from marshmallow import EXCLUDE, Schema, fields
 
+from .common import NormalizedEmail
+
 
 class UiPreferencesSchema(Schema):
     class Meta:
@@ -35,17 +37,20 @@ class UserUpdateSchema(Schema):
 class InviteSchema(Schema):
     class Meta:
         unknown = EXCLUDE
-    email = fields.Email(required=True, description="Email address to invite")
-    role = fields.Str(description="Role: 'admin', 'editor', or 'reader'")
-    restaurant_id = fields.Int(
-        required=False, description="Target site id (org_admin inviting onto a specific site)"
+    email = NormalizedEmail(
+        allow_none=True,
+        load_default=None,
+        description="Suggested address; the invitee may enter another at activation",
     )
+    role = fields.Str(description="Role: 'admin', 'editor', or 'reader'")
 
 
 class InvitationSchema(Schema):
     class Meta:
         unknown = EXCLUDE
+    id = fields.Int()
     token = fields.Str()
-    email = fields.Email()
+    email = fields.Email(allow_none=True)
     role = fields.Str()
     expires_at = fields.Str()
+    created_by_name = fields.Str(allow_none=True)

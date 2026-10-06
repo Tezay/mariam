@@ -9,9 +9,10 @@
  * - Réinitialiser le MFA
  */
 import { useCallback, useMemo, useState, useEffect } from 'react';
-import { adminApi } from '@/lib/api/admin';
+import { adminApi, type Invitation } from '@/lib/api/admin';
 import { restaurantApi, AdminSite } from '@/lib/api/restaurant';
 import { getApiErrorMessage } from '@/lib/api/errors';
+import { EMAIL_RULE, canonicalEmail } from '@/lib/email-address';
 import { User } from '@/lib/api/auth';
 import { notify } from '@/lib/toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -33,6 +34,18 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  AlertTriangle,
+  Ban,
   UserPlus,
   Eye,
   Trash2,
@@ -47,14 +60,9 @@ import {
   Link as LinkIcon,
 } from 'lucide-react';
 
-interface Invitation {
-  token: string;
-  email: string;
-  role: string;
-  expires_at: string;
-  is_used: boolean;
-  is_valid: boolean;
-}
+// The API sends UTC without an offset.
+const expiryDate = (expiresAt: string) =>
+  new Date(`${expiresAt}Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
 
 export function UsersPage() {
   const { user: currentUser } = useAuth();
@@ -66,6 +74,8 @@ export function UsersPage() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [resettingUser, setResettingUser] = useState<User | null>(null);
+  const [revokingInvitation, setRevokingInvitation] = useState<Invitation | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   // Charger les données
@@ -79,8 +89,7 @@ export function UsersPage() {
       ]);
       setUsers(usersData);
       setSites(sitesData);
-      // Filter active invitations (not used AND still valid)
-      setInvitations(invitationsData.filter((inv: Invitation) => !inv.is_used && inv.is_valid));
+      setInvitations(invitationsData);
     } catch {
       notify.error('Erreur lors du chargement des utilisateurs');
     } finally {
@@ -108,21 +117,27 @@ export function UsersPage() {
     setDeletingUser(null);
   };
 
-  // Réinitialiser MFA
-  const handleResetMfa = async (user: User) => {
-    if (
-      !confirm(
-        `Réinitialiser le MFA de ${user.email} ? L'utilisateur devra reconfigurer son authentificateur.`
-      )
-    )
-      return;
+  const handleResetMfa = async (stepUpToken: string) => {
+    if (!resettingUser) return;
+    const name = resettingUser.username || resettingUser.email;
+    await adminApi.resetUserMfa(resettingUser.id, stepUpToken);
+    notify.success(
+      'Double authentification réinitialisée',
+      `Prévenez ${name} : une nouvelle connexion est nécessaire.`
+    );
+    setResettingUser(null);
+  };
 
+  const handleRevokeInvitation = async () => {
+    if (!revokingInvitation) return;
     try {
-      await adminApi.resetUserMfa(user.id);
-      notify.success("MFA réinitialisé. Nouveau lien d'activation envoyé.");
-      loadData();
-    } catch {
-      notify.error('Erreur lors de la réinitialisation');
+      await adminApi.revokeInvitation(revokingInvitation.id);
+      setInvitations((previous) => previous.filter((inv) => inv.id !== revokingInvitation.id));
+      notify.success('Invitation révoquée', 'Son lien ne fonctionne plus.');
+    } catch (err) {
+      notify.error(getApiErrorMessage(err, 'La révocation a échoué'));
+    } finally {
+      setRevokingInvitation(null);
     }
   };
 
@@ -208,12 +223,12 @@ export function UsersPage() {
                   <SlidersHorizontal className="h-4 w-4" />
                   Rôle et accès
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleResetMfa(user)} className="gap-2">
-                  <RefreshCw className="h-4 w-4" />
-                  Réinitialiser l'authentification
-                </DropdownMenuItem>
                 {user.id !== currentUser?.id && (
                   <>
+                    <DropdownMenuItem onClick={() => setResettingUser(user)} className="gap-2">
+                      <RefreshCw className="h-4 w-4" />
+                      Réinitialiser la double authentification
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() => setDeletingUser(user)}
@@ -336,18 +351,25 @@ export function UsersPage() {
                       className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="min-w-0">
-                        <p className="truncate font-medium text-foreground">{inv.email}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Expire le {new Date(inv.expires_at).toLocaleDateString('fr-FR')}
+                        <div className="flex items-center gap-2">
+                          <p className="truncate font-medium text-foreground">
+                            {inv.email ?? 'Invitation sans adresse'}
+                          </p>
+                          <RoleBadge role={inv.role} className="shrink-0" />
+                        </div>
+                        <p className="mt-0.5 text-sm text-muted-foreground">
+                          {inv.created_by_name
+                            ? `Créée par ${inv.created_by_name} · expire le `
+                            : 'Expire le '}
+                          {expiryDate(inv.expires_at)}
                         </p>
                       </div>
-                      <div className="flex shrink-0 items-center gap-3">
-                        <RoleBadge role={inv.role} />
+                      <div className="flex shrink-0 gap-2">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => copyInviteLink(inv.token)}
-                          className="gap-2"
+                          className="flex-1 gap-2 sm:flex-none"
                         >
                           {copiedToken === inv.token ? (
                             <>
@@ -360,6 +382,15 @@ export function UsersPage() {
                               Copier le lien
                             </>
                           )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setRevokingInvitation(inv)}
+                          className="flex-1 gap-2 text-destructive hover:text-destructive sm:flex-none"
+                        >
+                          <Ban className="h-4 w-4" />
+                          Révoquer
                         </Button>
                       </div>
                     </div>
@@ -381,10 +412,42 @@ export function UsersPage() {
         onConfirmed={handleDeleteUser}
       />
 
+      <StepUpDialog
+        open={Boolean(resettingUser)}
+        onOpenChange={(open) => !open && setResettingUser(null)}
+        title={`Réinitialiser la double authentification de ${resettingUser?.username || resettingUser?.email || ''}`}
+        description="Confirmez votre identité pour continuer."
+        warning="Son application d'authentification et ses passkeys seront supprimées, et ses appareils déconnectés. À sa prochaine connexion, ce compte devra en configurer de nouvelles avec son mot de passe."
+        confirmLabel="Réinitialiser"
+        onConfirmed={handleResetMfa}
+      />
+
+      <AlertDialog
+        open={Boolean(revokingInvitation)}
+        onOpenChange={(open) => !open && setRevokingInvitation(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Révoquer cette invitation ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Le lien cessera de fonctionner immédiatement. Vous pourrez en créer un nouveau.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRevokeInvitation}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Révoquer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Modal d'invitation */}
       {showInviteModal && (
         <InviteModal
-          sites={sites}
           isOrgScope={isOrgScope}
           onClose={() => setShowInviteModal(false)}
           onSuccess={() => {
@@ -413,30 +476,34 @@ export function UsersPage() {
 function InviteModal({
   onClose,
   onSuccess,
-  sites,
   isOrgScope,
 }: {
   onClose: () => void;
   onSuccess: () => void;
-  sites: AdminSite[];
   isOrgScope: boolean;
 }) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'admin' | 'editor' | 'reader'>('editor');
-  const [siteId, setSiteId] = useState<string>(() => (sites.length ? String(sites[0].id) : ''));
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<{ token: string } | null>(null);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError('');
 
+    const suggested = email.trim() ? canonicalEmail(email) : undefined;
+    if (suggested === null) {
+      setError(EMAIL_RULE);
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      const invitation = isOrgScope
-        ? await adminApi.createInvitation(email, 'org_admin')
-        : await adminApi.createInvitation(email, role, siteId ? Number(siteId) : undefined);
+      const invitation = await adminApi.createInvitation(
+        isOrgScope ? 'org_admin' : role,
+        suggested
+      );
       setResult({ token: invitation.token });
     } catch (err) {
       setError(getApiErrorMessage(err, 'Erreur lors de la création'));
@@ -467,12 +534,19 @@ function InviteModal({
         {result ? (
           <div className="space-y-4">
             <div className="rounded-lg bg-green-500/10 p-4 text-green-600 dark:text-green-400">
-              <p className="font-medium">Invitation créée avec succès !</p>
-              <p className="mt-1 text-sm">Partagez ce lien avec {email}</p>
+              <p className="font-medium">Invitation créée</p>
+              <p className="mt-1 text-sm">
+                Envoyez ce lien à la personne concernée. Il est valable 72 h et ne fonctionne qu'une
+                fois.
+              </p>
             </div>
             <div className="break-all rounded-lg bg-muted p-3 text-sm text-foreground">
               {window.location.origin}/activate/{result.token}
             </div>
+            <p className="flex items-start gap-2 text-sm text-muted-foreground">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              Toute personne qui possède ce lien peut créer le compte : ne le transmettez qu'à elle.
+            </p>
             <div className="flex gap-2">
               <Button onClick={copyLink} className="flex-1 gap-2">
                 <Copy className="h-4 w-4" />
@@ -486,34 +560,18 @@ function InviteModal({
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Adresse e-mail (facultatif)</Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="utilisateur@example.com"
-                required
+                className="mt-1"
               />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Elle préremplit le formulaire de la personne invitée, qui pourra la modifier.
+              </p>
             </div>
-
-            {!isOrgScope && sites.length > 0 && (
-              <div>
-                <Label htmlFor="invite-site">Site</Label>
-                <select
-                  id="invite-site"
-                  value={siteId}
-                  onChange={(e) => setSiteId(e.target.value)}
-                  className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {sites.map((site) => (
-                    <option key={site.id} value={site.id}>
-                      {site.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
 
             {isOrgScope ? (
               <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-3">

@@ -6,7 +6,7 @@ from flask_jwt_extended import create_access_token, create_refresh_token
 
 from app.extensions import db
 from app.models import ActivationLink, Passkey, User
-from conftest import auth_headers
+from conftest import TEST_PASSWORD, auth_headers
 from tests.webauthn_authenticator import SoftAuthenticator
 
 
@@ -37,6 +37,15 @@ def enable_totp(user_id: int) -> str:
     return user.mfa_secret
 
 
+def identity_proof(client, user_id: int) -> str:
+    """Enables TOTP on the account first: a proof needs a second factor."""
+    secret = enable_totp(user_id)
+    res = client.post('/v1/auth/step-up/password', headers=session_headers(user_id), json={
+        'password': TEST_PASSWORD, 'mfa_code': pyotp.TOTP(secret).now(),
+    })
+    return res.get_json()['step_up_token']
+
+
 def new_authenticator() -> SoftAuthenticator:
     return SoftAuthenticator(
         current_app.config['WEBAUTHN_RP_ID'], current_app.config['WEBAUTHN_ORIGIN']
@@ -64,7 +73,7 @@ def reset_link(email: str) -> str:
     return link.token
 
 
-def invite_link(email: str, role: str = 'editor') -> str:
+def invite_link(email: str | None = None, role: str = 'editor') -> str:
     link = ActivationLink.create_invite_link(email, role=role)
     db.session.add(link)
     db.session.commit()

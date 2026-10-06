@@ -50,6 +50,7 @@ class AuditLog(db.Model):
     ACTION_EVENT_UPDATE = 'event_update'
     ACTION_EVENT_DELETE = 'event_delete'
     ACTION_ACTIVATION_LINK_CREATE = 'activation_link_create'
+    ACTION_ACTIVATION_LINK_REVOKE = 'activation_link_revoke'
     ACTION_ACCOUNT_ACTIVATE = 'account_activate'
     ACTION_AUDIT_LOGS_ACCESS = 'audit_logs_access'
     ACTION_AUDIT_LOGS_EXPORT = 'audit_logs_export'

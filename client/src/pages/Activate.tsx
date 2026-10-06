@@ -2,14 +2,17 @@
  * MARIAM - Account activation
  *
  * Steps:
- * 1. Password      — set the account password
+ * 1. Account       — name, address and password, all chosen by the invitee
  * 2. Second factor — passkey or authenticator application, on the screens the
  *    dashboard enrolment page also uses, then straight into the session
  */
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { authApi } from '@/lib/api/auth';
+import { authApi, type ActivationLinkInfo } from '@/lib/api/auth';
+import { DISPLAY_NAME_RULE, parseDisplayName } from '@/lib/display-name';
+import { EMAIL_RULE, canonicalEmail } from '@/lib/email-address';
+import { roleLabel } from '@/lib/roles';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,11 +36,7 @@ export function Activate() {
 
   // État global
   const [step, setStep] = useState<Step>('loading');
-  const [linkInfo, setLinkInfo] = useState<{
-    link_type: string;
-    email?: string;
-    role: string;
-  } | null>(null);
+  const [linkInfo, setLinkInfo] = useState<ActivationLinkInfo | null>(null);
 
   // Formulaire mot de passe
   const [email, setEmail] = useState('');
@@ -91,20 +90,32 @@ export function Activate() {
 
   const passwordErrors = validatePassword(password);
   const passwordsMatch = password === confirmPassword;
+  const displayName = parseDisplayName(username);
+  const address = canonicalEmail(email);
+
+  const destination =
+    linkInfo?.role === 'org_admin'
+      ? linkInfo.organization_name
+      : (linkInfo?.restaurant_name ?? linkInfo?.organization_name);
+  const role = roleLabel(linkInfo?.role);
 
   // Soumission du mot de passe → affiche le choix 2FA
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (passwordErrors.length > 0 || !passwordsMatch) {
+    if (!displayName || !address || passwordErrors.length > 0 || !passwordsMatch) {
       setError('Veuillez corriger les erreurs ci-dessus');
       return;
     }
 
     setIsLoading(true);
     try {
-      const result = await authApi.activate(token!, password, email, username);
+      const result = await authApi.activate(token!, {
+        email: address,
+        username: displayName,
+        password,
+      });
 
       if (result.mfa_setup) {
         setQrCode(result.mfa_setup.qr_code);
@@ -164,7 +175,10 @@ export function Activate() {
               <X className="h-8 w-8 text-destructive" />
             </div>
             <h2 className="mb-2 text-xl font-semibold text-foreground">Lien invalide</h2>
-            <p className="text-muted-foreground">Ce lien d'activation est invalide ou a expiré.</p>
+            <p className="text-muted-foreground">
+              Ce lien est invalide, expiré ou a été révoqué. Demandez une nouvelle invitation à
+              votre administrateur.
+            </p>
           </div>
         </div>
       </div>
@@ -180,37 +194,60 @@ export function Activate() {
           <p className="mt-4 text-muted-foreground">
             {linkInfo?.link_type === 'first_admin'
               ? 'Configuration du premier administrateur'
-              : 'Activation de votre compte'}
+              : 'Création de votre compte'}
           </p>
         </div>
 
         <div className="rounded-lg border border-border bg-card p-8 shadow-lg">
-          {/* ── Step 1: password ────────────────────────────── */}
+          {/* ── Step 1: account ─────────────────────────────── */}
           {step === 'password' && (
-            <form onSubmit={handlePasswordSubmit} className="space-y-6">
-              <div>
-                <Label htmlFor="email">Adresse email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={!!linkInfo?.email}
-                  className="mt-1"
-                />
-              </div>
+            <form onSubmit={handlePasswordSubmit} className="space-y-5">
+              {destination && (
+                <p className="rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
+                  Vous rejoignez <strong>{destination}</strong> en tant{' '}
+                  {/^[aeéiou]/i.test(role) ? 'qu’' : 'que '}
+                  <strong>{role}</strong>.
+                </p>
+              )}
 
               <div>
-                <Label htmlFor="username">Nom d'affichage (optionnel)</Label>
+                <Label htmlFor="username">Prénom et nom</Label>
                 <Input
                   id="username"
                   type="text"
+                  autoComplete="name"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Jean Dupont"
+                  required
                   className="mt-1"
                 />
+                {username && !displayName ? (
+                  <p className="mt-1 text-sm text-destructive">{DISPLAY_NAME_RULE}</p>
+                ) : (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Visible par les utilisateurs.
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="email">Adresse e-mail</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="mt-1"
+                />
+                {email && !address ? (
+                  <p className="mt-1 text-sm text-destructive">{EMAIL_RULE}</p>
+                ) : (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Elle servira à vous connecter. Modifiable plus tard depuis vos paramètres.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -218,6 +255,7 @@ export function Activate() {
                 <Input
                   id="password"
                   type="password"
+                  autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -242,6 +280,7 @@ export function Activate() {
                 <Input
                   id="confirmPassword"
                   type="password"
+                  autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
@@ -263,7 +302,13 @@ export function Activate() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isLoading || passwordErrors.length > 0 || !passwordsMatch}
+                disabled={
+                  isLoading ||
+                  !displayName ||
+                  !address ||
+                  passwordErrors.length > 0 ||
+                  !passwordsMatch
+                }
               >
                 {isLoading ? 'Création…' : 'Créer mon compte'}
               </Button>
