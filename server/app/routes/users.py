@@ -120,14 +120,18 @@ def _pending_invitations(caller):
 @users_bp.arguments(InviteSchema)
 @users_bp.response(201, InvitationSchema)
 @users_bp.alt_response(400, schema=ErrorSchema, description="Invalid role")
+@users_bp.alt_response(
+    403, schema=ErrorSchema, description="Identity confirmation required, or role out of scope"
+)
 @users_bp.alt_response(409, schema=ErrorSchema, description="Suggested email already in use")
 @admin_required
+@step_up_required
 def create_invitation(data):
     """Create an invitation link for a new user.
 
-    Returns a token to send to the invitee so they can set up
-    their account and MFA via `/activate/<token>`. The email is optional and
-    only pre-fills the activation form: the invitee enters their own.
+    Requires a confirmed session. Returns a token to send to the invitee so they
+    can set up their account and MFA via `/activate/<token>`. The email is optional
+    and only pre-fills the activation form: the invitee enters their own.
     """
     current_user_id = int(get_jwt_identity())
     inviter = get_current_user()

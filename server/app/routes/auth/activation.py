@@ -22,7 +22,13 @@ from ...schemas.common import ErrorSchema
 from ...security import get_client_ip, limiter
 from ...services import passkeys, totp
 from ...services.passkeys import Ceremony
-from ._common import complete_login, token_pair, user_not_found, weak_password
+from ._common import (
+    CONFIRMATION_WINDOW,
+    complete_login,
+    token_pair,
+    user_not_found,
+    weak_password,
+)
 from .blueprint import auth_bp
 
 SETUP_TTL = timedelta(minutes=15)
@@ -214,7 +220,7 @@ def verify_mfa_setup(data):
     return jsonify({
         'message': 'MFA activé avec succès',
         'user': user.to_dict(include_tenant=True),
-        **token_pair(user),
+        **token_pair(user, confirmed=CONFIRMATION_WINDOW),
     }), 200
 
 

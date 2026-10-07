@@ -6,7 +6,7 @@ from app.models import ActivationLink, AuditLog, User
 from conftest import auth_headers, make_user
 from tests.auth_support import (
     confirmed_headers,
-    identity_proof,
+    enable_totp,
     is_signed_in,
     issue_session,
     reset_link,
@@ -26,8 +26,7 @@ def _update_from(client, user_id, access_token, **changes):
     """From a session an earlier change kept: one minted here, within the second
     of that change, would fall under its revocation.
     """
-    headers = auth_headers(access_token)
-    headers['X-Step-Up-Token'] = identity_proof(client, user_id, headers)
+    headers = confirmed_headers(client, user_id, auth_headers(access_token))
     return client.patch('/v1/auth/me', json=changes, headers=headers)
 
 
@@ -35,9 +34,10 @@ def _refresh(client, refresh_token):
     return client.post('/v1/auth/refresh', headers=auth_headers(refresh_token))
 
 
-class TestProof:
-    def test_nothing_changes_without_a_proof(self, app, client):
+class TestConfirmation:
+    def test_nothing_changes_from_an_unconfirmed_session(self, app, client):
         uid = make_user(app)
+        enable_totp(uid)
 
         res = client.patch(
             '/v1/auth/me', json={'username': 'Jean Dupont'}, headers=session_headers(uid)
@@ -47,29 +47,18 @@ class TestProof:
         assert res.get_json()['step_up_required'] is True
         assert db.session.get(User, uid).username == 'admin'
 
-    def test_a_refused_change_spends_the_proof_all_the_same(self, app, client, revocations):
+    def test_a_new_address_closes_the_confirmation(self, app, client):
         uid = make_user(app)
-        make_user(app, email='taken@mariam.app')
-        headers = confirmed_headers(client, uid)
+        kept = auth_headers(_update(client, uid, email=NEW_ADDRESS).get_json()['access_token'])
 
-        refused = client.patch('/v1/auth/me', json={'email': 'taken@mariam.app'}, headers=headers)
-        again = client.patch('/v1/auth/me', json={'email': NEW_ADDRESS}, headers=headers)
-
-        assert (refused.status_code, again.status_code) == (409, 403)
-        assert db.session.get(User, uid).email == 'admin@mariam.app'
-
-    def test_a_proof_belongs_to_one_account(self, app, client):
-        owner = make_user(app)
-        other = make_user(app, email='other@mariam.app')
-
-        res = client.patch(
+        refused = client.patch('/v1/auth/me', json={'username': 'Jean Dupont'}, headers=kept)
+        confirmed = client.patch(
             '/v1/auth/me',
             json={'username': 'Jean Dupont'},
-            headers={**session_headers(other), 'X-Step-Up-Token': identity_proof(client, owner)},
+            headers=confirmed_headers(client, uid, kept),
         )
 
-        assert res.status_code == 403
-        assert db.session.get(User, other).username == 'other'
+        assert (refused.status_code, confirmed.status_code) == (403, 200)
 
 
 class TestName:

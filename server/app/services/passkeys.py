@@ -23,6 +23,7 @@ from webauthn.helpers.structs import (
 )
 
 from ..models import Passkey, User
+from ..security import claim_token
 from ..utils.time import utc_now_naive
 
 CHALLENGE_TTL = timedelta(seconds=120)
@@ -75,6 +76,10 @@ def read_challenge(token: str, ceremony: Ceremony) -> tuple[int, bytes]:
     # A challenge answers the ceremony that issued it: one begun with a mere reset
     # link must not complete a passkey setup, which opens a session.
     if claims.get('webauthn_ceremony') != ceremony:
+        raise InvalidChallenge
+    # Spent on its first reading: a response signed over a challenge that could
+    # serve again could be replayed with it.
+    if not claim_token(claims['jti'], int(CHALLENGE_TTL.total_seconds())):
         raise InvalidChallenge
     return int(claims['sub']), base64url_to_bytes(claims['webauthn_challenge'])
 

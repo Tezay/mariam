@@ -1,6 +1,13 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { API_URL } from '../runtime-config';
-import { clearTokens, getAccessToken, getRefreshToken, setAccessToken } from './tokens';
+import { isConfirmationRequired } from './errors';
+import {
+  clearTokens,
+  forgetConfirmation,
+  getAccessToken,
+  getRefreshToken,
+  setAccessToken,
+} from './tokens';
 
 export const PUBLIC_API_TIMEOUT_MS = 20000;
 
@@ -62,6 +69,8 @@ api.interceptors.response.use(
 
     const status = error.response?.status;
 
+    if (isConfirmationRequired(error)) forgetConfirmation();
+
     if (status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -113,8 +122,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-export const withProof = (proof: string) => ({ headers: { 'X-Step-Up-Token': proof } });
 
 // No token and no refresh: a public page must neither carry a staff session nor
 // send a visitor to the login.

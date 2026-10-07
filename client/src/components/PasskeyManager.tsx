@@ -8,7 +8,9 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIdentityConfirmed, useStepUp } from '@/hooks/useStepUp';
 import { authApi, type PasskeyInfo } from '@/lib/api/auth';
+import { passkeyRegistrationError } from '@/lib/passkey-errors';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -37,6 +39,8 @@ function formatDate(dateStr: string | null): string {
 
 export function PasskeyManager() {
   const { user, refreshUser } = useAuth();
+  const confirmIdentity = useStepUp();
+  const identityConfirmed = useIdentityConfirmed();
   const [passkeys, setPasskeys] = useState<PasskeyInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRegistering, setIsRegistering] = useState(false);
@@ -70,8 +74,21 @@ export function PasskeyManager() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
-    setIsRegistering(true);
 
+    if (!(await confirmIdentity({ description: "Avant d'enregistrer un nouvel appareil." }))) {
+      return;
+    }
+    // The browser creates a passkey only in answer to a click, and confirming
+    // has spent this one.
+    if (!identityConfirmed) {
+      setMessage({
+        type: 'success',
+        text: 'Identité confirmée. Cliquez de nouveau pour enregistrer la passkey.',
+      });
+      return;
+    }
+
+    setIsRegistering(true);
     try {
       const { options, challenge_token } = await authApi.passkeyRegisterBegin();
       const credential = await startRegistration({
@@ -92,16 +109,8 @@ export function PasskeyManager() {
         setDialogOpen(false);
         setMessage(null);
       }, 1500);
-    } catch (err: unknown) {
-      const error = err as { name?: string; response?: { data?: { error?: string } } };
-      if (error.name === 'NotAllowedError') {
-        setMessage({ type: 'error', text: 'Enregistrement annulé' });
-      } else {
-        setMessage({
-          type: 'error',
-          text: error.response?.data?.error || "Échec de l'enregistrement de la passkey",
-        });
-      }
+    } catch (err) {
+      setMessage({ type: 'error', text: passkeyRegistrationError(err) });
     } finally {
       setIsRegistering(false);
     }
@@ -150,7 +159,13 @@ export function PasskeyManager() {
       return;
     }
 
-    if (!confirm(`Supprimer la passkey « ${passkey.device_name || 'cet appareil'} » ?`)) return;
+    const confirmed = await confirmIdentity({
+      title: `Supprimer « ${passkey.device_name || 'cet appareil'} »`,
+      description: 'Cet appareil ne pourra plus servir à vous connecter.',
+      confirmLabel: 'Supprimer',
+      tone: 'destructive',
+    });
+    if (!confirmed) return;
 
     try {
       await authApi.deletePasskey(passkey.id);

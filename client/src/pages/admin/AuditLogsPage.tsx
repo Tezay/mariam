@@ -164,17 +164,17 @@ export function AuditLogsPage() {
 
   // Export
   const handleExport = async () => {
-    const proof = await confirmIdentity({
+    const confirmed = await confirmIdentity({
       title: "Exporter le journal d'audit",
       description:
         'Le fichier contient les adresses e-mail et les adresses IP des comptes. Confirmez votre identité pour le télécharger.',
       confirmLabel: 'Exporter',
     });
-    if (!proof) return;
+    if (!confirmed) return;
 
     setIsExporting(true);
     try {
-      await adminApi.exportAuditLogs(proof, {
+      await adminApi.exportAuditLogs({
         action: actionFilter || undefined,
       });
     } catch {

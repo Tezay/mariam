@@ -11,6 +11,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { dashboardPathForRole } from '@/lib/dashboard-routes';
 import { QRCodeSVG } from 'qrcode.react';
 import { authApi } from '@/lib/api/auth';
+import { needsSecuritySetup } from '@/hooks/useSecurityOnboarding';
+import { useIdentityConfirmed, useStepUp } from '@/hooks/useStepUp';
 import { detectPlatform } from '@/lib/push';
 import { usePwaInstall } from '@/contexts/PwaInstallContext';
 import { Logo } from '@/components/Logo';
@@ -199,8 +201,21 @@ function AndroidInstructions({ onDone }: { onDone: () => void }) {
 }
 
 // ─── Desktop branch ───────────────────────────────────────────────────────────
+
+// The phone inherits what is left of this session's confirmation: enough for
+// the code to be scanned as it expires, and a passkey registered after that.
+const HAND_OVER_HEADROOM_MS = 7 * 60 * 1000;
+
 function DesktopInstructions({ onDone }: { onDone: () => void }) {
+  const { user } = useAuth();
   const { installPrompt, triggerInstall } = usePwaInstall();
+  const confirmIdentity = useStepUp();
+  const confirmedForHandOver = useIdentityConfirmed(HAND_OVER_HEADROOM_MS);
+  // The server asks nothing of an account without a second factor.
+  const unenrolled = needsSecuritySetup(user);
+  // Decided once: a confirmation should answer a click, not the page opening.
+  const [showsAtOnce] = useState(() => unenrolled || confirmedForHandOver);
+  const [asksConfirmation, setAsksConfirmation] = useState(!showsAtOnce);
   const [transferToken, setTransferToken] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<number>(0);
   const [secondsLeft, setSecondsLeft] = useState(0);
@@ -214,16 +229,32 @@ function DesktopInstructions({ onDone }: { onDone: () => void }) {
       setTransferToken(transfer_token);
       setExpiresAt(Date.now() + expires_in * 1000);
       setSecondsLeft(expires_in);
+      setAsksConfirmation(false);
     } catch {
-      // silently fail — user can retry
+      setAsksConfirmation(true);
     } finally {
       setIsGenerating(false);
     }
   }, []);
 
+  const showQrCode = async () => {
+    const confirmed =
+      unenrolled ||
+      (await confirmIdentity(
+        {
+          title: 'Afficher le QR code',
+          description:
+            "Ce code ouvre votre session sur un autre appareil. Confirmez votre identité pour l'afficher.",
+          confirmLabel: 'Afficher',
+        },
+        HAND_OVER_HEADROOM_MS
+      ));
+    if (confirmed) await generateToken();
+  };
+
   useEffect(() => {
-    generateToken();
-  }, [generateToken]);
+    if (showsAtOnce) generateToken();
+  }, [showsAtOnce, generateToken]);
 
   // Countdown
   useEffect(() => {
@@ -265,25 +296,37 @@ function DesktopInstructions({ onDone }: { onDone: () => void }) {
 
       {/* QR code */}
       <div className="flex flex-col items-center gap-3">
-        <div className="relative rounded-xl border-2 border-primary/20 bg-white p-4">
-          {isGenerating || !qrUrl ? (
-            <div className="flex h-48 w-48 items-center justify-center">
-              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
-            </div>
-          ) : (
-            <QRCodeSVG value={qrUrl} size={192} bgColor="#ffffff" fgColor="#093EAA" level="M" />
-          )}
-          {expired && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl bg-background/90">
-              <p className="text-sm font-medium">Code expiré</p>
-              <Button size="sm" variant="outline" onClick={generateToken} className="gap-1">
-                <RefreshCw className="h-3 w-3" /> Régénérer
-              </Button>
-            </div>
-          )}
-        </div>
+        {asksConfirmation ? (
+          <div className="flex max-w-xs flex-col items-center gap-3 rounded-xl border border-border bg-muted/40 p-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Ce code ouvre votre session sur un autre appareil. Confirmez votre identité pour
+              l'afficher.
+            </p>
+            <Button size="sm" onClick={showQrCode}>
+              Afficher le QR code
+            </Button>
+          </div>
+        ) : (
+          <div className="relative rounded-xl border-2 border-primary/20 bg-white p-4">
+            {isGenerating || !qrUrl ? (
+              <div className="flex h-48 w-48 items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+              </div>
+            ) : (
+              <QRCodeSVG value={qrUrl} size={192} bgColor="#ffffff" fgColor="#093EAA" level="M" />
+            )}
+            {expired && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl bg-background/90">
+                <p className="text-sm font-medium">Code expiré</p>
+                <Button size="sm" variant="outline" onClick={showQrCode} className="gap-1">
+                  <RefreshCw className="h-3 w-3" /> Régénérer
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
 
-        {!expired && transferToken && (
+        {!expired && !asksConfirmation && transferToken && (
           <p className="text-xs text-muted-foreground">
             Expire dans{' '}
             <span className="font-mono font-medium">
@@ -292,7 +335,7 @@ function DesktopInstructions({ onDone }: { onDone: () => void }) {
           </p>
         )}
 
-        {qrUrl && !expired && (
+        {qrUrl && !expired && !asksConfirmation && (
           <button
             onClick={handleCopy}
             className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"

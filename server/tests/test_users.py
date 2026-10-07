@@ -9,9 +9,9 @@ from app.models import ActivationLink, AuditLog, User
 from app.utils.time import utc_now_naive
 from conftest import make_restaurant, make_user, get_token, auth_headers, TEST_PASSWORD
 from tests.auth_support import (
+    confirmed_headers,
     enable_totp,
     enroll_passkey,
-    identity_proof,
     is_signed_in,
     issue_session,
     session_headers,
@@ -44,15 +44,27 @@ class TestListUsers:
 class TestInviteUser:
     def test_invite_creates_activation_link(self, app, client):
         make_restaurant(app)
-        make_user(app, role='admin')
-        token = get_token(client)
+        admin = make_user(app, role='admin')
         res = client.post('/v1/users/invite',
                           json={'email': 'newuser@test.com', 'role': 'editor'},
-                          headers=auth_headers(token))
+                          headers=confirmed_headers(client, admin))
         assert res.status_code in (200, 201)
         data = res.get_json()
         assert 'invitation' in data
         assert 'token' in data['invitation']
+
+    def test_invite_requires_a_confirmed_session(self, app, client):
+        make_restaurant(app)
+        admin = make_user(app, role='admin')
+        enable_totp(admin)
+
+        res = client.post(
+            '/v1/users/invite', json={'role': 'admin'}, headers=session_headers(admin)
+        )
+
+        assert res.status_code == 403
+        assert res.get_json()['step_up_required'] is True
+        assert ActivationLink.query.count() == 0
 
     def test_invite_requires_admin(self, app, client):
         make_restaurant(app)
@@ -65,11 +77,10 @@ class TestInviteUser:
 
     def test_invite_duplicate_email(self, app, client):
         make_restaurant(app)
-        make_user(app, role='admin', email='admin@mariam.app')
-        token = get_token(client)
+        admin = make_user(app, role='admin', email='admin@mariam.app')
         res = client.post('/v1/users/invite',
                           json={'email': 'admin@mariam.app', 'role': 'editor'},
-                          headers=auth_headers(token))
+                          headers=confirmed_headers(client, admin))
         assert res.status_code in (400, 409)
 
 
@@ -83,10 +94,10 @@ class TestInvitations:
         return link.id
 
     def test_an_invitation_needs_no_address(self, app, client):
-        make_user(app)
+        admin = make_user(app)
 
         res = client.post(
-            '/v1/users/invite', json={'role': 'editor'}, headers=auth_headers(get_token(client))
+            '/v1/users/invite', json={'role': 'editor'}, headers=confirmed_headers(client, admin)
         )
 
         assert res.status_code == 201
@@ -94,12 +105,12 @@ class TestInvitations:
         assert ActivationLink.query.one().email is None
 
     def test_a_suggested_address_is_stored_lowercase(self, app, client):
-        make_user(app)
+        admin = make_user(app)
 
         client.post(
             '/v1/users/invite',
             json={'email': 'New.User@Test.com', 'role': 'editor'},
-            headers=auth_headers(get_token(client)),
+            headers=confirmed_headers(client, admin),
         )
 
         assert ActivationLink.query.one().email == 'new.user@test.com'
@@ -160,10 +171,7 @@ class TestInvitations:
 
 
 class TestSecondFactorReset:
-    def _reset(self, client, admin_id, target_id, proof=None):
-        headers = session_headers(admin_id)
-        if proof:
-            headers['X-Step-Up-Token'] = proof
+    def _reset(self, client, target_id, headers):
         return client.post(f'/v1/users/{target_id}/reset-mfa', headers=headers)
 
     def _protected_target(self, app):
@@ -177,7 +185,7 @@ class TestSecondFactorReset:
         target = self._protected_target(app)
         session = issue_session(target)
 
-        res = self._reset(client, admin, target, identity_proof(client, admin))
+        res = self._reset(client, target, confirmed_headers(client, admin))
 
         assert res.status_code == 200
         user = db.session.get(User, target)
@@ -189,40 +197,27 @@ class TestSecondFactorReset:
         admin = make_user(app)
         target = self._protected_target(app)
 
-        self._reset(client, admin, target, identity_proof(client, admin))
+        self._reset(client, target, confirmed_headers(client, admin))
 
         entry = AuditLog.query.filter_by(action=AuditLog.ACTION_MFA_DISABLED).one()
         assert (entry.user_id, entry.target_id) == (admin, target)
         assert entry.get_details() == {'totp_removed': True, 'passkeys_removed': 1}
 
-    def test_it_requires_a_proof_of_identity(self, app, client):
+    def test_it_requires_a_confirmed_session(self, app, client):
         admin = make_user(app)
+        enable_totp(admin)
         target = self._protected_target(app)
 
-        res = self._reset(client, admin, target)
+        res = self._reset(client, target, session_headers(admin))
 
         assert res.status_code == 403
         assert res.get_json()['step_up_required'] is True
         assert db.session.get(User, target).mfa_enabled is True
 
-    def test_a_proof_serves_once(self, app, client, revocations):
-        admin = make_user(app)
-        first = self._protected_target(app)
-        second = make_user(app, role='editor', email='second@mariam.app')
-        enable_totp(second)
-        proof = identity_proof(client, admin)
-        self._reset(client, admin, first, proof)
-
-        res = self._reset(client, admin, second, proof)
-
-        assert res.status_code == 403
-        assert db.session.get(User, second).mfa_enabled is True
-
     def test_an_admin_cannot_reset_its_own(self, app, client, revocations):
         admin = make_user(app)
-        proof = identity_proof(client, admin)
 
-        res = self._reset(client, admin, admin, proof)
+        res = self._reset(client, admin, confirmed_headers(client, admin))
 
         assert res.status_code == 400
         assert db.session.get(User, admin).mfa_enabled is True
@@ -233,7 +228,7 @@ class TestSecondFactorReset:
         db.session.get(User, target).is_rescue_account = True
         db.session.commit()
 
-        res = self._reset(client, admin, target, identity_proof(client, admin))
+        res = self._reset(client, target, confirmed_headers(client, admin))
 
         assert res.status_code == 403
         assert db.session.get(User, target).mfa_enabled is True
@@ -364,12 +359,6 @@ class TestUiPreferences:
 class TestLastFactorGuard:
     """One 2FA method must always remain active on an account."""
 
-    def _token(self, app, user_id):
-        """Mint a session directly: password login stops at the 2FA step."""
-        from flask_jwt_extended import create_access_token
-        with app.app_context():
-            return create_access_token(identity=str(user_id))
-
     def _with_passkey(self, user_id, credential=b'cred-1'):
         from app.extensions import db
         from app.models.passkey import Passkey
@@ -390,7 +379,7 @@ class TestLastFactorGuard:
         db.session.get(User, uid).mfa_enabled = True
         db.session.commit()
 
-        res = client.delete('/v1/auth/mfa', headers=auth_headers(self._token(app, uid)))
+        res = client.delete('/v1/auth/mfa', headers=session_headers(uid, confirmed=True))
 
         assert res.status_code == 409
         assert db.session.get(User, uid).mfa_enabled is True
@@ -400,9 +389,7 @@ class TestLastFactorGuard:
         uid = make_user(app)
         passkey_id = self._with_passkey(uid)
 
-        res = client.delete(
-            f'/v1/auth/passkey/{passkey_id}', headers=auth_headers(self._token(app, uid))
-        )
+        res = client.delete(f'/v1/auth/passkey/{passkey_id}', headers=session_headers(uid, confirmed=True))
 
         assert res.status_code == 409
 
@@ -415,8 +402,6 @@ class TestLastFactorGuard:
         db.session.get(User, uid).mfa_enabled = True
         db.session.commit()
 
-        res = client.delete(
-            f'/v1/auth/passkey/{passkey_id}', headers=auth_headers(self._token(app, uid))
-        )
+        res = client.delete(f'/v1/auth/passkey/{passkey_id}', headers=session_headers(uid, confirmed=True))
 
         assert res.status_code == 200

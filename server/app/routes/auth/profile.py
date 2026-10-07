@@ -45,7 +45,7 @@ def _address_taken(user: User):
 @auth_bp.alt_response(
     403,
     schema=AuthErrorSchema,
-    description='No fresh proof of identity, with `step_up_required` set; or the rescue '
+    description='Session not confirmed, with `step_up_required` set; or the rescue '
                 'account changing its address.',
 )
 @auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
@@ -54,11 +54,11 @@ def _address_taken(user: User):
     429, schema=ErrorSchema, description='Address already changed twice within a day.'
 )
 def update_profile(data):
-    """Change the display name or the sign-in address, confirmed by a proof of identity
+    """Change the display name or the sign-in address, from a confirmed session
 
     A new address ends every other session and returns the tokens of the one that
-    replaces the caller's; the previous address is told by email. An account changes
-    address twice a day at most.
+    replaces the caller's, which is not confirmed; the previous address is told by
+    email. An account changes address twice a day at most.
     """
     user = get_current_user()
     if not user:

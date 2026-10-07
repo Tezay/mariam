@@ -4,6 +4,7 @@ from flask_jwt_extended import jwt_required
 from ...extensions import db
 from ...models import AuditLog, Passkey
 from ...schemas.auth import (
+    AuthErrorSchema,
     PasskeyCreatedSchema,
     PasskeyListSchema,
     PasskeyRegistrationSchema,
@@ -15,8 +16,8 @@ from ...schemas.common import ErrorSchema, MessageSchema
 from ...security import get_client_ip, limiter
 from ...services import passkeys
 from ...services.passkeys import Ceremony
-from ..helpers import get_current_user
-from ._common import NO_SESSION, user_not_found
+from ..helpers import get_current_user, step_up_once_enrolled, step_up_required
+from ._common import NO_SESSION, NOT_CONFIRMED, user_not_found
 from .blueprint import auth_bp
 
 UNKNOWN_PASSKEY = 'Unknown passkey, or not the account’s.'
@@ -29,14 +30,17 @@ def _own_passkey(user_id: int, passkey_id: int):
 @auth_bp.route('/passkey/register/begin', methods=['POST'])
 @limiter.limit('10 per minute')
 @jwt_required()
+@step_up_once_enrolled
 @auth_bp.response(200, WebAuthnOptionsSchema)
 @auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
+@auth_bp.alt_response(403, schema=AuthErrorSchema, description=NOT_CONFIRMED)
 @auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
 def passkey_register_begin():
-    """Start adding a passkey from the account settings
+    """Start adding a passkey
 
-    The options leave out the passkeys already registered, and ask for one that serves
-    passwordless sign-in.
+    Asks an account that already has a second factor for a confirmed session; an
+    account with none enrols its first freely. The options leave out the passkeys
+    already registered, and ask for one that serves passwordless sign-in.
     """
     user = get_current_user()
     if not user:
@@ -47,17 +51,22 @@ def passkey_register_begin():
 @auth_bp.route('/passkey/register/complete', methods=['POST'])
 @limiter.limit('10 per minute')
 @jwt_required()
+@step_up_once_enrolled
 @auth_bp.arguments(PasskeyRegistrationSchema)
 @auth_bp.response(201, PasskeyCreatedSchema)
 @auth_bp.alt_response(400, schema=ErrorSchema, description='A credential that fails verification.')
+@auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
 @auth_bp.alt_response(
-    401,
-    schema=ErrorSchema,
-    description=f'Challenge invalid, expired, or issued to another account. {NO_SESSION}',
+    403,
+    schema=AuthErrorSchema,
+    description=f'Challenge invalid, expired, or issued to another account. Or: {NOT_CONFIRMED}',
 )
 @auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
 def passkey_register_complete(data):
-    """Finish adding a passkey"""
+    """Finish adding a passkey
+
+    Guarded like `/passkey/register/begin`.
+    """
     user = get_current_user()
     if not user:
         return user_not_found()
@@ -67,10 +76,10 @@ def passkey_register_complete(data):
             data['challenge_token'], Ceremony.REGISTER
         )
     except passkeys.InvalidChallenge:
-        return jsonify({'error': 'challenge_token invalide ou expiré'}), 401
+        return jsonify({'error': 'challenge_token invalide ou expiré'}), 403
 
     if token_user_id != user.id:
-        return jsonify({'error': 'Token invalide'}), 401
+        return jsonify({'error': 'Token invalide'}), 403
 
     try:
         passkey = passkeys.verify_registration(
@@ -109,12 +118,14 @@ def list_passkeys():
 
 @auth_bp.route('/passkey/<int:passkey_id>', methods=['DELETE'])
 @jwt_required()
+@step_up_required
 @auth_bp.response(200, MessageSchema)
 @auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
+@auth_bp.alt_response(403, schema=AuthErrorSchema, description=NOT_CONFIRMED)
 @auth_bp.alt_response(404, schema=ErrorSchema, description=UNKNOWN_PASSKEY)
 @auth_bp.alt_response(409, schema=ErrorSchema, description='The last passkey, while TOTP is off.')
 def delete_passkey(passkey_id):
-    """Remove a passkey
+    """Remove a passkey, from a confirmed session
 
     Refused for the last one while TOTP is off.
     """

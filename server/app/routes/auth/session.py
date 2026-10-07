@@ -12,6 +12,7 @@ from flask_jwt_extended import (
 from ...extensions import db
 from ...models import AuditLog, User
 from ...schemas.auth import (
+    AuthErrorSchema,
     LogoutSchema,
     SessionSchema,
     SessionTransferSchema,
@@ -20,11 +21,13 @@ from ...schemas.auth import (
     UserSchema,
 )
 from ...schemas.common import ErrorSchema, MessageSchema
-from ...security import get_client_ip, is_token_blacklisted, limiter
-from ..helpers import get_current_user
+from ...security import claim_token, get_client_ip, limiter
+from ..helpers import get_current_user, step_up_once_enrolled
 from ._common import (
     NO_SESSION,
+    NOT_CONFIRMED,
     account_disabled,
+    renewed_access_token,
     revoke_until_expiry,
     token_pair,
     user_not_found,
@@ -32,6 +35,7 @@ from ._common import (
 from .blueprint import auth_bp
 
 TRANSFER_TTL = timedelta(minutes=5)
+_CONFIRMED_UNTIL = 'session_transfer_confirmed_until'
 REFRESH_REFUSED = 'Refresh token missing, expired or revoked.'
 
 
@@ -43,14 +47,10 @@ REFRESH_REFUSED = 'Refresh token missing, expired or revoked.'
 def refresh():
     """Get a new access token
 
-    Authenticated by the refresh token.
+    Authenticated by the refresh token. The new access token is never confirmed:
+    only presenting a second factor confirms a session.
     """
-    # Carried over: an access token issued within the second of the revocation
-    # that kept this session would fall under it.
-    marker = get_jwt().get(User.REVOCATION_MARKER)
-    claims = {User.REVOCATION_MARKER: marker} if marker else None
-    access_token = create_access_token(identity=get_jwt_identity(), additional_claims=claims)
-    return jsonify({'access_token': access_token}), 200
+    return jsonify({'access_token': renewed_access_token()}), 200
 
 
 @auth_bp.route('/logout', methods=['POST'])
@@ -62,8 +62,8 @@ def refresh():
 def logout():
     """Sign out
 
-    Authenticated by the refresh token, which is revoked along with the access token
-    passed in the body.
+    Authenticated by the refresh token, which is revoked with every access token issued
+    from it. The access token passed in the body is revoked too.
     """
     revoke_until_expiry(get_jwt())
 
@@ -103,14 +103,17 @@ def me():
 @auth_bp.route('/session-transfer/generate', methods=['POST'])
 @limiter.limit('10 per minute')
 @jwt_required()
+@step_up_once_enrolled
 @auth_bp.response(200, SessionTransferSchema)
 @auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
+@auth_bp.alt_response(403, schema=AuthErrorSchema, description=NOT_CONFIRMED)
 @auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
 def session_transfer_generate():
     """Hand the session over to another device
 
-    Returns a single-use token, valid five minutes, that `/session-transfer/validate`
-    exchanges for a session on the other device.
+    Asks an account that has a second factor for a confirmed session. Returns a
+    single-use token, valid five minutes, that `/session-transfer/validate` exchanges
+    for a session on the other device, confirmed until the same time as this one.
     """
     user = get_current_user()
     if not user:
@@ -118,7 +121,7 @@ def session_transfer_generate():
 
     transfer_token = create_access_token(
         identity=str(user.id),
-        additional_claims={'session_transfer': True},
+        additional_claims={'session_transfer': True, _CONFIRMED_UNTIL: get_jwt()['fresh']},
         expires_delta=TRANSFER_TTL,
     )
     return jsonify({
@@ -137,7 +140,11 @@ def session_transfer_generate():
 @auth_bp.alt_response(403, schema=ErrorSchema, description='Account disabled.')
 @auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
 def session_transfer_validate(data):
-    """Open a session from a transfer token"""
+    """Open a session from a transfer token
+
+    The session inherits what is left of the confirmation of the one that handed it
+    over: the receiving device has no second factor of its own to confirm with yet.
+    """
     try:
         claims = decode_token(data['transfer_token'])
     except Exception:
@@ -145,17 +152,18 @@ def session_transfer_validate(data):
     if not claims.get('session_transfer'):
         return jsonify({'error': 'Token invalide'}), 401
 
-    jti = claims.get('jti')
-    if jti and is_token_blacklisted(jti):
-        return jsonify({'error': 'Ce lien a déjà été utilisé'}), 401
-
     user = db.session.get(User, int(claims['sub']))
     if not user:
         return user_not_found()
     if not user.is_active:
         return account_disabled()
+    # Decoded by hand, so the token loader never saw it: ending the account's
+    # sessions ends the hand-overs in flight too.
+    if user.has_revoked(claims['iat'], None):
+        return jsonify({'error': 'Token invalide ou expiré'}), 401
 
-    revoke_until_expiry(claims)
+    if not claim_token(claims['jti'], int(TRANSFER_TTL.total_seconds())):
+        return jsonify({'error': 'Ce lien a déjà été utilisé'}), 401
 
     AuditLog.log(
         action=AuditLog.ACTION_LOGIN,
@@ -165,4 +173,7 @@ def session_transfer_validate(data):
     )
     db.session.commit()
 
-    return jsonify({'user': user.to_dict(include_tenant=True), **token_pair(user)}), 200
+    return jsonify({
+        'user': user.to_dict(include_tenant=True),
+        **token_pair(user, confirmed=claims.get(_CONFIRMED_UNTIL)),
+    }), 200

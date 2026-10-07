@@ -1,9 +1,16 @@
 import base64
 import io
+from datetime import timedelta
 
 import pyotp
 import qrcode
 from flask import current_app
+from flask_jwt_extended import create_access_token, decode_token
+
+from .crypto import decrypt_secret, encrypt_secret
+
+_ENROLMENT_TTL = timedelta(minutes=10)
+_ENROLMENT_CLAIM = 'totp_enrolment'
 
 
 def new_secret() -> str:
@@ -13,6 +20,28 @@ def new_secret() -> str:
 def code_matches(secret: str, code: str) -> bool:
     # One 30-second step either side absorbs a drifting phone clock.
     return pyotp.TOTP(secret).verify(code, valid_window=1)
+
+
+def issue_enrolment(user_id: int, secret: str) -> str:
+    """Carries a secret until its first code is checked, so that none is stored before."""
+    return create_access_token(
+        identity=str(user_id),
+        expires_delta=_ENROLMENT_TTL,
+        # A token is signed, not sealed: encrypted like the column it ends up in.
+        additional_claims={_ENROLMENT_CLAIM: encrypt_secret(secret)},
+    )
+
+
+def read_enrolment(token: str, user_id: int) -> str | None:
+    """The secret of an enrolment started by this account, if the token still holds."""
+    try:
+        claims = decode_token(token)
+    except Exception:
+        return None
+    sealed = claims.get(_ENROLMENT_CLAIM)
+    if not sealed or claims.get('sub') != str(user_id):
+        return None
+    return decrypt_secret(sealed)
 
 
 def provisioning_qr(secret: str, email: str) -> str:

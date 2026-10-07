@@ -27,7 +27,7 @@ from .models import (
     Restaurant,
     User,
 )
-from .security import is_token_blacklisted, limiter
+from .security import SESSION_CLAIM, is_token_blacklisted, limiter
 from .services.storage import storage
 from .utils.urls import frontend_base_url
 
@@ -152,6 +152,8 @@ def create_app(config_class=None):
             release=os.environ.get('APP_VERSION'),
             traces_sample_rate=float(os.environ.get('SENTRY_TRACES_SAMPLE_RATE', '0')),
             send_default_pii=False,
+            # Bodies hold passwords and codes under names the scrubber does not know.
+            max_request_body_size='never',
         )
 
     # ========================================
@@ -196,8 +198,8 @@ def create_app(config_class=None):
         Bloque deux catégories de tokens :
         1. Tokens intermédiaires / à usage limité — identifiés par une claim
            spécifique (mfa_pending, webauthn_pending, setup_phase,
-           session_transfer, step_up). Ne doivent jamais être acceptés sur les
-           endpoints @jwt_required() ordinaires.
+           session_transfer, totp_enrolment). Ne doivent jamais être acceptés
+           sur les endpoints @jwt_required() ordinaires.
         2. Tokens révoqués explicitement (logout, usage unique) — vérifiés
            en Redis via leur JTI.
         """
@@ -206,7 +208,7 @@ def create_app(config_class=None):
             or jwt_payload.get('webauthn_pending')
             or jwt_payload.get('session_transfer')
             or jwt_payload.get('setup_phase')
-            or jwt_payload.get('step_up')
+            or jwt_payload.get('totp_enrolment')
         ):
             return True
 
@@ -223,6 +225,10 @@ def create_app(config_class=None):
                 or user.has_revoked(iat, jwt_payload.get(User.REVOCATION_MARKER))
             ):
                 return True
+
+        session = jwt_payload.get(SESSION_CLAIM)
+        if session and is_token_blacklisted(session):
+            return True
 
         jti = jwt_payload.get('jti')
         if not jti:
@@ -274,7 +280,7 @@ def create_app(config_class=None):
         app,
         origins=origins,
         supports_credentials=True,
-        allow_headers=['Content-Type', 'Authorization', 'X-Restaurant-Id', 'X-Step-Up-Token'],
+        allow_headers=['Content-Type', 'Authorization', 'X-Restaurant-Id'],
         methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
     )
 

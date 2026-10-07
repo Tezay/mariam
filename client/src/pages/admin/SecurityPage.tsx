@@ -4,7 +4,7 @@
  * Reached only by redirect from useSecurityOnboarding, and left only once a
  * method is active: there is deliberately no way to skip it.
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert } from 'lucide-react';
 import {
@@ -32,6 +32,8 @@ export default function SecurityPage() {
     }
   }, [user, navigate]);
 
+  const enrolmentToken = useRef('');
+
   const enrolment: SecondFactorEnrolment = {
     registerPasskey: async () => {
       const { options, challenge_token } = await authApi.passkeyRegisterBegin();
@@ -42,11 +44,12 @@ export default function SecurityPage() {
       await refreshUser();
     },
     beginTotp: async () => {
-      const { qr_code, secret } = await authApi.mfaSetupBegin();
+      const { qr_code, secret, enrolment_token } = await authApi.mfaSetupBegin();
+      enrolmentToken.current = enrolment_token;
       return { qrCode: qr_code, secret };
     },
     confirmTotp: async (code) => {
-      await authApi.mfaSetupConfirm(code);
+      await authApi.mfaSetupConfirm(enrolmentToken.current, code);
       await refreshUser();
     },
   };
