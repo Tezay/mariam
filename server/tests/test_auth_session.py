@@ -27,14 +27,22 @@ class TestRefresh:
 
         assert (me.status_code, refresh.status_code) == (401, 401)
 
+    def test_a_deleted_account_has_no_session(self, app, client):
+        uid = make_user(app)
+        session = issue_session(uid)
+        db.session.delete(db.session.get(User, uid))
+        db.session.commit()
+
+        me = client.get('/v1/auth/me', headers=auth_headers(session['access']))
+        refresh = client.post('/v1/auth/refresh', headers=auth_headers(session['refresh']))
+        logout = client.post('/v1/auth/logout', headers=auth_headers(session['refresh']))
+
+        assert (me.status_code, refresh.status_code, logout.status_code) == (401, 401, 401)
+
 
 class TestLogout:
     def _logout(self, client, session):
-        return client.post(
-            '/v1/auth/logout',
-            json={'access_token': session['access']},
-            headers=auth_headers(session['refresh']),
-        )
+        return client.post('/v1/auth/logout', headers=auth_headers(session['refresh']))
 
     def test_both_tokens_are_revoked(self, app, client, revocations):
         session = issue_session(make_user(app))
@@ -121,6 +129,15 @@ class TestSessionTransfer:
         token = self._transfer_token(client, uid)
         db.session.get(User, uid).revoke_tokens()
         db.session.commit()
+
+        assert self._validate(client, token).status_code == 401
+
+    def test_signing_out_ends_a_transfer_in_flight(self, app, client, revocations):
+        session = issue_session(make_user(app))
+        token = self._generate(
+            client, auth_headers(session['access'])
+        ).get_json()['transfer_token']
+        client.post('/v1/auth/logout', headers=auth_headers(session['refresh']))
 
         assert self._validate(client, token).status_code == 401
 

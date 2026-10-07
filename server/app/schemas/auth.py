@@ -51,15 +51,6 @@ class TotpEnrolmentConfirmSchema(_RequestSchema):
     )
 
 
-class LogoutSchema(_RequestSchema):
-    access_token = fields.Str(
-        allow_none=True,
-        metadata={
-            'description': 'Revoked along with the refresh token that authenticates the call.'
-        },
-    )
-
-
 class ChangePasswordSchema(_RequestSchema):
     current_password = fields.Str(required=True)
     new_password = fields.Str(required=True)
@@ -134,7 +125,11 @@ class PasskeyAssertionSchema(_CeremonyResultSchema):
 
 class PasskeyRegistrationSchema(_CeremonyResultSchema):
     device_name = fields.Str(
-        allow_none=True, metadata={'description': 'Derived from the User-Agent when omitted.'}
+        allow_none=True,
+        validate=validate.Length(max=100),
+        metadata={
+            'description': 'At most 100 characters. Derived from the User-Agent when omitted.'
+        },
     )
 
 

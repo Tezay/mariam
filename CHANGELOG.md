@@ -13,26 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A password-reset link can no longer create an account**: activation accepts invitation links only.
 - **Email addresses stored lowercase and ASCII-only**, checked by the schemas, the models and the database; sign-in ignores letter case.
 - **Supervisors no longer receive site invitation links**: an administrator lists and revokes only the invitations it manages.
-- **Sensitive actions ask for a confirmed session**: inviting or deleting a user, second factors, one's profile, the audit log export, the installation QR code.
+- **Sensitive actions ask for a confirmed session**: inviting or deleting a user, second factors, one's profile, the audit log export, the installation QR code. A session alone used to enrol a passkey of its own, or invite an administrator.
 - **A session is confirmed for ten minutes by a second factor**, at sign-in or since; nothing extends the window, and the password alone never confirms.
-- **A session alone could enrol a passkey of its own, or invite an administrator**, and confirm anything from there; both now take a confirmed session.
 - **Resetting a user's second factor** is refused on one's own account and on the rescue account.
-- **The installation QR code hands over what is left of the confirmation**, never more, and opens nothing once the account's sessions are ended.
+- **The installation QR code hands over what is left of the confirmation**, never more, and opens nothing once the session that showed it has ended.
 - **A TOTP secret is stored once its first code is checked**, and travels encrypted until then; generating one used to overwrite the secret in use.
 - **WebAuthn challenges, the sign-in TOTP token and session transfers serve once**, decided by a single atomic command.
-- **Signing out ends every access token of the session**: one replaced by a refresh or a confirmation stayed valid until it expired.
-- **A suspended account loses its sessions at once**: its tokens are refused, and suspending from the dashboard revokes them.
-- **Changing one's address closes every other session**, spends pending reset links and alerts the previous address by email.
+- **Signing out ends every access token of the session**: one replaced by a refresh stayed valid until it expired.
+- **A suspended or deleted account loses its sessions at once**: its tokens are refused, and suspending from the dashboard revokes them.
 - **An administrator can no longer rename another account**: `username` is dropped from `PUT /v1/users/<id>`.
+- **The activation token enrols a first factor only.**
+- **A sign-in begun before the account's sessions were ended no longer finishes.**
+- **A passkey-only account changes its password with its passkey**, never the password alone.
+- **Guarded routes authenticate before reading the request body**, and the audit export neutralises spreadsheet formulas.
 
 ### Added
 
 - **Invitations without an address**: the address is optional and only pre-fills the form, where the invitee enters their own.
 - **Revoking an invitation** from the users page: its link stops working at once.
 - **Activation form** names the site and the role being joined.
-- **« Modifier mon profil »** on the account page: name and sign-in address, behind a confirmation of identity.
+- **« Modifier mon profil »** on the account page, through `PATCH /v1/auth/me`: name and sign-in address, behind a confirmation of identity. A new address, twice a day at most, closes every other session, spends pending reset links and alerts the previous one.
 - **« Changer d'appareil »** on the account page moves TOTP to a new phone without an administrator.
-- **`PATCH /v1/auth/me`** changes the name or the address; an account changes address twice a day at most.
 
 ### Changed
 
@@ -44,17 +45,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Security settings on the account page stay blurred behind « Déverrouiller »** until the session is confirmed, and lock again by themselves.
 - **On a signed-in route, 401 now speaks of the session alone**: an unconfirmed session, or a wrong password, code or passkey, answers 403.
 - **`POST /v1/auth/mfa/setup`** returns an `enrolment_token`, which `/mfa/setup/confirm` takes with the code.
-- **`flask user set-email`** ends the sessions, spends pending reset links and sends the same alert.
+- **`flask user set-email`** ends the sessions, spends pending reset links and alerts the previous address.
 - **Outgoing mail gives up after 10 seconds** instead of holding the request on a silent relay.
 - **`/admin/securite` and `/org/securite`** renamed `/admin/security` and `/org/security`.
 - **Sign-in, activation and invitation forms** drop their placeholders.
 - **Passkey errors say what happened**: a device that already holds one for the account, a cancelled prompt, an address that cannot use them.
-- **Upgrading**: the migration stops if an address holds an uppercase letter, and names the rows.
+- **Upgrading**: the migrations stop if an address holds an uppercase letter or a character outside ASCII, and name the rows.
+- **`POST /v1/auth/logout`** no longer takes `access_token`.
 
 ### Fixed
 
 - **Second-factor reset from the dashboard** left the account disabled with a link that activation refused; it now behaves like `flask user reset-2fa`.
 - **Accounts disabled by that reset** are re-enabled from « Rôle et accès » or with `flask user enable`.
+- **A wrong code on a password-reset link** no longer sends back to the sign-in page.
+- **A malformed audit filter or an over-long passkey name** no longer answers 500.
 
 ## [0.17.0] - 2026-10-03
 

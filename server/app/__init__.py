@@ -220,8 +220,9 @@ def create_app(config_class=None):
         if sub and iat:
             from .models import User
             user = db.session.get(User, int(sub))
-            if user and (
-                not user.is_active
+            if (
+                user is None
+                or not user.is_active
                 or user.has_revoked(iat, jwt_payload.get(User.REVOCATION_MARKER))
             ):
                 return True

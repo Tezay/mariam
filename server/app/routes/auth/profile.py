@@ -29,10 +29,16 @@ def _audit(user: User, action: str, details: dict) -> None:
     )
 
 
-def _address_taken(user: User):
-    _audit(user, AuditLog.ACTION_EMAIL_CHANGE, {'success': False, 'reason': 'address_in_use'})
+def _refused(user: User, reason: str, error: str, status: int):
+    _audit(user, AuditLog.ACTION_EMAIL_CHANGE, {'success': False, 'reason': reason})
     db.session.commit()
-    return jsonify({'error': 'Cette adresse est déjà utilisée par un autre compte.'}), 409
+    return jsonify({'error': error}), status
+
+
+def _address_taken(user: User):
+    return _refused(
+        user, 'address_in_use', 'Cette adresse est déjà utilisée par un autre compte.', 409
+    )
 
 
 @auth_bp.route('/me', methods=['PATCH'])
@@ -70,14 +76,18 @@ def update_profile(data):
 
     if moves:
         if user.is_rescue_account:
-            return jsonify({'error': 'L’adresse de ce compte est gérée par le support'}), 403
+            return _refused(
+                user, 'rescue_account', 'L’adresse de ce compte est gérée par le support', 403
+            )
         if User.query.filter_by(email=email).first():
             return _address_taken(user)
         if not spend(EMAIL_CHANGES, 'email-change', str(user.id)):
-            return jsonify({
-                'error': 'Vous avez déjà changé d’adresse deux fois aujourd’hui. '
-                         'Réessayez demain.',
-            }), 429
+            return _refused(
+                user,
+                'daily_limit',
+                'Vous avez déjà changé d’adresse deux fois aujourd’hui. Réessayez demain.',
+                429,
+            )
 
     if renames:
         _audit(user, AuditLog.ACTION_USER_UPDATE, {

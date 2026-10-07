@@ -74,12 +74,15 @@ password-reset link.
 1. `POST /v1/auth/mfa/verify-setup` — with the `setup_token` and a first code, enable TOTP and
    receive JWT
 
+The `setup_token` enrols a first factor only: once the account has one, both paths answer
+`400` and a further factor takes a confirmed session.
+
 ### Token management
 
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
 | `POST` | `/v1/auth/refresh` | refresh token | Issue a new access token |
-| `POST` | `/v1/auth/logout` | refresh token | Revoke the refresh token, every access token issued from it, and the one passed in the body |
+| `POST` | `/v1/auth/logout` | refresh token | Revoke the refresh token and every access token issued from it |
 | `GET` | `/v1/auth/me` | bearer | Current user profile |
 | `PATCH` | `/v1/auth/me` | bearer, confirmed | Change the display name or the sign-in address |
 
@@ -93,7 +96,7 @@ refresh included.
 
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
-| `POST` | `/v1/auth/session-transfer/generate` | bearer, confirmed once enrolled | Generate a single-use transfer token, valid 5 minutes |
+| `POST` | `/v1/auth/session-transfer/generate` | bearer, confirmed once enrolled | Generate a single-use transfer token, valid 5 minutes or until this session signs out |
 | `POST` | `/v1/auth/session-transfer/validate` | none | Exchange the token for a session on another device |
 
 The receiving device has no second factor of its own to confirm with: the session it opens
@@ -171,7 +174,7 @@ with neither cannot confirm (`403` with `second_factor_required`).
 
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
-| `POST` | `/v1/auth/change-password` | bearer | Change password — requires current password + TOTP code |
+| `POST` | `/v1/auth/change-password` | bearer | Change password — requires current password + TOTP code; a passkey-only account is refused with `passkey_required` |
 | `POST` | `/v1/auth/passkey/change-password/begin` | bearer | Change password via passkey (step 1) — validate current password, generate challenge |
 | `POST` | `/v1/auth/passkey/change-password/complete` | bearer | Change password via passkey (step 2) — verify assertion, apply new password |
 | `GET` | `/v1/auth/check-reset/<token>` | none | Validate a password reset link; returns `mfa_enabled` and `has_passkeys` |

@@ -1,3 +1,5 @@
+import pyotp
+
 from app.extensions import db
 from app.models import AuditLog, Passkey, User
 from conftest import TEST_PASSWORD, auth_headers, make_user
@@ -49,6 +51,34 @@ class TestPasswordLogin:
         res = client.get('/v1/auth/me', headers=auth_headers(mfa_token))
 
         assert res.status_code == 401
+
+
+class TestTotpStep:
+    def _verify(self, client, mfa_token, code):
+        return client.post('/v1/auth/mfa/verify', json={'mfa_token': mfa_token, 'code': code})
+
+    def test_a_password_step_taken_before_the_sessions_ended_does_not_finish(
+        self, app, client, revocations
+    ):
+        uid = make_user(app)
+        secret = enable_totp(uid)
+        mfa_token = _login(client).get_json()['mfa_token']
+        db.session.get(User, uid).revoke_tokens()
+        db.session.commit()
+
+        res = self._verify(client, mfa_token, pyotp.TOTP(secret).now())
+
+        assert res.status_code == 401
+        assert 'access_token' not in res.get_json()
+
+    def test_no_code_matches_once_totp_is_off(self, app, client, revocations):
+        uid = make_user(app)
+        enable_totp(uid)
+        mfa_token = _login(client).get_json()['mfa_token']
+        db.session.get(User, uid).disable_mfa()
+        db.session.commit()
+
+        assert self._verify(client, mfa_token, '123456').status_code == 401
 
 
 class TestPasskeyLogin:

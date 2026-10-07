@@ -123,20 +123,15 @@ export const authApi = {
 
   logout: () => {
     const refreshToken = getRefreshToken();
-    const accessToken = getAccessToken();
     clearTokens();
     setManifestRole(null);
-    // Outside the interceptors, with the refresh token as credential; the access
-    // token rides along so the server revokes both.
+    // Outside the interceptors, with the refresh token as credential: revoking it
+    // ends every access token issued from it.
     if (refreshToken) {
       axios
-        .post(
-          `${API_URL}/auth/logout`,
-          { access_token: accessToken },
-          {
-            headers: { Authorization: `Bearer ${refreshToken}` },
-          }
-        )
+        .post(`${API_URL}/auth/logout`, null, {
+          headers: { Authorization: `Bearer ${refreshToken}` },
+        })
         .catch(() => {});
     }
   },

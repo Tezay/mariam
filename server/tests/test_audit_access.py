@@ -1,4 +1,7 @@
 """Who may read the audit log: any account carrying a second factor."""
+import csv
+import io
+
 from app.extensions import db
 from app.models import User
 from app.models.passkey import Passkey
@@ -60,6 +63,15 @@ class TestSecondFactorGate:
 
         assert response.status_code == 403
 
+    def test_a_malformed_user_filter_is_ignored(self, app, client):
+        user = _reader(app, 'filter@mariam.app')
+        _with_passkey(user.id, b'filter-cred')
+
+        response = client.get(
+            '/v1/audit-logs?user_id=abc', headers=auth_headers(_token(app, user.id))
+        )
+
+        assert response.status_code == 200
 
 
 class TestExport:
@@ -81,3 +93,13 @@ class TestExport:
 
         assert response.status_code == 200
         assert response.headers['Content-Type'].startswith('text/csv')
+
+    def test_no_cell_starts_a_formula(self, app, client):
+        user = _reader(app, '=1+1@mariam.app')
+        headers = confirmed_headers(client, user.id)
+        client.get('/v1/audit-logs', headers=headers)
+
+        response = client.get('/v1/audit-logs/export', headers=headers)
+
+        rows = list(csv.reader(io.StringIO(response.get_data(as_text=True))))
+        assert [row[2] for row in rows[1:]] == ["'=1+1@mariam.app"]

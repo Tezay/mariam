@@ -2,11 +2,12 @@ from datetime import timedelta
 
 import pyotp
 from flask import current_app
-from flask_jwt_extended import create_access_token, create_refresh_token
+from flask_jwt_extended import create_access_token, create_refresh_token, get_jti
 
 from app.extensions import db
 from app.models import ActivationLink, Passkey, User
 from app.routes.auth._common import CONFIRMATION_WINDOW
+from app.security import SESSION_CLAIM
 from conftest import TEST_PASSWORD, auth_headers
 from tests.webauthn_authenticator import SoftAuthenticator
 
@@ -16,13 +17,15 @@ def issue_session(user_id: int, *, confirmed: bool = False) -> dict[str, str]:
     only revokes a token that has one.
     """
     identity = str(user_id)
+    refresh = create_refresh_token(identity=identity, expires_delta=timedelta(days=7))
     return {
         'access': create_access_token(
             identity=identity,
             expires_delta=timedelta(minutes=30),
             fresh=CONFIRMATION_WINDOW if confirmed else False,
+            additional_claims={SESSION_CLAIM: get_jti(refresh)},
         ),
-        'refresh': create_refresh_token(identity=identity, expires_delta=timedelta(days=7)),
+        'refresh': refresh,
     }
 
 

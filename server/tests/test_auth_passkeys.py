@@ -39,6 +39,23 @@ class TestRegistration:
 
         assert res.get_json()['passkey']['device_name'] == 'iPhone'
 
+    def test_a_name_over_100_characters_is_refused_by_the_schema(self, app, client):
+        uid = make_user(app)
+        begin = self._begin(client, uid).get_json()
+
+        res = client.post(
+            '/v1/auth/passkey/register/complete',
+            headers=session_headers(uid),
+            json={
+                'challenge_token': begin['challenge_token'],
+                'credential': new_authenticator().register(begin['options']),
+                'device_name': 'x' * 101,
+            },
+        )
+
+        assert res.status_code == 422
+        assert Passkey.query.filter_by(user_id=uid).count() == 0
+
     def test_the_passkey_must_serve_for_passwordless_login(self, app, client):
         """A passkey added here may become the only factor, so it must be discoverable."""
         options = self._begin(client, make_user(app)).get_json()['options']

@@ -5,7 +5,13 @@ from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from app.models import ActivationLink, AuditLog, Organization, Passkey, User
 from conftest import make_restaurant, make_user
-from tests.auth_support import enroll_passkey, invite_link, new_authenticator, reset_link
+from tests.auth_support import (
+    enroll_passkey,
+    invite_link,
+    new_authenticator,
+    reset_link,
+    session_headers,
+)
 
 STRONG_PASSWORD = 'NewAccount123!'
 
@@ -231,6 +237,17 @@ class TestStoredAddress:
             )
         db.session.rollback()
 
+    @pytest.mark.parametrize('email', ['rené@mariam.app', 'two words@mariam.app', 'no-at-sign'])
+    def test_the_database_refuses_an_address_outside_the_stored_shape(self, app, email):
+        uid = make_user(app)
+
+        with pytest.raises(IntegrityError):
+            db.session.execute(
+                db.text('UPDATE users SET email = :email WHERE id = :id'),
+                {'email': email, 'id': uid},
+            )
+        db.session.rollback()
+
 
 class TestTotpSetup:
     def test_the_first_code_enables_totp_and_opens_a_session(self, app, client):
@@ -252,6 +269,18 @@ class TestTotpSetup:
         })
 
         assert res.status_code == 401
+
+    def test_the_setup_token_enrols_a_first_factor_only(self, app, client):
+        user_id, secret, setup_token = _activated(client)
+        enroll_passkey(user_id)
+
+        res = client.post('/v1/auth/mfa/verify-setup', json={
+            'user_id': user_id, 'code': pyotp.TOTP(secret).now(), 'setup_token': setup_token,
+        })
+
+        assert res.status_code == 400
+        assert 'access_token' not in res.get_json()
+        assert not db.session.get(User, user_id).mfa_enabled
 
     def test_a_setup_token_belongs_to_one_account(self, app, client):
         first_id, _, first_token = _activated(client, 'first@mariam.app')
@@ -297,6 +326,26 @@ class TestPasskeySetup:
         assert options['authenticatorSelection']['residentKey'] == 'required'
         assert options['authenticatorSelection']['userVerification'] == 'required'
 
+    def test_the_setup_token_enrols_a_first_factor_only(self, app, client):
+        user_id, _, setup_token = _activated(client)
+        enroll_passkey(user_id)
+
+        assert self._begin(client, user_id, setup_token).status_code == 400
+
+    def test_a_challenge_obtained_before_the_first_factor_registers_nothing_after_it(
+        self, app, client
+    ):
+        user_id, _, setup_token = _activated(client)
+        begin = self._begin(client, user_id, setup_token).get_json()
+        enroll_passkey(user_id)
+
+        res = self._complete(
+            client, user_id, begin['challenge_token'], new_authenticator().register(begin['options'])
+        )
+
+        assert res.status_code == 400
+        assert Passkey.query.filter_by(user_id=user_id).count() == 1
+
     def test_the_setup_requires_the_activation_token(self, app, client):
         user_id, _, _ = _activated(client)
 
@@ -315,5 +364,18 @@ class TestPasskeySetup:
             new_authenticator().register({'challenge': begin['options']['challenge']}),
         )
 
-        assert res.status_code == 401
+        assert res.status_code == 400
         assert Passkey.query.filter_by(user_id=victim_id).count() == 1
+
+    def test_a_challenge_from_another_ceremony_is_refused(self, app, client):
+        user_id, _, _ = _activated(client)
+        begin = client.post(
+            '/v1/auth/passkey/register/begin', headers=session_headers(user_id)
+        ).get_json()
+
+        res = self._complete(
+            client, user_id, begin['challenge_token'], new_authenticator().register(begin['options'])
+        )
+
+        assert res.status_code == 401
+        assert Passkey.query.filter_by(user_id=user_id).count() == 0

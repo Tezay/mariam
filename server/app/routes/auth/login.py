@@ -117,6 +117,11 @@ def verify_mfa(data):
     if not user:
         return user_not_found()
 
+    # Decoded by hand, so the token loader never saw it: a password step taken
+    # before the account's sessions were ended does not finish the sign-in.
+    if user.has_revoked(claims['iat'], None):
+        return jsonify({'error': 'Token MFA invalide ou expiré'}), 401
+
     if not totp.code_matches(user.mfa_secret, data['code']):
         AuditLog.log(
             action=AuditLog.ACTION_LOGIN_FAILED,

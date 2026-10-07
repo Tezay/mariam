@@ -1,8 +1,10 @@
 import re
 
 EMAIL_MAX_LENGTH = 120
-# Kept in step with client/src/lib/email-address.ts.
-_SHAPE = re.compile(r'[!-~]+@[!-~]+')
+# Kept in step with client/src/lib/email-address.ts. Written to mean the same to
+# Python and to PostgreSQL, which checks it on users.email.
+EMAIL_SHAPE = r'[!-~]+@[!-~]+'
+_SHAPE = re.compile(EMAIL_SHAPE)
 
 
 def canonical_email(value: str) -> str:

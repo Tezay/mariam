@@ -147,6 +147,8 @@ class TestAddress:
         assert _update(client, uid, username='Jean Dupont').status_code == 200
         user = db.session.get(User, uid)
         assert (user.email, user.username) == ('admin@mariam.app', 'Jean Dupont')
+        entry = AuditLog.query.filter_by(action=AuditLog.ACTION_EMAIL_CHANGE).one()
+        assert entry.get_details() == {'success': False, 'reason': 'rescue_account'}
 
     def test_the_profile_says_when_the_address_is_frozen(self, app, client):
         uid = make_user(app)
@@ -158,7 +160,7 @@ class TestAddress:
 
         assert (before['is_rescue_account'], after['is_rescue_account']) == (False, True)
 
-    def test_a_third_change_within_a_day_is_refused(self, app, client):
+    def test_a_third_change_within_a_day_is_refused_and_audited(self, app, client):
         uid = make_user(app)
         first = _update(client, uid, email='first@mariam.app').get_json()
         second = _update_from(
@@ -169,6 +171,12 @@ class TestAddress:
 
         assert res.status_code == 429
         assert db.session.get(User, uid).email == 'second@mariam.app'
+        refusals = [
+            entry.get_details()
+            for entry in AuditLog.query.filter_by(action=AuditLog.ACTION_EMAIL_CHANGE)
+            if not entry.get_details()['success']
+        ]
+        assert refusals == [{'success': False, 'reason': 'daily_limit'}]
 
     def test_a_refused_address_does_not_count_against_the_day(self, app, client):
         uid = make_user(app)
