@@ -117,6 +117,8 @@ def _pending_invitations(caller):
 # ============================================================
 
 @users_bp.route('/invite', methods=['POST'])
+@admin_required
+@step_up_required
 @users_bp.arguments(InviteSchema)
 @users_bp.response(201, InvitationSchema)
 @users_bp.alt_response(400, schema=ErrorSchema, description="Invalid role")
@@ -124,8 +126,6 @@ def _pending_invitations(caller):
     403, schema=ErrorSchema, description="Identity confirmation required, or role out of scope"
 )
 @users_bp.alt_response(409, schema=ErrorSchema, description="Suggested email already in use")
-@admin_required
-@step_up_required
 def create_invitation(data):
     """Create an invitation link for a new user.
 
@@ -269,12 +269,12 @@ def get_user(user_id):
 
 
 @users_bp.route('/<int:user_id>', methods=['PUT'])
+@admin_required
 @users_bp.arguments(UserUpdateSchema)
 @users_bp.response(200, UserAdminSchema)
 @users_bp.alt_response(400, schema=ErrorSchema, description="Invalid update")
 @users_bp.alt_response(403, schema=ErrorSchema, description="Rescue account cannot be modified")
 @users_bp.alt_response(404, schema=ErrorSchema, description="User not found")
-@admin_required
 def update_user(data, user_id):
     """Update a user (role, active status, restaurant)."""
     current_user_id = int(get_jwt_identity())

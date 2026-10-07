@@ -17,7 +17,10 @@ def new_secret() -> str:
     return pyotp.random_base32()
 
 
-def code_matches(secret: str, code: str) -> bool:
+def code_matches(secret: str | None, code: str) -> bool:
+    # TOTP turned off between the two steps of a sign-in leaves the second without a secret.
+    if not secret:
+        return False
     # One 30-second step either side absorbs a drifting phone clock.
     return pyotp.TOTP(secret).verify(code, valid_window=1)
 

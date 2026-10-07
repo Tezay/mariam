@@ -80,6 +80,20 @@ class TestWithPasskey:
         assert db.session.get(User, uid).check_password(NEW_PASSWORD)
         assert not is_signed_in(client, session)
 
+    def test_the_password_alone_changes_nothing_on_a_passkey_account(self, app, client):
+        uid = make_user(app)
+        enroll_passkey(uid)
+
+        res = client.post(
+            '/v1/auth/change-password',
+            headers=auth_headers(issue_session(uid)['access']),
+            json={'current_password': TEST_PASSWORD, 'new_password': NEW_PASSWORD, 'mfa_code': ''},
+        )
+
+        assert res.status_code == 403
+        assert res.get_json()['passkey_required'] is True
+        assert db.session.get(User, uid).check_password(TEST_PASSWORD)
+
     def test_a_wrong_current_password_is_refused(self, app, client):
         uid = make_user(app)
         enroll_passkey(uid)

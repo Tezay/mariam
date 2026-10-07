@@ -15,7 +15,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..extensions import db
 from ..services.crypto import EncryptedSecret
-from ..utils.email_address import canonical_email
+from ..utils.email_address import EMAIL_SHAPE, canonical_email
 from ..utils.time import utc_now_naive
 
 
@@ -25,6 +25,7 @@ class User(db.Model):
     __tablename__ = 'users'
     __table_args__ = (
         db.CheckConstraint('email = lower(email)', name='ck_users_email_lowercase'),
+        db.CheckConstraint(f"email ~ '^{EMAIL_SHAPE}$'", name='ck_users_email_shape'),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -149,10 +150,6 @@ class User(db.Model):
     def is_editor(self):
         """Return True if the user can edit (org_admin, admin or editor)."""
         return self.role in (self.ROLE_ORG_ADMIN, self.ROLE_ADMIN, self.ROLE_EDITOR)
-
-    def can_manage_users(self):
-        """Return True if the user can manage other users."""
-        return self.role in (self.ROLE_ORG_ADMIN, self.ROLE_ADMIN)
 
     def revoke_tokens(self):
         """Invalidate every JWT issued so far (access + refresh).

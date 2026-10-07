@@ -397,11 +397,11 @@ def list_menus():
 
 
 @menus_bp.route('', methods=['POST'])
+@editor_required
 @menus_bp.arguments(MenuCreateSchema)
 @menus_bp.response(201, MenuSchema)
 @menus_bp.alt_response(200, schema=MenuSchema, description="Menu updated (already existed)")
 @menus_bp.alt_response(400, schema=ErrorSchema)
-@editor_required
 def create_or_update_menu(data):
     """Create or update a menu for a given date.
 
@@ -461,9 +461,9 @@ def create_or_update_menu(data):
 
 
 @menus_bp.route('/week/publish', methods=['POST'])
+@editor_required
 @menus_bp.arguments(WeekPublishSchema)
 @menus_bp.response(200, MessageSchema)
-@editor_required
 def publish_week(data):
     """Publish all draft menus for the week.
 
@@ -549,10 +549,10 @@ def get_menu(menu_id):
 
 
 @menus_bp.route('/<int:menu_id>', methods=['PUT'])
+@editor_required
 @menus_bp.arguments(MenuUpdateSchema)
 @menus_bp.response(200, MenuSchema)
 @menus_bp.alt_response(404, schema=ErrorSchema)
-@editor_required
 def update_menu(data, menu_id):
     """Update an existing menu (items and/or chef note)."""
     current_user_id = int(get_jwt_identity())
@@ -677,10 +677,10 @@ def delete_menu(menu_id):
 # ============================================================
 
 @menus_bp.route('/<int:menu_id>/items/<int:item_id>/stock', methods=['PATCH'])
+@editor_required
 @menus_bp.arguments(MenuItemStockSchema)
 @menus_bp.response(200, MessageSchema)
 @menus_bp.alt_response(404, schema=ErrorSchema)
-@editor_required
 def update_item_stock(data, menu_id, item_id):
     """Toggle out-of-stock status for a menu item (service mode).
 

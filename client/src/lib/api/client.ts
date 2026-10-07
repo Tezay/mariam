@@ -60,6 +60,7 @@ api.interceptors.response.use(
       originalRequest.url?.includes('/auth/mfa/verify') ||
       originalRequest.url?.includes('/auth/passkey/login') ||
       originalRequest.url?.includes('/auth/passkey/setup') ||
+      originalRequest.url?.includes('/auth/reset-password') ||
       originalRequest.url?.includes('/auth/passkey/reset-password') ||
       originalRequest.url?.includes('/auth/session-transfer/validate');
 

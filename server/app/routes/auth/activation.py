@@ -33,6 +33,7 @@ from .blueprint import auth_bp
 
 SETUP_TTL = timedelta(minutes=15)
 BAD_SETUP_TOKEN = 'Setup token invalid, expired, or issued to another account.'
+ALREADY_ENROLLED = 'The account already has a second factor.'
 
 
 def _setup_token(user_id: int) -> str:
@@ -65,6 +66,12 @@ def _email_taken():
         'error': 'Cette adresse est déjà utilisée. Choisissez-en une autre ou contactez '
                  'la personne qui vous a invité.',
     }), 409
+
+
+def _already_enrolled():
+    # The setup token stands in for a session: past the first factor, adding
+    # one takes a confirmed session like anywhere else.
+    return jsonify({'error': 'Ce compte a déjà une double authentification'}), 400
 
 
 @auth_bp.route('/check-activation/<token>', methods=['GET'])
@@ -192,7 +199,7 @@ def activate_account(data):
 @limiter.limit('5 per minute')
 @auth_bp.arguments(MFAVerifySetupSchema)
 @auth_bp.response(200, SessionSchema)
-@auth_bp.alt_response(400, schema=ErrorSchema, description='TOTP already enabled.')
+@auth_bp.alt_response(400, schema=ErrorSchema, description=ALREADY_ENROLLED)
 @auth_bp.alt_response(401, schema=ErrorSchema, description=f'Wrong code. {BAD_SETUP_TOKEN}')
 @auth_bp.alt_response(404, schema=ErrorSchema, description='Unknown account.')
 def verify_mfa_setup(data):
@@ -207,8 +214,8 @@ def verify_mfa_setup(data):
     if not user:
         return user_not_found()
 
-    if user.mfa_enabled:
-        return jsonify({'error': 'MFA déjà activé'}), 400
+    if user.has_second_factor():
+        return _already_enrolled()
 
     if not totp.code_matches(user.mfa_secret, data['code']):
         return jsonify({'error': 'Code invalide'}), 401
@@ -228,7 +235,7 @@ def verify_mfa_setup(data):
 @limiter.limit('10 per minute')
 @auth_bp.arguments(PasskeySetupBeginSchema)
 @auth_bp.response(200, WebAuthnOptionsSchema)
-@auth_bp.alt_response(400, schema=ErrorSchema, description='TOTP already enabled.')
+@auth_bp.alt_response(400, schema=ErrorSchema, description=ALREADY_ENROLLED)
 @auth_bp.alt_response(401, schema=ErrorSchema, description=BAD_SETUP_TOKEN)
 @auth_bp.alt_response(404, schema=ErrorSchema, description='Unknown account.')
 def passkey_setup_begin(data):
@@ -240,8 +247,8 @@ def passkey_setup_begin(data):
     if not user:
         return user_not_found()
 
-    if user.mfa_enabled:
-        return jsonify({'error': 'Compte déjà activé avec TOTP'}), 400
+    if user.has_second_factor():
+        return _already_enrolled()
 
     return jsonify(passkeys.begin_registration(user, Ceremony.SETUP)), 200
 
@@ -251,7 +258,7 @@ def passkey_setup_begin(data):
 @auth_bp.arguments(PasskeySetupCompleteSchema)
 @auth_bp.response(200, SessionSchema)
 @auth_bp.alt_response(
-    400, schema=ErrorSchema, description='TOTP already enabled, or a credential that fails.'
+    400, schema=ErrorSchema, description=f'{ALREADY_ENROLLED} Or a credential that fails.'
 )
 @auth_bp.alt_response(
     401, schema=ErrorSchema, description='Challenge invalid, expired, or issued to another account.'
@@ -264,8 +271,8 @@ def passkey_setup_complete(data):
     if not user:
         return user_not_found()
 
-    if user.mfa_enabled:
-        return jsonify({'error': 'Compte déjà activé avec TOTP'}), 400
+    if user.has_second_factor():
+        return _already_enrolled()
 
     try:
         token_user_id, challenge = passkeys.read_challenge(data['challenge_token'], Ceremony.SETUP)

@@ -38,6 +38,15 @@ audit_bp = Blueprint(
 # HELPERS
 # ============================================================
 
+# A spreadsheet runs as a formula any cell that starts with one of these.
+_FORMULA_LEADS = ('=', '+', '-', '@', '\t', '\r')
+
+
+def _cell(value) -> str:
+    text = str(value)
+    return f"'{text}" if text.startswith(_FORMULA_LEADS) else text
+
+
 def _tenant_scope_filter():
     """Filter restricting logs to the caller's tenant.
 
@@ -60,8 +69,8 @@ def _apply_audit_filters(query):
     if action_filter := request.args.get('action'):
         query = query.filter(AuditLog.action == action_filter)
 
-    if user_filter := request.args.get('user_id'):
-        query = query.filter(AuditLog.user_id == int(user_filter))
+    if user_filter := request.args.get('user_id', type=int):
+        query = query.filter(AuditLog.user_id == user_filter)
 
     if site_filter := request.args.get('restaurant_id', type=int):
         # Intersected with the tenant scope applied by the caller, so an
@@ -115,7 +124,7 @@ def export_audit_logs():
     writer.writerow(['ID', 'Date', 'User', 'Action', 'Target', 'IP', 'Details'])
 
     for log in logs:
-        writer.writerow([
+        writer.writerow(_cell(value) for value in (
             log.id,
             log.created_at.isoformat() if log.created_at else '',
             log.user.email if log.user else 'System',
@@ -123,7 +132,7 @@ def export_audit_logs():
             f"{log.target_type}:{log.target_id}" if log.target_type else '',
             log.ip_address or '',
             log.details or '',
-        ])
+        ))
 
     AuditLog.log(
         action=AuditLog.ACTION_AUDIT_LOGS_EXPORT,

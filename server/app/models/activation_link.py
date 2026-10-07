@@ -40,8 +40,6 @@ class ActivationLink(db.Model):
     # Relation
     created_by = db.relationship('User', backref='created_activation_links', foreign_keys=[created_by_id])
     
-    # Types de lien valides
-    VALID_TYPES = ['first_admin', 'invite', 'password_reset']
     ACCOUNT_CREATION_TYPES = ('first_admin', 'invite')
 
     @validates('email')

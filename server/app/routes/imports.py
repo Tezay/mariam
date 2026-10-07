@@ -278,11 +278,11 @@ def upload_file():
 
 
 @imports_bp.route('/menus/preview', methods=['POST'])
+@editor_required
 @imports_bp.arguments(ImportPreviewSchema)
 @imports_bp.response(200, ImportUploadSchema)
 @imports_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
 @imports_bp.alt_response(404, schema=ErrorSchema, description="Session expired")
-@editor_required
 def preview_import(data):
     """Generate an import preview based on the provided column mapping.
 
@@ -334,11 +334,11 @@ def preview_import(data):
 
 
 @imports_bp.route('/menus/confirm', methods=['POST'])
+@editor_required
 @imports_bp.arguments(ImportConfirmSchema)
 @imports_bp.response(200, ImportUploadSchema)
 @imports_bp.alt_response(400, schema=ErrorSchema, description="Invalid data or missing restaurant")
 @imports_bp.alt_response(404, schema=ErrorSchema, description="Session expired")
-@editor_required
 def confirm_import(data):
     """Confirm and execute the menu import into the database.
 
@@ -681,11 +681,11 @@ def catalog_upload():
 
 
 @imports_bp.route('/catalog/preview', methods=['POST'])
+@editor_required
 @imports_bp.arguments(CatalogImportPreviewSchema)
 @imports_bp.response(200, CatalogImportPreviewResultSchema)
 @imports_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
 @imports_bp.alt_response(404, schema=ErrorSchema, description="Session expired")
-@editor_required
 def catalog_preview(data):
     """Prévisualise l'import : liste des plats, tags détectés et doublons."""
     user, restaurant = get_user_and_restaurant()
@@ -727,11 +727,11 @@ def catalog_preview(data):
 
 
 @imports_bp.route('/catalog/confirm', methods=['POST'])
+@editor_required
 @imports_bp.arguments(CatalogImportConfirmSchema)
 @imports_bp.response(200, CatalogImportResultSchema)
 @imports_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
 @imports_bp.alt_response(404, schema=ErrorSchema, description="Session expired")
-@editor_required
 def catalog_confirm(data):
     """Crée les plats du catalogue (doublons ignorés)."""
     user, restaurant = get_user_and_restaurant()

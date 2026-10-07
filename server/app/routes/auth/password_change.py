@@ -4,6 +4,7 @@ from flask_jwt_extended import jwt_required
 from ...extensions import db
 from ...models import AuditLog, Passkey, User
 from ...schemas.auth import (
+    AuthErrorSchema,
     ChangePasswordSchema,
     PasskeyPasswordChangeSchema,
     PasswordCheckSchema,
@@ -35,26 +36,38 @@ def _audit(user: User, details: dict) -> None:
 @auth_bp.response(200, MessageSchema)
 @auth_bp.alt_response(400, schema=ErrorSchema, description='Password too weak.')
 @auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
-@auth_bp.alt_response(403, schema=ErrorSchema, description='Wrong current password or code.')
+@auth_bp.alt_response(
+    403,
+    schema=AuthErrorSchema,
+    description='Wrong current password or code. Or a passkey and no TOTP on the account: '
+                '`passkey_required` is set.',
+)
 @auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
 def change_password(data):
     """Change the password, confirmed by the current one and TOTP
 
-    The code is checked when the account has TOTP enabled. Ends every session, this
-    one included.
+    The code is checked when the account has TOTP enabled. An account protected by a
+    passkey only goes through `/passkey/change-password/*` instead. Ends every session,
+    this one included.
     """
     user = get_current_user()
     if not user:
         return user_not_found()
+
+    has_totp = user.mfa_enabled and user.mfa_secret
+    # The password alone never stands for the second factor an account has.
+    if not has_totp and user.passkeys.count() > 0:
+        return jsonify({
+            'error': 'Ce compte confirme son identité avec sa passkey',
+            'passkey_required': True,
+        }), 403
 
     if not user.check_password(data['current_password']):
         _audit(user, {'success': False, 'reason': 'wrong_current_password'})
         db.session.commit()
         return jsonify({'error': 'Mot de passe actuel incorrect'}), 403
 
-    if user.mfa_enabled and user.mfa_secret and not totp.code_matches(
-        user.mfa_secret, data['mfa_code']
-    ):
+    if has_totp and not totp.code_matches(user.mfa_secret, data['mfa_code']):
         _audit(user, {'success': False, 'reason': 'invalid_mfa'})
         db.session.commit()
         return jsonify({'error': 'Code MFA invalide'}), 403

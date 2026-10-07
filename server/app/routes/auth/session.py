@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from flask import jsonify, request
+from flask import jsonify
 from flask_jwt_extended import (
     create_access_token,
     decode_token,
@@ -13,7 +13,6 @@ from ...extensions import db
 from ...models import AuditLog, User
 from ...schemas.auth import (
     AuthErrorSchema,
-    LogoutSchema,
     SessionSchema,
     SessionTransferSchema,
     SessionTransferValidateSchema,
@@ -21,7 +20,13 @@ from ...schemas.auth import (
     UserSchema,
 )
 from ...schemas.common import ErrorSchema, MessageSchema
-from ...security import claim_token, get_client_ip, limiter
+from ...security import (
+    SESSION_CLAIM,
+    claim_token,
+    get_client_ip,
+    is_token_blacklisted,
+    limiter,
+)
 from ..helpers import get_current_user, step_up_once_enrolled
 from ._common import (
     NO_SESSION,
@@ -56,26 +61,15 @@ def refresh():
 @auth_bp.route('/logout', methods=['POST'])
 @limiter.limit('20 per minute')
 @jwt_required(refresh=True)
-@auth_bp.doc(requestBody={'content': {'application/json': {'schema': LogoutSchema}}})
 @auth_bp.response(200, MessageSchema)
 @auth_bp.alt_response(401, schema=ErrorSchema, description=REFRESH_REFUSED)
 def logout():
     """Sign out
 
     Authenticated by the refresh token, which is revoked with every access token issued
-    from it. The access token passed in the body is revoked too.
+    from it.
     """
     revoke_until_expiry(get_jwt())
-
-    # Read leniently rather than through a schema: a malformed body must not keep the
-    # refresh token alive, and the client has dropped its tokens already.
-    body = request.get_json(silent=True)
-    access_token = body.get('access_token') if isinstance(body, dict) else None
-    if access_token:
-        try:
-            revoke_until_expiry(decode_token(access_token))
-        except Exception:
-            pass
 
     AuditLog.log(
         action=AuditLog.ACTION_LOGOUT,
@@ -114,14 +108,20 @@ def session_transfer_generate():
     Asks an account that has a second factor for a confirmed session. Returns a
     single-use token, valid five minutes, that `/session-transfer/validate` exchanges
     for a session on the other device, confirmed until the same time as this one.
+    Signing out of this session ends the token with it.
     """
     user = get_current_user()
     if not user:
         return user_not_found()
 
+    presented = get_jwt()
     transfer_token = create_access_token(
         identity=str(user.id),
-        additional_claims={'session_transfer': True, _CONFIRMED_UNTIL: get_jwt()['fresh']},
+        additional_claims={
+            'session_transfer': True,
+            _CONFIRMED_UNTIL: presented['fresh'],
+            SESSION_CLAIM: presented.get(SESSION_CLAIM),
+        },
         expires_delta=TRANSFER_TTL,
     )
     return jsonify({
@@ -158,8 +158,10 @@ def session_transfer_validate(data):
     if not user.is_active:
         return account_disabled()
     # Decoded by hand, so the token loader never saw it: ending the account's
-    # sessions ends the hand-overs in flight too.
-    if user.has_revoked(claims['iat'], None):
+    # sessions, or signing out of the one that handed over, ends the hand-overs
+    # in flight too.
+    origin = claims.get(SESSION_CLAIM)
+    if user.has_revoked(claims['iat'], None) or (origin and is_token_blacklisted(origin)):
         return jsonify({'error': 'Token invalide ou expiré'}), 401
 
     if not claim_token(claims['jti'], int(TRANSFER_TTL.total_seconds())):
