@@ -1,4 +1,6 @@
 """Backend hardening tests: opt-in pagination, auth hardening and the production guard."""
+import re
+
 import pyotp
 import pytest
 
@@ -83,6 +85,44 @@ class TestMfaTokenSingleUse:
         replay = client.post('/v1/auth/mfa/verify',
                             json={'mfa_token': mfa_token, 'code': pyotp.TOTP(secret).now()})
         assert replay.status_code == 401
+
+
+class TestAuthenticationComesFirst:
+    # Every route a caller without a session may write to.
+    OPEN_TO_ANYONE = {
+        'auth.login',
+        'auth.verify_mfa',
+        'auth.activate_account',
+        'auth.verify_mfa_setup',
+        'auth.passkey_setup_begin',
+        'auth.passkey_setup_complete',
+        'auth.passkey_login_begin',
+        'auth.passkey_login_complete',
+        'auth.reset_password',
+        'auth.passkey_reset_password_begin',
+        'auth.passkey_reset_password_complete',
+        'auth.session_transfer_validate',
+        'notifications.subscribe',
+        'notifications.unsubscribe',
+        'notifications.update_preferences',
+        'notifications.send_test',
+        'public.cast_vote',
+        'public.mint_device',
+        'public.track_page_view',
+        'public.unsubscribe',
+    }
+
+    def test_a_guarded_route_answers_401_before_it_reads_the_body(self, app, client):
+        answers = {
+            f'{method} {rule.rule}': client.open(
+                re.sub(r'<[^>]+>', '1', rule.rule), method=method, json=[]
+            ).status_code
+            for rule in app.url_map.iter_rules()
+            if rule.endpoint not in self.OPEN_TO_ANYONE
+            for method in sorted(rule.methods & {'POST', 'PUT', 'PATCH', 'DELETE'})
+        }
+
+        assert {route: status for route, status in answers.items() if status != 401} == {}
 
 
 class TestResponseHeaders:

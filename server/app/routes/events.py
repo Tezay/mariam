@@ -178,10 +178,10 @@ def list_events():
 
 
 @events_bp.route('', methods=['POST'])
+@editor_required
 @events_bp.arguments(EventCreateSchema)
 @events_bp.response(201, EventSchema)
 @events_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
-@editor_required
 def create_event(data):
     """Create a new event."""
     current_user_id = int(get_jwt_identity())
@@ -270,11 +270,11 @@ def get_event(event_id):
 
 
 @events_bp.route('/<int:event_id>', methods=['PUT'])
+@editor_required
 @events_bp.arguments(EventUpdateSchema)
 @events_bp.response(200, EventSchema)
 @events_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
 @events_bp.alt_response(404, schema=ErrorSchema, description="Event not found")
-@editor_required
 def update_event(data, event_id):
     """Update an existing event."""
     current_user_id = int(get_jwt_identity())

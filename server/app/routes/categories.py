@@ -68,11 +68,11 @@ def list_categories():
 
 
 @categories_bp.route('/settings/categories', methods=['POST'])
+@admin_required
 @categories_bp.arguments(MenuCategoryCreateSchema)
 @categories_bp.response(201, MenuCategorySchema)
 @categories_bp.alt_response(400, schema=ErrorSchema)
 @categories_bp.alt_response(404, schema=ErrorSchema)
-@admin_required
 def create_category(data):
     """Create a new category or subcategory.
 
@@ -143,9 +143,9 @@ def create_category(data):
 
 
 @categories_bp.route('/settings/categories/reorder', methods=['PUT'])
+@admin_required
 @categories_bp.arguments(MenuCategoryReorderSchema)
 @categories_bp.response(200, MessageSchema)
-@admin_required
 def reorder_categories(data):
     """Reorder categories or subcategories.
 
@@ -168,10 +168,10 @@ def reorder_categories(data):
 
 
 @categories_bp.route('/settings/categories/<int:category_id>', methods=['PUT'])
+@admin_required
 @categories_bp.arguments(MenuCategoryUpdateSchema)
 @categories_bp.response(200, MenuCategorySchema)
 @categories_bp.alt_response(404, schema=ErrorSchema)
-@admin_required
 def update_category(data, category_id):
     """Update a category: label, order, or is_highlighted."""
     user = db.session.get(User, int(get_jwt_identity()))

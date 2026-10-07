@@ -101,11 +101,11 @@ def get_settings():
 
 
 @restaurant_bp.route('/settings', methods=['PUT'])
+@admin_required
 @restaurant_bp.arguments(RestaurantUpdateSchema)
 @restaurant_bp.response(200, RestaurantSchema)
 @restaurant_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
 @restaurant_bp.alt_response(404, schema=ErrorSchema, description="No restaurant configured")
-@admin_required
 def update_settings(data):
     """Update the active restaurant's settings.
 

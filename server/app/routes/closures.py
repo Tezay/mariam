@@ -137,10 +137,10 @@ def list_closures():
 
 
 @closures_bp.route('', methods=['POST'])
+@editor_required
 @closures_bp.arguments(ClosureCreateSchema)
 @closures_bp.response(201, ClosureSchema)
 @closures_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
-@editor_required
 def create_closure(data):
     """Create a new exceptional closure."""
     current_user_id = int(get_jwt_identity())
@@ -189,11 +189,11 @@ def create_closure(data):
 # ============================================================
 
 @closures_bp.route('/<int:closure_id>', methods=['PUT'])
+@editor_required
 @closures_bp.arguments(ClosureUpdateSchema)
 @closures_bp.response(200, ClosureSchema)
 @closures_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
 @closures_bp.alt_response(404, schema=ErrorSchema, description="Closure not found")
-@editor_required
 def update_closure(data, closure_id):
     """Update an existing exceptional closure."""
     current_user_id = int(get_jwt_identity())
