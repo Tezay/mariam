@@ -216,14 +216,13 @@ def create_app(config_class=None):
         sub = jwt_payload.get('sub')
         iat = jwt_payload.get('iat')
         if sub and iat:
-            from datetime import UTC
-
             from .models import User
             user = db.session.get(User, int(sub))
-            if user and user.tokens_valid_after:
-                cutoff = user.tokens_valid_after.replace(tzinfo=UTC).timestamp()
-                if iat < cutoff:
-                    return True
+            if user and (
+                not user.is_active
+                or user.has_revoked(iat, jwt_payload.get(User.REVOCATION_MARKER))
+            ):
+                return True
 
         jti = jwt_payload.get('jti')
         if not jti:

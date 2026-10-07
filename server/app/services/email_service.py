@@ -48,6 +48,10 @@ WATCHED_SITES = 3
 
 # ── Sending ──────────────────────────────────────────────────────────────────
 
+# Some sends happen inside a request, which a silent relay would otherwise hold.
+SMTP_TIMEOUT = 10
+
+
 def is_configured() -> bool:
     return bool(os.environ.get('SMTP_HOST') and os.environ.get('SMTP_SENDER'))
 
@@ -72,7 +76,9 @@ def send_email(to: str, subject: str, text: str, html: str | None = None,
         message.add_alternative(html, subtype='html')
 
     try:
-        with smtplib.SMTP(os.environ['SMTP_HOST'], int(os.environ.get('SMTP_PORT', 587))) as server:
+        with smtplib.SMTP(
+            os.environ['SMTP_HOST'], int(os.environ.get('SMTP_PORT', 587)), timeout=SMTP_TIMEOUT
+        ) as server:
             if os.environ.get('SMTP_TLS', '1') == '1':
                 server.starttls()
             username = os.environ.get('SMTP_USERNAME')

@@ -55,6 +55,7 @@ class AuditLog(db.Model):
     ACTION_AUDIT_LOGS_ACCESS = 'audit_logs_access'
     ACTION_AUDIT_LOGS_EXPORT = 'audit_logs_export'
     ACTION_PASSWORD_CHANGE = 'password_change'
+    ACTION_EMAIL_CHANGE = 'email_change'
     ACTION_PASSWORD_RESET_REQUEST = 'password_reset_request'
     ACTION_PASSWORD_RESET = 'password_reset'
     ACTION_MFA_DISABLED = 'mfa_disabled'

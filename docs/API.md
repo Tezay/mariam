@@ -81,6 +81,12 @@ password-reset link.
 | `POST` | `/v1/auth/refresh` | refresh token | Issue a new access token |
 | `POST` | `/v1/auth/logout` | refresh token | Revoke the refresh token, and the access token passed in the body |
 | `GET` | `/v1/auth/me` | bearer | Current user profile |
+| `PATCH` | `/v1/auth/me` | bearer + proof | Change the display name or the sign-in address (requires `X-Step-Up-Token`) |
+
+A new address ends every other session of the account: the response carries the access and
+refresh tokens of the session that replaces the caller's. Pending password-reset links are
+spent, the previous address is told by email, and an account changes address twice a day at
+most. A disabled account has no session: its tokens are refused, refresh included.
 
 ### Session transfer
 
@@ -117,7 +123,9 @@ password-reset link.
 
 Proves the caller re-authenticated moments ago. The returned `step_up_token` is
 single-use, valid 5 minutes, and passed as `X-Step-Up-Token` on the guarded
-request (currently `DELETE /v1/users/<id>` and `POST /v1/users/<id>/reset-mfa`).
+request (currently `DELETE /v1/users/<id>`, `POST /v1/users/<id>/reset-mfa`,
+`PATCH /v1/auth/me` and `GET /v1/audit-logs/export`). Without a valid proof a guarded route
+answers `403` with `step_up_required`; with one, it spends the proof whatever it then answers.
 
 A proof always attests a second factor: the password route also takes the TOTP code, an
 account without TOTP confirms with its passkey (`403` with `passkey_required`), and an account
@@ -496,7 +504,7 @@ Requires `admin` role.
 |--------|-------|-------------|
 | `GET` | `/v1/users` | List users |
 | `GET` | `/v1/users/<id>` | User details |
-| `PUT` | `/v1/users/<id>` | Update a user |
+| `PUT` | `/v1/users/<id>` | Update a user's role, site or status; suspending it ends its sessions |
 | `DELETE` | `/v1/users/<id>` | Delete a user (requires `X-Step-Up-Token`) |
 | `POST` | `/v1/users/<id>/reset-mfa` | Remove a user's TOTP and passkeys and end their sessions (requires `X-Step-Up-Token`) |
 | `POST` | `/v1/users/invite` | Create an invitation link; `email` is optional and only pre-fills the activation form |
@@ -525,7 +533,7 @@ Requires the `admin` role and an account carrying a second factor, code or passk
 | Method | Route | Description |
 |--------|-------|-------------|
 | `GET` | `/v1/audit-logs` | Paginated audit log (filters: `action`, `user_id`, `restaurant_id`, `start_date`, `end_date`) |
-| `GET` | `/v1/audit-logs/export` | CSV export (max 10,000 rows) |
+| `GET` | `/v1/audit-logs/export` | CSV export (max 10,000 rows; requires `X-Step-Up-Token`) |
 
 ---
 

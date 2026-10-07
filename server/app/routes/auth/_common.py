@@ -18,6 +18,17 @@ def token_pair(user: User) -> dict[str, str]:
     }
 
 
+def reissued_token_pair(user: User) -> dict[str, str]:
+    """Ends every session of the account and opens one for the caller."""
+    user.revoke_tokens()
+    identity = str(user.id)
+    claims = {User.REVOCATION_MARKER: user.revocation_marker()}
+    return {
+        'access_token': create_access_token(identity=identity, additional_claims=claims),
+        'refresh_token': create_refresh_token(identity=identity, additional_claims=claims),
+    }
+
+
 def revoke_until_expiry(claims: dict) -> None:
     if claims.get('jti') and claims.get('exp'):
         blacklist_token(claims['jti'], max(1, int(claims['exp'] - time.time())))

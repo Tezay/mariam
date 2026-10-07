@@ -1,0 +1,8 @@
+Bonjour,
+
+L'adresse de connexion de votre compte Mariam a été remplacée par {{ new_address }}.
+
+Si vous êtes à l'origine de ce changement, vous n'avez rien à faire.
+Sinon, contactez l'administrateur de votre établissement sans attendre.
+
+Ce message de sécurité est envoyé à l'ancienne adresse du compte.

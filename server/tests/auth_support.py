@@ -37,13 +37,19 @@ def enable_totp(user_id: int) -> str:
     return user.mfa_secret
 
 
-def identity_proof(client, user_id: int) -> str:
+def identity_proof(client, user_id: int, headers: dict[str, str] | None = None) -> str:
     """Enables TOTP on the account first: a proof needs a second factor."""
     secret = enable_totp(user_id)
-    res = client.post('/v1/auth/step-up/password', headers=session_headers(user_id), json={
-        'password': TEST_PASSWORD, 'mfa_code': pyotp.TOTP(secret).now(),
-    })
+    res = client.post(
+        '/v1/auth/step-up/password',
+        headers=headers or session_headers(user_id),
+        json={'password': TEST_PASSWORD, 'mfa_code': pyotp.TOTP(secret).now()},
+    )
     return res.get_json()['step_up_token']
+
+
+def confirmed_headers(client, user_id: int) -> dict[str, str]:
+    return {**session_headers(user_id), 'X-Step-Up-Token': identity_proof(client, user_id)}
 
 
 def new_authenticator() -> SoftAuthenticator:

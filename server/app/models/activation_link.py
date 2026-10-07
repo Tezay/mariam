@@ -124,23 +124,17 @@ class ActivationLink(db.Model):
     def revoke(self):
         self.revoked_at = utc_now_naive()
 
-    def to_dict(self, include_token=False):
-        """Sérialise le lien en dictionnaire JSON."""
+    def to_dict(self):
+        """Carries the token, which is enough to use the link: for its inviter only."""
         author = self.created_by
-        data = {
+        return {
             'id': self.id,
+            'token': self.token,
             'email': self.email,
-            'link_type': self.link_type,
             'role': self.role,
-            'expires_at': self.expires_at.isoformat() if self.expires_at else None,
-            'is_used': self.used_at is not None,
-            'is_valid': self.is_valid(),
-            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'expires_at': self.expires_at.isoformat(),
             'created_by_name': (author.username or author.email) if author else None,
         }
-        if include_token:
-            data['token'] = self.token
-        return data
     
     def __repr__(self):
         status = 'used' if self.used_at else ('expired' if not self.is_valid() else 'active')

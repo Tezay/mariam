@@ -72,6 +72,8 @@ class User(db.Model):
     ROLE_READER = 'reader'
     VALID_ROLES = [ROLE_ORG_ADMIN, ROLE_ADMIN, ROLE_EDITOR, ROLE_READER]
 
+    REVOCATION_MARKER = 'revocation_marker'
+
     # On the model as well as in the request schemas: the CLI and the seed
     # commands write addresses without going through a schema.
     @validates('email')
@@ -160,6 +162,20 @@ class User(db.Model):
         MFA reset.
         """
         self.tokens_valid_after = datetime.now(UTC).replace(tzinfo=None)
+
+    def revocation_marker(self) -> str:
+        return self.tokens_valid_after.isoformat()
+
+    def has_revoked(self, iat: float, marker: str | None) -> bool:
+        """Whether a token issued at `iat` falls under the last revocation.
+
+        `iat` counts whole seconds, so the pair a revocation issues for the
+        session it keeps predates the cutoff as well. That pair carries the
+        cutoff in a signed claim, and is told apart by it.
+        """
+        if self.tokens_valid_after is None or marker == self.revocation_marker():
+            return False
+        return iat < self.tokens_valid_after.replace(tzinfo=UTC).timestamp()
     
     def get_notification_preferences(self) -> dict:
         defaults = {
@@ -222,7 +238,7 @@ class User(db.Model):
             )
             data['organization_name'] = organization.name if organization else None
 
-        if include_sensitive:
+        if include_sensitive or include_tenant:
             data['is_rescue_account'] = self.is_rescue_account
 
         return data

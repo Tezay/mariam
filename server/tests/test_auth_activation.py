@@ -215,8 +215,10 @@ class TestStoredAddress:
 
         assert db.session.get(User, uid).email == 'mixed.case@mariam.app'
 
-    @pytest.mark.parametrize('email', ['', '   '])
-    def test_an_empty_address_is_not_storable(self, app, email):
+    @pytest.mark.parametrize(
+        'email', ['', '   ', 'no-at-sign', 'two words@mariam.app', 'line\nbreak@mariam.app']
+    )
+    def test_a_malformed_address_is_not_storable(self, app, email):
         with pytest.raises(ValueError):
             User(email=email)
 

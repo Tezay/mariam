@@ -14,6 +14,18 @@ class TestRefresh:
         assert 'access_token' not in res.get_json()
 
 
+    def test_a_disabled_account_has_no_session(self, app, client):
+        uid = make_user(app)
+        session = issue_session(uid)
+        db.session.get(User, uid).is_active = False
+        db.session.commit()
+
+        me = client.get('/v1/auth/me', headers=auth_headers(session['access']))
+        refresh = client.post('/v1/auth/refresh', headers=auth_headers(session['refresh']))
+
+        assert (me.status_code, refresh.status_code) == (401, 401)
+
+
 class TestLogout:
     def _logout(self, client, session):
         return client.post(

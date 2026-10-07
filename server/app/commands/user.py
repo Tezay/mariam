@@ -20,7 +20,7 @@ from ..models.audit_log import AuditLog
 from ..models.organization import Organization
 from ..models.restaurant import Restaurant
 from ..models.user import User
-from ..services.account import reset_second_factor
+from ..services.account import change_email, notify_email_changed, reset_second_factor
 from ..utils.email_address import canonical_email
 from ..utils.time import utc_naive_to_paris
 from ..utils.urls import frontend_base_url
@@ -304,11 +304,15 @@ def set_email(email, new_email):
     if User.query.filter_by(email=new_email).first():
         raise click.ClickException(f'An account with {new_email} already exists.')
 
-    previous = user.email
-    user.email = new_email
-    _audit(AuditLog.ACTION_USER_UPDATE, user, field='email', old=previous)
+    previous = change_email(user, new_email)
+    user.revoke_tokens()
+    _audit(AuditLog.ACTION_EMAIL_CHANGE, user, success=True, old=previous, new=new_email)
     db.session.commit()
-    click.echo(f'✅ {email} → {new_email}')
+    alerted = notify_email_changed(previous, new_email)
+
+    click.echo(f'✅ {previous} → {new_email}')
+    click.echo('   · Live sessions revoked')
+    click.echo(f"   · {'Alert sent to' if alerted else 'No alert sent to'} {previous}")
 
 
 @user_cli.command('set-role')

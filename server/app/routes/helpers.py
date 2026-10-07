@@ -9,6 +9,7 @@ from ..extensions import db
 from ..models import DishCatalog, Restaurant, User
 from ..models.taxonomy import Certification, DietaryTag
 from ..services.access import accessible_restaurant_ids
+from ..services.step_up import consume_step_up_token
 
 
 def editor_required(f):
@@ -55,6 +56,26 @@ def org_admin_required(f):
         user = db.session.get(User, current_user_id)
         if not user or not user.is_org_admin() or not user.organization_id:
             return jsonify({'error': 'Réservé aux superviseurs'}), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def step_up_required(f):
+    """Requires a fresh proof of identity in `X-Step-Up-Token`, and spends it.
+
+    Goes under the decorator that authenticates the caller. The proof is spent
+    before the view runs, whatever the view then answers: one proof, one request.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        proof = request.headers.get('X-Step-Up-Token', '')
+        if not consume_step_up_token(proof, int(get_jwt_identity())):
+            # 403, not 401: the client takes a 401 for an expired session and
+            # refreshes it.
+            return jsonify({
+                'error': 'Confirmation d’identité requise',
+                'step_up_required': True,
+            }), 403
         return f(*args, **kwargs)
     return decorated_function
 

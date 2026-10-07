@@ -5,6 +5,7 @@ from . import (
     passkeys,
     password_change,
     password_reset,
+    profile,
     session,
     step_up,
     totp,

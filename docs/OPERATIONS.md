@@ -40,7 +40,7 @@ code on failure.
 | `user invite EMAIL --role R [--restaurant S] [--org O]` | Activation link for a new account |
 | `user reset-password EMAIL` | Password reset link (72 h, single use) |
 | `user reset-2fa EMAIL [--totp] [--passkeys]` | Removes the second factor and revokes live sessions |
-| `user set-email EMAIL NEW_EMAIL` | Changes the address |
+| `user set-email EMAIL NEW_EMAIL` | Changes the address, ends the sessions and alerts the old address |
 | `user set-role EMAIL ROLE [--restaurant S] [--org O]` | Changes the role and tenant |
 | `user enable EMAIL` / `user disable EMAIL` | Turns an account off without deleting it |
 | `user delete EMAIL [--yes]` | Deletes the account and its passkeys; audit entries are kept |

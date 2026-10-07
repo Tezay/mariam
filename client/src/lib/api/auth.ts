@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { API_URL } from '../runtime-config';
-import { api } from './client';
+import { api, withProof } from './client';
 import { clearTokens, getAccessToken, getRefreshToken, storeTokens } from './tokens';
 
 export interface User {
@@ -15,6 +15,7 @@ export interface User {
   created_at: string;
   last_login?: string;
   passkeys_count?: number;
+  is_rescue_account?: boolean;
   /** Resolved only on the authenticated user's own profile. */
   restaurant_name?: string | null;
   organization_name?: string | null;
@@ -139,6 +140,13 @@ export const authApi = {
 
   isAuthenticated: () => {
     return !!getAccessToken();
+  },
+
+  /** A changed address comes back with the session that replaces the caller's. */
+  updateProfile: async (changes: { username?: string; email?: string }, stepUpToken: string) => {
+    const response = await api.patch('/auth/me', changes, withProof(stepUpToken));
+    const { access_token, refresh_token } = response.data;
+    if (access_token && refresh_token) storeTokens(access_token, refresh_token);
   },
 
   stepUpWithPassword: async (password: string, mfaCode: string) => {

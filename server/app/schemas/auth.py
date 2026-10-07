@@ -1,4 +1,4 @@
-from marshmallow import EXCLUDE, Schema, fields, validate
+from marshmallow import EXCLUDE, Schema, ValidationError, fields, validate, validates_schema
 
 from ..models.user import User
 from .common import DisplayName, ErrorSchema, NormalizedEmail
@@ -78,6 +78,18 @@ class StepUpPasswordSchema(_RequestSchema):
     )
 
 
+class ProfileUpdateSchema(_RequestSchema):
+    username = DisplayName(
+        metadata={'description': 'Display name: 2 to 50 letters, spaces, hyphens, apostrophes.'}
+    )
+    email = NormalizedEmail(metadata={'description': 'New sign-in address.'})
+
+    @validates_schema
+    def _changes_something(self, data, **kwargs):
+        if not data:
+            raise ValidationError('Aucune modification demandée')
+
+
 class SessionTransferValidateSchema(_RequestSchema):
     transfer_token = fields.Str(required=True)
 
@@ -145,6 +157,9 @@ class AccountSchema(Schema):
     restaurant_name = fields.Str(allow_none=True)
     organization_name = fields.Str(allow_none=True)
     passkeys_count = fields.Int(required=True)
+    is_rescue_account = fields.Bool(
+        allow_none=True, metadata={'description': 'Its address cannot be changed.'}
+    )
     created_at = fields.DateTime(allow_none=True)
     last_login = fields.DateTime(allow_none=True)
 
@@ -178,6 +193,14 @@ class UserSchema(Schema):
 class AccountUpdateSchema(Schema):
     message = fields.Str(required=True)
     user = fields.Nested(AccountSchema, required=True)
+
+
+class ProfileUpdatedSchema(AccountUpdateSchema):
+    access_token = fields.Str(
+        metadata={'description': 'With `refresh_token`, when the address changed: the session '
+                                 'that replaces the caller\'s, every other one being closed.'}
+    )
+    refresh_token = fields.Str()
 
 
 class ActivationLinkSchema(Schema):
@@ -281,4 +304,7 @@ class AuthErrorSchema(ErrorSchema):
     )
     second_factor_required = fields.Bool(
         metadata={'description': 'The account has no second factor to confirm with.'}
+    )
+    step_up_required = fields.Bool(
+        metadata={'description': 'Send a fresh proof of identity in `X-Step-Up-Token`.'}
     )
