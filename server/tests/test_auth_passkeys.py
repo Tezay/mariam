@@ -5,13 +5,16 @@ from tests.webauthn_authenticator import b64url
 
 
 class TestRegistration:
-    def _begin(self, client, user_id):
-        return client.post('/v1/auth/passkey/register/begin', headers=session_headers(user_id))
+    def _begin(self, client, user_id, confirmed=False):
+        return client.post(
+            '/v1/auth/passkey/register/begin',
+            headers=session_headers(user_id, confirmed=confirmed),
+        )
 
-    def _complete(self, client, user_id, begin, credential, user_agent=''):
+    def _complete(self, client, user_id, begin, credential, user_agent='', confirmed=False):
         return client.post(
             '/v1/auth/passkey/register/complete',
-            headers={**session_headers(user_id), 'User-Agent': user_agent},
+            headers={**session_headers(user_id, confirmed=confirmed), 'User-Agent': user_agent},
             json={'challenge_token': begin['challenge_token'], 'credential': credential},
         )
 
@@ -47,7 +50,7 @@ class TestRegistration:
         uid = make_user(app)
         registered = enroll_passkey(uid)
 
-        options = self._begin(client, uid).get_json()['options']
+        options = self._begin(client, uid, confirmed=True).get_json()['options']
 
         assert [c['id'] for c in options['excludeCredentials']] == [b64url(registered.credential_id)]
 
@@ -58,8 +61,52 @@ class TestRegistration:
 
         res = self._complete(client, intruder, begin, new_authenticator().register(begin['options']))
 
-        assert res.status_code == 401
+        assert res.status_code == 403
         assert Passkey.query.count() == 0
+
+    def test_an_account_with_a_factor_starts_from_a_confirmed_session(self, app, client):
+        uid = make_user(app)
+        enable_totp(uid)
+
+        res = self._begin(client, uid)
+
+        assert res.status_code == 403
+        assert res.get_json()['step_up_required'] is True
+
+    def test_a_confirmed_session_adds_a_factor_to_an_account_that_has_one(self, app, client):
+        uid = make_user(app)
+        enable_totp(uid)
+        begin = self._begin(client, uid, confirmed=True).get_json()
+
+        res = self._complete(
+            client, uid, begin, new_authenticator().register(begin['options']), confirmed=True
+        )
+
+        assert res.status_code == 201
+        assert Passkey.query.filter_by(user_id=uid).count() == 1
+
+    def test_a_challenge_obtained_unconfirmed_ends_with_the_first_factor(self, app, client):
+        uid = make_user(app)
+        begin = self._begin(client, uid).get_json()
+        enable_totp(uid)
+
+        res = self._complete(client, uid, begin, new_authenticator().register(begin['options']))
+
+        assert res.status_code == 403
+        assert res.get_json()['step_up_required'] is True
+        assert Passkey.query.count() == 0
+
+    def test_a_challenge_registers_one_passkey(self, app, client, revocations):
+        uid = make_user(app)
+        begin = self._begin(client, uid).get_json()
+        self._complete(client, uid, begin, new_authenticator().register(begin['options']))
+
+        res = self._complete(
+            client, uid, begin, new_authenticator().register(begin['options']), confirmed=True
+        )
+
+        assert res.status_code == 403
+        assert Passkey.query.filter_by(user_id=uid).count() == 1
 
 
 class TestManagement:
@@ -104,18 +151,33 @@ class TestManagement:
     def test_another_users_passkey_is_out_of_reach(self, app, client):
         enroll_passkey(make_user(app, email='owner@mariam.app'))
         intruder = make_user(app, email='intruder@mariam.app')
+        enable_totp(intruder)
         passkey_id = Passkey.query.one().id
 
         assert self._rename(client, intruder, passkey_id, 'Mine').status_code == 404
         assert client.delete(
-            f'/v1/auth/passkey/{passkey_id}', headers=session_headers(intruder)
+            f'/v1/auth/passkey/{passkey_id}', headers=session_headers(intruder, confirmed=True)
         ).status_code == 404
+        assert Passkey.query.count() == 1
+
+    def test_removing_a_passkey_needs_a_confirmed_session(self, app, client):
+        uid = make_user(app)
+        enable_totp(uid)
+        enroll_passkey(uid)
+
+        res = client.delete(f'/v1/auth/passkey/{Passkey.query.one().id}', headers=session_headers(uid))
+
+        assert res.status_code == 403
+        assert Passkey.query.count() == 1
 
     def test_the_last_passkey_cannot_go_without_totp(self, app, client):
         uid = make_user(app)
         enroll_passkey(uid)
 
-        res = client.delete(f'/v1/auth/passkey/{Passkey.query.one().id}', headers=session_headers(uid))
+        res = client.delete(
+            f'/v1/auth/passkey/{Passkey.query.one().id}',
+            headers=session_headers(uid, confirmed=True),
+        )
 
         assert res.status_code == 409
         assert Passkey.query.count() == 1
@@ -125,7 +187,10 @@ class TestManagement:
         enable_totp(uid)
         enroll_passkey(uid)
 
-        res = client.delete(f'/v1/auth/passkey/{Passkey.query.one().id}', headers=session_headers(uid))
+        res = client.delete(
+            f'/v1/auth/passkey/{Passkey.query.one().id}',
+            headers=session_headers(uid, confirmed=True),
+        )
 
         assert res.status_code == 200
         assert Passkey.query.count() == 0

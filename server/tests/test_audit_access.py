@@ -72,7 +72,7 @@ class TestExport:
         assert response.status_code == 403
         assert response.get_json()['step_up_required'] is True
 
-    def test_a_proof_of_identity_exports(self, app, client):
+    def test_a_confirmed_session_exports(self, app, client):
         user = _reader(app, 'export@mariam.app')
 
         response = client.get(

@@ -16,7 +16,7 @@ from ...schemas.auth import (
     WebAuthnOptionsSchema,
 )
 from ...schemas.common import ErrorSchema
-from ...security import blacklist_token, get_client_ip, is_token_blacklisted, limiter
+from ...security import claim_token, get_client_ip, is_token_blacklisted, limiter
 from ...services import passkeys, totp
 from ...services.passkeys import Ceremony
 from ._common import complete_login, user_not_found
@@ -130,7 +130,10 @@ def verify_mfa(data):
     if jti:
         exp = claims.get('exp')
         remaining = exp - datetime.now(UTC).timestamp() if exp else MFA_TOKEN_TTL.total_seconds()
-        blacklist_token(jti, max(1, int(remaining)))
+        # Decided here rather than by the lookup above: of two requests racing
+        # on the token with a right code, one only opens a session.
+        if not claim_token(jti, max(1, int(remaining))):
+            return jsonify({'error': 'Token MFA invalide ou expiré'}), 401
 
     return complete_login(user)
 

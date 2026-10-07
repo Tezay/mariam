@@ -49,16 +49,11 @@ export function ProfileDialog({
     event.preventDefault();
     setError('');
 
-    const proof = await confirmIdentity({
-      title: 'Confirmez votre identité',
-      description: 'Pour enregistrer les modifications de votre profil.',
-      confirmLabel: 'Enregistrer',
-    });
-    if (!proof) return;
+    if (!(await confirmIdentity({ description: 'Pour modifier votre profil.' }))) return;
 
     setIsSaving(true);
     try {
-      await authApi.updateProfile(changes, proof);
+      await authApi.updateProfile(changes);
     } catch (err) {
       setError(getApiErrorMessage(err, "L'enregistrement a échoué"));
       return;
@@ -82,7 +77,7 @@ export function ProfileDialog({
         <DialogHeader>
           <DialogTitle>Modifier mon profil</DialogTitle>
           <DialogDescription>
-            Votre identité vous sera demandée avant l'enregistrement.
+            Votre nom, et l'adresse avec laquelle vous vous connectez.
           </DialogDescription>
         </DialogHeader>
 
@@ -143,7 +138,7 @@ export function ProfileDialog({
               Annuler
             </Button>
             <Button type="submit" disabled={!canSave || isSaving}>
-              {isSaving ? 'Enregistrement…' : 'Continuer'}
+              {isSaving ? 'Enregistrement…' : 'Enregistrer'}
             </Button>
           </div>
         </form>

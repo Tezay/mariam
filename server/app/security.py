@@ -21,6 +21,10 @@ try:
 except ImportError:
     _REDIS_AVAILABLE = False
 
+# On an access token: the id of the refresh token it descends from. Revoking
+# that one ends every access token of the session, those it replaced included.
+SESSION_CLAIM = 'sid'
+
 _redis_blacklist = None
 
 

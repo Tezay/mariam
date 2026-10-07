@@ -1,5 +1,5 @@
 import { parisToday } from '../date-utils';
-import { api, withProof } from './client';
+import { api } from './client';
 import type { User } from './auth';
 import type { RestaurantSettings } from './restaurant';
 
@@ -52,12 +52,12 @@ export const adminApi = {
     return response.data.user;
   },
 
-  deleteUser: async (id: number, stepUpToken: string) => {
-    await api.delete(`/users/${id}`, withProof(stepUpToken));
+  deleteUser: async (id: number) => {
+    await api.delete(`/users/${id}`);
   },
 
-  resetUserMfa: async (id: number, stepUpToken: string) => {
-    await api.post(`/users/${id}/reset-mfa`, null, withProof(stepUpToken));
+  resetUserMfa: async (id: number) => {
+    await api.post(`/users/${id}/reset-mfa`);
   },
 
   createInvitation: async (role: User['role'], email?: string): Promise<Invitation> => {
@@ -87,19 +87,15 @@ export const adminApi = {
     return response.data;
   },
 
-  exportAuditLogs: async (
-    stepUpToken: string,
-    params?: {
-      action?: string;
-      user_id?: number;
-      start_date?: string;
-      end_date?: string;
-    }
-  ) => {
+  exportAuditLogs: async (params?: {
+    action?: string;
+    user_id?: number;
+    start_date?: string;
+    end_date?: string;
+  }) => {
     const response = await api.get('/audit-logs/export', {
       params,
       responseType: 'blob',
-      ...withProof(stepUpToken),
     });
 
     const blob = new Blob([response.data], { type: 'text/csv' });

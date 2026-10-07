@@ -49,9 +49,10 @@ resolves a scope belongs there.
 Passkey flows run against `tests/webauthn_authenticator.py`, a software authenticator that
 answers the routes' options with genuine attestations and signed assertions, so the real
 WebAuthn verification runs. `tests/auth_support.py` puts an account in the states the routes
-branch on (TOTP enabled, passkey enrolled, reset link, proof of identity). A test that relies on a revoked or
-single-use token takes the `revocations` fixture, which keeps the blacklist in memory. A test
-that expects an email takes `smtp`, which records the messages instead of sending them.
+branch on (TOTP enabled, passkey enrolled, reset link, confirmed session). A test that relies
+on a revoked or single-use token takes the `revocations` fixture, which keeps the blacklist in
+memory. A test that expects an email takes `smtp`, which records the messages instead of
+sending them.
 
 ### Writing one
 

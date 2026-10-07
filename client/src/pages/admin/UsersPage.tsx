@@ -108,18 +108,23 @@ export function UsersPage() {
     setTimeout(() => setCopiedToken(null), 2000);
   };
 
+  const openInvitation = async () => {
+    if (await confirmIdentity({ description: 'Pour inviter un nouvel utilisateur.' })) {
+      setShowInviteModal(true);
+    }
+  };
+
   const handleDeleteUser = async (target: User) => {
-    const proof = await confirmIdentity({
+    const confirmed = await confirmIdentity({
       title: `Supprimer ${target.username || target.email}`,
-      description: 'Confirmez votre identité pour supprimer définitivement ce compte.',
-      warning:
+      description:
         "Cette action est irréversible : le compte et ses accès sont supprimés. L'historique d'audit est conservé.",
       confirmLabel: 'Supprimer définitivement',
       tone: 'destructive',
     });
-    if (!proof) return;
+    if (!confirmed) return;
     try {
-      await adminApi.deleteUser(target.id, proof);
+      await adminApi.deleteUser(target.id);
       setUsers((previous) => previous.filter((u) => u.id !== target.id));
       notify.success(`Compte ${target.email} supprimé`);
     } catch (err) {
@@ -129,17 +134,16 @@ export function UsersPage() {
 
   const handleResetMfa = async (target: User) => {
     const name = target.username || target.email;
-    const proof = await confirmIdentity({
+    const confirmed = await confirmIdentity({
       title: `Réinitialiser la double authentification de ${name}`,
-      description: 'Confirmez votre identité pour continuer.',
-      warning:
+      description:
         "Son application d'authentification et ses passkeys seront supprimées, et ses appareils déconnectés. À sa prochaine connexion, ce compte devra en configurer de nouvelles avec son mot de passe.",
       confirmLabel: 'Réinitialiser',
       tone: 'destructive',
     });
-    if (!proof) return;
+    if (!confirmed) return;
     try {
-      await adminApi.resetUserMfa(target.id, proof);
+      await adminApi.resetUserMfa(target.id);
       notify.success(
         'Double authentification réinitialisée',
         `Prévenez ${name} : une nouvelle connexion est nécessaire.`
@@ -282,7 +286,7 @@ export function UsersPage() {
           <h1 className="text-2xl font-bold text-foreground">Utilisateurs</h1>
           <p className="text-muted-foreground">Gérez les accès à l'interface d'administration</p>
         </div>
-        <Button onClick={() => setShowInviteModal(true)} className="gap-2">
+        <Button onClick={openInvitation} className="gap-2">
           <UserPlus className="h-4 w-4" />
           Inviter
         </Button>

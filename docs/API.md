@@ -79,63 +79,93 @@ password-reset link.
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
 | `POST` | `/v1/auth/refresh` | refresh token | Issue a new access token |
-| `POST` | `/v1/auth/logout` | refresh token | Revoke the refresh token, and the access token passed in the body |
+| `POST` | `/v1/auth/logout` | refresh token | Revoke the refresh token, every access token issued from it, and the one passed in the body |
 | `GET` | `/v1/auth/me` | bearer | Current user profile |
-| `PATCH` | `/v1/auth/me` | bearer + proof | Change the display name or the sign-in address (requires `X-Step-Up-Token`) |
+| `PATCH` | `/v1/auth/me` | bearer, confirmed | Change the display name or the sign-in address |
 
 A new address ends every other session of the account: the response carries the access and
-refresh tokens of the session that replaces the caller's. Pending password-reset links are
-spent, the previous address is told by email, and an account changes address twice a day at
-most. A disabled account has no session: its tokens are refused, refresh included.
+refresh tokens of the session that replaces the caller's, which is not confirmed. Pending
+password-reset links are spent, the previous address is told by email, and an account changes
+address twice a day at most. A disabled account has no session: its tokens are refused,
+refresh included.
 
 ### Session transfer
 
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
-| `POST` | `/v1/auth/session-transfer/generate` | bearer | Generate a session transfer token |
-| `POST` | `/v1/auth/session-transfer/validate` | none | Validate and complete session transfer |
+| `POST` | `/v1/auth/session-transfer/generate` | bearer, confirmed once enrolled | Generate a single-use transfer token, valid 5 minutes |
+| `POST` | `/v1/auth/session-transfer/validate` | none | Exchange the token for a session on another device |
+
+The receiving device has no second factor of its own to confirm with: the session it opens
+inherits what is left of the confirmation of the one that handed it over, never more, and can
+register its passkey within that time. A transfer token issued before the account's sessions
+were ended is refused.
 
 ### TOTP (authenticator app)
 
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
-| `POST` | `/v1/auth/mfa/setup` | bearer | Generate a new TOTP secret; returns QR code and raw secret |
-| `POST` | `/v1/auth/mfa/setup/confirm` | bearer | Verify code and activate TOTP |
+| `POST` | `/v1/auth/mfa/setup` | bearer, confirmed once enrolled | Generate a TOTP secret; returns it with its QR code and an `enrolment_token` |
+| `POST` | `/v1/auth/mfa/setup/confirm` | bearer, confirmed once enrolled | With the `enrolment_token` and a first code, enable TOTP or replace its secret |
 | `POST` | `/v1/auth/mfa/verify-setup` | setup token | Verify the first code at activation (Path B) |
 | `POST` | `/v1/auth/mfa/verify` | mfa token | Verify TOTP code at login (step 2 of Flow B) |
-| `DELETE` | `/v1/auth/mfa` | bearer | Disable TOTP — rejected if no passkey is registered |
+| `DELETE` | `/v1/auth/mfa` | bearer, confirmed | Disable TOTP — rejected if no passkey is registered |
+
+Nothing is stored when a secret is generated: it travels in the `enrolment_token`, valid ten
+minutes, and is written once its first code is checked. The secret in use keeps working until
+then, and a mistyped code can be tried again with the same token.
 
 ### Passkeys (WebAuthn / FIDO2)
 
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
 | `GET` | `/v1/auth/passkey` | bearer | List the user's registered passkeys |
-| `POST` | `/v1/auth/passkey/register/begin` | bearer | Start passkey registration (account settings) |
-| `POST` | `/v1/auth/passkey/register/complete` | bearer | Finish passkey registration; device name auto-detected from User-Agent if omitted |
+| `POST` | `/v1/auth/passkey/register/begin` | bearer, confirmed once enrolled | Start passkey registration |
+| `POST` | `/v1/auth/passkey/register/complete` | bearer, confirmed once enrolled | Finish passkey registration; device name auto-detected from User-Agent if omitted |
 | `PATCH` | `/v1/auth/passkey/<id>` | bearer | Rename a passkey |
-| `DELETE` | `/v1/auth/passkey/<id>` | bearer | Delete a passkey — rejected if it is the last one and TOTP is disabled |
+| `DELETE` | `/v1/auth/passkey/<id>` | bearer, confirmed | Delete a passkey — rejected if it is the last one and TOTP is disabled |
 | `POST` | `/v1/auth/passkey/login/begin` | none | Start discoverable passkey login (Flow A, step 1) |
 | `POST` | `/v1/auth/passkey/login/complete` | none | Finish passkey login, receive JWT (Flow A, step 2) |
 | `POST` | `/v1/auth/passkey/setup/begin` | setup token | Start passkey registration during activation (Path A, step 1) |
 | `POST` | `/v1/auth/passkey/setup/complete` | challenge token | Finish passkey registration during activation, receive JWT (Path A, step 2) |
 
-### Step-up authentication
+A WebAuthn challenge serves once, whatever the ceremony: a begin route issues it, and the
+complete route that reads it spends it.
 
-Proves the caller re-authenticated moments ago. The returned `step_up_token` is
-single-use, valid 5 minutes, and passed as `X-Step-Up-Token` on the guarded
-request (currently `DELETE /v1/users/<id>`, `POST /v1/users/<id>/reset-mfa`,
-`PATCH /v1/auth/me` and `GET /v1/audit-logs/export`). Without a valid proof a guarded route
-answers `403` with `step_up_required`; with one, it spends the proof whatever it then answers.
+### Confirmed sessions (step-up)
 
-A proof always attests a second factor: the password route also takes the TOTP code, an
+A sensitive route asks for a **confirmed session**: one whose account has a second factor, and
+presented it less than ten minutes ago. A session is confirmed by a sign-in that checked a
+second factor, by the end of account activation, and by the routes below. The window is fixed:
+neither using the session nor `POST /v1/auth/refresh`, whose token is never confirmed, extends
+it.
+
+The confirmation travels in the access token, whose `fresh` claim holds the Unix time it runs
+until, or `false`. The routes below return an `access_token` that replaces the caller's; the
+refresh token stays. From an unconfirmed session, a guarded route answers `403` with
+`step_up_required`.
+
+On a route the session authenticates, `401` speaks of the session alone, and is the one
+answer to refresh the access token on. A wrong password, code or passkey answers `403`:
+refreshing there would trade a confirmed token for one that is not.
+
+Marked *confirmed* in the tables: `POST /v1/users/invite`, `DELETE /v1/users/<id>`,
+`POST /v1/users/<id>/reset-mfa`, `GET /v1/audit-logs/export`, `PATCH /v1/auth/me`,
+`DELETE /v1/auth/passkey/<id>` and `DELETE /v1/auth/mfa`.
+
+Marked *confirmed once enrolled*: both ends of a passkey registration and of a TOTP setup, and
+`POST /v1/auth/session-transfer/generate`. An account with no second factor has nothing to
+confirm with, and goes through.
+
+A confirmation always attests a second factor: the password route also takes the TOTP code, an
 account without TOTP confirms with its passkey (`403` with `passkey_required`), and an account
 with neither cannot confirm (`403` with `second_factor_required`).
 
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
-| `POST` | `/v1/auth/step-up/password` | bearer | Re-authenticate with password and TOTP code |
+| `POST` | `/v1/auth/step-up/password` | bearer | Confirm with password and TOTP code; returns a confirmed access token |
 | `POST` | `/v1/auth/step-up/passkey/begin` | bearer | Challenge the caller's passkeys |
-| `POST` | `/v1/auth/step-up/passkey/complete` | bearer | Verify the assertion and return the proof |
+| `POST` | `/v1/auth/step-up/passkey/complete` | bearer | Verify the assertion; returns a confirmed access token |
 
 ### Password management
 
@@ -505,9 +535,9 @@ Requires `admin` role.
 | `GET` | `/v1/users` | List users |
 | `GET` | `/v1/users/<id>` | User details |
 | `PUT` | `/v1/users/<id>` | Update a user's role, site or status; suspending it ends its sessions |
-| `DELETE` | `/v1/users/<id>` | Delete a user (requires `X-Step-Up-Token`) |
-| `POST` | `/v1/users/<id>/reset-mfa` | Remove a user's TOTP and passkeys and end their sessions (requires `X-Step-Up-Token`) |
-| `POST` | `/v1/users/invite` | Create an invitation link; `email` is optional and only pre-fills the activation form |
+| `DELETE` | `/v1/users/<id>` | Delete a user (requires a confirmed session) |
+| `POST` | `/v1/users/<id>/reset-mfa` | Remove a user's TOTP and passkeys and end their sessions (requires a confirmed session) |
+| `POST` | `/v1/users/invite` | Create an invitation link (requires a confirmed session); `email` is optional and only pre-fills the activation form |
 | `GET` | `/v1/users/invitations` | List pending invitations |
 | `DELETE` | `/v1/users/invitations/<id>` | Revoke a pending invitation |
 
@@ -533,7 +563,7 @@ Requires the `admin` role and an account carrying a second factor, code or passk
 | Method | Route | Description |
 |--------|-------|-------------|
 | `GET` | `/v1/audit-logs` | Paginated audit log (filters: `action`, `user_id`, `restaurant_id`, `start_date`, `end_date`) |
-| `GET` | `/v1/audit-logs/export` | CSV export (max 10,000 rows; requires `X-Step-Up-Token`) |
+| `GET` | `/v1/audit-logs/export` | CSV export (max 10,000 rows; requires a confirmed session) |
 
 ---
 

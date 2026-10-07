@@ -21,6 +21,7 @@ import {
 import { notify } from '@/lib/toast';
 import { nowInstant } from '@/lib/date-utils';
 import { usePwaInstall } from '@/contexts/PwaInstallContext';
+import { useStepUp } from '@/hooks/useStepUp';
 import { useUpdateUiPreferences } from '@/hooks/useUiPreferences';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,6 +56,7 @@ import {
 } from 'lucide-react';
 import { PasskeyManager } from '@/components/PasskeyManager';
 import { ProfileDialog } from '@/pages/account/ProfileDialog';
+import { SecurityLock } from '@/features/security/SecurityLock';
 import { TotpManager } from '@/components/TotpManager';
 import {
   startAuthentication,
@@ -397,6 +399,7 @@ function DetailRow({
 
 export function AccountPage() {
   const { user } = useAuth();
+  const confirmIdentity = useStepUp();
   const tenant = user?.role === 'org_admin' ? user?.organization_name : user?.restaurant_name;
 
   const hasMfa = user?.mfa_enabled ?? false;
@@ -522,6 +525,12 @@ export function AccountPage() {
     }
   };
 
+  const editProfile = async () => {
+    if (await confirmIdentity({ description: 'Pour modifier votre profil.' })) {
+      setIsProfileOpen(true);
+    }
+  };
+
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return 'Non disponible';
     return new Date(dateStr).toLocaleDateString('fr-FR', {
@@ -559,7 +568,7 @@ export function AccountPage() {
             variant="outline"
             className="w-10 shrink-0 px-0 sm:w-auto sm:px-4"
             aria-label="Modifier mon profil"
-            onClick={() => setIsProfileOpen(true)}
+            onClick={editProfile}
           >
             <Pencil className="h-4 w-4" />
             <span className="hidden sm:inline">Modifier mon profil</span>
@@ -594,176 +603,159 @@ export function AccountPage() {
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-foreground">Sécurité</h2>
 
-          {/* TOTP */}
-          <TotpManager />
+          <SecurityLock>
+            {/* TOTP */}
+            <TotpManager />
 
-          {/* Passkeys */}
-          <div className="space-y-3 rounded-lg border border-border bg-card p-4">
-            <div className="flex items-center gap-2">
-              <Fingerprint className="h-5 w-5 shrink-0 text-primary" />
+            {/* Passkeys */}
+            <div className="space-y-3 rounded-lg border border-border bg-card p-4">
+              <div className="flex items-center gap-2">
+                <Fingerprint className="h-5 w-5 shrink-0 text-primary" />
+                <div>
+                  <p className="font-medium text-foreground">Passkeys (Touch ID, Face ID…)</p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    Connectez-vous sans code, avec votre empreinte digitale ou visage.
+                  </p>
+                </div>
+              </div>
+              <PasskeyManager />
+            </div>
+
+            {/* Mot de passe */}
+            <div className="flex flex-col justify-between gap-4 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center">
               <div>
-                <p className="font-medium text-foreground">Passkeys (Touch ID, Face ID…)</p>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  Connectez-vous sans code, avec votre empreinte digitale ou visage.
+                <p className="font-medium text-foreground">Mot de passe</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Changez régulièrement votre mot de passe pour sécuriser votre compte.
                 </p>
               </div>
-            </div>
-            <PasskeyManager />
-          </div>
 
-          {/* Mot de passe */}
-          <div className="flex flex-col justify-between gap-4 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center">
-            <div>
-              <p className="font-medium text-foreground">Mot de passe</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Changez régulièrement votre mot de passe pour sécuriser votre compte.
-              </p>
-            </div>
+              <Dialog
+                open={isDialogOpen}
+                onOpenChange={(open) => {
+                  setIsDialogOpen(open);
+                  if (!open) resetForm();
+                }}
+              >
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="shrink-0 gap-2">
+                    <Key className="h-4 w-4" />
+                    Modifier
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Modifier le mot de passe</DialogTitle>
+                    <DialogDescription>
+                      {canUseBoth
+                        ? 'Entrez vos mots de passe, puis choisissez comment vérifier votre identité.'
+                        : hasMfa
+                          ? 'Entrez votre mot de passe actuel, le nouveau, et le code de votre application.'
+                          : 'Entrez votre mot de passe actuel et le nouveau, puis confirmez avec votre appareil.'}
+                    </DialogDescription>
+                  </DialogHeader>
 
-            <Dialog
-              open={isDialogOpen}
-              onOpenChange={(open) => {
-                setIsDialogOpen(open);
-                if (!open) resetForm();
-              }}
-            >
-              <DialogTrigger asChild>
-                <Button variant="outline" className="shrink-0 gap-2">
-                  <Key className="h-4 w-4" />
-                  Modifier
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Modifier le mot de passe</DialogTitle>
-                  <DialogDescription>
-                    {canUseBoth
-                      ? 'Entrez vos mots de passe, puis choisissez comment vérifier votre identité.'
-                      : hasMfa
-                        ? 'Entrez votre mot de passe actuel, le nouveau, et le code de votre application.'
-                        : 'Entrez votre mot de passe actuel et le nouveau, puis confirmez avec votre appareil.'}
-                  </DialogDescription>
-                </DialogHeader>
-
-                {message && (
-                  <div
-                    className={`flex items-center gap-2 rounded-lg p-3 text-sm ${
-                      message.type === 'success'
-                        ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                        : 'bg-destructive/10 text-destructive'
-                    }`}
-                  >
-                    {message.type === 'success' ? (
-                      <Check className="h-4 w-4 shrink-0" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4 shrink-0" />
-                    )}
-                    {message.text}
-                  </div>
-                )}
-
-                {/* Champs communs aux deux méthodes */}
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="currentPassword">Mot de passe actuel</Label>
-                    <Input
-                      id="currentPassword"
-                      type="password"
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="newPassword">Nouveau mot de passe</Label>
-                    <Input
-                      id="newPassword"
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      required
-                      minLength={12}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Min. 12 caractères, majuscule, minuscule, chiffre, symbole.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirmer</Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Sélecteur de méthode de vérification (si les deux sont disponibles) */}
-                {canUseBoth && (
-                  <div className="flex overflow-hidden rounded-xl border border-border text-sm">
-                    <button
-                      type="button"
-                      onClick={() => setVerificationMethod('totp')}
-                      className={`flex-1 px-3 py-2 transition-colors ${
-                        verificationMethod === 'totp'
-                          ? 'bg-primary font-medium text-primary-foreground'
-                          : 'bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                  {message && (
+                    <div
+                      className={`flex items-center gap-2 rounded-lg p-3 text-sm ${
+                        message.type === 'success'
+                          ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                          : 'bg-destructive/10 text-destructive'
                       }`}
                     >
-                      Code application
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setVerificationMethod('passkey')}
-                      className={`flex-1 border-l border-border px-3 py-2 transition-colors ${
-                        verificationMethod === 'passkey'
-                          ? 'bg-primary font-medium text-primary-foreground'
-                          : 'bg-muted/30 text-muted-foreground hover:bg-muted/60'
-                      }`}
-                    >
-                      Cet appareil
-                    </button>
-                  </div>
-                )}
+                      {message.type === 'success' ? (
+                        <Check className="h-4 w-4 shrink-0" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                      )}
+                      {message.text}
+                    </div>
+                  )}
 
-                {/* Vérification TOTP */}
-                {hasMfa && (!canUseBoth || verificationMethod === 'totp') && (
-                  <form onSubmit={handleChangeWithTotp} className="space-y-4">
+                  {/* Champs communs aux deux méthodes */}
+                  <div className="space-y-3">
                     <div className="space-y-2">
-                      <Label htmlFor="mfaCode">Code à 6 chiffres</Label>
+                      <Label htmlFor="currentPassword">Mot de passe actuel</Label>
                       <Input
-                        id="mfaCode"
-                        value={mfaCode}
-                        onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        placeholder="000000"
-                        maxLength={6}
-                        inputMode="numeric"
-                        className="text-center font-mono text-lg tracking-widest"
+                        id="currentPassword"
+                        type="password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
                         required
                       />
                     </div>
-                    <div className="flex justify-end gap-2">
-                      <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>
-                        Annuler
-                      </Button>
-                      <Button type="submit" disabled={isSubmitting || mfaCode.length !== 6}>
-                        {isSubmitting ? 'Enregistrement…' : 'Enregistrer'}
-                      </Button>
-                    </div>
-                  </form>
-                )}
-
-                {/* Vérification passkey */}
-                {hasPasskeys &&
-                  passkeySupported &&
-                  (!hasMfa || verificationMethod === 'passkey') && (
-                    <form onSubmit={handleChangeWithPasskey} className="space-y-4">
-                      <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Fingerprint className="h-4 w-4 shrink-0 text-primary" />
-                        Votre appareil vous demandera de confirmer votre identité.
+                    <div className="space-y-2">
+                      <Label htmlFor="newPassword">Nouveau mot de passe</Label>
+                      <Input
+                        id="newPassword"
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        required
+                        minLength={12}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Min. 12 caractères, majuscule, minuscule, chiffre, symbole.
                       </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">Confirmer</Label>
+                      <Input
+                        id="confirmPassword"
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Sélecteur de méthode de vérification (si les deux sont disponibles) */}
+                  {canUseBoth && (
+                    <div className="flex overflow-hidden rounded-xl border border-border text-sm">
+                      <button
+                        type="button"
+                        onClick={() => setVerificationMethod('totp')}
+                        className={`flex-1 px-3 py-2 transition-colors ${
+                          verificationMethod === 'totp'
+                            ? 'bg-primary font-medium text-primary-foreground'
+                            : 'bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                        }`}
+                      >
+                        Code application
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setVerificationMethod('passkey')}
+                        className={`flex-1 border-l border-border px-3 py-2 transition-colors ${
+                          verificationMethod === 'passkey'
+                            ? 'bg-primary font-medium text-primary-foreground'
+                            : 'bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                        }`}
+                      >
+                        Cet appareil
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Vérification TOTP */}
+                  {hasMfa && (!canUseBoth || verificationMethod === 'totp') && (
+                    <form onSubmit={handleChangeWithTotp} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="mfaCode">Code à 6 chiffres</Label>
+                        <Input
+                          id="mfaCode"
+                          value={mfaCode}
+                          onChange={(e) =>
+                            setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))
+                          }
+                          placeholder="000000"
+                          maxLength={6}
+                          inputMode="numeric"
+                          className="text-center font-mono text-lg tracking-widest"
+                          required
+                        />
+                      </div>
                       <div className="flex justify-end gap-2">
                         <Button
                           type="button"
@@ -772,22 +764,47 @@ export function AccountPage() {
                         >
                           Annuler
                         </Button>
-                        <Button
-                          type="submit"
-                          disabled={
-                            isSubmitting || !currentPassword || !newPassword || !confirmPassword
-                          }
-                          className="gap-2"
-                        >
-                          <Fingerprint className="h-4 w-4" />
-                          {isSubmitting ? 'Vérification…' : 'Confirmer avec cet appareil'}
+                        <Button type="submit" disabled={isSubmitting || mfaCode.length !== 6}>
+                          {isSubmitting ? 'Enregistrement…' : 'Enregistrer'}
                         </Button>
                       </div>
                     </form>
                   )}
-              </DialogContent>
-            </Dialog>
-          </div>
+
+                  {/* Vérification passkey */}
+                  {hasPasskeys &&
+                    passkeySupported &&
+                    (!hasMfa || verificationMethod === 'passkey') && (
+                      <form onSubmit={handleChangeWithPasskey} className="space-y-4">
+                        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Fingerprint className="h-4 w-4 shrink-0 text-primary" />
+                          Votre appareil vous demandera de confirmer votre identité.
+                        </p>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => setIsDialogOpen(false)}
+                          >
+                            Annuler
+                          </Button>
+                          <Button
+                            type="submit"
+                            disabled={
+                              isSubmitting || !currentPassword || !newPassword || !confirmPassword
+                            }
+                            className="gap-2"
+                          >
+                            <Fingerprint className="h-4 w-4" />
+                            {isSubmitting ? 'Vérification…' : 'Confirmer avec cet appareil'}
+                          </Button>
+                        </div>
+                      </form>
+                    )}
+                </DialogContent>
+              </Dialog>
+            </div>
+          </SecurityLock>
         </section>
 
         {/* Personal by nature, so they live with the account rather than with the site. */}

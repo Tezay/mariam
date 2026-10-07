@@ -1,7 +1,15 @@
 import axios from 'axios';
 import { API_URL } from '../runtime-config';
-import { api, withProof } from './client';
-import { clearTokens, getAccessToken, getRefreshToken, storeTokens } from './tokens';
+import { api } from './client';
+import {
+  clearTokens,
+  confirmedUntil,
+  getAccessToken,
+  getRefreshToken,
+  onTokensChange,
+  setAccessToken,
+  storeTokens,
+} from './tokens';
 
 export interface User {
   id: number;
@@ -142,9 +150,16 @@ export const authApi = {
     return !!getAccessToken();
   },
 
+  confirmedUntil,
+
+  /** Whether the routes asking for a confirmed session would take it for `forMs` more. */
+  isConfirmed: (forMs = 0) => confirmedUntil() - forMs > Date.now(),
+
+  onSessionChange: onTokensChange,
+
   /** A changed address comes back with the session that replaces the caller's. */
-  updateProfile: async (changes: { username?: string; email?: string }, stepUpToken: string) => {
-    const response = await api.patch('/auth/me', changes, withProof(stepUpToken));
+  updateProfile: async (changes: { username?: string; email?: string }) => {
+    const response = await api.patch('/auth/me', changes);
     const { access_token, refresh_token } = response.data;
     if (access_token && refresh_token) storeTokens(access_token, refresh_token);
   },
@@ -154,7 +169,7 @@ export const authApi = {
       password,
       mfa_code: mfaCode,
     });
-    return response.data.step_up_token as string;
+    setAccessToken(response.data.access_token);
   },
 
   stepUpPasskeyBegin: async () => {
@@ -167,7 +182,7 @@ export const authApi = {
       challenge_token: challengeToken,
       credential,
     });
-    return response.data.step_up_token as string;
+    setAccessToken(response.data.access_token);
   },
 
   changePassword: async (currentPassword: string, newPassword: string, mfaCode: string) => {
@@ -221,13 +236,20 @@ export const authApi = {
     await api.delete(`/auth/passkey/${id}`);
   },
 
-  mfaSetupBegin: async (): Promise<{ qr_code: string; secret: string }> => {
+  mfaSetupBegin: async (): Promise<{
+    qr_code: string;
+    secret: string;
+    enrolment_token: string;
+  }> => {
     const response = await api.post('/auth/mfa/setup');
     return response.data;
   },
 
-  mfaSetupConfirm: async (code: string): Promise<User> => {
-    const response = await api.post('/auth/mfa/setup/confirm', { code });
+  mfaSetupConfirm: async (enrolmentToken: string, code: string): Promise<User> => {
+    const response = await api.post('/auth/mfa/setup/confirm', {
+      enrolment_token: enrolmentToken,
+      code,
+    });
     return response.data.user as User;
   },
 
@@ -339,6 +361,5 @@ export const authApi = {
     const { access_token, refresh_token, user } = response.data;
     storeTokens(access_token, refresh_token);
     setManifestRole(user.role);
-    return user;
   },
 };

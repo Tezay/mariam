@@ -38,7 +38,7 @@ class TestWithTotp:
             client, issue_session(uid), pyotp.TOTP(secret).now(), current='Wrong-Pass123!'
         )
 
-        assert res.status_code == 401
+        assert res.status_code == 403
         assert AuditLog.query.filter_by(action=AuditLog.ACTION_PASSWORD_CHANGE).count() == 1
 
     def test_a_weak_password_is_refused(self, app, client):
@@ -86,7 +86,7 @@ class TestWithPasskey:
 
         res = self._begin(client, issue_session(uid), current='Wrong-Pass123!')
 
-        assert res.status_code == 401
+        assert res.status_code == 403
 
     def test_an_unregistered_passkey_is_refused(self, app, client):
         uid = make_user(app)

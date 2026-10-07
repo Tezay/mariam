@@ -6,23 +6,31 @@ from flask_jwt_extended import create_access_token, create_refresh_token
 
 from app.extensions import db
 from app.models import ActivationLink, Passkey, User
+from app.routes.auth._common import CONFIRMATION_WINDOW
 from conftest import TEST_PASSWORD, auth_headers
 from tests.webauthn_authenticator import SoftAuthenticator
 
 
-def issue_session(user_id: int) -> dict[str, str]:
+def issue_session(user_id: int, *, confirmed: bool = False) -> dict[str, str]:
     """Explicit lifetimes: the test config issues tokens without `exp`, and logout
     only revokes a token that has one.
     """
     identity = str(user_id)
     return {
-        'access': create_access_token(identity=identity, expires_delta=timedelta(minutes=30)),
+        'access': create_access_token(
+            identity=identity,
+            expires_delta=timedelta(minutes=30),
+            fresh=CONFIRMATION_WINDOW if confirmed else False,
+        ),
         'refresh': create_refresh_token(identity=identity, expires_delta=timedelta(days=7)),
     }
 
 
-def session_headers(user_id: int) -> dict[str, str]:
-    return auth_headers(issue_session(user_id)['access'])
+def session_headers(user_id: int, *, confirmed: bool = False) -> dict[str, str]:
+    """`confirmed` mints the confirmation instead of earning it, for an account
+    whose own second factors are under test.
+    """
+    return auth_headers(issue_session(user_id, confirmed=confirmed)['access'])
 
 
 def is_signed_in(client, session: dict[str, str]) -> bool:
@@ -37,19 +45,19 @@ def enable_totp(user_id: int) -> str:
     return user.mfa_secret
 
 
-def identity_proof(client, user_id: int, headers: dict[str, str] | None = None) -> str:
-    """Enables TOTP on the account first: a proof needs a second factor."""
+def confirmed_headers(
+    client, user_id: int, headers: dict[str, str] | None = None
+) -> dict[str, str]:
+    """Enables TOTP on the account, then confirms the session `headers` carry, or a
+    new one.
+    """
     secret = enable_totp(user_id)
     res = client.post(
         '/v1/auth/step-up/password',
         headers=headers or session_headers(user_id),
         json={'password': TEST_PASSWORD, 'mfa_code': pyotp.TOTP(secret).now()},
     )
-    return res.get_json()['step_up_token']
-
-
-def confirmed_headers(client, user_id: int) -> dict[str, str]:
-    return {**session_headers(user_id), 'X-Step-Up-Token': identity_proof(client, user_id)}
+    return auth_headers(res.get_json()['access_token'])
 
 
 def new_authenticator() -> SoftAuthenticator:

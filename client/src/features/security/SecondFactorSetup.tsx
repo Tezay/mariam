@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getApiErrorMessage } from '@/lib/api/errors';
+import { passkeyRegistrationError } from '@/lib/passkey-errors';
 
 export interface SecondFactorEnrolment {
   /** Registers the passkey and updates the session. */
@@ -76,12 +77,7 @@ export function SecondFactorSetup({ enrolment }: { enrolment: SecondFactorEnrolm
     try {
       await enrolment.registerPasskey();
     } catch (err) {
-      const cancelled = (err as { name?: string }).name === 'NotAllowedError';
-      setError(
-        cancelled
-          ? 'Enregistrement annulé. Réessayez ou choisissez une autre méthode.'
-          : getApiErrorMessage(err, "Échec de l'enregistrement. Réessayez.")
-      );
+      setError(passkeyRegistrationError(err));
     } finally {
       setIsLoading(false);
     }

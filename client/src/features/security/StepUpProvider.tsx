@@ -27,18 +27,21 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   // Kept after closing, so the dialog does not empty while it animates out.
   const [request, setRequest] = useState<StepUpRequest | null>(null);
+  const [asksFactor, setAsksFactor] = useState(true);
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState('');
   const [mfaCode, setMfaCode] = useState('');
   const [isWorking, setIsWorking] = useState(false);
   const [error, setError] = useState('');
-  const settle = useRef<((proof: string | null) => void) | null>(null);
+  const settle = useRef<((confirmed: boolean) => void) | null>(null);
 
   const hasPasskey = (user?.passkeys_count ?? 0) > 0;
   const hasTotp = Boolean(user?.mfa_enabled);
+  const destructive = request?.tone === 'destructive';
+  const confirmLabel = request?.confirmLabel ?? 'Continuer';
 
-  const finish = (proof: string | null) => {
-    settle.current?.(proof);
+  const finish = (confirmed: boolean) => {
+    settle.current?.(confirmed);
     settle.current = null;
     setOpen(false);
     setPassword('');
@@ -47,25 +50,32 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
     setIsWorking(false);
   };
 
-  const confirmIdentity = useCallback<ConfirmIdentity>(
-    (next) =>
-      new Promise((resolve) => {
-        // A prompt opened over another answers the first as backed out.
-        settle.current?.(null);
-        settle.current = resolve;
-        setRequest(next);
-        setOpen(true);
-      }),
-    []
-  );
+  const confirmIdentity = useCallback<ConfirmIdentity>((next, forMs = 0) => {
+    const confirmed = authApi.isConfirmed(forMs);
+    if (confirmed && next.tone !== 'destructive') return Promise.resolve(true);
+    return new Promise((resolve) => {
+      // A prompt opened over another answers the first as backed out.
+      settle.current?.(false);
+      settle.current = resolve;
+      setRequest(next);
+      setAsksFactor(!confirmed);
+      setOpen(true);
+    });
+  }, []);
 
-  const run = async (getProof: () => Promise<string>) => {
+  const run = async (confirm: () => Promise<void>) => {
     setIsWorking(true);
     setError('');
     try {
-      finish(await getProof());
+      await confirm();
+      finish(true);
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Vérification impossible'));
+      const cancelled = (err as { name?: string }).name === 'NotAllowedError';
+      setError(
+        cancelled
+          ? 'Vérification annulée. Réessayez.'
+          : getApiErrorMessage(err, 'Vérification impossible')
+      );
       setIsWorking(false);
     }
   };
@@ -76,7 +86,7 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
       const credential = await startAuthentication({
         optionsJSON: options as unknown as PublicKeyCredentialRequestOptionsJSON,
       });
-      return authApi.stepUpPasskeyComplete(challenge_token, credential);
+      await authApi.stepUpPasskeyComplete(challenge_token, credential);
     });
 
   const confirmWithPassword = (event: React.FormEvent) => {
@@ -87,21 +97,27 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
   return (
     <StepUpContext.Provider value={confirmIdentity}>
       {children}
-      <Dialog open={open} onOpenChange={(next) => !next && finish(null)}>
+      <Dialog open={open} onOpenChange={(next) => !next && finish(false)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{request?.title}</DialogTitle>
-            <DialogDescription>{request?.description}</DialogDescription>
+            <DialogTitle>{request?.title ?? 'Confirmez votre identité'}</DialogTitle>
+            {destructive ? (
+              <DialogDescription className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-left text-destructive">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{request?.description}</span>
+              </DialogDescription>
+            ) : (
+              <DialogDescription>{request?.description}</DialogDescription>
+            )}
           </DialogHeader>
 
-          {request?.warning && (
-            <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{request.warning}</span>
-            </div>
+          {asksFactor && destructive && (
+            <p className="text-sm text-muted-foreground">
+              Confirmez votre identité pour continuer.
+            </p>
           )}
 
-          {hasPasskey && (
+          {asksFactor && hasPasskey && (
             <Button
               variant="outline"
               className="w-full gap-2"
@@ -117,7 +133,7 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
             </Button>
           )}
 
-          {hasPasskey && hasTotp && (
+          {asksFactor && hasPasskey && hasTotp && (
             <div className="flex items-center gap-3">
               <span className="h-px flex-1 bg-border" />
               <span className="text-xs text-muted-foreground">ou</span>
@@ -125,7 +141,7 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
             </div>
           )}
 
-          {hasTotp ? (
+          {asksFactor && hasTotp ? (
             <form onSubmit={confirmWithPassword} className="space-y-3">
               <div className="space-y-1.5">
                 <Label htmlFor="step-up-password">Votre mot de passe</Label>
@@ -158,36 +174,53 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
               <div className="flex gap-2 pt-1">
                 <Button
                   type="submit"
-                  variant={request?.tone === 'destructive' ? 'destructive' : 'default'}
+                  variant={destructive ? 'destructive' : 'default'}
                   className="flex-1 gap-2"
                   disabled={isWorking || !password || mfaCode.length < 6}
                 >
                   {isWorking && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {request?.confirmLabel}
+                  {confirmLabel}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => finish(null)}>
+                <Button type="button" variant="outline" onClick={() => finish(false)}>
                   Annuler
                 </Button>
               </div>
             </form>
           ) : (
             <div className="space-y-3">
-              {!hasPasskey && (
+              {asksFactor && !hasPasskey && (
                 <p className="text-sm text-muted-foreground">
                   Cette action demande une double authentification. Configurez-la d'abord depuis Mon
                   compte.
                 </p>
               )}
               {error && <p className="text-sm text-destructive">{error}</p>}
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => finish(null)}
-              >
-                Annuler
-              </Button>
+              <div className="flex gap-2">
+                {!asksFactor && (
+                  <Button
+                    variant={destructive ? 'destructive' : 'default'}
+                    className="flex-1"
+                    onClick={() => finish(true)}
+                  >
+                    {confirmLabel}
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={asksFactor ? 'w-full' : undefined}
+                  onClick={() => finish(false)}
+                >
+                  Annuler
+                </Button>
+              </div>
             </div>
+          )}
+
+          {asksFactor && (hasPasskey || hasTotp) && (
+            <p className="text-xs text-muted-foreground">
+              Appareil perdu ? Un administrateur peut réinitialiser votre double authentification.
+            </p>
           )}
         </DialogContent>
       </Dialog>

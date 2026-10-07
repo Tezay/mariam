@@ -8,6 +8,8 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { authApi } from '@/lib/api/auth';
+import { isConfirmationRequired } from '@/lib/api/errors';
+import { passkeyRegistrationError } from '@/lib/passkey-errors';
 import { useAuth } from '@/contexts/AuthContext';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
@@ -59,13 +61,14 @@ export function SetupTransferPage() {
       });
       await authApi.passkeyRegisterComplete(challenge_token, credential);
       setState('passkey_done');
-    } catch (err: unknown) {
-      const error = err as { name?: string; response?: { data?: { error?: string } } };
-      if (error.name === 'NotAllowedError') {
-        setPasskeyError('Enregistrement annulé. Réessayez ou ignorez cette étape.');
-      } else {
-        setPasskeyError(error.response?.data?.error ?? "Impossible d'enregistrer la passkey.");
-      }
+    } catch (err) {
+      // This device has no second factor of its own to confirm with: only a
+      // new hand-over brings a confirmed session here.
+      setPasskeyError(
+        isConfirmationRequired(err)
+          ? 'Le délai pour enregistrer une passkey est dépassé. Scannez de nouveau le QR code, ou ignorez cette étape.'
+          : passkeyRegistrationError(err)
+      );
     } finally {
       setIsRegistering(false);
     }

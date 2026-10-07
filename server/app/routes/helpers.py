@@ -3,13 +3,13 @@ import re
 from functools import wraps
 
 from flask import jsonify, request
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import get_jwt_identity, jwt_required, verify_jwt_in_request
+from flask_jwt_extended.exceptions import FreshTokenRequired
 
 from ..extensions import db
 from ..models import DishCatalog, Restaurant, User
 from ..models.taxonomy import Certification, DietaryTag
 from ..services.access import accessible_restaurant_ids
-from ..services.step_up import consume_step_up_token
 
 
 def editor_required(f):
@@ -60,22 +60,50 @@ def org_admin_required(f):
     return decorated_function
 
 
-def step_up_required(f):
-    """Requires a fresh proof of identity in `X-Step-Up-Token`, and spends it.
+def _confirmation_required():
+    # 403, not 401: the client takes a 401 for an expired session and refreshes it.
+    return jsonify({
+        'error': 'Confirmation d’identité requise',
+        'step_up_required': True,
+    }), 403
 
-    Goes under the decorator that authenticates the caller. The proof is spent
-    before the view runs, whatever the view then answers: one proof, one request.
+
+def _identity_confirmed() -> bool:
+    try:
+        verify_jwt_in_request(fresh=True)
+    except FreshTokenRequired:
+        return False
+    return True
+
+
+def step_up_required(f):
+    """Reserves a route for a confirmed session: one whose account has a second
+    factor and presented it within the confirmation window, at sign-in or
+    through `/auth/step-up/*` since.
+
+    Goes under the decorator that authenticates the caller.
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        proof = request.headers.get('X-Step-Up-Token', '')
-        if not consume_step_up_token(proof, int(get_jwt_identity())):
-            # 403, not 401: the client takes a 401 for an expired session and
-            # refreshes it.
-            return jsonify({
-                'error': 'Confirmation d’identité requise',
-                'step_up_required': True,
-            }), 403
+        user = get_current_user()
+        if not (user and user.has_second_factor() and _identity_confirmed()):
+            return _confirmation_required()
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def step_up_once_enrolled(f):
+    """`step_up_required` for the routes that give an account a second factor,
+    or hand its session to another device.
+
+    An account without a second factor has nothing to confirm with, and goes
+    through.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = get_current_user()
+        if user and user.has_second_factor() and not _identity_confirmed():
+            return _confirmation_required()
         return f(*args, **kwargs)
     return decorated_function
 

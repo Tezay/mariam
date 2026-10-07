@@ -96,7 +96,7 @@ def _apply_audit_filters(query):
 def export_audit_logs():
     """CSV export of audit logs (max 10,000 rows).
 
-    Requires a fresh proof of identity in `X-Step-Up-Token`.
+    Requires a confirmed session.
 
     Accepts the same query params as `GET /v1/audit-logs`:
     `action`, `user_id`, `start_date`, `end_date`.

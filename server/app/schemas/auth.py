@@ -42,8 +42,13 @@ class MFAVerifySetupSchema(_RequestSchema):
     )
 
 
-class TotpCodeSchema(_RequestSchema):
-    code = fields.Str(required=True, metadata={'description': 'Current authenticator-app code.'})
+class TotpEnrolmentConfirmSchema(_RequestSchema):
+    enrolment_token = fields.Str(
+        required=True, metadata={'description': 'Token returned by `/mfa/setup`.'}
+    )
+    code = fields.Str(
+        required=True, metadata={'description': 'First code of the app that scanned the secret.'}
+    )
 
 
 class LogoutSchema(_RequestSchema):
@@ -234,6 +239,13 @@ class TotpEnrolmentSchema(Schema):
     )
 
 
+class TotpSetupSchema(TotpEnrolmentSchema):
+    enrolment_token = fields.Str(
+        required=True,
+        metadata={'description': 'Send back with a first code, within 10 minutes.'},
+    )
+
+
 class ActivationSetupSchema(TotpEnrolmentSchema):
     user_id = fields.Int(required=True)
     setup_token = fields.Str(
@@ -281,11 +293,12 @@ class PasskeyRenamedSchema(Schema):
     device_name = fields.Str(required=True)
 
 
-class StepUpTokenSchema(Schema):
-    step_up_token = fields.Str(
+class ConfirmedTokenSchema(Schema):
+    access_token = fields.Str(
         required=True,
         metadata={
-            'description': 'Single-use proof for the X-Step-Up-Token header, valid 5 minutes.'
+            'description': 'Replaces the access token in use. Its `fresh` claim is the '
+                           'time until which the session is confirmed.'
         },
     )
 
@@ -306,5 +319,8 @@ class AuthErrorSchema(ErrorSchema):
         metadata={'description': 'The account has no second factor to confirm with.'}
     )
     step_up_required = fields.Bool(
-        metadata={'description': 'Send a fresh proof of identity in `X-Step-Up-Token`.'}
+        metadata={
+            'description': 'Confirm identity through `/auth/step-up/*`, then retry with '
+                           'the access token it returns.'
+        }
     )

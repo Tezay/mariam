@@ -1,32 +1,73 @@
 import time
+from datetime import timedelta
 
 from flask import jsonify
-from flask_jwt_extended import create_access_token, create_refresh_token
+from flask_jwt_extended import (
+    create_access_token,
+    create_refresh_token,
+    get_jti,
+    get_jwt,
+    get_jwt_identity,
+)
 
 from ...extensions import db
 from ...models import AuditLog, User
-from ...security import blacklist_token, get_client_ip
+from ...security import SESSION_CLAIM, blacklist_token, get_client_ip
 
 NO_SESSION = 'No valid session.'
+NOT_CONFIRMED = 'Session not confirmed: `step_up_required` is set.'
+# Counted from the moment a second factor is presented. Nothing extends it:
+# neither using the session, nor refreshing it, nor handing it over.
+CONFIRMATION_WINDOW = timedelta(minutes=10)
 
 
-def token_pair(user: User) -> dict[str, str]:
+def token_pair(
+    user: User, *, confirmed: timedelta | float | None = None, claims: dict | None = None
+) -> dict[str, str]:
+    """`confirmed` is `CONFIRMATION_WINDOW` for a caller that has just presented a
+    second factor, or the Unix time an earlier confirmation runs until.
+    """
     identity = str(user.id)
+    refresh_token = create_refresh_token(identity=identity, additional_claims=claims)
     return {
-        'access_token': create_access_token(identity=identity),
-        'refresh_token': create_refresh_token(identity=identity),
+        'access_token': create_access_token(
+            identity=identity,
+            fresh=confirmed or False,
+            additional_claims={**(claims or {}), SESSION_CLAIM: get_jti(refresh_token)},
+        ),
+        'refresh_token': refresh_token,
     }
+
+
+def renewed_access_token(*, confirmed: timedelta | None = None) -> str:
+    """A new access token for the session of the token that authenticates the request.
+
+    `confirmed` as for `token_pair`.
+    """
+    presented = get_jwt()
+    carried = {
+        # Carried over: an access token issued within the second of the
+        # revocation that kept this session would fall under it.
+        User.REVOCATION_MARKER: presented.get(User.REVOCATION_MARKER),
+        SESSION_CLAIM: (
+            presented['jti'] if presented['type'] == 'refresh' else presented.get(SESSION_CLAIM)
+        ),
+    }
+    return create_access_token(
+        identity=get_jwt_identity(),
+        fresh=confirmed or False,
+        additional_claims={name: value for name, value in carried.items() if value},
+    )
 
 
 def reissued_token_pair(user: User) -> dict[str, str]:
-    """Ends every session of the account and opens one for the caller."""
+    """Ends every session of the account and opens one for the caller.
+
+    The new session is not confirmed: what follows a change of sign-in address
+    asks for the second factor again.
+    """
     user.revoke_tokens()
-    identity = str(user.id)
-    claims = {User.REVOCATION_MARKER: user.revocation_marker()}
-    return {
-        'access_token': create_access_token(identity=identity, additional_claims=claims),
-        'refresh_token': create_refresh_token(identity=identity, additional_claims=claims),
-    }
+    return token_pair(user, claims={User.REVOCATION_MARKER: user.revocation_marker()})
 
 
 def revoke_until_expiry(claims: dict) -> None:
@@ -47,7 +88,9 @@ def complete_login(user: User):
     return jsonify({
         'message': 'Connexion réussie',
         'user': user.to_dict(include_tenant=True),
-        **token_pair(user),
+        # A password alone, on an account still without a second factor,
+        # confirms nothing.
+        **token_pair(user, confirmed=CONFIRMATION_WINDOW if user.has_second_factor() else None),
     }), 200
 
 

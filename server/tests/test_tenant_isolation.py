@@ -22,12 +22,7 @@ from app.models import (
 )
 from app.utils.time import paris_today
 from conftest import auth_headers, get_token, make_restaurant, make_user
-from tests.auth_support import (
-    confirmed_headers,
-    enable_totp,
-    identity_proof,
-    session_headers,
-)
+from tests.auth_support import confirmed_headers, enable_totp, session_headers
 
 
 def _today_iso():
@@ -401,7 +396,7 @@ class TestSupervisorManagesOnlyPeers:
 
 
 class TestDeletionNeedsStepUp:
-    """Deleting an account requires a fresh proof of identity."""
+    """Deleting an account requires a confirmed session."""
 
     def _pair(self, slug='step-org'):
         org = _make_org(slug=slug)
@@ -412,14 +407,15 @@ class TestDeletionNeedsStepUp:
         victim = _make_user('victim@mariam.app', 'editor', rid, org)
         return boss, victim
 
-    def test_delete_without_proof_is_rejected(self, app, client):
+    def test_delete_from_an_unconfirmed_session_is_rejected(self, app, client):
         boss, victim = self._pair()
+        enable_totp(boss)
         res = client.delete(f'/v1/users/{victim}', headers=session_headers(boss))
         assert res.status_code == 403
         assert res.get_json()['step_up_required'] is True
         assert db.session.get(User, victim) is not None
 
-    def test_wrong_password_yields_no_proof(self, app, client):
+    def test_wrong_password_confirms_nothing(self, app, client):
         boss, _ = self._pair('step-org-2')
         secret = enable_totp(boss)
         res = client.post(
@@ -427,15 +423,11 @@ class TestDeletionNeedsStepUp:
             json={'password': 'WrongPass123!', 'mfa_code': pyotp.TOTP(secret).now()},
             headers=session_headers(boss),
         )
-        assert res.status_code == 401
+        assert res.status_code == 403
 
-    def test_delete_succeeds_with_a_fresh_proof(self, app, client):
+    def test_delete_succeeds_once_confirmed(self, app, client):
         boss, victim = self._pair('step-org-3')
-        proof = identity_proof(client, boss)
-        res = client.delete(
-            f'/v1/users/{victim}',
-            headers={**session_headers(boss), 'X-Step-Up-Token': proof},
-        )
+        res = client.delete(f'/v1/users/{victim}', headers=confirmed_headers(client, boss))
         assert res.status_code == 200
         assert db.session.get(User, victim) is None
 
@@ -502,6 +494,9 @@ class TestOrgDashboard:
         _make_user('u@mariam.app', role, restaurant_id=rids[0], organization_id=org)
         return org, rids
 
+    def _confirmed(self, client):
+        return confirmed_headers(client, User.query.filter_by(email='u@mariam.app').one().id)
+
     def test_sites_overview(self, app, client):
         self._org('ov', ['OVA', 'OVB'])
         token = get_token(client, email='u@mariam.app')
@@ -542,12 +537,12 @@ class TestOrgDashboard:
 
     def test_supervisor_only_invites_supervisors(self, app, client):
         _, (rid1, rid2) = self._org('ov3', ['OV3A', 'OV3B'])
-        token = get_token(client, email='u@mariam.app')
+        headers = self._confirmed(client)
         for role in ('admin', 'editor', 'reader'):
             res = client.post(
                 '/v1/users/invite',
                 json={'email': f'{role}@mariam.app', 'role': role, 'restaurant_id': rid2},
-                headers=auth_headers(token),
+                headers=headers,
             )
             assert res.status_code == 403, role
         from app.models import ActivationLink
@@ -555,11 +550,10 @@ class TestOrgDashboard:
 
     def test_supervisor_invitation_is_not_bound_to_a_site(self, app, client):
         org, _ = self._org('ov4', ['OV4A', 'OV4B'])
-        token = get_token(client, email='u@mariam.app')
         res = client.post(
             '/v1/users/invite',
             json={'email': 'peer@mariam.app', 'role': 'org_admin'},
-            headers=auth_headers(token),
+            headers=self._confirmed(client),
         )
         assert res.status_code == 201
         from app.models import ActivationLink
@@ -569,13 +563,13 @@ class TestOrgDashboard:
 
     def test_site_admin_cannot_invite_a_supervisor(self, app, client):
         self._org('ov5', ['OV5A'], role='admin')
-        token = get_token(client, email='u@mariam.app')
         res = client.post(
             '/v1/users/invite',
             json={'email': 'boss@mariam.app', 'role': 'org_admin'},
-            headers=auth_headers(token),
+            headers=self._confirmed(client),
         )
         assert res.status_code == 403
+        assert 'step_up_required' not in res.get_json()
 
     def test_supervisor_is_listed_for_the_organization_only(self, app, client):
         org, (rid,) = self._org('ov6', ['OV6A'], role='admin')
