@@ -13,6 +13,7 @@ import './index.css';
 import App from './App.tsx';
 import { AuthProvider } from './contexts/AuthContext.tsx';
 import { ThemeProvider } from './contexts/ThemeProvider.tsx';
+import { StepUpProvider } from './features/security/StepUpProvider.tsx';
 import { ErrorBoundary, AppErrorFallback } from './components/ErrorBoundary.tsx';
 import { canonicalTarget, migrateToCanonicalHost } from './lib/canonical-host.ts';
 
@@ -68,7 +69,9 @@ function bootstrap() {
           <BrowserRouter>
             <AuthProvider>
               <ThemeProvider>
-                <App />
+                <StepUpProvider>
+                  <App />
+                </StepUpProvider>
               </ThemeProvider>
             </AuthProvider>
           </BrowserRouter>

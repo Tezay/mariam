@@ -33,12 +33,12 @@ from ..schemas.users import (
 )
 from ..security import get_client_ip
 from ..services.account import reset_second_factor
-from ..services.step_up import consume_step_up_token
 from .helpers import (
     accessible_restaurant_ids,
     admin_required,
     get_current_user,
     paginated_response,
+    step_up_required,
 )
 
 users_bp = Blueprint(
@@ -178,7 +178,7 @@ def create_invitation(data):
 
     return jsonify({
         'message': 'Invitation créée',
-        'invitation': link.to_dict(include_token=True),
+        'invitation': link.to_dict(),
     }), 201
 
 
@@ -196,7 +196,7 @@ def list_invitations():
         if query is not None else []
     )
 
-    return jsonify({'invitations': [link.to_dict(include_token=True) for link in links]}), 200
+    return jsonify({'invitations': [link.to_dict() for link in links]}), 200
 
 
 @users_bp.route('/invitations/<int:invitation_id>', methods=['DELETE'])
@@ -272,7 +272,7 @@ def get_user(user_id):
 @users_bp.alt_response(404, schema=ErrorSchema, description="User not found")
 @admin_required
 def update_user(data, user_id):
-    """Update a user (role, active status, restaurant, username)."""
+    """Update a user (role, active status, restaurant)."""
     current_user_id = int(get_jwt_identity())
     user = _scoped_user(user_id)
     if not user:
@@ -280,9 +280,6 @@ def update_user(data, user_id):
 
     if user.is_rescue_account:
         return jsonify({'error': 'Le compte de secours ne peut pas être modifié'}), 403
-
-    if 'username' in data:
-        user.username = data['username']
 
     caller = get_current_user()
 
@@ -296,6 +293,10 @@ def update_user(data, user_id):
     if 'is_active' in data:
         if user.id == current_user_id and not data['is_active']:
             return jsonify({'error': 'Vous ne pouvez pas désactiver votre propre compte'}), 400
+        # A disabled account's tokens are refused as long as it stays disabled;
+        # revoking them keeps its old sessions from returning with it.
+        if user.is_active and not data['is_active']:
+            user.revoke_tokens()
         user.is_active = data['is_active']
 
     if 'restaurant_id' in data:
@@ -320,9 +321,12 @@ def update_user(data, user_id):
 @users_bp.route('/<int:user_id>', methods=['DELETE'])
 @users_bp.response(200, MessageSchema)
 @users_bp.alt_response(400, schema=ErrorSchema, description="Cannot delete your own account")
-@users_bp.alt_response(403, schema=ErrorSchema, description="Rescue account cannot be deleted")
+@users_bp.alt_response(
+    403, schema=ErrorSchema, description="Identity confirmation required, or rescue account"
+)
 @users_bp.alt_response(404, schema=ErrorSchema, description="User not found")
 @admin_required
+@step_up_required
 def delete_user(user_id):
     """Delete a user."""
     current_user_id = int(get_jwt_identity())
@@ -335,9 +339,6 @@ def delete_user(user_id):
 
     if user.is_rescue_account:
         return jsonify({'error': 'Le compte de secours ne peut pas être supprimé'}), 403
-
-    if not consume_step_up_token(request.headers.get('X-Step-Up-Token', ''), current_user_id):
-        return jsonify({'error': 'Confirmation d’identité requise'}), 401
 
     AuditLog.log(
         action=AuditLog.ACTION_USER_DELETE,
@@ -357,10 +358,12 @@ def delete_user(user_id):
 @users_bp.route('/<int:user_id>/reset-mfa', methods=['POST'])
 @users_bp.response(200, MessageSchema)
 @users_bp.alt_response(400, schema=ErrorSchema, description="Cannot reset your own account")
-@users_bp.alt_response(401, schema=ErrorSchema, description="Identity confirmation required")
-@users_bp.alt_response(403, schema=ErrorSchema, description="Rescue account cannot be modified")
+@users_bp.alt_response(
+    403, schema=ErrorSchema, description="Identity confirmation required, or rescue account"
+)
 @users_bp.alt_response(404, schema=ErrorSchema, description="User not found")
 @admin_required
+@step_up_required
 def reset_user_mfa(user_id):
     """Remove a user's second factor.
 
@@ -381,9 +384,6 @@ def reset_user_mfa(user_id):
 
     if user.is_rescue_account:
         return jsonify({'error': 'Le compte de secours ne peut pas être modifié'}), 403
-
-    if not consume_step_up_token(request.headers.get('X-Step-Up-Token', ''), current_user_id):
-        return jsonify({'error': 'Confirmation d’identité requise'}), 401
 
     removed = reset_second_factor(user)
 

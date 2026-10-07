@@ -1,0 +1,21 @@
+{% extends "emails/base.html" %}
+
+{% block kicker %}Sécurité{% endblock %}
+
+{% block content %}
+<p style="margin:0 0 14px;font-size:15px;color:#0f172a">
+  <strong>Votre adresse de connexion a changé</strong>
+</p>
+<p style="margin:0 0 14px">
+  L'adresse de connexion de votre compte Mariam a été remplacée par
+  <strong>{{ new_address }}</strong>.
+</p>
+<p style="margin:0">
+  Si vous êtes à l'origine de ce changement, vous n'avez rien à faire. Sinon, contactez
+  l'administrateur de votre établissement sans attendre.
+</p>
+{% endblock %}
+
+{% block footer %}
+Ce message de sécurité est envoyé à l'ancienne adresse du compte.
+{% endblock %}

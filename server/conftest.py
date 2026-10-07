@@ -106,6 +106,25 @@ def no_ambient_redis(monkeypatch):
         monkeypatch.setattr(module, 'get_redis', lambda: None)
 
 
+@pytest.fixture(autouse=True)
+def fresh_budgets(monkeypatch):
+    """Per-account budgets counted in memory and from zero: user ids repeat from
+    one test to the next, and so would the keys of a shared counter.
+    """
+    from limits.storage import MemoryStorage
+    from limits.strategies import FixedWindowRateLimiter
+    monkeypatch.setattr('app.security._budgets', FixedWindowRateLimiter(MemoryStorage()))
+
+
+@pytest.fixture()
+def smtp(monkeypatch):
+    SmtpRecorder.sent = []
+    monkeypatch.setenv('SMTP_HOST', 'smtp.example.org')
+    monkeypatch.setenv('SMTP_SENDER', 'mariam@example.org')
+    monkeypatch.setattr('smtplib.SMTP', SmtpRecorder)
+    return SmtpRecorder
+
+
 @pytest.fixture(scope='session', autouse=True)
 def documented_auth_responses(app):
     """Fail any test whose auth route answers something its OpenAPI doc does not declare.
@@ -218,6 +237,31 @@ class FakeRedis:
         return len(self.hll.get(key, set()))
 
 
+class SmtpRecorder:
+    """Stands in for smtplib.SMTP, keeping what would have been sent."""
+
+    sent: list = []
+
+    def __init__(self, host, port, timeout=None):
+        self.host = host
+        self.port = port
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+    def starttls(self):
+        pass
+
+    def login(self, username, password):
+        pass
+
+    def send_message(self, message):
+        SmtpRecorder.sent.append(message)
+
+
 class MemoryRevocations:
     """The two calls the token blacklist makes on Redis."""
 
@@ -226,6 +270,12 @@ class MemoryRevocations:
 
     def setex(self, key, _ttl, _value):
         self.keys.add(key)
+
+    def set(self, key, _value, nx=False, ex=None):
+        if nx and key in self.keys:
+            return None
+        self.keys.add(key)
+        return True
 
     def exists(self, key):
         return int(key in self.keys)

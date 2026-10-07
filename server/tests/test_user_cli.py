@@ -125,6 +125,28 @@ class TestEdit:
         assert ActivationLink.query.one().email == 'invited@mariam.app'
         assert User.query.filter_by(email='new@mariam.app').count() == 1
 
+    def test_a_new_address_ends_the_sessions_and_spends_the_reset_links(self, app):
+        uid = make_user(app, email='moving@mariam.app')
+        link = ActivationLink.create_password_reset_link('moving@mariam.app')
+        db.session.add(link)
+        db.session.commit()
+
+        result = _run(app, 'set-email', 'moving@mariam.app', 'moved@mariam.app')
+
+        assert result.exit_code == 0
+        assert db.session.get(User, uid).tokens_valid_after is not None
+        assert db.session.get(ActivationLink, link.id).used_at is not None
+        entry = AuditLog.query.filter_by(action=AuditLog.ACTION_EMAIL_CHANGE, target_id=uid).one()
+        assert entry.get_details()['old'] == 'moving@mariam.app'
+
+    def test_a_new_address_alerts_the_old_one(self, app, smtp):
+        make_user(app, email='moving@mariam.app')
+
+        result = _run(app, 'set-email', 'moving@mariam.app', 'moved@mariam.app')
+
+        assert [message['To'] for message in smtp.sent] == ['moving@mariam.app']
+        assert 'Alert sent to moving@mariam.app' in result.output
+
     def test_an_address_outside_ascii_is_refused(self, app):
         make_user(app, email='ascii@mariam.app')
 

@@ -47,12 +47,14 @@ import {
   Fingerprint,
   FlaskConical,
   MonitorSmartphone,
+  Pencil,
   Server,
   Smartphone,
   ShieldCheck,
   Wrench,
 } from 'lucide-react';
 import { PasskeyManager } from '@/components/PasskeyManager';
+import { ProfileDialog } from '@/pages/account/ProfileDialog';
 import { TotpManager } from '@/components/TotpManager';
 import {
   startAuthentication,
@@ -415,6 +417,7 @@ export function AccountPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const resetForm = () => {
     setCurrentPassword('');
@@ -538,7 +541,7 @@ export function AccountPage() {
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg font-semibold text-primary">
             {(user?.username || user?.email || '?').charAt(0).toUpperCase()}
           </span>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="truncate text-xl font-semibold tracking-tight text-foreground">
               {user?.username || user?.email || 'Mon compte'}
             </h1>
@@ -552,7 +555,17 @@ export function AccountPage() {
               )}
             </div>
           </div>
+          <Button
+            variant="outline"
+            className="w-10 shrink-0 px-0 sm:w-auto sm:px-4"
+            aria-label="Modifier mon profil"
+            onClick={() => setIsProfileOpen(true)}
+          >
+            <Pencil className="h-4 w-4" />
+            <span className="hidden sm:inline">Modifier mon profil</span>
+          </Button>
         </div>
+        <ProfileDialog open={isProfileOpen} onOpenChange={setIsProfileOpen} />
 
         {/* Informations du compte */}
         <section className="space-y-3">

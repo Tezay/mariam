@@ -114,6 +114,8 @@ api.interceptors.response.use(
   }
 );
 
+export const withProof = (proof: string) => ({ headers: { 'X-Step-Up-Token': proof } });
+
 // No token and no refresh: a public page must neither carry a staff session nor
 // send a visitor to the login.
 export const publicAxios = axios.create({

@@ -11,6 +11,9 @@ Sans REDIS_URL, fallback automatique sur un stockage en mémoire (dev).
 import os
 
 from flask_limiter import Limiter
+from limits import RateLimitItem
+from limits.storage import storage_from_string
+from limits.strategies import FixedWindowRateLimiter
 
 try:
     import redis as _redis_lib
@@ -36,6 +39,26 @@ def blacklist_token(jti: str, ttl_seconds: int) -> None:
     r = _get_blacklist_redis()
     if r:
         r.setex(f'mariam:revoked:{jti}', max(1, ttl_seconds), '1')
+
+
+def claim_token(jti: str, ttl_seconds: int) -> bool:
+    """Blacklist a single-use token; True for the one call that got there first.
+
+    A single Redis command, where a lookup followed by a write would let two
+    racing requests both pass. Fails closed like `is_token_blacklisted`, and
+    lets every call through when Redis is not configured at all.
+    """
+    import logging
+    r = _get_blacklist_redis()
+    if not r:
+        return True
+    try:
+        return bool(r.set(f'mariam:revoked:{jti}', '1', nx=True, ex=max(1, ttl_seconds)))
+    except Exception:
+        logging.getLogger(__name__).error(
+            "Redis blacklist unavailable — refusing the single-use token as a precaution"
+        )
+        return False
 
 
 def is_token_blacklisted(jti: str) -> bool:
@@ -87,3 +110,16 @@ limiter = Limiter(
     headers_enabled=True,
     strategy="fixed-window",
 )
+
+# Its own counters rather than the limiter's: the tests swap them for
+# in-memory ones without reaching into Flask-Limiter.
+_budgets = FixedWindowRateLimiter(storage_from_string(REDIS_URL))
+
+
+def spend(limit: RateLimitItem, *subject: str) -> bool:
+    """Count one use against a limit the route decorators cannot express: keyed
+    by account rather than by address, and decided inside the view.
+
+    False once the limit is exhausted.
+    """
+    return _budgets.hit(limit, *subject)

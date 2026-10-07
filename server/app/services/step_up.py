@@ -8,7 +8,7 @@ from datetime import timedelta
 
 from flask_jwt_extended import create_access_token, decode_token
 
-from ..security import blacklist_token, is_token_blacklisted
+from ..security import claim_token
 
 STEP_UP_TTL = timedelta(minutes=5)
 _CLAIM = 'step_up'
@@ -35,8 +35,6 @@ def consume_step_up_token(token: str, user_id: int) -> bool:
         return False
 
     jti = payload.get('jti')
-    if not jti or is_token_blacklisted(jti):
+    if not jti:
         return False
-
-    blacklist_token(jti, int(STEP_UP_TTL.total_seconds()))
-    return True
+    return claim_token(jti, int(STEP_UP_TTL.total_seconds()))

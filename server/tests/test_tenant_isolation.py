@@ -22,7 +22,12 @@ from app.models import (
 )
 from app.utils.time import paris_today
 from conftest import auth_headers, get_token, make_restaurant, make_user
-from tests.auth_support import enable_totp, identity_proof, session_headers
+from tests.auth_support import (
+    confirmed_headers,
+    enable_totp,
+    identity_proof,
+    session_headers,
+)
 
 
 def _today_iso():
@@ -153,11 +158,16 @@ class TestUserTenantIsolation:
     def test_cannot_manage_other_tenant_user(self, app, client):
         _two_tenants()
         user_b = User.query.filter_by(email='b@mariam.app').first()
+        user_a = User.query.filter_by(email='a@mariam.app').one().id
         token_a = get_token(client, email='a@mariam.app')
         assert client.get(f'/v1/users/{user_b.id}', headers=auth_headers(token_a)).status_code == 404
-        assert client.delete(f'/v1/users/{user_b.id}', headers=auth_headers(token_a)).status_code == 404
-        assert client.post(f'/v1/users/{user_b.id}/reset-mfa',
-                           headers=auth_headers(token_a)).status_code == 404
+        assert client.delete(
+            f'/v1/users/{user_b.id}', headers=confirmed_headers(client, user_a)
+        ).status_code == 404
+        assert client.post(
+            f'/v1/users/{user_b.id}/reset-mfa', headers=confirmed_headers(client, user_a)
+        ).status_code == 404
+        assert db.session.get(User, user_b.id) is not None
 
     def test_cannot_see_or_revoke_other_tenant_invitation(self, app, client):
         _, rid_b = _two_tenants()
@@ -316,17 +326,23 @@ class TestSupervisorManagesOnlyPeers:
         site_admin = _make_user('siteadmin@mariam.app', 'admin', rid, org)
         return org, rid, site_admin
 
+    def _supervisor(self):
+        return User.query.filter_by(email='sup@mariam.app').one().id
+
     def test_cannot_delete_a_site_account(self, app, client):
         _, _, site_admin = self._org_with_site_admin()
-        token = get_token(client, email='sup@mariam.app')
-        res = client.delete(f'/v1/users/{site_admin}', headers=auth_headers(token))
+        res = client.delete(
+            f'/v1/users/{site_admin}', headers=confirmed_headers(client, self._supervisor())
+        )
         assert res.status_code == 404
         assert db.session.get(User, site_admin) is not None
 
     def test_cannot_reset_mfa_of_a_site_account(self, app, client):
         _, _, site_admin = self._org_with_site_admin('peer-org-2')
-        token = get_token(client, email='sup@mariam.app')
-        res = client.post(f'/v1/users/{site_admin}/reset-mfa', headers=auth_headers(token))
+        res = client.post(
+            f'/v1/users/{site_admin}/reset-mfa',
+            headers=confirmed_headers(client, self._supervisor()),
+        )
         assert res.status_code == 404
 
     def _invitations(self, org, rid):
@@ -399,7 +415,8 @@ class TestDeletionNeedsStepUp:
     def test_delete_without_proof_is_rejected(self, app, client):
         boss, victim = self._pair()
         res = client.delete(f'/v1/users/{victim}', headers=session_headers(boss))
-        assert res.status_code == 401
+        assert res.status_code == 403
+        assert res.get_json()['step_up_required'] is True
         assert db.session.get(User, victim) is not None
 
     def test_wrong_password_yields_no_proof(self, app, client):

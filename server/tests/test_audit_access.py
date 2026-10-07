@@ -3,6 +3,7 @@ from app.extensions import db
 from app.models import User
 from app.models.passkey import Passkey
 from conftest import auth_headers, make_restaurant, make_user
+from tests.auth_support import confirmed_headers
 
 
 def _token(app, user_id):
@@ -59,10 +60,24 @@ class TestSecondFactorGate:
 
         assert response.status_code == 403
 
-    def test_the_export_follows_the_same_rule(self, app, client):
+
+
+class TestExport:
+    def test_a_session_alone_does_not_export(self, app, client):
         user = _reader(app, 'export@mariam.app')
         _with_passkey(user.id, b'export-cred')
 
         response = client.get('/v1/audit-logs/export', headers=auth_headers(_token(app, user.id)))
 
+        assert response.status_code == 403
+        assert response.get_json()['step_up_required'] is True
+
+    def test_a_proof_of_identity_exports(self, app, client):
+        user = _reader(app, 'export@mariam.app')
+
+        response = client.get(
+            '/v1/audit-logs/export', headers=confirmed_headers(client, user.id)
+        )
+
         assert response.status_code == 200
+        assert response.headers['Content-Type'].startswith('text/csv')

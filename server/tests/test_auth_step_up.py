@@ -63,7 +63,7 @@ class TestPasskey:
         proof = self._complete(client, admin, begin, authenticator).get_json()['step_up_token']
 
         assert _delete(client, admin, target, proof).status_code == 200
-        assert _delete(client, admin, other, proof).status_code == 401
+        assert _delete(client, admin, other, proof).status_code == 403
         assert db.session.get(User, other) is not None
 
     def test_an_account_without_passkey_gets_no_challenge(self, app, client):

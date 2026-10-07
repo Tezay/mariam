@@ -10,6 +10,7 @@ import { adminApi } from '@/lib/api/admin';
 import { restaurantApi, type AdminSite } from '@/lib/api/restaurant';
 import { notify } from '@/lib/toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useStepUp } from '@/hooks/useStepUp';
 import { accountPathForRole } from '@/lib/dashboard-routes';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -77,6 +78,7 @@ const ACTION_LABELS: Record<string, string> = {
   audit_logs_export: 'Export logs',
   settings_update: 'Modif. paramètres',
   password_change: 'Changement mot de passe',
+  email_change: 'Changement adresse e-mail',
   password_reset_request: 'Demande réinit. mot de passe',
   password_reset: 'Réinit. mot de passe',
   passkey_registered: 'Enregistrement passkey',
@@ -102,6 +104,7 @@ const getActionBadgeVariant = (
 
 export function AuditLogsPage() {
   const { user } = useAuth();
+  const confirmIdentity = useStepUp();
   const navigate = useNavigate();
 
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -161,9 +164,17 @@ export function AuditLogsPage() {
 
   // Export
   const handleExport = async () => {
+    const proof = await confirmIdentity({
+      title: "Exporter le journal d'audit",
+      description:
+        'Le fichier contient les adresses e-mail et les adresses IP des comptes. Confirmez votre identité pour le télécharger.',
+      confirmLabel: 'Exporter',
+    });
+    if (!proof) return;
+
     setIsExporting(true);
     try {
-      await adminApi.exportAuditLogs({
+      await adminApi.exportAuditLogs(proof, {
         action: actionFilter || undefined,
       });
     } catch {

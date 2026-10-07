@@ -1,47 +1,11 @@
 """Weekly digest: who receives it, what it carries, and what happens unconfigured."""
 from datetime import date
 
-import pytest
-
 from app.extensions import db
 from app.models import Organization, Restaurant, User
 from app.services import email_service
 from app.utils.time import paris_now
 from conftest import make_restaurant, make_user
-
-
-class _Recorder:
-    """Stands in for smtplib.SMTP, keeping what would have been sent."""
-
-    sent: list = []
-
-    def __init__(self, host, port):
-        self.host = host
-        self.port = port
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *_):
-        return False
-
-    def starttls(self):
-        pass
-
-    def login(self, username, password):
-        pass
-
-    def send_message(self, message):
-        _Recorder.sent.append(message)
-
-
-@pytest.fixture
-def smtp(monkeypatch):
-    _Recorder.sent = []
-    monkeypatch.setenv('SMTP_HOST', 'smtp.example.org')
-    monkeypatch.setenv('SMTP_SENDER', 'mariam@example.org')
-    monkeypatch.setattr('smtplib.SMTP', _Recorder)
-    return _Recorder
 
 
 def _subscribe(user_id, value=True, slot='now'):

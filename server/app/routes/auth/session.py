@@ -45,7 +45,12 @@ def refresh():
 
     Authenticated by the refresh token.
     """
-    return jsonify({'access_token': create_access_token(identity=get_jwt_identity())}), 200
+    # Carried over: an access token issued within the second of the revocation
+    # that kept this session would fall under it.
+    marker = get_jwt().get(User.REVOCATION_MARKER)
+    claims = {User.REVOCATION_MARKER: marker} if marker else None
+    access_token = create_access_token(identity=get_jwt_identity(), additional_claims=claims)
+    return jsonify({'access_token': access_token}), 200
 
 
 @auth_bp.route('/logout', methods=['POST'])
@@ -100,7 +105,7 @@ def me():
 @jwt_required()
 @auth_bp.response(200, SessionTransferSchema)
 @auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted or disabled.')
+@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
 def session_transfer_generate():
     """Hand the session over to another device
 
@@ -108,7 +113,7 @@ def session_transfer_generate():
     exchanges for a session on the other device.
     """
     user = get_current_user()
-    if not user or not user.is_active:
+    if not user:
         return user_not_found()
 
     transfer_token = create_access_token(

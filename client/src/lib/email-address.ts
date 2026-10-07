@@ -1,5 +1,4 @@
-export const EMAIL_RULE =
-  'Adresse invalide. Utilisez une adresse sans accent, de 120 caractères au plus.';
+export const EMAIL_RULE = 'Adresse invalide.';
 
 // Kept in step with server/app/utils/email_address.py: stored addresses are
 // lowercase ASCII.

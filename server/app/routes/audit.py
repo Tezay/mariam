@@ -21,7 +21,12 @@ from ..extensions import db
 from ..models import AuditLog, User
 from ..schemas.common import ErrorSchema
 from ..security import get_client_ip
-from .helpers import accessible_restaurant_ids, admin_required, get_current_user
+from .helpers import (
+    accessible_restaurant_ids,
+    admin_required,
+    get_current_user,
+    step_up_required,
+)
 
 audit_bp = Blueprint(
     'audit', __name__,
@@ -83,12 +88,15 @@ def _apply_audit_filters(query):
 # ============================================================
 
 @audit_bp.route('/export', methods=['GET'])
-@audit_bp.alt_response(403, schema=ErrorSchema, description="MFA not enabled or access denied")
+@audit_bp.alt_response(
+    403, schema=ErrorSchema, description="Identity confirmation required, or access denied"
+)
 @admin_required
+@step_up_required
 def export_audit_logs():
     """CSV export of audit logs (max 10,000 rows).
 
-    Requires the administrator to have MFA enabled.
+    Requires a fresh proof of identity in `X-Step-Up-Token`.
 
     Accepts the same query params as `GET /v1/audit-logs`:
     `action`, `user_id`, `start_date`, `end_date`.
@@ -97,13 +105,6 @@ def export_audit_logs():
     ID, Date, User, Action, Target, IP, Details.
     """
     current_user_id = int(get_jwt_identity())
-    user = db.session.get(User, current_user_id)
-
-    if not user.has_second_factor():
-        return jsonify({
-            'error': 'MFA_REQUIRED',
-            'message': "L'export des logs nécessite l'activation de l'authentification à deux facteurs",
-        }), 403
 
     query = _apply_audit_filters(AuditLog.query.options(joinedload(AuditLog.user)))
     query = query.filter(_tenant_scope_filter())

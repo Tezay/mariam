@@ -24,7 +24,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable, type DataTableColumn } from '@/components/dashboard/DataTable';
-import { StepUpDialog } from '@/components/dashboard/StepUpDialog';
+import { useStepUp } from '@/hooks/useStepUp';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,6 +66,7 @@ const expiryDate = (expiresAt: string) =>
 
 export function UsersPage() {
   const { user: currentUser } = useAuth();
+  const confirmIdentity = useStepUp();
   const isOrgScope = currentUser?.role === 'org_admin';
   const [users, setUsers] = useState<User[]>([]);
   const [sites, setSites] = useState<AdminSite[]>([]);
@@ -73,8 +74,6 @@ export function UsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [deletingUser, setDeletingUser] = useState<User | null>(null);
-  const [resettingUser, setResettingUser] = useState<User | null>(null);
   const [revokingInvitation, setRevokingInvitation] = useState<Invitation | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
@@ -109,23 +108,45 @@ export function UsersPage() {
     setTimeout(() => setCopiedToken(null), 2000);
   };
 
-  const handleDeleteUser = async (stepUpToken: string) => {
-    if (!deletingUser) return;
-    await adminApi.deleteUser(deletingUser.id, stepUpToken);
-    setUsers((previous) => previous.filter((u) => u.id !== deletingUser.id));
-    notify.success(`Compte ${deletingUser.email} supprimé`);
-    setDeletingUser(null);
+  const handleDeleteUser = async (target: User) => {
+    const proof = await confirmIdentity({
+      title: `Supprimer ${target.username || target.email}`,
+      description: 'Confirmez votre identité pour supprimer définitivement ce compte.',
+      warning:
+        "Cette action est irréversible : le compte et ses accès sont supprimés. L'historique d'audit est conservé.",
+      confirmLabel: 'Supprimer définitivement',
+      tone: 'destructive',
+    });
+    if (!proof) return;
+    try {
+      await adminApi.deleteUser(target.id, proof);
+      setUsers((previous) => previous.filter((u) => u.id !== target.id));
+      notify.success(`Compte ${target.email} supprimé`);
+    } catch (err) {
+      notify.error(getApiErrorMessage(err, 'La suppression a échoué'));
+    }
   };
 
-  const handleResetMfa = async (stepUpToken: string) => {
-    if (!resettingUser) return;
-    const name = resettingUser.username || resettingUser.email;
-    await adminApi.resetUserMfa(resettingUser.id, stepUpToken);
-    notify.success(
-      'Double authentification réinitialisée',
-      `Prévenez ${name} : une nouvelle connexion est nécessaire.`
-    );
-    setResettingUser(null);
+  const handleResetMfa = async (target: User) => {
+    const name = target.username || target.email;
+    const proof = await confirmIdentity({
+      title: `Réinitialiser la double authentification de ${name}`,
+      description: 'Confirmez votre identité pour continuer.',
+      warning:
+        "Son application d'authentification et ses passkeys seront supprimées, et ses appareils déconnectés. À sa prochaine connexion, ce compte devra en configurer de nouvelles avec son mot de passe.",
+      confirmLabel: 'Réinitialiser',
+      tone: 'destructive',
+    });
+    if (!proof) return;
+    try {
+      await adminApi.resetUserMfa(target.id, proof);
+      notify.success(
+        'Double authentification réinitialisée',
+        `Prévenez ${name} : une nouvelle connexion est nécessaire.`
+      );
+    } catch (err) {
+      notify.error(getApiErrorMessage(err, 'La réinitialisation a échoué'));
+    }
   };
 
   const handleRevokeInvitation = async () => {
@@ -225,13 +246,13 @@ export function UsersPage() {
                 </DropdownMenuItem>
                 {user.id !== currentUser?.id && (
                   <>
-                    <DropdownMenuItem onClick={() => setResettingUser(user)} className="gap-2">
+                    <DropdownMenuItem onClick={() => handleResetMfa(user)} className="gap-2">
                       <RefreshCw className="h-4 w-4" />
                       Réinitialiser la double authentification
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      onClick={() => setDeletingUser(user)}
+                      onClick={() => handleDeleteUser(user)}
                       className="gap-2 text-destructive focus:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -401,26 +422,6 @@ export function UsersPage() {
           )}
         </div>
       )}
-
-      <StepUpDialog
-        open={Boolean(deletingUser)}
-        onOpenChange={(open) => !open && setDeletingUser(null)}
-        title={`Supprimer ${deletingUser?.username || deletingUser?.email || ''}`}
-        description="Confirmez votre identité pour supprimer définitivement ce compte."
-        warning="Cette action est irréversible : le compte et ses accès sont supprimés. L'historique d'audit est conservé."
-        confirmLabel="Supprimer définitivement"
-        onConfirmed={handleDeleteUser}
-      />
-
-      <StepUpDialog
-        open={Boolean(resettingUser)}
-        onOpenChange={(open) => !open && setResettingUser(null)}
-        title={`Réinitialiser la double authentification de ${resettingUser?.username || resettingUser?.email || ''}`}
-        description="Confirmez votre identité pour continuer."
-        warning="Son application d'authentification et ses passkeys seront supprimées, et ses appareils déconnectés. À sa prochaine connexion, ce compte devra en configurer de nouvelles avec son mot de passe."
-        confirmLabel="Réinitialiser"
-        onConfirmed={handleResetMfa}
-      />
 
       <AlertDialog
         open={Boolean(revokingInvitation)}

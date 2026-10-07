@@ -28,7 +28,6 @@ class UserAdminSchema(Schema):
 class UserUpdateSchema(Schema):
     class Meta:
         unknown = EXCLUDE
-    username = fields.Str()
     role = fields.Str(description="'admin', 'editor', or 'reader'")
     is_active = fields.Bool()
     restaurant_id = fields.Int(allow_none=True)

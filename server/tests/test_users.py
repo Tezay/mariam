@@ -201,7 +201,8 @@ class TestSecondFactorReset:
 
         res = self._reset(client, admin, target)
 
-        assert res.status_code == 401
+        assert res.status_code == 403
+        assert res.get_json()['step_up_required'] is True
         assert db.session.get(User, target).mfa_enabled is True
 
     def test_a_proof_serves_once(self, app, client, revocations):
@@ -214,7 +215,7 @@ class TestSecondFactorReset:
 
         res = self._reset(client, admin, second, proof)
 
-        assert res.status_code == 401
+        assert res.status_code == 403
         assert db.session.get(User, second).mfa_enabled is True
 
     def test_an_admin_cannot_reset_its_own(self, app, client, revocations):
@@ -249,6 +250,21 @@ class TestDeactivateUser:
                            headers=auth_headers(token))
         assert res.status_code in (200, 204)
 
+    def test_a_suspension_ends_the_sessions_for_good(self, app, client):
+        make_user(app, role='admin', email='admin@mariam.app')
+        editor_id = make_user(app, role='editor', email='editor@test.com')
+        session = issue_session(editor_id)
+        admin = auth_headers(get_token(client))
+
+        client.put(f'/v1/users/{editor_id}', json={'is_active': False}, headers=admin)
+        suspended = is_signed_in(client, session)
+        refresh = client.post('/v1/auth/refresh', headers=auth_headers(session['refresh']))
+        client.put(f'/v1/users/{editor_id}', json={'is_active': True}, headers=admin)
+
+        assert not suspended
+        assert refresh.status_code == 401
+        assert not is_signed_in(client, session)
+
     def test_cannot_deactivate_self(self, app, client):
         make_restaurant(app)
         uid = make_user(app, role='admin')
@@ -269,6 +285,19 @@ class TestRoleManagement:
                            json={'role': 'editor'},
                            headers=auth_headers(token))
         assert res.status_code in (200, 204)
+
+    def test_an_admin_cannot_rename_another_account(self, app, client):
+        make_user(app, role='admin', email='admin@mariam.app')
+        target_id = make_user(app, role='reader', email='reader@test.com')
+
+        res = client.put(
+            f'/v1/users/{target_id}',
+            json={'username': 'Someone Else'},
+            headers=auth_headers(get_token(client)),
+        )
+
+        assert res.status_code == 200
+        assert db.session.get(User, target_id).username == 'reader'
 
     def test_invalid_role_silently_ignored(self, app, client):
         """Invalid roles are ignored (role unchanged), not rejected with 4xx."""
