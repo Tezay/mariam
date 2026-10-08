@@ -57,8 +57,6 @@ def _tenant_users_filter(caller):
     A supervisor has no restaurant_id, so the organization branch has to match
     on organization_id as well or supervisors would never appear.
     """
-    if caller is None:
-        return None
     if caller.is_org_admin() and caller.organization_id:
         return db.or_(
             User.restaurant_id.in_(accessible_restaurant_ids(caller)),
@@ -417,8 +415,6 @@ def reset_user_mfa(user_id):
 def get_ui_preferences():
     """Return the interface state of the current user."""
     user = db.session.get(User, int(get_jwt_identity()))
-    if not user:
-        return jsonify({'error': 'Non authentifié'}), 401
     return jsonify(user.get_ui_preferences()), 200
 
 
@@ -429,8 +425,6 @@ def get_ui_preferences():
 def update_ui_preferences():
     """Update the interface state of the current user."""
     user = db.session.get(User, int(get_jwt_identity()))
-    if not user:
-        return jsonify({'error': 'Non authentifié'}), 401
 
     data = request.get_json(silent=True) or {}
     allowed = {'tour_done', 'tour_catalog_done', 'tour_stats_done'}

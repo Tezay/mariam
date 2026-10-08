@@ -124,6 +124,24 @@ class TestAuthenticationComesFirst:
 
         assert {route: status for route, status in answers.items() if status != 401} == {}
 
+    def test_a_deleted_account_reaches_no_route_that_asks_for_a_session(self, app, client):
+        user_id = make_user(app)
+        gone = auth_headers(get_token(client))
+        db.session.delete(db.session.get(User, user_id))
+        db.session.commit()
+
+        answers = {}
+        for rule in app.url_map.iter_rules():
+            path = re.sub(r'<[^>]+>', '1', rule.rule)
+            for method in sorted(rule.methods - {'HEAD', 'OPTIONS'}):
+                if client.open(path, method=method, json=[]).status_code == 401:
+                    answers[f'{method} {rule.rule}'] = client.open(
+                        path, method=method, json=[], headers=gone
+                    ).status_code
+
+        assert answers
+        assert {route: status for route, status in answers.items() if status != 401} == {}
+
 
 class TestResponseHeaders:
     def test_responses_forbid_mime_sniffing(self, app, client):

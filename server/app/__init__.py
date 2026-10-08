@@ -212,13 +212,11 @@ def create_app(config_class=None):
         ):
             return True
 
-        # Epoch-based revocation: any token (access or refresh) issued before
-        # user.tokens_valid_after is rejected — set on password change/reset and
-        # MFA reset (invalidates stolen sessions).
+        # Every view behind a session takes its account for granted: this is the
+        # one place that refuses a token whose account is gone or disabled.
         sub = jwt_payload.get('sub')
         iat = jwt_payload.get('iat')
         if sub and iat:
-            from .models import User
             user = db.session.get(User, int(sub))
             if (
                 user is None

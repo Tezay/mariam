@@ -13,7 +13,7 @@ from ...schemas.common import ErrorSchema
 from ...security import get_client_ip, limiter
 from ...services import totp
 from ..helpers import get_current_user, step_up_once_enrolled, step_up_required
-from ._common import NO_SESSION, NOT_CONFIRMED, user_not_found
+from ._common import NO_SESSION, NOT_CONFIRMED
 from .blueprint import auth_bp
 
 
@@ -24,7 +24,6 @@ from .blueprint import auth_bp
 @auth_bp.response(200, TotpSetupSchema)
 @auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
 @auth_bp.alt_response(403, schema=AuthErrorSchema, description=NOT_CONFIRMED)
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
 def mfa_setup():
     """Start enabling TOTP, or moving it to another device
 
@@ -33,8 +32,6 @@ def mfa_setup():
     checks a first code, and the TOTP in use keeps working until then.
     """
     user = get_current_user()
-    if not user:
-        return user_not_found()
 
     secret = totp.new_secret()
     return jsonify({
@@ -57,7 +54,6 @@ def mfa_setup():
 @auth_bp.alt_response(
     403, schema=AuthErrorSchema, description=f'Wrong code. Or: {NOT_CONFIRMED}'
 )
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
 def mfa_setup_confirm(data):
     """Store the secret of an enrolment once its first code is checked
 
@@ -65,8 +61,6 @@ def mfa_setup_confirm(data):
     already had it. A wrong code can be tried again with the same `enrolment_token`.
     """
     user = get_current_user()
-    if not user:
-        return user_not_found()
 
     secret = totp.read_enrolment(data['enrolment_token'], user.id)
     if not secret:
@@ -99,7 +93,6 @@ def mfa_setup_confirm(data):
 @auth_bp.alt_response(400, schema=ErrorSchema, description='TOTP not enabled.')
 @auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
 @auth_bp.alt_response(403, schema=AuthErrorSchema, description=NOT_CONFIRMED)
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
 @auth_bp.alt_response(409, schema=ErrorSchema, description='No passkey would remain.')
 def disable_mfa():
     """Disable TOTP, from a confirmed session
@@ -107,8 +100,6 @@ def disable_mfa():
     Refused unless the account keeps a passkey as its second factor.
     """
     user = get_current_user()
-    if not user:
-        return user_not_found()
 
     if not user.mfa_enabled:
         return jsonify({'error': "L'authentification par code n'est pas activée"}), 400

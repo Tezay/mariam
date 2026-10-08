@@ -11,7 +11,7 @@ from ...schemas.common import ErrorSchema
 from ...security import get_client_ip, limiter, spend
 from ...services.account import change_email, notify_email_changed
 from ..helpers import get_current_user, step_up_required
-from ._common import NO_SESSION, reissued_token_pair, user_not_found
+from ._common import NO_SESSION, reissued_token_pair
 from .blueprint import auth_bp
 
 EMAIL_CHANGES = parse('2 per day')
@@ -54,7 +54,6 @@ def _address_taken(user: User):
     description='Session not confirmed, with `step_up_required` set; or the rescue '
                 'account changing its address.',
 )
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
 @auth_bp.alt_response(409, schema=ErrorSchema, description='Address already in use.')
 @auth_bp.alt_response(
     429, schema=ErrorSchema, description='Address already changed twice within a day.'
@@ -67,8 +66,6 @@ def update_profile(data):
     email. An account changes address twice a day at most.
     """
     user = get_current_user()
-    if not user:
-        return user_not_found()
 
     name, email = data.get('username'), data.get('email')
     renames = name is not None and name != user.username

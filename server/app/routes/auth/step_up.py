@@ -15,7 +15,7 @@ from ...security import limiter
 from ...services import passkeys, totp
 from ...services.passkeys import Ceremony
 from ..helpers import get_current_user
-from ._common import CONFIRMATION_WINDOW, NO_SESSION, renewed_access_token, user_not_found
+from ._common import CONFIRMATION_WINDOW, NO_SESSION, renewed_access_token
 from .blueprint import auth_bp
 
 
@@ -32,7 +32,6 @@ from .blueprint import auth_bp
                 'set when it has a passkey, `second_factor_required` when it has no second '
                 'factor at all.',
 )
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
 def step_up_password(data):
     """Confirm identity with the password and the TOTP code
 
@@ -42,8 +41,6 @@ def step_up_password(data):
     `/step-up/passkey/*`, and an account with neither cannot confirm.
     """
     user = get_current_user()
-    if not user:
-        return user_not_found()
 
     if not (user.mfa_enabled and user.mfa_secret):
         if user.passkeys.count() > 0:
@@ -72,12 +69,10 @@ def step_up_password(data):
 @jwt_required()
 @auth_bp.response(200, WebAuthnOptionsSchema)
 @auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted, or without passkey.')
+@auth_bp.alt_response(404, schema=ErrorSchema, description='No passkey on the account.')
 def step_up_passkey_begin():
     """Start confirming identity with a passkey"""
     user = get_current_user()
-    if not user:
-        return user_not_found()
 
     registered = list(user.passkeys)
     if not registered:
@@ -106,8 +101,6 @@ def step_up_passkey_complete(data):
     Returns the same confirmed access token as `/step-up/password`.
     """
     user = get_current_user()
-    if not user:
-        return user_not_found()
 
     try:
         token_user_id, challenge = passkeys.read_challenge(

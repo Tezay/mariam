@@ -90,8 +90,6 @@ def get_settings():
     enabled dietary tags, certifications, etc.
     """
     user = get_current_user()
-    if not user:
-        return jsonify({'error': 'Utilisateur introuvable'}), 401
 
     restaurant = get_active_restaurant(user)
     if not restaurant:
@@ -284,8 +282,6 @@ def list_restaurants():
 def get_calendar_settings():
     """Retourne les paramètres calendrier du restaurant actif."""
     user = db.session.get(User, int(get_jwt_identity()))
-    if not user:
-        return jsonify({'error': 'Non authentifié'}), 401
 
     active = get_active_restaurant(user)
     restaurant_id = active.id if active else None
@@ -311,8 +307,6 @@ def update_calendar_settings():
     """Met à jour les paramètres calendrier du restaurant actif (admin only)."""
     data = request.get_json(silent=True) or {}
     user = db.session.get(User, int(get_jwt_identity()))
-    if not user:
-        return jsonify({'error': 'Non authentifié'}), 401
 
     active = get_active_restaurant(user)
     restaurant_id = active.id if active else None
