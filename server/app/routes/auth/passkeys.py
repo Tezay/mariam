@@ -17,7 +17,7 @@ from ...security import get_client_ip, limiter
 from ...services import passkeys
 from ...services.passkeys import Ceremony
 from ..helpers import get_current_user, step_up_once_enrolled, step_up_required
-from ._common import NO_SESSION, NOT_CONFIRMED, user_not_found
+from ._common import NO_SESSION, NOT_CONFIRMED
 from .blueprint import auth_bp
 
 UNKNOWN_PASSKEY = 'Unknown passkey, or not the account’s.'
@@ -34,7 +34,6 @@ def _own_passkey(user_id: int, passkey_id: int):
 @auth_bp.response(200, WebAuthnOptionsSchema)
 @auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
 @auth_bp.alt_response(403, schema=AuthErrorSchema, description=NOT_CONFIRMED)
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
 def passkey_register_begin():
     """Start adding a passkey
 
@@ -43,8 +42,6 @@ def passkey_register_begin():
     already registered, and ask for one that serves passwordless sign-in.
     """
     user = get_current_user()
-    if not user:
-        return user_not_found()
     return jsonify(passkeys.begin_registration(user, Ceremony.REGISTER)), 200
 
 
@@ -61,15 +58,12 @@ def passkey_register_begin():
     schema=AuthErrorSchema,
     description=f'Challenge invalid, expired, or issued to another account. Or: {NOT_CONFIRMED}',
 )
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
 def passkey_register_complete(data):
     """Finish adding a passkey
 
     Guarded like `/passkey/register/begin`.
     """
     user = get_current_user()
-    if not user:
-        return user_not_found()
 
     try:
         token_user_id, challenge = passkeys.read_challenge(
@@ -107,12 +101,9 @@ def passkey_register_complete(data):
 @jwt_required()
 @auth_bp.response(200, PasskeyListSchema)
 @auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
 def list_passkeys():
     """List the account's passkeys"""
     user = get_current_user()
-    if not user:
-        return user_not_found()
     return jsonify({'passkeys': [p.to_dict() for p in user.passkeys]}), 200
 
 
@@ -130,8 +121,6 @@ def delete_passkey(passkey_id):
     Refused for the last one while TOTP is off.
     """
     user = get_current_user()
-    if not user:
-        return user_not_found()
 
     passkey = _own_passkey(user.id, passkey_id)
     if not passkey:
@@ -166,8 +155,6 @@ def delete_passkey(passkey_id):
 def rename_passkey(data, passkey_id):
     """Rename a passkey"""
     user = get_current_user()
-    if not user:
-        return user_not_found()
 
     passkey = _own_passkey(user.id, passkey_id)
     if not passkey:

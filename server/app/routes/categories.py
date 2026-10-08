@@ -35,7 +35,7 @@ categories_bp = Blueprint(
 # HELPERS
 # ============================================================
 
-def _get_restaurant(user=None):
+def _get_restaurant(user):
     return get_active_restaurant(user)
 
 
@@ -53,8 +53,6 @@ def list_categories():
     Accessible to any authenticated user.
     """
     user = db.session.get(User, int(get_jwt_identity()))
-    if not user:
-        return jsonify({'error': 'Non authentifié'}), 401
 
     restaurant = _get_restaurant(user)
     if not restaurant:

@@ -71,7 +71,7 @@ def _notifs_for_user(user: User, restaurant_id: int):
 def list_notifications():
     """Liste les 50 dernières notifications (non-lues en premier)."""
     user, restaurant_id = _get_user_and_restaurant_id()
-    if not user or not restaurant_id:
+    if not restaurant_id:
         return jsonify({'error': 'Non authentifié ou aucun restaurant'}), 401
 
     notifs = (
@@ -90,7 +90,7 @@ def list_notifications():
 def unread_count():
     """Retourne le nombre de notifications non lues. Conçu pour le polling (~15s)."""
     user, restaurant_id = _get_user_and_restaurant_id()
-    if not user or not restaurant_id:
+    if not restaurant_id:
         return jsonify({'error': 'Non authentifié ou aucun restaurant'}), 401
 
     count = (
@@ -108,7 +108,7 @@ def unread_count():
 def mark_read(notif_id: int):
     """Marque une notification comme lue."""
     user, restaurant_id = _get_user_and_restaurant_id()
-    if not user or not restaurant_id:
+    if not restaurant_id:
         return jsonify({'error': 'Non authentifié'}), 401
 
     notif = _notifs_for_user(user, restaurant_id).filter(Notification.id == notif_id).first()
@@ -126,7 +126,7 @@ def mark_read(notif_id: int):
 def mark_all_read():
     """Marque toutes les notifications comme lues."""
     user, restaurant_id = _get_user_and_restaurant_id()
-    if not user or not restaurant_id:
+    if not restaurant_id:
         return jsonify({'error': 'Non authentifié'}), 401
 
     _notifs_for_user(user, restaurant_id).filter(
@@ -143,7 +143,7 @@ def mark_all_read():
 def delete_notification(notif_id: int):
     """Supprime une notification."""
     user, restaurant_id = _get_user_and_restaurant_id()
-    if not user or not restaurant_id:
+    if not restaurant_id:
         return jsonify({'error': 'Non authentifié'}), 401
 
     notif = _notifs_for_user(user, restaurant_id).filter(Notification.id == notif_id).first()
@@ -162,8 +162,6 @@ def delete_notification(notif_id: int):
 def get_notification_preferences():
     """Retourne les préférences de notification de l'utilisateur courant."""
     user = db.session.get(User, int(get_jwt_identity()))
-    if not user:
-        return jsonify({'error': 'Non authentifié'}), 401
     return jsonify(user.get_notification_preferences()), 200
 
 
@@ -175,8 +173,6 @@ def update_notification_preferences():
     """Met à jour les préférences de notification de l'utilisateur courant."""
     from flask import request
     user = db.session.get(User, int(get_jwt_identity()))
-    if not user:
-        return jsonify({'error': 'Non authentifié'}), 401
 
     data = request.get_json(silent=True) or {}
     allowed = {
@@ -212,6 +208,4 @@ def get_live_alerts():
     organisation pour un directeur. Aucune persistance.
     """
     user = db.session.get(User, int(get_jwt_identity()))
-    if not user:
-        return jsonify({'alerts': []}), 200
     return jsonify({'alerts': live_alerts(user, sorted(accessible_restaurant_ids(user)))}), 200

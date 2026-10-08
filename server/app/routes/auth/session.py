@@ -85,12 +85,9 @@ def logout():
 @jwt_required()
 @auth_bp.response(200, UserSchema)
 @auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
 def me():
     """Get the signed-in account"""
     user = get_current_user()
-    if not user:
-        return user_not_found()
     return jsonify({'user': user.to_dict(include_tenant=True)}), 200
 
 
@@ -101,7 +98,6 @@ def me():
 @auth_bp.response(200, SessionTransferSchema)
 @auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
 @auth_bp.alt_response(403, schema=AuthErrorSchema, description=NOT_CONFIRMED)
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
 def session_transfer_generate():
     """Hand the session over to another device
 
@@ -111,8 +107,6 @@ def session_transfer_generate():
     Signing out of this session ends the token with it.
     """
     user = get_current_user()
-    if not user:
-        return user_not_found()
 
     presented = get_jwt()
     transfer_token = create_access_token(

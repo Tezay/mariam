@@ -24,7 +24,7 @@ def editor_required(f):
     def decorated_function(*args, **kwargs):
         current_user_id = int(get_jwt_identity())
         user = db.session.get(User, current_user_id)
-        if not user or not user.is_editor():
+        if not user.is_editor():
             return jsonify({'error': 'Accès réservé aux éditeurs'}), 403
         if user.is_org_admin() and request.method != 'GET':
             return jsonify(
@@ -41,7 +41,7 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         current_user_id = int(get_jwt_identity())
         user = db.session.get(User, current_user_id)
-        if not user or not user.is_admin():
+        if not user.is_admin():
             return jsonify({'error': 'Accès réservé aux administrateurs'}), 403
         return f(*args, **kwargs)
     return decorated_function
@@ -54,7 +54,7 @@ def org_admin_required(f):
     def decorated_function(*args, **kwargs):
         current_user_id = int(get_jwt_identity())
         user = db.session.get(User, current_user_id)
-        if not user or not user.is_org_admin() or not user.organization_id:
+        if not user.is_org_admin() or not user.organization_id:
             return jsonify({'error': 'Réservé aux superviseurs'}), 403
         return f(*args, **kwargs)
     return decorated_function
@@ -86,7 +86,7 @@ def step_up_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         user = get_current_user()
-        if not (user and user.has_second_factor() and _identity_confirmed()):
+        if not (user.has_second_factor() and _identity_confirmed()):
             return _confirmation_required()
         return f(*args, **kwargs)
     return decorated_function
@@ -102,7 +102,7 @@ def step_up_once_enrolled(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         user = get_current_user()
-        if user and user.has_second_factor() and not _identity_confirmed():
+        if user.has_second_factor() and not _identity_confirmed():
             return _confirmation_required()
         return f(*args, **kwargs)
     return decorated_function
@@ -119,23 +119,20 @@ def get_default_restaurant():
 
 
 def get_current_user():
-    """Return the user for the current JWT identity, or None."""
-    identity = get_jwt_identity()
-    if not identity:
-        return None
-    return db.session.get(User, int(identity))
+    """The account of the session, on a route that asks for one.
+
+    Never None: the token loader has already refused a token whose account is gone.
+    """
+    return db.session.get(User, int(get_jwt_identity()))
 
 
 def get_user_and_restaurant():
     """Return (user, restaurant) for the current JWT user.
 
     The restaurant is the one the user belongs to, with no fallback to a default
-    restaurant. Returns (user, None) if the user has no restaurant, and
-    (None, None) if the user cannot be found.
+    restaurant: (user, None) if the user has no restaurant.
     """
     user = get_current_user()
-    if not user:
-        return None, None
     return user, get_active_restaurant(user)
 
 
@@ -146,8 +143,6 @@ def get_active_restaurant(user):
     `X-Restaurant-Id` header (validated against its accessible sites). Any other
     user acts on its own restaurant.
     """
-    if user is None:
-        return None
     header = request.headers.get('X-Restaurant-Id')
     if header:
         try:
@@ -157,11 +152,6 @@ def get_active_restaurant(user):
         if target is not None and target in accessible_restaurant_ids(user):
             return db.session.get(Restaurant, target)
     return db.session.get(Restaurant, user.restaurant_id) if user.restaurant_id else None
-
-
-def user_can_access_restaurant(user, restaurant_id):
-    """Return True if the user may act on this restaurant."""
-    return restaurant_id is not None and restaurant_id in accessible_restaurant_ids(user)
 
 
 def scoped_get(model, resource_id):

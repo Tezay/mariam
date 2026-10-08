@@ -15,7 +15,7 @@ from ...security import get_client_ip, limiter
 from ...services import passkeys, totp
 from ...services.passkeys import Ceremony
 from ..helpers import get_current_user
-from ._common import NO_SESSION, user_not_found, weak_password
+from ._common import NO_SESSION, weak_password
 from .blueprint import auth_bp
 
 
@@ -42,7 +42,6 @@ def _audit(user: User, details: dict) -> None:
     description='Wrong current password or code. Or a passkey and no TOTP on the account: '
                 '`passkey_required` is set.',
 )
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
 def change_password(data):
     """Change the password, confirmed by the current one and TOTP
 
@@ -51,8 +50,6 @@ def change_password(data):
     this one included.
     """
     user = get_current_user()
-    if not user:
-        return user_not_found()
 
     has_totp = user.mfa_enabled and user.mfa_secret
     # The password alone never stands for the second factor an account has.
@@ -90,15 +87,13 @@ def change_password(data):
 @auth_bp.response(200, WebAuthnOptionsSchema)
 @auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
 @auth_bp.alt_response(403, schema=ErrorSchema, description='Wrong current password.')
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted, or without passkey.')
+@auth_bp.alt_response(404, schema=ErrorSchema, description='No passkey on the account.')
 def passkey_change_password_begin(data):
     """Start a password change confirmed by passkey
 
     Checks the current password, then challenges the account's passkeys.
     """
     user = get_current_user()
-    if not user:
-        return user_not_found()
 
     if not user.check_password(data['current_password']):
         _audit(user, {'success': False, 'reason': 'wrong_current_password'})
@@ -129,15 +124,13 @@ def passkey_change_password_begin(data):
     description='Challenge invalid, expired or issued to another account, '
                 'or a signature that fails.',
 )
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Unknown passkey, or account deleted.')
+@auth_bp.alt_response(404, schema=ErrorSchema, description='Unknown passkey.')
 def passkey_change_password_complete(data):
     """Finish a password change confirmed by passkey
 
     Ends every session, this one included.
     """
     user = get_current_user()
-    if not user:
-        return user_not_found()
 
     try:
         token_user_id, challenge = passkeys.read_challenge(
