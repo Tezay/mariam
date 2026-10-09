@@ -6,8 +6,9 @@ import pytest
 
 from app import create_app
 from app.extensions import db
-from app.models import User
-from conftest import TEST_PASSWORD, auth_headers, get_token, make_user
+from app.models import Organization, User
+from conftest import TEST_PASSWORD, auth_headers, get_token, make_restaurant, make_user
+from tests.auth_support import session_headers
 
 
 class TestPagination:
@@ -141,6 +142,41 @@ class TestAuthenticationComesFirst:
 
         assert answers
         assert {route: status for route, status in answers.items() if status != 401} == {}
+
+
+class TestUnauthorizedSpeaksOfTheSession:
+    # Authenticated by the refresh token: an access token is the wrong credential there.
+    TAKE_THE_REFRESH_TOKEN = {'auth.refresh', 'auth.logout'}
+
+    def test_a_signed_in_account_is_never_answered_401(self, app, client):
+        make_restaurant(app)
+        organization = Organization(name='Org', slug='org')
+        db.session.add(organization)
+        db.session.commit()
+        supervisor = make_user(
+            app, email='supervisor@mariam.app', role='org_admin', restaurant_id=None
+        )
+        db.session.get(User, supervisor).organization_id = organization.id
+        db.session.commit()
+        sessions = {
+            'site admin': session_headers(make_user(app, email='admin@mariam.app')),
+            'editor': session_headers(make_user(app, email='editor@mariam.app', role='editor')),
+            'reader': session_headers(make_user(app, email='reader@mariam.app', role='reader')),
+            'supervisor': session_headers(supervisor),
+        }
+
+        refused = [
+            f'{account}: {method} {rule.rule}'
+            for account, headers in sessions.items()
+            for rule in app.url_map.iter_rules()
+            if rule.endpoint not in self.TAKE_THE_REFRESH_TOKEN
+            for method in sorted(rule.methods - {'HEAD', 'OPTIONS'})
+            if client.open(
+                re.sub(r'<[^>]+>', '1', rule.rule), method=method, json=[], headers=headers
+            ).status_code == 401
+        ]
+
+        assert refused == []
 
 
 class TestResponseHeaders:

@@ -1,16 +1,5 @@
 import { api } from './client';
 
-export interface InboxNotification {
-  id: number;
-  type: 'business_alert' | 'user_action' | string;
-  title: string;
-  body?: string | null;
-  is_read: boolean;
-  meta?: Record<string, unknown> | null;
-  created_at: string;
-  user_id?: number | null;
-}
-
 export interface NotifPreferences {
   notify_menu_unpublished: boolean;
   notify_menu_during_service: boolean;
@@ -38,28 +27,6 @@ export interface LiveAlert {
 }
 
 export const inboxApi = {
-  list: async (): Promise<InboxNotification[]> => {
-    const response = await api.get('/inbox');
-    return response.data.notifications as InboxNotification[];
-  },
-
-  unreadCount: async (): Promise<number> => {
-    const response = await api.get('/inbox/unread-count');
-    return response.data.count as number;
-  },
-
-  markRead: async (id: number): Promise<void> => {
-    await api.put(`/inbox/${id}/read`);
-  },
-
-  markAllRead: async (): Promise<void> => {
-    await api.put('/inbox/read-all');
-  },
-
-  delete: async (id: number): Promise<void> => {
-    await api.delete(`/inbox/${id}`);
-  },
-
   getNotifPreferences: async (): Promise<NotifPreferences> => {
     const response = await api.get('/inbox/notification-preferences');
     return response.data as NotifPreferences;

@@ -5,23 +5,17 @@ import { Switch } from '@/components/ui/switch';
 /** What a row shows while its change travels to the server, and just after. */
 export type SaveState = { key: keyof NotifPreferences; state: 'saving' | 'saved' } | null;
 
-/**
- * The per-user alert switches, shared by the two places they are edited:
- * `Réglages › Notifications` for a site admin, `Mon compte` for a director,
- * who has no settings page.
- */
-
 interface Rule {
   key: keyof NotifPreferences;
   label: string;
   hint?: string;
-  /** Rules a site admin cannot act on are hidden from them. */
-  orgOnly?: boolean;
+  only?: 'site' | 'org';
 }
 
 const DIGEST_DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const DIGEST_HOURS = Array.from({ length: 16 }, (_, index) => index + 6);
 
+// Kept in step with RULES in server/app/services/alerts.py.
 const GROUPS: { title: string; rules: Rule[] }[] = [
   {
     title: 'Menu',
@@ -30,6 +24,7 @@ const GROUPS: { title: string; rules: Rule[] }[] = [
         key: 'notify_menu_unpublished',
         label: 'Menu du jour non publié',
         hint: 'Uniquement les jours où le service est ouvert.',
+        only: 'site',
       },
       {
         key: 'notify_menu_during_service',
@@ -40,6 +35,7 @@ const GROUPS: { title: string; rules: Rule[] }[] = [
         key: 'notify_menu_tomorrow',
         label: 'Menu de demain non préparé',
         hint: 'À partir de 16 h.',
+        only: 'site',
       },
     ],
   },
@@ -65,7 +61,7 @@ const GROUPS: { title: string; rules: Rule[] }[] = [
         key: 'notify_site_inactive',
         label: 'Site sans activité',
         hint: 'Aucune action enregistrée depuis une semaine.',
-        orgOnly: true,
+        only: 'org',
       },
     ],
   },
@@ -130,7 +126,7 @@ export function NotificationPreferences({
   return (
     <div className="space-y-6">
       {GROUPS.map((group) => {
-        const rules = group.rules.filter((rule) => scope === 'org' || !rule.orgOnly);
+        const rules = group.rules.filter((rule) => !rule.only || rule.only === scope);
         return (
           <div key={group.title} className="space-y-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -150,37 +146,39 @@ export function NotificationPreferences({
         );
       })}
 
-      <div className="space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Jours fériés
-        </p>
-        <Row
-          label="Alerter si un jour férié approche"
-          checked={prefs.notify_holiday_approaching}
-          status={statusOf('notify_holiday_approaching') ?? statusOf('holiday_alert_days_before')}
-          onChange={(value) => onChange({ notify_holiday_approaching: value })}
-        >
-          <div className="flex shrink-0 items-center gap-2">
-            <input
-              type="number"
-              min={1}
-              max={30}
-              value={prefs.holiday_alert_days_before}
-              onChange={(event) =>
-                onChange({
-                  holiday_alert_days_before: Math.max(
-                    1,
-                    Math.min(30, parseInt(event.target.value) || 5)
-                  ),
-                })
-              }
-              disabled={!prefs.notify_holiday_approaching}
-              className="w-16 rounded-lg border border-border bg-background px-2 py-1 text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-40"
-            />
-            <span className="whitespace-nowrap text-xs text-muted-foreground">jours avant</span>
-          </div>
-        </Row>
-      </div>
+      {scope === 'site' && (
+        <div className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Jours fériés
+          </p>
+          <Row
+            label="Alerter si un jour férié approche"
+            checked={prefs.notify_holiday_approaching}
+            status={statusOf('notify_holiday_approaching') ?? statusOf('holiday_alert_days_before')}
+            onChange={(value) => onChange({ notify_holiday_approaching: value })}
+          >
+            <div className="flex shrink-0 items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={30}
+                value={prefs.holiday_alert_days_before}
+                onChange={(event) =>
+                  onChange({
+                    holiday_alert_days_before: Math.max(
+                      1,
+                      Math.min(30, parseInt(event.target.value) || 5)
+                    ),
+                  })
+                }
+                disabled={!prefs.notify_holiday_approaching}
+                className="w-16 rounded-lg border border-border bg-background px-2 py-1 text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-40"
+              />
+              <span className="whitespace-nowrap text-xs text-muted-foreground">jours avant</span>
+            </div>
+          </Row>
+        </div>
+      )}
 
       <div className="space-y-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">

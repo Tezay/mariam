@@ -50,6 +50,22 @@ class TestRecipients:
 
         assert email_service.send_weekly_digest(app) == 0
 
+    def test_a_summary_that_fails_does_not_cost_the_others_theirs(self, app, smtp, monkeypatch):
+        rid = make_restaurant(app)
+        _subscribe(make_user(app, email='broken@mariam.app', restaurant_id=rid))
+        _subscribe(make_user(app, email='sound@mariam.app', restaurant_id=rid))
+        build_digest = email_service.build_digest
+
+        def failing_for_one(user, *args):
+            if user.email == 'broken@mariam.app':
+                raise ValueError('malformed preference')
+            return build_digest(user, *args)
+
+        monkeypatch.setattr(email_service, 'build_digest', failing_for_one)
+
+        assert email_service.send_weekly_digest(app) == 1
+        assert smtp.sent[0]['To'] == 'sound@mariam.app'
+
     def test_an_editor_is_never_a_recipient(self, app, smtp):
         rid = make_restaurant(app)
         _subscribe(make_user(app, email='editor@mariam.app', role='editor', restaurant_id=rid))

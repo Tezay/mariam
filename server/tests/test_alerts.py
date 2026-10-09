@@ -1,6 +1,8 @@
 """Live alerts: each rule fires on its own threshold, and never across tenants."""
 from datetime import timedelta
 
+import pytest
+
 from app.extensions import db
 from app.models import (
     DishCatalog,
@@ -12,9 +14,10 @@ from app.models import (
     User,
 )
 from app.models.menu_vote import MenuVote
+from app.models.restaurant import RestaurantServiceHours
 from app.models.telemetry import VisitorDailyUnique
 from app.services.alerts import live_alerts
-from app.utils.time import paris_today
+from app.utils.time import paris_now, paris_today
 from conftest import auth_headers, get_token, make_category, make_restaurant, make_user
 
 
@@ -31,6 +34,32 @@ def _serves_every_day(restaurant_id):
     restaurant = db.session.get(Restaurant, restaurant_id)
     restaurant.service_days = [0, 1, 2, 3, 4, 5, 6]
     db.session.commit()
+
+
+def _in_service_all_day(restaurant_id):
+    db.session.add(RestaurantServiceHours(
+        restaurant_id=restaurant_id, day_of_week=paris_today().weekday(),
+        open_time='00:00', close_time='23:59',
+    ))
+    db.session.commit()
+
+
+def _org_with_two_sites(app):
+    org = Organization(name='Org', slug='org-sites')
+    db.session.add(org)
+    db.session.commit()
+    first = make_restaurant(app, name='Créteil', code='RU_A')
+    second = make_restaurant(app, name='Villejuif', code='RU_B')
+    for rid in (first, second):
+        restaurant = db.session.get(Restaurant, rid)
+        restaurant.organization_id = org.id
+        restaurant.service_days = [0, 1, 2, 3, 4, 5, 6]
+    director = db.session.get(User, make_user(app, email='dir@mariam.app', role='org_admin',
+                                        restaurant_id=first))
+    director.restaurant_id = None
+    director.organization_id = org.id
+    db.session.commit()
+    return org.id, first, second, director
 
 
 def _published_menu(restaurant_id, day, category_id):
@@ -108,6 +137,17 @@ class TestMenuRules:
 
         assert live_alerts(user, [rid]) == []
 
+    def test_the_in_service_alert_does_not_need_the_daily_one(self, app, client):
+        rid = make_restaurant(app)
+        user = db.session.get(User, make_user(app))
+        _serves_every_day(rid)
+        _in_service_all_day(rid)
+        _quiet(user, notify_menu_during_service=True)
+
+        alerts = live_alerts(user, [rid])
+
+        assert [alert['key'].split(':')[0] for alert in alerts] == ['service_active']
+
 
 class TestActivityRules:
     def test_traffic_drop_fires_under_half_the_usual(self, app, client):
@@ -164,26 +204,9 @@ class TestActivityRules:
 
 
 class TestOrgScope:
-    def _org_with_two_sites(self, app):
-        org = Organization(name='Org', slug='org-sites')
-        db.session.add(org)
-        db.session.commit()
-        first = make_restaurant(app, name='Créteil', code='RU_A')
-        second = make_restaurant(app, name='Villejuif', code='RU_B')
-        for rid in (first, second):
-            restaurant = db.session.get(Restaurant, rid)
-            restaurant.organization_id = org.id
-            restaurant.service_days = [0, 1, 2, 3, 4, 5, 6]
-        director = db.session.get(User, make_user(app, email='dir@mariam.app', role='org_admin',
-                                            restaurant_id=first))
-        director.restaurant_id = None
-        director.organization_id = org.id
-        db.session.commit()
-        return org.id, first, second, director
-
     def test_one_entry_per_rule_naming_the_sites(self, app, client):
-        _, first, second, director = self._org_with_two_sites(app)
-        _quiet(director, notify_menu_unpublished=True)
+        _, first, second, director = _org_with_two_sites(app)
+        _quiet(director, notify_site_inactive=True)
 
         alerts = live_alerts(director, [first, second])
 
@@ -191,24 +214,64 @@ class TestOrgScope:
         assert alerts[0]['title'].startswith('2 sites')
         assert alerts[0]['site_names'] == ['Créteil', 'Villejuif']
 
-    def test_site_inactive_is_a_directors_rule(self, app, client):
-        _, first, second, director = self._org_with_two_sites(app)
-        _quiet(director, notify_site_inactive=True)
-
-        assert len(live_alerts(director, [first, second])) == 1
-        # Alone, a site admin would only be told about itself, which helps nobody
-        assert live_alerts(director, [first]) == []
-
     def test_another_organization_never_shows(self, app, client):
-        _, first, second, director = self._org_with_two_sites(app)
-        stranger = make_restaurant(app, name='Ailleurs', code='RU_X')
-        db.session.get(Restaurant, stranger).service_days = [0, 1, 2, 3, 4, 5, 6]
-        db.session.commit()
-        _quiet(director, notify_menu_unpublished=True)
+        _, first, second, director = _org_with_two_sites(app)
+        make_restaurant(app, name='Ailleurs', code='RU_X')
+        _quiet(director, notify_site_inactive=True)
 
         alerts = live_alerts(director, [first, second])
 
         assert 'Ailleurs' not in alerts[0]['site_names']
+
+
+class TestAudience:
+    @pytest.fixture()
+    def an_afternoon_before_a_holiday(self, monkeypatch):
+        now = paris_now().replace(hour=17, minute=0)
+        tomorrow = (now.date() + timedelta(days=1)).isoformat()
+        monkeypatch.setattr('app.services.alerts.paris_now', lambda: now)
+        monkeypatch.setattr(
+            'app.services.alerts.holidays.get_jours_feries',
+            lambda year: [{'date': tomorrow, 'description': 'Jour férié'}],
+        )
+
+    @pytest.mark.parametrize('preference', [
+        'notify_menu_unpublished', 'notify_menu_tomorrow', 'notify_holiday_approaching',
+    ])
+    def test_what_only_a_site_team_can_act_on_stays_with_it(
+        self, app, client, an_afternoon_before_a_holiday, preference
+    ):
+        _, first, second, director = _org_with_two_sites(app)
+        site_admin = db.session.get(
+            User, make_user(app, email='admin@mariam.app', restaurant_id=first)
+        )
+        _quiet(director, **{preference: True})
+        _quiet(site_admin, **{preference: True})
+
+        assert live_alerts(site_admin, [first]) != []
+        assert live_alerts(director, [first, second]) == []
+
+    def test_a_silent_site_is_a_supervisors_matter(self, app, client):
+        _, first, second, director = _org_with_two_sites(app)
+        site_admin = db.session.get(
+            User, make_user(app, email='admin@mariam.app', restaurant_id=first)
+        )
+        _quiet(director, notify_site_inactive=True)
+        _quiet(site_admin, notify_site_inactive=True)
+
+        assert len(live_alerts(director, [first, second])) == 1
+        assert live_alerts(site_admin, [first]) == []
+
+    def test_a_supervisor_hears_of_a_service_without_menu(self, app, client):
+        _, first, second, director = _org_with_two_sites(app)
+        _in_service_all_day(first)
+        _in_service_all_day(second)
+        _quiet(director, notify_menu_during_service=True)
+
+        alerts = live_alerts(director, [first, second])
+
+        assert [alert['key'].split(':')[0] for alert in alerts] == ['service_active']
+        assert alerts[0]['site_names'] == ['Créteil', 'Villejuif']
 
 
 class TestEndpoint:
@@ -223,6 +286,20 @@ class TestEndpoint:
         assert res.status_code == 200
         keys = [alert['key'].split(':')[0] for alert in res.get_json()['alerts']]
         assert 'menu_unpublished' in keys
+
+    def test_a_supervisor_without_a_site_gets_its_alerts(self, app, client):
+        _, _, _, director = _org_with_two_sites(app)
+        _quiet(director, notify_site_inactive=True)
+
+        res = client.get(
+            '/v1/inbox/live-alerts',
+            headers=auth_headers(get_token(client, email='dir@mariam.app')),
+        )
+
+        assert res.status_code == 200
+        assert [alert['site_names'] for alert in res.get_json()['alerts']] == [
+            ['Créteil', 'Villejuif']
+        ]
 
     def test_live_alerts_require_a_token(self, client):
         assert client.get('/v1/inbox/live-alerts').status_code == 401

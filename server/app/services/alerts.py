@@ -1,13 +1,17 @@
 """Live alerts, computed on demand and never stored.
 
-One set of rules for both dashboards: the scope is the sites the caller may
-read, so a site admin sees its own and a director all of his. Beyond one site
-each rule folds into a single entry naming the sites it caught, which is what
-keeps a thirty-site bell readable.
+One set of rules for every account: the scope is the sites the caller may
+read, and each rule says whether it is for the team of a site, for the
+supervisors of an organization, or for both. Beyond one site each rule folds
+into a single entry naming the sites it caught, which is what keeps a
+thirty-site bell readable.
 """
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from enum import Enum
+from functools import cached_property
 
 from ..extensions import db
 from ..models import AuditLog, Menu, Restaurant
@@ -38,6 +42,11 @@ class Finding:
     detail: str
 
 
+class Audience(Enum):
+    SITE_TEAM = 'site_team'
+    SUPERVISOR = 'supervisor'
+
+
 @dataclass
 class Context:
     sites: list
@@ -48,6 +57,19 @@ class Context:
     weekday: int
     prefs: dict
     multi: bool
+    audience: Audience
+
+    @cached_property
+    def without_menu_today(self) -> list[Finding]:
+        """Sites that serve today with no published menu. Two rules read it."""
+        serves = _serves(self, self.today)
+        published = _published_menu_ids(self.site_ids, self.today)
+        label = format_date_fr(self.today, weekday=True, year=False)
+        return [
+            Finding(site.id, site.name, f"Le menu du {label} n'est pas encore publié.")
+            for site in self.sites
+            if serves.get(site.id) and site.id not in published
+        ]
 
 
 def _entry(key: str, severity: str, single: str, plural: str, findings: list[Finding],
@@ -93,22 +115,17 @@ def _published_menu_ids(site_ids: list[int], day: date) -> set[int]:
 # ── Rules ────────────────────────────────────────────────────────────────────
 
 def _menu_today(context: Context) -> list[dict]:
-    serves = _serves(context, context.today)
-    published = _published_menu_ids(context.site_ids, context.today)
-    label = format_date_fr(context.today, weekday=True, year=False)
-    missing = [
-        Finding(site.id, site.name, f"Le menu du {label} n'est pas encore publié.")
-        for site in context.sites
-        if serves.get(site.id) and site.id not in published
-    ]
-    alerts = _entry(
+    return _entry(
         f'menu_unpublished:{context.today}', 'warning',
         'Menu non publié', '{count} site{s} sans menu aujourd’hui',
-        missing, context,
+        context.without_menu_today, context,
     )
 
-    if not missing or not context.prefs.get('notify_menu_during_service', True):
-        return alerts
+
+def _service_without_menu(context: Context) -> list[dict]:
+    missing = context.without_menu_today
+    if not missing:
+        return []
 
     hours = {
         row.restaurant_id: row
@@ -123,10 +140,10 @@ def _menu_today(context: Context) -> list[dict]:
         and row.open_time and row.close_time
         and row.open_time <= context.time <= row.close_time
     ]
-    return alerts + _entry(
+    return _entry(
         f'service_active:{context.today}', 'error',
         'Service en cours sans menu publié',
-        '{count} site{s} sert sans menu publié',
+        '{count} site{s} en service sans menu publié',
         [
             Finding(f.site_id, f.site_name,
                     "Le service est actif mais le menu n'est pas visible par vos étudiants.")
@@ -232,8 +249,6 @@ def _vote_anomaly(context: Context) -> list[dict]:
 
 def _site_inactive(context: Context) -> list[dict]:
     """Only a director can act on this: a site admin would be the silent one."""
-    if not context.multi:
-        return []
     days = env_cap('ALERT_INACTIVE_DAYS', 7)
     # AuditLog stamps naive UTC, so the cutoff has to be naive UTC too.
     cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days)
@@ -286,14 +301,24 @@ def _holidays(context: Context) -> list[dict]:
     return alerts
 
 
+@dataclass(frozen=True)
+class Rule:
+    preference: str
+    check: Callable[[Context], list[dict]]
+    only: Audience | None = None
+
+
+# Kept in step with client/src/features/notifications/NotificationPreferences.tsx,
+# which shows an account the switches of its own rules.
 RULES = [
-    ('notify_menu_unpublished', _menu_today),
-    ('notify_menu_tomorrow', _menu_tomorrow),
-    ('notify_traffic_drop', _traffic_drop),
-    ('notify_low_satisfaction', _low_satisfaction),
-    ('notify_vote_anomaly', _vote_anomaly),
-    ('notify_site_inactive', _site_inactive),
-    ('notify_holiday_approaching', _holidays),
+    Rule('notify_menu_unpublished', _menu_today, only=Audience.SITE_TEAM),
+    Rule('notify_menu_during_service', _service_without_menu),
+    Rule('notify_menu_tomorrow', _menu_tomorrow, only=Audience.SITE_TEAM),
+    Rule('notify_traffic_drop', _traffic_drop),
+    Rule('notify_low_satisfaction', _low_satisfaction),
+    Rule('notify_vote_anomaly', _vote_anomaly),
+    Rule('notify_site_inactive', _site_inactive, only=Audience.SUPERVISOR),
+    Rule('notify_holiday_approaching', _holidays, only=Audience.SITE_TEAM),
 ]
 
 
@@ -316,6 +341,7 @@ def build_context(user, site_ids: list[int]) -> Context | None:
         weekday=now.weekday(),
         prefs=user.get_notification_preferences(),
         multi=len(sites) > 1,
+        audience=Audience.SUPERVISOR if user.is_org_admin() else Audience.SITE_TEAM,
     )
 
 
@@ -326,9 +352,9 @@ def live_alerts(user, site_ids: list[int]) -> list[dict]:
         return []
 
     alerts = []
-    for key, rule in RULES:
-        if context.prefs.get(key, True):
-            alerts.extend(rule(context))
+    for rule in RULES:
+        if rule.only in (None, context.audience) and context.prefs.get(rule.preference, True):
+            alerts.extend(rule.check(context))
 
     order = {'error': 0, 'warning': 1, 'info': 2}
     alerts.sort(key=lambda alert: order.get(alert['severity'], 3))
