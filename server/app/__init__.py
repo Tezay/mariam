@@ -659,7 +659,7 @@ def _start_scheduler(app):
             func=retention.run_purge_job,
             trigger='cron', day_of_week='sun', hour=3, minute=30, args=[app],
             id='retention_purge',
-            name="Purge des journaux d'audit et des notifications expirés",
+            name="Purge des journaux d'audit expirés",
             replace_existing=True, misfire_grace_time=300,
         )
         # Hourly: each recipient picks the day and hour of their summary.

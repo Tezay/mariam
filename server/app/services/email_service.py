@@ -455,7 +455,14 @@ def send_weekly_digest(app) -> int:
             site_ids = sorted(accessible_restaurant_ids(user))
             if not site_ids:
                 continue
-            digest = build_digest(user, site_ids, start, end)
+            try:
+                digest = build_digest(user, site_ids, start, end)
+            except Exception:
+                # One recipient's summary must not cost the others theirs; the
+                # rollback frees the session a failed query would leave unusable.
+                db.session.rollback()
+                app.logger.exception('Weekly digest failed for user %s', user.id)
+                continue
             if send_email(
                 user.email, digest['subject'], digest['text'], digest['html'],
                 unsubscribe_url=unsubscribe_url(user.id),

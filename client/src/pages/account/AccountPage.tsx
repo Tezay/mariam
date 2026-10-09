@@ -226,7 +226,6 @@ function PrivacyDialog({ tenant }: { tenant?: string | null }) {
             <p>
               Chaque action effectuée sur le service est enregistrée avec sa date, votre adresse IP
               et votre navigateur. Ce journal est conservé 6 mois, puis supprimé automatiquement.
-              Les notifications affichées dans l’application sont conservées 90 jours.
             </p>
           </Block>
 

@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A sign-in begun before the account's sessions were ended no longer finishes.**
 - **A passkey-only account changes its password with its passkey**, never the password alone.
 - **Guarded routes authenticate before reading the request body**, and the audit export neutralises spreadsheet formulas.
+- **Alert preferences are validated on write**: a malformed value could stop the weekly digest for the recipients after its author, which a failing summary no longer does.
 
 ### Added
 
@@ -52,6 +53,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Passkey errors say what happened**: a device that already holds one for the account, a cancelled prompt, an address that cannot use them.
 - **Upgrading**: the migrations stop if an address holds an uppercase letter or a character outside ASCII, and name the rows.
 - **`POST /v1/auth/logout`** no longer takes `access_token`.
+- **Each alert names its audience**: a supervisor hears of a service running without a menu, traffic, satisfaction, suspicious votes and silent sites; menus to prepare and holidays stay with the site team.
+- **« Alerte urgente pendant le service »** is a rule of its own, no longer silenced with « Menu du jour non publié ».
+
+### Removed
+
+- **The stored notification inbox**, which nothing fed any more: `GET /v1/inbox`, `/unread-count`, `PUT /<id>/read`, `PUT /read-all`, `DELETE /<id>`, the `inbox_notifications` table and `NOTIFICATION_RETENTION_DAYS`.
 
 ### Fixed
 
@@ -59,6 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Accounts disabled by that reset** are re-enabled from « Rôle et accès » or with `flask user enable`.
 - **A wrong code on a password-reset link** no longer sends back to the sign-in page.
 - **A malformed audit filter or an over-long passkey name** no longer answers 500.
+- **A supervisor's bell stayed empty**, and its dashboard refreshed the session every 15 seconds: the stored inbox answered 401 to an account without a site.
 
 ## [0.17.0] - 2026-10-03
 

@@ -28,8 +28,6 @@ from .imports import (
 from .inbox import (
     InboxPreferencesSchema,
     LiveAlertListSchema,
-    NotificationListSchema,
-    UnreadCountSchema,
 )
 from .menus import (
     MenuCreateSchema,
@@ -49,7 +47,6 @@ from .users import InvitationSchema, InviteSchema, UserAdminSchema
 
 __all__ = [
     'ErrorSchema', 'MessageSchema',
-    'NotificationListSchema', 'UnreadCountSchema',
     'LiveAlertListSchema', 'InboxPreferencesSchema',
     'LoginSchema', 'LoginResponseSchema', 'MFAVerifySchema', 'MFAVerifySetupSchema',
     'ActivateAccountSchema', 'ResetPasswordSchema', 'ChangePasswordSchema',

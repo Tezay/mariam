@@ -393,28 +393,28 @@ Notes:
 
 ## Inbox Notifications
 
-Requires authentication. In-app notification center for business alerts.
+Requires authentication. In-app alerts, computed on the fly: nothing is stored.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `/v1/inbox` | List notifications for the current user |
-| `GET` | `/v1/inbox/unread-count` | Unread notifications count |
-| `GET` | `/v1/inbox/live-alerts` | Alerts computed on the fly; nothing is stored |
-| `PUT` | `/v1/inbox/<id>/read` | Mark a notification as read |
-| `PUT` | `/v1/inbox/read-all` | Mark all notifications as read |
-| `DELETE` | `/v1/inbox/<id>` | Delete a notification |
-| `GET` | `/v1/inbox/notification-preferences` | Get in-app notification preferences |
-| `PUT` | `/v1/inbox/notification-preferences` | Update in-app notification preferences |
+| `GET` | `/v1/inbox/live-alerts` | Active alerts on the sites the caller may read |
+| `GET` | `/v1/inbox/notification-preferences` | Get the caller's alert and email preferences |
+| `PUT` | `/v1/inbox/notification-preferences` | Update them |
 
 Notes:
 
-- `live-alerts` is scoped by role: a site admin sees its own site, a supervisor
+- `live-alerts` is scoped by role: a site account sees its own site, a supervisor
   every site of its organization. Beyond one site each rule answers as one entry
   carrying `site_ids` and `site_names`, rather than one entry per site.
-- Rules: unpublished menu, service open without a menu, tomorrow's menu missing,
-  traffic drop, low satisfaction, vote anomaly, inactive site (supervisors only)
-  and upcoming holiday. Each is switched by its own preference key, all on by
-  default; the thresholds are environment variables (`ALERT_*`).
+- Each rule names the accounts it is for. A site team gets: unpublished menu,
+  service open without a menu, tomorrow's menu missing, traffic drop, low
+  satisfaction, vote anomaly and upcoming holiday. A supervisor gets: service open
+  without a menu, traffic drop, low satisfaction, vote anomaly and inactive site.
+  Each is switched by its own preference key, all on by default; the thresholds
+  are environment variables (`ALERT_*`).
+- `PUT notification-preferences` takes the keys to change and validates them:
+  switches are booleans, `holiday_alert_days_before` runs from 1 to 30. Anything
+  else answers `422` and stores nothing.
 - `weekly_digest` subscribes the caller to the email, `digest_day` (Monday = 0)
   and `digest_hour` (6 to 21, Europe/Paris) say when it lands. Off by default,
   Monday 08:00. Whatever the slot, the summary covers the last complete week,

@@ -60,6 +60,8 @@ import {
   Link as LinkIcon,
 } from 'lucide-react';
 
+const INVITATION_CONFIRMATION = { description: 'Pour inviter un nouvel utilisateur.' };
+
 // The API sends UTC without an offset.
 const expiryDate = (expiresAt: string) =>
   new Date(`${expiresAt}Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
@@ -109,7 +111,7 @@ export function UsersPage() {
   };
 
   const openInvitation = async () => {
-    if (await confirmIdentity({ description: 'Pour inviter un nouvel utilisateur.' })) {
+    if (await confirmIdentity(INVITATION_CONFIRMATION)) {
       setShowInviteModal(true);
     }
   };
@@ -487,6 +489,7 @@ function InviteModal({
   onSuccess: () => void;
   isOrgScope: boolean;
 }) {
+  const confirmIdentity = useStepUp();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'admin' | 'editor' | 'reader'>('editor');
   const [isLoading, setIsLoading] = useState(false);
@@ -502,6 +505,9 @@ function InviteModal({
       setError(EMAIL_RULE);
       return;
     }
+
+    // The confirmation asked on opening may have lapsed while the form was filled.
+    if (!(await confirmIdentity(INVITATION_CONFIRMATION))) return;
 
     setIsLoading(true);
     try {

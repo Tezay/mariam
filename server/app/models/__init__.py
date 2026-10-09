@@ -18,7 +18,6 @@ from .menu_vote import (
     MenuVote,
     menu_vote_dishes,
 )
-from .notification import Notification
 from .organization import Organization
 from .passkey import Passkey
 from .push_subscription import PushSubscription
@@ -55,7 +54,6 @@ __all__ = [
     'RATING_MAX',
     'VOTE_ICON_PRESETS',
     'DEFAULT_ICON_PRESET',
-    'Notification',
     'DishCatalog',
     'CategorySubstitution',
     'dish_dietary_tags',
