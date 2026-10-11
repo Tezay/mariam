@@ -581,6 +581,14 @@ Requires the `admin` role and an account carrying a second factor, code or passk
 | `DELETE` | `/v1/notifications/unsubscribe` | any | Unsubscribe |
 | `POST` | `/v1/notifications/test` | any | Send a test notification |
 
+Notes:
+
+- Every route but the first takes the subscription's `endpoint`, which must be an `https://`
+  address on a browser push service (Google, Mozilla, Apple, Microsoft). `subscribe` and `test`
+  also take its two keys, as `PushSubscription.toJSON()` returns them. Anything else answers
+  `422`: it is neither stored nor contacted.
+- `subscribe` answers `404` to a `restaurant_id` that is unknown or inactive.
+
 ---
 
 ## CSV / Excel Import

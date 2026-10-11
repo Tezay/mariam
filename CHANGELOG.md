@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A passkey-only account changes its password with its passkey**, never the password alone.
 - **Guarded routes authenticate before reading the request body**, and the audit export neutralises spreadsheet formulas.
 - **Alert preferences are validated on write**: a malformed value could stop the weekly digest for the recipients after its author, which a failing summary no longer does.
+- **Push subscriptions are accepted on browser push services only**, over HTTPS and with keys of the standard size: the server posted to whatever address a visitor gave, and stored keys of any size.
 
 ### Added
 
@@ -65,7 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Second-factor reset from the dashboard** left the account disabled with a link that activation refused; it now behaves like `flask user reset-2fa`.
 - **Accounts disabled by that reset** are re-enabled from « Rôle et accès » or with `flask user enable`.
 - **A wrong code on a password-reset link** no longer sends back to the sign-in page.
-- **A malformed audit filter or an over-long passkey name** no longer answers 500.
+- **A malformed audit filter, an over-long passkey name, or a push subscription naming an unknown site or platform** no longer answers 500.
 - **A supervisor's bell stayed empty**, and its dashboard refreshed the session every 15 seconds: the stored inbox answered 401 to an account without a site.
 
 ## [0.17.0] - 2026-10-03

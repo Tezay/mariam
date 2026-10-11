@@ -156,9 +156,10 @@ PostgreSQL: the traffic tables hold counters aggregated by site, day, hour and p
 
 ### Transactional email
 
-The only email Mariam sends is the weekly digest, and only to accounts that opted in, from the
-Notifications section of their account page. Without `SMTP_HOST` it is a logged no-op: nothing
-breaks, nobody receives anything.
+Mariam sends two emails: the weekly digest, to accounts that opted in from the Notifications
+section of their account page, and an alert to the previous address when an account changes its
+sign-in address. Without `SMTP_HOST` both are logged no-ops: nothing breaks, nobody receives
+anything.
 
 Default provider: Scaleway TEM, the same host as production object storage, 300 free emails a month.
 
