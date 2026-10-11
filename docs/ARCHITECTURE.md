@@ -159,7 +159,9 @@ Browser ──(1) subscribe──→ Backend ──(2) signed message──→ P
                           (3) delivery ─────────────────────────-─┘
 ```
 
-1. The user subscribes from `/notifications`; the browser issues a push endpoint.
+1. The user subscribes from `/notifications`; the browser issues a push endpoint. The backend
+   accepts one only on a browser push service (`server/app/utils/push_endpoint.py`) and posts
+   to no other host.
 2. The scheduler checks every minute what should go out, signs with the VAPID private key and
    posts to the push service.
 3. The push service delivers to the device.

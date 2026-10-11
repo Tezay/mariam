@@ -13,6 +13,7 @@ from datetime import time, timedelta
 
 from pywebpush import WebPushException, webpush
 
+from ..utils.push_endpoint import is_push_service_url
 from ..utils.time import format_date_fr, paris_now, paris_today, weekday_fr
 from .redis_client import acquire_job_lock
 
@@ -51,6 +52,14 @@ def send_push_notification(subscription_info: dict, payload: dict) -> bool:
     Returns:
         True si envoyé avec succès, False sinon.
     """
+    endpoint = subscription_info['endpoint']
+    # Checked again where the request leaves: a row can predate the check the
+    # routes make.
+    if not is_push_service_url(endpoint):
+        logger.warning('Subscription dropped, not on a push service: %r', endpoint[:80])
+        _remove_subscription(endpoint)
+        return False
+
     vapid = get_vapid_claims()
 
     if not vapid['private_key']:
@@ -80,7 +89,7 @@ def send_push_notification(subscription_info: dict, payload: dict) -> bool:
         logger.debug(
             "Push envoyé (HTTP %s) → %s",
             resp.status_code,
-            subscription_info.get('endpoint', '')[:80],
+            endpoint[:80],
         )
         return True
 
@@ -89,8 +98,8 @@ def send_push_notification(subscription_info: dict, payload: dict) -> bool:
 
         if status_code in (404, 410):
             # Endpoint expiré ou révoqué — supprimer la souscription
-            logger.info(f"Endpoint expiré (HTTP {status_code}), suppression : {subscription_info.get('endpoint', '')[:80]}...")
-            _remove_expired_subscription(subscription_info['endpoint'])
+            logger.info(f"Endpoint expiré (HTTP {status_code}), suppression : {endpoint[:80]}...")
+            _remove_subscription(endpoint)
             return False
 
         logger.error(f"Erreur Web Push (HTTP {status_code}) : {e}")
@@ -101,8 +110,7 @@ def send_push_notification(subscription_info: dict, payload: dict) -> bool:
         return False
 
 
-def _remove_expired_subscription(endpoint: str):
-    """Supprime une souscription dont l'endpoint est expiré."""
+def _remove_subscription(endpoint: str):
     from ..extensions import db
     from ..models.push_subscription import PushSubscription
 
@@ -110,7 +118,7 @@ def _remove_expired_subscription(endpoint: str):
     if sub:
         db.session.delete(sub)
         db.session.commit()
-        logger.info(f"Souscription {sub.id} supprimée (endpoint expiré)")
+        logger.info(f"Souscription {sub.id} supprimée")
 
 
 # ========================================

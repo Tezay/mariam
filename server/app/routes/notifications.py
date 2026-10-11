@@ -13,16 +13,22 @@ Endpoints:
 """
 from datetime import time
 
-from flask import jsonify, request
+from flask import jsonify
 from flask_smorest import Blueprint
 
 from ..extensions import db
 from ..models.push_subscription import PushSubscription
 from ..models.restaurant import Restaurant
 from ..schemas.common import ErrorSchema, MessageSchema
-from ..schemas.notifications import PreferencesUpdateSchema, SubscribeSchema
+from ..schemas.notifications import (
+    BrowserSubscriptionSchema,
+    PreferencesUpdateSchema,
+    SubscribeSchema,
+    SubscriptionEndpointSchema,
+)
 from ..security import limiter
 from ..services.notification_service import get_vapid_public_key, send_push_notification
+from .helpers import get_default_restaurant
 
 notifications_bp = Blueprint(
     'notifications', __name__,
@@ -42,10 +48,10 @@ def _parse_time(time_str: str) -> time:
         return time(11, 0)
 
 
-def _get_default_restaurant_id() -> int | None:
-    """Retourne l'ID du restaurant par défaut."""
-    restaurant = Restaurant.query.filter_by(is_active=True).first()
-    return restaurant.id if restaurant else None
+def _restaurant_to_follow(restaurant_id: int | None) -> Restaurant | None:
+    if restaurant_id is None:
+        return get_default_restaurant()
+    return Restaurant.query.filter_by(id=restaurant_id, is_active=True).first()
 
 
 # ============================================================
@@ -69,7 +75,7 @@ def vapid_public_key():
 @notifications_bp.arguments(SubscribeSchema)
 @notifications_bp.response(201, MessageSchema)
 @notifications_bp.alt_response(200, schema=MessageSchema, description="Subscription updated")
-@notifications_bp.alt_response(400, schema=ErrorSchema, description="Incomplete data")
+@notifications_bp.alt_response(404, schema=ErrorSchema, description="Unknown or inactive restaurant")
 def subscribe(data):
     """Register or update a push subscription.
 
@@ -90,18 +96,13 @@ def subscribe(data):
     }
     ```
     """
-    endpoint = data.get('endpoint')
-    keys = data.get('keys', {})
-    p256dh = keys.get('p256dh')
-    auth = keys.get('auth')
+    restaurant = _restaurant_to_follow(data.get('restaurant_id'))
+    if restaurant is None:
+        return jsonify({'error': 'Restaurant introuvable'}), 404
 
-    if not endpoint or not p256dh or not auth:
-        return jsonify({'error': 'Données de souscription incomplètes (endpoint, keys.p256dh, keys.auth requis)'}), 400
-
-    restaurant_id = data.get('restaurant_id') or _get_default_restaurant_id()
-    if not restaurant_id:
-        return jsonify({'error': 'Aucun restaurant configuré'}), 400
-
+    endpoint = data['endpoint']
+    p256dh = data['keys']['p256dh']
+    auth = data['keys']['auth']
     prefs = data.get('preferences', {})
     platform = data.get('platform')
 
@@ -109,12 +110,12 @@ def subscribe(data):
     is_new = sub is None
 
     if is_new:
-        sub = PushSubscription(restaurant_id=restaurant_id, endpoint=endpoint, p256dh=p256dh, auth=auth)
+        sub = PushSubscription(restaurant_id=restaurant.id, endpoint=endpoint, p256dh=p256dh, auth=auth)
         db.session.add(sub)
     else:
         sub.p256dh = p256dh
         sub.auth = auth
-        sub.restaurant_id = restaurant_id
+        sub.restaurant_id = restaurant.id
 
     sub.notify_today_menu = prefs.get('notify_today_menu', True)
     sub.notify_today_menu_time = _parse_time(prefs.get('notify_today_menu_time', '11:00'))
@@ -135,19 +136,12 @@ def subscribe(data):
 
 @notifications_bp.route('/preferences', methods=['GET'])
 @limiter.limit("30 per minute")
+@notifications_bp.arguments(SubscriptionEndpointSchema, location='query')
 @notifications_bp.response(200, MessageSchema)
-@notifications_bp.alt_response(400, schema=ErrorSchema, description="Missing endpoint parameter")
 @notifications_bp.alt_response(404, schema=ErrorSchema, description="Subscription not found")
-def get_preferences():
-    """Get the notification preferences for a subscription by endpoint.
-
-    Query param: `endpoint` (full push subscription URL)
-    """
-    endpoint = request.args.get('endpoint')
-    if not endpoint:
-        return jsonify({'error': 'Paramètre endpoint manquant'}), 400
-
-    sub = PushSubscription.query.filter_by(endpoint=endpoint).first()
+def get_preferences(query):
+    """Get the notification preferences for a subscription by endpoint."""
+    sub = PushSubscription.query.filter_by(endpoint=query['endpoint']).first()
     if not sub:
         return jsonify({'error': 'Souscription introuvable'}), 404
 
@@ -158,19 +152,14 @@ def get_preferences():
 @limiter.limit("20 per minute")
 @notifications_bp.arguments(PreferencesUpdateSchema)
 @notifications_bp.response(200, MessageSchema)
-@notifications_bp.alt_response(400, schema=ErrorSchema, description="Missing endpoint")
 @notifications_bp.alt_response(404, schema=ErrorSchema, description="Subscription not found")
 def update_preferences(data):
     """Update the notification preferences for an existing subscription."""
-    endpoint = data.get('endpoint')
-    if not endpoint:
-        return jsonify({'error': 'Endpoint manquant'}), 400
-
-    sub = PushSubscription.query.filter_by(endpoint=endpoint).first()
+    sub = PushSubscription.query.filter_by(endpoint=data['endpoint']).first()
     if not sub:
         return jsonify({'error': 'Souscription introuvable'}), 404
 
-    prefs = data.get('preferences', {})
+    prefs = data['preferences']
 
     if 'notify_today_menu' in prefs:
         sub.notify_today_menu = prefs['notify_today_menu']
@@ -190,23 +179,12 @@ def update_preferences(data):
 
 @notifications_bp.route('/unsubscribe', methods=['DELETE'])
 @limiter.limit("10 per minute")
+@notifications_bp.arguments(SubscriptionEndpointSchema)
 @notifications_bp.response(200, MessageSchema)
-@notifications_bp.alt_response(400, schema=ErrorSchema, description="Missing endpoint")
 @notifications_bp.alt_response(404, schema=ErrorSchema, description="Subscription not found")
-def unsubscribe():
-    """Remove a push subscription.
-
-    JSON body: `{ "endpoint": "https://..." }`
-    """
-    data = request.get_json()
-    if not data:
-        return jsonify({'error': 'Corps de requête manquant'}), 400
-
-    endpoint = data.get('endpoint')
-    if not endpoint:
-        return jsonify({'error': 'Endpoint manquant'}), 400
-
-    sub = PushSubscription.query.filter_by(endpoint=endpoint).first()
+def unsubscribe(data):
+    """Remove a push subscription."""
+    sub = PushSubscription.query.filter_by(endpoint=data['endpoint']).first()
     if not sub:
         return jsonify({'error': 'Souscription introuvable'}), 404
 
@@ -218,31 +196,11 @@ def unsubscribe():
 
 @notifications_bp.route('/test', methods=['POST'])
 @limiter.limit("5 per minute")
+@notifications_bp.arguments(BrowserSubscriptionSchema)
 @notifications_bp.response(200, MessageSchema)
-@notifications_bp.alt_response(400, schema=ErrorSchema, description="Incomplete data")
 @notifications_bp.alt_response(500, schema=ErrorSchema, description="VAPID send failure")
-def send_test():
-    """Send a test push notification to the subscriber.
-
-    JSON body:
-    ```json
-    {
-      "endpoint": "https://fcm.googleapis.com/...",
-      "keys": { "p256dh": "...", "auth": "..." }
-    }
-    ```
-    """
-    data = request.get_json()
-    if not data:
-        return jsonify({'error': 'Corps de requête manquant'}), 400
-
-    endpoint = data.get('endpoint')
-    keys = data.get('keys', {})
-
-    if not endpoint or not keys.get('p256dh') or not keys.get('auth'):
-        return jsonify({'error': 'Données de souscription incomplètes'}), 400
-
-    subscription_info = {'endpoint': endpoint, 'keys': keys}
+def send_test(subscription):
+    """Send a test push notification to the subscriber."""
     payload = {
         'title': 'Mariam — Test',
         'body': '✅ Les notifications fonctionnent !',
@@ -252,9 +210,6 @@ def send_test():
         'tag': 'test',
     }
 
-    success = send_push_notification(subscription_info, payload)
-
-    if success:
+    if send_push_notification(subscription, payload):
         return jsonify({'message': 'Notification de test envoyée'}), 200
-    else:
-        return jsonify({'error': "Échec de l'envoi. Vérifiez la configuration VAPID."}), 500
+    return jsonify({'error': "Échec de l'envoi. Vérifiez la configuration VAPID."}), 500
