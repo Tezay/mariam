@@ -26,6 +26,7 @@
           <tr>
             <td style="padding:16px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;line-height:1.6;color:#64748b">
               {% block footer %}{% endblock %}
+              <div style="margin-top:10px">{% include 'emails/' ~ locale ~ '/signature.html' %}</div>
             </td>
           </tr>
         </table>

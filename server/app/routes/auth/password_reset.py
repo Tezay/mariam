@@ -14,6 +14,7 @@ from ...schemas.auth import (
 from ...schemas.common import ErrorSchema, MessageSchema
 from ...security import get_client_ip, limiter
 from ...services import passkeys, totp
+from ...services.account import SecurityEvent, notify_security_event
 from ...services.passkeys import Ceremony
 from ._common import user_not_found, weak_password
 from .blueprint import auth_bp
@@ -117,6 +118,7 @@ def reset_password(data):
     link.mark_as_used()
     _audit(user, {'success': True, 'method': 'reset_link'})
     db.session.commit()
+    notify_security_event(user, SecurityEvent.PASSWORD_CHANGED)
 
     return jsonify({'message': 'Mot de passe réinitialisé avec succès'}), 200
 
@@ -219,5 +221,6 @@ def passkey_reset_password_complete(data):
     link.mark_as_used()
     _audit(user, {'success': True, 'method': 'passkey'})
     db.session.commit()
+    notify_security_event(user, SecurityEvent.PASSWORD_CHANGED)
 
     return jsonify({'message': 'Mot de passe réinitialisé avec succès'}), 200

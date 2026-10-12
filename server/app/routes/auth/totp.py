@@ -12,6 +12,7 @@ from ...schemas.auth import (
 from ...schemas.common import ErrorSchema
 from ...security import get_client_ip, limiter
 from ...services import totp
+from ...services.account import SecurityEvent, notify_security_event
 from ..helpers import get_current_user, step_up_once_enrolled, step_up_required
 from ._common import NO_SESSION, NOT_CONFIRMED
 from .blueprint import auth_bp
@@ -78,6 +79,9 @@ def mfa_setup_confirm(data):
         ip_address=get_client_ip(),
     )
     db.session.commit()
+    notify_security_event(
+        user, SecurityEvent.TOTP_REPLACED if replaced else SecurityEvent.TOTP_ENABLED
+    )
 
     return jsonify({
         'message': 'Authentification par code activée',
@@ -115,6 +119,7 @@ def disable_mfa():
     user.mfa_secret = None
     AuditLog.log(action=AuditLog.ACTION_MFA_DISABLED, user_id=user.id, ip_address=get_client_ip())
     db.session.commit()
+    notify_security_event(user, SecurityEvent.TOTP_DISABLED)
 
     return jsonify({
         'message': 'Authentification par code désactivée',

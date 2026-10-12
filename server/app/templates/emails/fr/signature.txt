@@ -1,0 +1,3 @@
+Mariam est le logiciel de gestion des menus de votre restaurant.
+{% if support_email %}Une question ? Écrivez à {{ support_email }} ou répondez à cet e-mail.
+{% endif %}
