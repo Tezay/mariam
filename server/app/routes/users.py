@@ -10,6 +10,7 @@ Endpoints:
 - PUT  /v1/users/<id>               Update a user
 - DELETE /v1/users/<id>             Delete a user
 - POST /v1/users/<id>/reset-mfa     Reset a user's MFA
+- POST /v1/users/<id>/reset-password  Send a user a password reset link
 - POST /v1/users/invite             Create an invitation link
 - GET  /v1/users/invitations        List pending invitations
 - DELETE /v1/users/invitations/<id> Revoke a pending invitation
@@ -27,12 +28,19 @@ from ..schemas.common import ErrorSchema, MessageSchema
 from ..schemas.users import (
     InvitationSchema,
     InviteSchema,
+    PasswordResetLinkSchema,
     UiPreferencesSchema,
     UserAdminSchema,
     UserUpdateSchema,
 )
 from ..security import get_client_ip
-from ..services.account import SecurityEvent, notify_security_event, reset_second_factor
+from ..services.account import (
+    SecurityEvent,
+    notify_password_reset,
+    notify_security_event,
+    reset_second_factor,
+)
+from ..utils.urls import frontend_base_url
 from .helpers import (
     accessible_restaurant_ids,
     admin_required,
@@ -403,6 +411,70 @@ def reset_user_mfa(user_id):
     notify_security_event(user, SecurityEvent.SECOND_FACTORS_RESET)
 
     return jsonify({'message': 'Double authentification réinitialisée'}), 200
+
+
+@users_bp.route('/<int:user_id>/reset-password', methods=['POST'])
+@users_bp.response(200, PasswordResetLinkSchema)
+@users_bp.alt_response(400, schema=ErrorSchema, description="Cannot reset your own account")
+@users_bp.alt_response(
+    403, schema=ErrorSchema, description="Identity confirmation required, or rescue account"
+)
+@users_bp.alt_response(404, schema=ErrorSchema, description="User not found")
+@users_bp.alt_response(
+    409, schema=ErrorSchema, description="Account disabled, or without a second factor"
+)
+@admin_required
+@step_up_required
+def send_password_reset(user_id):
+    """Send a user a link to choose a new password.
+
+    The link goes to the account's address and is returned only when it could
+    not be emailed. It serves once, for 72 hours, and replaces the pending ones;
+    the reset page still asks for the account's second factor.
+    """
+    current_user_id = int(get_jwt_identity())
+    user = _scoped_user(user_id)
+    if not user:
+        return jsonify({'error': 'Utilisateur non trouvé'}), 404
+
+    if user.id == current_user_id:
+        return jsonify({'error': 'Changez votre propre mot de passe depuis Mon compte'}), 400
+
+    if user.is_rescue_account:
+        return jsonify({'error': 'Le compte de secours ne peut pas être modifié'}), 403
+
+    if not user.is_active:
+        return jsonify({'error': 'Ce compte est désactivé'}), 409
+
+    if not user.has_second_factor():
+        return jsonify({
+            'error': "Ce compte n'a aucun second facteur : il ne pourrait pas confirmer son "
+                     'identité. Supprimez-le, puis invitez-le de nouveau.',
+        }), 409
+
+    link = ActivationLink.create_password_reset_link(
+        email=user.email, created_by_id=current_user_id
+    )
+    db.session.add(link)
+    AuditLog.log(
+        action=AuditLog.ACTION_PASSWORD_RESET_REQUEST,
+        user_id=current_user_id,
+        restaurant_id=user.restaurant_id,
+        target_type='user',
+        target_id=user.id,
+        details={'method': 'dashboard'},
+        ip_address=get_client_ip()
+    )
+    db.session.commit()
+
+    url = f'{frontend_base_url()}/reset-password/{link.token}'
+    emailed = notify_password_reset(user, url)
+
+    return jsonify({
+        'message': 'Lien de réinitialisation envoyé' if emailed else 'Lien de réinitialisation créé',
+        'emailed': emailed,
+        'reset_url': None if emailed else url,
+    }), 200
 
 
 # ============================================================

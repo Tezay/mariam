@@ -234,6 +234,118 @@ class TestSecondFactorReset:
         assert db.session.get(User, target).mfa_enabled is True
 
 
+class TestPasswordResetLink:
+    def _send(self, client, target_id, headers):
+        return client.post(f'/v1/users/{target_id}/reset-password', headers=headers)
+
+    def _target(self, app, **account):
+        target = make_user(app, role='editor', email='target@mariam.app', **account)
+        enable_totp(target)
+        return target
+
+    def test_the_link_goes_to_the_account_and_stays_out_of_the_answer(self, app, client, smtp):
+        admin = make_user(app)
+        target = self._target(app)
+
+        res = self._send(client, target, confirmed_headers(client, admin))
+
+        assert res.status_code == 200
+        assert res.get_json() == {
+            'message': 'Lien de réinitialisation envoyé', 'emailed': True, 'reset_url': None,
+        }
+        (message,) = smtp.sent
+        assert message['To'] == 'target@mariam.app'
+        token = ActivationLink.query.filter_by(link_type='password_reset').one().token
+        assert f'/reset-password/{token}' in message.get_body(('plain',)).get_content()
+        assert client.get(f'/v1/auth/check-reset/{token}').get_json()['valid'] is True
+
+    def test_without_mail_the_link_is_handed_to_the_administrator(self, app, client):
+        admin = make_user(app)
+        target = self._target(app)
+
+        body = self._send(client, target, confirmed_headers(client, admin)).get_json()
+
+        assert body['emailed'] is False
+        token = body['reset_url'].rsplit('/', 1)[1]
+        assert client.get(f'/v1/auth/check-reset/{token}').get_json()['email'] == 'target@mariam.app'
+
+    def test_a_new_link_spends_the_one_before(self, app, client):
+        admin = make_user(app)
+        target = self._target(app)
+        headers = confirmed_headers(client, admin)
+
+        first = self._send(client, target, headers).get_json()['reset_url'].rsplit('/', 1)[1]
+        self._send(client, target, headers)
+
+        assert client.get(f'/v1/auth/check-reset/{first}').status_code == 400
+
+    def test_it_is_audited_against_the_target(self, app, client):
+        admin = make_user(app)
+        target = self._target(app)
+
+        self._send(client, target, confirmed_headers(client, admin))
+
+        entry = AuditLog.query.filter_by(action=AuditLog.ACTION_PASSWORD_RESET_REQUEST).one()
+        assert (entry.user_id, entry.target_id) == (admin, target)
+        assert entry.get_details() == {'method': 'dashboard'}
+
+    def test_it_requires_a_confirmed_session(self, app, client):
+        admin = make_user(app)
+        enable_totp(admin)
+        target = self._target(app)
+
+        res = self._send(client, target, session_headers(admin))
+
+        assert res.status_code == 403
+        assert res.get_json()['step_up_required'] is True
+        assert ActivationLink.query.count() == 0
+
+    def test_an_admin_changes_its_own_password_elsewhere(self, app, client):
+        admin = make_user(app)
+
+        res = self._send(client, admin, confirmed_headers(client, admin))
+
+        assert res.status_code == 400
+        assert ActivationLink.query.count() == 0
+
+    def test_an_account_of_another_site_is_not_found(self, app, client):
+        admin = make_user(app)
+        elsewhere = make_restaurant(app, name='Autre site', code='RU_OTHER')
+        target = self._target(app, restaurant_id=elsewhere)
+
+        res = self._send(client, target, confirmed_headers(client, admin))
+
+        assert res.status_code == 404
+        assert ActivationLink.query.count() == 0
+
+    def test_the_rescue_account_is_left_alone(self, app, client):
+        admin = make_user(app)
+        target = self._target(app)
+        db.session.get(User, target).is_rescue_account = True
+        db.session.commit()
+
+        assert self._send(client, target, confirmed_headers(client, admin)).status_code == 403
+
+    def test_a_disabled_account_gets_no_link(self, app, client):
+        admin = make_user(app)
+        target = self._target(app)
+        db.session.get(User, target).is_active = False
+        db.session.commit()
+
+        assert self._send(client, target, confirmed_headers(client, admin)).status_code == 409
+        assert ActivationLink.query.count() == 0
+
+    def test_an_account_without_a_second_factor_gets_no_link(self, app, client):
+        admin = make_user(app)
+        target = make_user(app, role='editor', email='target@mariam.app')
+
+        res = self._send(client, target, confirmed_headers(client, admin))
+
+        assert res.status_code == 409
+        assert 'second facteur' in res.get_json()['error']
+        assert ActivationLink.query.count() == 0
+
+
 class TestDeactivateUser:
     def test_deactivate_user(self, app, client):
         make_restaurant(app)

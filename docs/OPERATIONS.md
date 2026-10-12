@@ -156,7 +156,7 @@ PostgreSQL: the traffic tables hold counters aggregated by site, day, hour and p
 
 ### Transactional email
 
-Mariam sends three kinds of email:
+Mariam sends four kinds of email:
 
 - the weekly digest, to accounts that opted in from the Notifications section of their account
   page. It is not sent for a week in which none of the recipient's sites was open, and it
@@ -164,7 +164,8 @@ Mariam sends three kinds of email:
   closed for a whole week or more gets a reopening notice at the last slot before it reopens;
 - a security alert to the holder of an account whose password or second factor changes, with
   the date, the browser and the address the change came from;
-- an alert to the previous address when an account changes its sign-in address.
+- an alert to the previous address when an account changes its sign-in address;
+- a password reset link, when an administrator sends one from the users page.
 
 Security alerts cannot be turned off, and a disabled account receives none. An address receives
 at most ten messages of a kind per day. Without `SMTP_HOST` every send is a logged no-op:

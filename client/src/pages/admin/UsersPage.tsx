@@ -57,6 +57,7 @@ import {
   MoreHorizontal,
   SlidersHorizontal,
   Mail,
+  KeyRound,
   Link as LinkIcon,
 } from 'lucide-react';
 
@@ -77,6 +78,8 @@ export function UsersPage() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [revokingInvitation, setRevokingInvitation] = useState<Invitation | null>(null);
+  const [resettingPassword, setResettingPassword] = useState<User | null>(null);
+  const [resetLink, setResetLink] = useState<{ name: string; url: string } | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   // Charger les données
@@ -153,6 +156,30 @@ export function UsersPage() {
     } catch (err) {
       notify.error(getApiErrorMessage(err, 'La réinitialisation a échoué'));
     }
+  };
+
+  const handleSendPasswordReset = async () => {
+    const target = resettingPassword;
+    if (!target) return;
+    if (!(await confirmIdentity({ description: 'Pour envoyer un lien de réinitialisation.' }))) {
+      return;
+    }
+    try {
+      const { reset_url } = await adminApi.sendPasswordReset(target.id);
+      if (reset_url) {
+        setResetLink({ name: target.username || target.email, url: reset_url });
+      } else {
+        notify.success(`Lien envoyé à ${target.email}`, 'Il est valable 72 heures.');
+      }
+    } catch (err) {
+      notify.error(getApiErrorMessage(err, "L'envoi du lien a échoué"));
+    }
+  };
+
+  const copyResetLink = () => {
+    if (!resetLink) return;
+    navigator.clipboard.writeText(resetLink.url);
+    notify.success('Lien copié');
   };
 
   const handleRevokeInvitation = async () => {
@@ -255,6 +282,10 @@ export function UsersPage() {
                     <DropdownMenuItem onClick={() => handleResetMfa(user)} className="gap-2">
                       <RefreshCw className="h-4 w-4" />
                       Réinitialiser la double authentification
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setResettingPassword(user)} className="gap-2">
+                      <KeyRound className="h-4 w-4" />
+                      Envoyer un lien de réinitialisation
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
@@ -448,6 +479,54 @@ export function UsersPage() {
             >
               Révoquer
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={Boolean(resettingPassword)}
+        onOpenChange={(open) => !open && setResettingPassword(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Réinitialiser le mot de passe de{' '}
+              {resettingPassword?.username || resettingPassword?.email} ?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Un lien pour choisir un nouveau mot de passe sera envoyé à {resettingPassword?.email}.
+              Il est valable 72 heures et ne sert qu'une fois. Son mot de passe actuel reste valable
+              d'ici là.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSendPasswordReset}>Envoyer le lien</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={Boolean(resetLink)} onOpenChange={(open) => !open && setResetLink(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Lien de réinitialisation</AlertDialogTitle>
+            <AlertDialogDescription>
+              L'e-mail n'a pas pu être envoyé. Transmettez ce lien à {resetLink?.name} : il est
+              valable 72 heures et ne sert qu'une fois.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="break-all rounded-lg bg-muted p-3 text-sm text-foreground">
+            {resetLink?.url}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Son second facteur lui sera demandé pour choisir son mot de passe.
+          </p>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Fermer</AlertDialogCancel>
+            <Button onClick={copyResetLink} className="gap-2">
+              <Copy className="h-4 w-4" />
+              Copier le lien
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -19,6 +19,12 @@ export interface Invitation {
   created_by_name: string | null;
 }
 
+export interface PasswordResetLink {
+  emailed: boolean;
+  /** Only when the link could not be emailed. */
+  reset_url: string | null;
+}
+
 export interface CalendarSettings {
   show_public_holidays: boolean;
   show_school_vacations: boolean;
@@ -58,6 +64,11 @@ export const adminApi = {
 
   resetUserMfa: async (id: number) => {
     await api.post(`/users/${id}/reset-mfa`);
+  },
+
+  sendPasswordReset: async (id: number): Promise<PasswordResetLink> => {
+    const response = await api.post(`/users/${id}/reset-password`);
+    return response.data;
   },
 
   createInvitation: async (role: User['role'], email?: string): Promise<Invitation> => {
