@@ -4,7 +4,7 @@ A day without a menu is only a gap when the site was meant to open: weekly
 service days and exceptional closures both have to be consulted before calling
 a menu missing.
 """
-from datetime import date
+from datetime import date, timedelta
 
 from ..models import ExceptionalClosure
 
@@ -45,6 +45,17 @@ def is_open_on(restaurant, day: date, ranges: list[tuple[date, date]]) -> bool:
     if day.weekday() not in set(restaurant.get_service_days()):
         return False
     return not is_closed(day, ranges)
+
+
+def first_open_day(
+    restaurant, start: date, end: date, ranges: list[tuple[date, date]]
+) -> date | None:
+    day = start
+    while day <= end:
+        if is_open_on(restaurant, day, ranges):
+            return day
+        day += timedelta(days=1)
+    return None
 
 
 def menu_status(restaurant, day: date, menu, ranges: list[tuple[date, date]]) -> str:

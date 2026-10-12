@@ -1,0 +1,10 @@
+{% if supervisor -%}
+Aucun menu publié depuis deux semaines
+Aucun de vos sites n'a publié de menu depuis deux semaines. Ce résumé se met en pause et reprendra au prochain menu publié.
+{%- else -%}
+Votre restaurant est fermé ?
+Aucun menu n'a été publié depuis deux semaines.
+Déclarez la fermeture dans Mariam : Calendrier, bouton « Nouveau », puis « Nouvelle fermeture ». Vos étudiants la verront sur le menu, et ce résumé reprendra à la réouverture.
+Sans menu publié, ce résumé est le dernier : il reprendra de lui-même au prochain menu.
+Ouvrir le calendrier : {{ calendar_url }}
+{%- endif %}

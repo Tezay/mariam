@@ -159,7 +159,9 @@ PostgreSQL: the traffic tables hold counters aggregated by site, day, hour and p
 Mariam sends three kinds of email:
 
 - the weekly digest, to accounts that opted in from the Notifications section of their account
-  page;
+  page. It is not sent for a week in which none of the recipient's sites was open, and it
+  stops after two weeks without a published menu, which the last digest announces. A site
+  closed for a whole week or more gets a reopening notice at the last slot before it reopens;
 - a security alert to the holder of an account whose password or second factor changes, with
   the date, the browser and the address the change came from;
 - an alert to the previous address when an account changes its sign-in address.

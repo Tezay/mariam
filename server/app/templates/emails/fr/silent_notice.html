@@ -1,0 +1,15 @@
+{% import "emails/components.html" as ui %}
+{% if supervisor %}
+{{ ui.callout('Aucun menu publié depuis deux semaines', [
+  "Aucun de vos sites n'a publié de menu depuis deux semaines. Ce résumé se met en pause et reprendra au prochain menu publié.",
+], '#b45309') }}
+{% else %}
+{{ ui.callout('Votre restaurant est fermé ?', [
+  "Aucun menu n'a été publié depuis deux semaines.",
+  "Déclarez la fermeture dans Mariam : Calendrier, bouton « Nouveau », puis « Nouvelle fermeture ». Vos étudiants la verront sur le menu, et ce résumé reprendra à la réouverture.",
+  "Sans menu publié, ce résumé est le dernier : il reprendra de lui-même au prochain menu.",
+], '#b45309') }}
+<p style="margin:8px 0 0;font-size:13px">
+  <a href="{{ calendar_url }}" style="color:#093EAA">Ouvrir le calendrier</a>
+</p>
+{% endif %}

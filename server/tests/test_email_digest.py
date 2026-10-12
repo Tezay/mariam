@@ -1,11 +1,11 @@
-"""Weekly digest: who receives it, what it carries, and what happens unconfigured."""
-from datetime import date
+"""Weekly digest: who receives it, when it pauses, and what it carries."""
+from datetime import date, timedelta
 from urllib.parse import urlsplit
 
 import pytest
 
 from app.extensions import db
-from app.models import Organization, Restaurant, User
+from app.models import ExceptionalClosure, Menu, Organization, Restaurant, User
 from app.services import email_service
 from app.utils.time import paris_now
 from conftest import make_restaurant, make_user
@@ -23,6 +23,41 @@ def _subscribe(user_id, value=True, slot='now'):
     return user_id
 
 
+def _publish(restaurant_id, *days):
+    for day in days:
+        db.session.add(Menu(restaurant_id=restaurant_id, date=day, status='published'))
+    db.session.commit()
+
+
+def _close(restaurant_id, first, last):
+    db.session.add(ExceptionalClosure(
+        restaurant_id=restaurant_id, start_date=first, end_date=last, is_active=True
+    ))
+    db.session.commit()
+
+
+def _served_last_week(app, **restaurant):
+    """A restaurant with a menu published in the week the job is about to report."""
+    rid = make_restaurant(app, **restaurant)
+    _publish(rid, email_service.last_week()[0])
+    return rid
+
+
+def _director(app, *site_ids, slug='org-digest'):
+    org = Organization(name='Org', slug=slug)
+    db.session.add(org)
+    db.session.commit()
+    for rid in site_ids:
+        db.session.get(Restaurant, rid).organization_id = org.id
+    director = db.session.get(
+        User, make_user(app, email='dir@mariam.app', role='org_admin', restaurant_id=site_ids[0])
+    )
+    director.restaurant_id = None
+    director.organization_id = org.id
+    db.session.commit()
+    return director
+
+
 class TestConfiguration:
     def test_without_smtp_nothing_is_sent(self, app, monkeypatch):
         monkeypatch.delenv('SMTP_HOST', raising=False)
@@ -32,7 +67,7 @@ class TestConfiguration:
         assert email_service.send_weekly_digest(app) == 0
 
     def test_a_send_reaches_the_relay(self, app, smtp):
-        make_restaurant(app)
+        _served_last_week(app)
         _subscribe(make_user(app))
 
         assert email_service.send_weekly_digest(app) == 1
@@ -41,7 +76,7 @@ class TestConfiguration:
 
 class TestRecipients:
     def test_only_subscribers_receive_it(self, app, smtp):
-        rid = make_restaurant(app)
+        rid = _served_last_week(app)
         _subscribe(make_user(app))
         _subscribe(make_user(app, email='quiet@mariam.app', restaurant_id=rid), value=False)
 
@@ -54,15 +89,15 @@ class TestRecipients:
         assert email_service.send_weekly_digest(app) == 0
 
     def test_a_summary_that_fails_does_not_cost_the_others_theirs(self, app, smtp, monkeypatch):
-        rid = make_restaurant(app)
+        rid = _served_last_week(app)
         _subscribe(make_user(app, email='broken@mariam.app', restaurant_id=rid))
         _subscribe(make_user(app, email='sound@mariam.app', restaurant_id=rid))
         build_digest = email_service.build_digest
 
-        def failing_for_one(user, *args):
+        def failing_for_one(user, *args, **kwargs):
             if user.email == 'broken@mariam.app':
                 raise ValueError('malformed preference')
-            return build_digest(user, *args)
+            return build_digest(user, *args, **kwargs)
 
         monkeypatch.setattr(email_service, 'build_digest', failing_for_one)
 
@@ -91,19 +126,9 @@ class TestContent:
         assert start.strftime('%d/%m') in digest['subject']
 
     def test_a_director_reads_about_the_organization(self, app, client):
-        org = Organization(name='Org', slug='org-digest')
-        db.session.add(org)
-        db.session.commit()
         first = make_restaurant(app, name='Créteil', code='RU_A')
         second = make_restaurant(app, name='Villejuif', code='RU_B')
-        for rid in (first, second):
-            db.session.get(Restaurant, rid).organization_id = org.id
-        director = db.session.get(User, 
-            make_user(app, email='dir@mariam.app', role='org_admin', restaurant_id=first)
-        )
-        director.restaurant_id = None
-        director.organization_id = org.id
-        db.session.commit()
+        director = _director(app, first, second)
 
         digest = email_service.build_digest(
             director, [first, second], *email_service.last_week()
@@ -116,21 +141,179 @@ class TestContent:
         assert '<html' in digest['html']
 
     def test_a_director_of_a_single_site_is_still_sent_to_the_organization(self, app):
-        org = Organization(name='Org', slug='org-single')
-        db.session.add(org)
-        db.session.commit()
         rid = make_restaurant(app)
-        db.session.get(Restaurant, rid).organization_id = org.id
-        director = db.session.get(User, make_user(app, role='org_admin', restaurant_id=rid))
-        director.restaurant_id = None
-        director.organization_id = org.id
-        db.session.commit()
+        director = _director(app, rid)
 
         digest = email_service.build_digest(director, [rid], *email_service.last_week())
 
         assert 'RU Test' in digest['text']
         assert '/org/account"' in digest['html']
         assert '/admin' not in digest['text'] + digest['html']
+
+
+MONDAY = date(2026, 9, 7)
+REPORTED = date(2026, 8, 31)
+
+
+def _owed(user, site_ids, today=MONDAY):
+    mail = email_service.weekly_mail(user, site_ids, today)
+    if mail is None:
+        return None
+    if 'réouverture' in mail['subject']:
+        return 'reopening'
+    return 'digest with notice' if 'depuis deux semaines' in mail['text'] else 'digest'
+
+
+class TestWeeklySlot:
+    def _site(self, app):
+        rid = make_restaurant(app)
+        return db.session.get(User, make_user(app)), rid
+
+    @pytest.mark.parametrize('last_menu, owed', [
+        (REPORTED, 'digest'),
+        (REPORTED - timedelta(weeks=1), 'digest'),
+        (REPORTED - timedelta(weeks=2), 'digest with notice'),
+        (REPORTED - timedelta(weeks=3), None),
+    ])
+    def test_weeks_without_a_menu_bring_a_notice_then_silence(self, app, last_menu, owed):
+        user, rid = self._site(app)
+        _publish(rid, last_menu)
+
+        assert _owed(user, [rid]) == owed
+
+    def test_a_closed_week_starts_the_count_again(self, app):
+        user, rid = self._site(app)
+        _close(rid, REPORTED - timedelta(weeks=1), REPORTED - timedelta(days=1))
+
+        assert _owed(user, [rid]) == 'digest'
+
+    def test_a_week_closed_throughout_is_not_summarised(self, app):
+        user, rid = self._site(app)
+        _close(rid, REPORTED - timedelta(weeks=1), MONDAY + timedelta(weeks=3))
+
+        assert _owed(user, [rid]) is None
+
+    def test_a_week_closed_in_part_is_summarised(self, app):
+        user, rid = self._site(app)
+        _publish(rid, REPORTED)
+        _close(rid, REPORTED + timedelta(days=2), REPORTED + timedelta(days=4))
+
+        assert _owed(user, [rid]) == 'digest'
+
+    def test_a_site_that_never_serves_is_never_summarised(self, app):
+        user, rid = self._site(app)
+        db.session.get(Restaurant, rid).service_days = []
+        db.session.commit()
+
+        assert _owed(user, [rid]) is None
+
+    def test_the_notice_tells_a_site_team_how_to_declare_a_closure(self, app):
+        user, rid = self._site(app)
+        _publish(rid, REPORTED - timedelta(weeks=2))
+
+        mail = email_service.weekly_mail(user, [rid], MONDAY)
+
+        assert 'Votre restaurant est fermé ?' in mail['text']
+        assert '« Nouvelle fermeture »' in mail['text']
+        assert '/admin/calendar' in mail['html']
+
+
+class TestReopening:
+    CLOSED = (date(2026, 8, 1), date(2026, 9, 13))
+
+    @pytest.mark.parametrize('today, owed', [
+        (date(2026, 9, 7), None),
+        (date(2026, 9, 14), 'reopening'),
+        (date(2026, 9, 21), 'digest'),
+        (date(2026, 9, 9), 'reopening'),
+        (date(2026, 9, 16), None),
+    ])
+    def test_it_is_announced_once_at_the_last_slot_before_the_doors_open(self, app, today, owed):
+        rid = make_restaurant(app)
+        user = db.session.get(User, make_user(app))
+        _close(rid, *self.CLOSED)
+
+        assert _owed(user, [rid], today) == owed
+
+    def test_it_names_the_day_and_the_menus_still_to_prepare(self, app):
+        rid = make_restaurant(app)
+        user = db.session.get(User, make_user(app))
+        _close(rid, *self.CLOSED)
+        _publish(rid, date(2026, 9, 14), date(2026, 9, 15))
+
+        mail = email_service.weekly_mail(user, [rid], date(2026, 9, 14))
+
+        assert mail['subject'] == 'Mariam, réouverture lundi 14 septembre'
+        assert "2 publiés sur 5 jours d'ouverture" in mail['text']
+        assert 'À préparer : mercredi 16 septembre, jeudi 17 septembre, vendredi 18 septembre.' in mail['text']
+        assert '/admin/calendar' in mail['html']
+
+    def test_it_says_so_when_every_menu_is_ready(self, app):
+        rid = make_restaurant(app)
+        user = db.session.get(User, make_user(app))
+        _close(rid, *self.CLOSED)
+        _publish(rid, *(date(2026, 9, 14) + timedelta(days=offset) for offset in range(5)))
+
+        mail = email_service.weekly_mail(user, [rid], date(2026, 9, 14))
+
+        assert 'Les menus de la semaine de reprise sont publiés.' in mail['text']
+        assert 'À préparer' not in mail['text'] + mail['html']
+
+
+class TestSupervisor:
+    def _sites(self, app):
+        first = make_restaurant(app, name='Créteil', code='RU_A')
+        second = make_restaurant(app, name='Villejuif', code='RU_B')
+        return _director(app, first, second), first, second
+
+    def test_one_open_site_is_enough_for_a_summary(self, app):
+        director, first, second = self._sites(app)
+        _publish(first, REPORTED)
+        _close(second, REPORTED - timedelta(weeks=1), MONDAY + timedelta(weeks=3))
+
+        assert _owed(director, [first, second]) == 'digest'
+
+    def test_the_notice_waits_for_every_site_to_fall_silent(self, app):
+        director, first, second = self._sites(app)
+        _publish(first, REPORTED - timedelta(weeks=2))
+
+        mail = email_service.weekly_mail(director, [first, second], MONDAY)
+
+        assert "Aucun de vos sites n'a publié de menu depuis deux semaines." in mail['text']
+        assert 'Nouvelle fermeture' not in mail['text'] + mail['html']
+
+    def test_the_reopening_names_every_site_that_opens_again(self, app):
+        director, first, second = self._sites(app)
+        _close(first, date(2026, 8, 1), date(2026, 9, 13))
+        _close(second, date(2026, 8, 1), date(2026, 9, 14))
+        _publish(second, date(2026, 9, 15))
+
+        mail = email_service.weekly_mail(director, [first, second], date(2026, 9, 14))
+
+        assert mail['subject'] == 'Mariam, réouverture de vos sites'
+        assert 'Créteil : lundi 14 septembre, 0 menu publié sur 5' in mail['text']
+        assert 'Villejuif : mardi 15 septembre, 1 menu publié sur 4' in mail['text']
+        assert '/org' in mail['html']
+
+
+class TestJob:
+    def test_a_closed_week_sends_nothing(self, app, smtp):
+        rid = make_restaurant(app)
+        _subscribe(make_user(app))
+        start, end = email_service.last_week()
+        _close(rid, start, end + timedelta(weeks=3))
+
+        assert email_service.send_weekly_digest(app) == 0
+
+    def test_the_reopening_notice_goes_out_in_place_of_the_digest(self, app, smtp):
+        rid = make_restaurant(app)
+        _subscribe(make_user(app))
+        start, _ = email_service.last_week()
+        _close(rid, start, paris_now().date() - timedelta(days=1))
+
+        assert email_service.send_weekly_digest(app) == 1
+        assert smtp.sent[0]['Subject'].startswith('Mariam, réouverture')
+        assert 'List-Unsubscribe' in smtp.sent[0]
 
 
 class TestWeek:
