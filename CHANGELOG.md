@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.18.0] - 2026-10-11
 
 ### Security
 
@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Guarded routes authenticate before reading the request body**, and the audit export neutralises spreadsheet formulas.
 - **Alert preferences are validated on write**: a malformed value could stop the weekly digest for the recipients after its author, which a failing summary no longer does.
 - **Push subscriptions are accepted on browser push services only**, over HTTPS and with keys of the standard size: the server posted to whatever address a visitor gave, and stored keys of any size.
+- **Werkzeug 3.1.9, Mako 1.4.3, multidict 6.9.1 and prosemirror-view 1.42.5**, closing the advisories published against the versions they replace.
+
 
 ### Added
 

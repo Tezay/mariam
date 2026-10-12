@@ -1,7 +1,7 @@
 {
     "name": "mariam-client",
     "private": true,
-    "version": "0.17.0",
+    "version": "0.18.0",
     "type": "module",
     "scripts": {
         "dev": "vite",
@@ -92,6 +92,7 @@
         "vitest": "^4.1.11"
     },
     "overrides": {
-        "prosemirror-model": "^1.25.12"
+        "prosemirror-model": "^1.25.12",
+        "prosemirror-view": "^1.42.3"
     }
 }
