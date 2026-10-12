@@ -21,7 +21,7 @@ from jinja2 import TemplateNotFound
 from ..extensions import db
 from ..models import DishCatalog, Organization, Restaurant, User
 from ..utils.time import paris_now, paris_today
-from ..utils.urls import frontend_base_url
+from ..utils.urls import api_base_url, frontend_base_url
 from .access import accessible_restaurant_ids
 from .alerts import live_alerts
 from .analytics_stats import Scope, overview, satisfaction_stats, traffic_stats
@@ -128,7 +128,7 @@ def user_from_token(token: str) -> User | None:
 
 
 def unsubscribe_url(user_id: int) -> str:
-    return f'{_base_url()}/api/v1/public/unsubscribe/{unsubscribe_token(user_id)}'
+    return f'{api_base_url()}/public/unsubscribe/{unsubscribe_token(user_id)}'
 
 
 # ── Weekly digest ────────────────────────────────────────────────────────────
@@ -373,6 +373,9 @@ def build_digest(user, site_ids: list[int], start: date, end: date) -> dict:
     satisfaction = satisfaction_stats(scope)
     alerts = live_alerts(user, site_ids)
     multi = len(site_ids) > 1
+    # The links follow the role and the layout the number of sites: a supervisor
+    # of a single site still works from /org.
+    supervisor = user.is_org_admin()
     metrics = _metric_blocks(data['kpis'])
 
     scored = {dish['dish_id']: dish for dish in satisfaction['top_dishes']}
@@ -385,8 +388,8 @@ def build_digest(user, site_ids: list[int], start: date, end: date) -> dict:
         'flop_dishes': _dish_lines(satisfaction['flop_dishes'], limit=1),
         'new_dishes': _new_dish_lines(site_ids, start, end, scored),
         'alerts': [f'{alert["title"]} : {alert["body"]}' for alert in alerts],
-        'url': _base_url() + ('/org' if multi else '/admin/stats'),
-        'settings_url': _base_url() + ('/org/account' if multi else '/admin/settings'),
+        'url': _base_url() + ('/org' if supervisor else '/admin/stats'),
+        'settings_url': _base_url() + ('/org/account' if supervisor else '/admin/account'),
         'unsubscribe_url': unsubscribe_url(user.id),
         'send_day': WEEKDAYS[min(6, max(0, user.get_notification_preferences().get('digest_day', 0)))],
     }
