@@ -153,7 +153,8 @@ answer to refresh the access token on. A wrong password, code or passkey answers
 refreshing there would trade a confirmed token for one that is not.
 
 Marked *confirmed* in the tables: `POST /v1/users/invite`, `DELETE /v1/users/<id>`,
-`POST /v1/users/<id>/reset-mfa`, `GET /v1/audit-logs/export`, `PATCH /v1/auth/me`,
+`POST /v1/users/<id>/reset-mfa`, `POST /v1/users/<id>/reset-password`,
+`GET /v1/audit-logs/export`, `PATCH /v1/auth/me`,
 `DELETE /v1/auth/passkey/<id>` and `DELETE /v1/auth/mfa`.
 
 Marked *confirmed once enrolled*: both ends of a passkey registration and of a TOTP setup, and
@@ -540,6 +541,7 @@ Requires `admin` role.
 | `PUT` | `/v1/users/<id>` | Update a user's role, site or status; suspending it ends its sessions |
 | `DELETE` | `/v1/users/<id>` | Delete a user (requires a confirmed session) |
 | `POST` | `/v1/users/<id>/reset-mfa` | Remove a user's TOTP and passkeys and end their sessions (requires a confirmed session) |
+| `POST` | `/v1/users/<id>/reset-password` | Email a user a password reset link, returned only when it could not be emailed (requires a confirmed session) |
 | `POST` | `/v1/users/invite` | Create an invitation link (requires a confirmed session); `email` is optional and only pre-fills the activation form |
 | `GET` | `/v1/users/invitations` | List pending invitations |
 | `DELETE` | `/v1/users/invitations/<id>` | Revoke a pending invitation |

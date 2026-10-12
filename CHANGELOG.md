@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Reopening email**: a site closed for a week or more is reminded of the menus to prepare before it reopens.
+- **Password reset from the users page**: an administrator emails a user a reset link.
 
 ### Changed
 

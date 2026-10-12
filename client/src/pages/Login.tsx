@@ -234,6 +234,15 @@ export function Login() {
                 {isLoading ? 'Connexion…' : 'Se connecter'}
               </Button>
 
+              <p className="text-center text-sm text-muted-foreground">
+                Mot de passe oublié ? Contactez l'administrateur de votre établissement, ou écrivez
+                à{' '}
+                <a className="text-primary underline" href="mailto:contact@mariam.app">
+                  contact@mariam.app
+                </a>
+                .
+              </p>
+
               {passkeySupported && (
                 <div className="text-center">
                   <button

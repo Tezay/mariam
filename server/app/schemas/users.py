@@ -44,6 +44,16 @@ class InviteSchema(Schema):
     role = fields.Str(description="Role: 'admin', 'editor', or 'reader'")
 
 
+class PasswordResetLinkSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+    message = fields.Str()
+    emailed = fields.Bool(description="Whether the link reached the account's address")
+    reset_url = fields.Str(
+        allow_none=True, description="The link, only when it could not be emailed"
+    )
+
+
 class InvitationSchema(Schema):
     class Meta:
         unknown = EXCLUDE

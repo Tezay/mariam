@@ -56,6 +56,13 @@ def notify_email_changed(previous: str, current: str) -> bool:
     )
 
 
+def notify_password_reset(user: User, url: str) -> bool:
+    mail = email_service.render_email('password_reset', url=url)
+    return email_service.send_email(
+        user.email, mail['subject'], mail['text'], mail['html'], kind=Kind.RESET
+    )
+
+
 def _client_address() -> str | None:
     # Read from headers a client can forge once it bypasses the proxy: only
     # what parses as an address may reach the message.
