@@ -11,8 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Security alerts by email**: an account's holder is told when its password or a second factor changes.
 
+### Added
+
+- **Reopening email**: a site closed for a week or more is reminded of the menus to prepare before it reopens.
+
 ### Changed
 
+- **The weekly digest pauses** while every site is closed, and after two weeks without a published menu.
 - **An address receives at most ten emails of a kind per day.**
 - **Emails say what Mariam is**; with `SUPPORT_EMAIL` set they name that contact and replies reach it.
 

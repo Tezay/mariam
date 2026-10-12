@@ -9,6 +9,10 @@
   <span style="color:#64748b">Voici ce que vos étudiants ont vu et ce qu'ils en ont pensé.</span>
 </p>
 
+{% if silent_notice %}
+<div style="margin:0 0 16px">{% include 'emails/' ~ locale ~ '/silent_notice.html' %}</div>
+{% endif %}
+
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 -6px 4px">
   <tr>
     {{ ui.kpi('Satisfaction', satisfaction.value, satisfaction.unit, satisfaction.change) }}

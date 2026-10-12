@@ -1,0 +1,23 @@
+{% if supervisor -%}
+Vos sites rouvrent bientôt.
+{% for site in sites %}
+  {{ site.name }} : {{ site.date }}, {{ site.published }} menu{{ 's' if site.published > 1 }} publié{{ 's' if site.published > 1 }} sur {{ site.open_days }}
+{%- endfor %}
+
+Tableau de bord : {{ url }}
+{%- else -%}
+{% set site = sites[0] -%}
+Votre restaurant rouvre {{ site.date }}.
+
+Menus de la semaine de reprise : {{ site.published }} publié{{ 's' if site.published > 1 }} sur {{ site.open_days }} jour{{ 's' if site.open_days > 1 }} d'ouverture.
+{% if site.missing -%}
+À préparer : {{ site.missing | join(', ') }}.
+{%- else -%}
+Les menus de la semaine de reprise sont publiés.
+{%- endif %}
+
+Calendrier : {{ url }}
+{%- endif %}
+
+Vous recevez ce message parce que le résumé hebdomadaire est activé sur votre compte.
+Se désabonner : {{ unsubscribe_url }}

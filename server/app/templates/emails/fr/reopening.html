@@ -1,0 +1,48 @@
+{% extends "emails/base.html" %}
+{% import "emails/components.html" as ui %}
+
+{% block kicker %}Réouverture{% endblock %}
+
+{% block content %}
+{% if supervisor %}
+<p style="margin:0 0 14px;font-size:15px;color:#0f172a">
+  <strong>Vos sites rouvrent bientôt.</strong>
+</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+  {% for site in sites %}
+  {{ ui.row(
+    site.name ~ ' : ' ~ site.date,
+    site.published ~ ' menu' ~ ('s' if site.published > 1 else '') ~ ' publié' ~ ('s' if site.published > 1 else '') ~ ' sur ' ~ site.open_days,
+    '#b45309' if site.missing else '#15803d'
+  ) }}
+  {% endfor %}
+</table>
+<p style="margin:16px 0 0">
+  <a href="{{ url }}" style="display:inline-block;background:#093EAA;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:10px;font-size:14px;font-weight:600">Ouvrir le tableau de bord</a>
+</p>
+{% else %}
+{% set site = sites[0] %}
+<p style="margin:0 0 14px;font-size:15px;color:#0f172a">
+  <strong>Votre restaurant rouvre {{ site.date }}.</strong>
+</p>
+<p style="margin:0 0 14px">
+  Menus de la semaine de reprise : {{ site.published }} publié{{ 's' if site.published > 1 }} sur
+  {{ site.open_days }} jour{{ 's' if site.open_days > 1 }} d'ouverture.
+</p>
+{% if site.missing %}
+{{ ui.callout('À préparer', site.missing, '#b45309') }}
+{% else %}
+<p style="margin:0">Les menus de la semaine de reprise sont publiés.</p>
+{% endif %}
+<p style="margin:16px 0 0">
+  <a href="{{ url }}" style="display:inline-block;background:#093EAA;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:10px;font-size:14px;font-weight:600">Ouvrir le calendrier</a>
+</p>
+{% endif %}
+{% endblock %}
+
+{% block footer %}
+Vous recevez ce message parce que le résumé hebdomadaire est activé sur votre compte.<br />
+<a href="{{ unsubscribe_url }}" style="color:#64748b">Se désabonner</a>
+&nbsp;·&nbsp;
+<a href="{{ settings_url }}" style="color:#64748b">Gérer mes notifications</a>
+{% endblock %}

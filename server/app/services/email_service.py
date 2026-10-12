@@ -21,15 +21,16 @@ from jinja2 import TemplateNotFound
 from limits import parse
 
 from ..extensions import db
-from ..models import DishCatalog, Organization, Restaurant, User
+from ..models import DishCatalog, Menu, Organization, Restaurant, User
 from ..security import spend
-from ..utils.time import paris_now, paris_today
+from ..utils.time import format_date_fr, paris_now, paris_today
 from ..utils.urls import api_base_url, frontend_base_url
 from .access import accessible_restaurant_ids
 from .alerts import live_alerts
 from .analytics_stats import Scope, overview, satisfaction_stats, traffic_stats
 from .dish_stats import first_served
 from .redis_client import acquire_job_lock
+from .service_calendar import ClosureRanges, closures_by_site, first_open_day, is_open_on
 
 DIGEST_LOCK_TTL = 3600
 DEFAULT_LOCALE = 'fr'
@@ -46,6 +47,9 @@ PAGE_LABELS = {
     'events': 'Événements',
 }
 TOP_DISHES = 3
+# Weeks open without a published menu after which the digest says so, then
+# stops. The templates spell the figure out: emails/*/silent_notice.*
+SILENT_WEEKS = 2
 WATCHED_SITES = 3
 
 
@@ -394,7 +398,13 @@ def _org_blocks(data: dict) -> dict:
     }
 
 
-def build_digest(user, site_ids: list[int], start: date, end: date) -> dict:
+def _account_url(user) -> str:
+    return _base_url() + ('/org/account' if user.is_org_admin() else '/admin/account')
+
+
+def build_digest(
+    user, site_ids: list[int], start: date, end: date, *, silent_notice: bool = False
+) -> dict:
     """Subject, plain text and HTML of one recipient's weekly summary."""
     scope = _scope_for(site_ids, start, end)
     data = overview(scope)
@@ -417,8 +427,11 @@ def build_digest(user, site_ids: list[int], start: date, end: date) -> dict:
         'new_dishes': _new_dish_lines(site_ids, start, end, scored),
         'alerts': [f'{alert["title"]} : {alert["body"]}' for alert in alerts],
         'url': _base_url() + ('/org' if supervisor else '/admin/stats'),
-        'settings_url': _base_url() + ('/org/account' if supervisor else '/admin/account'),
+        'settings_url': _account_url(user),
         'unsubscribe_url': unsubscribe_url(user.id),
+        'silent_notice': silent_notice,
+        'supervisor': supervisor,
+        'calendar_url': _base_url() + '/admin/calendar',
         'send_day': WEEKDAYS[min(6, max(0, user.get_notification_preferences().get('digest_day', 0)))],
     }
 
@@ -444,6 +457,98 @@ def build_digest(user, site_ids: list[int], start: date, end: date) -> dict:
         traffic={**metrics['traffic'], **blocks['traffic_extra']},
         publication={**metrics['publication'], **blocks['publication_extra']},
     )
+
+
+def _silent_weeks(site_ids: list[int], start: date, opens) -> int:
+    """Weeks in a row, back from the one starting at `start`, open yet without a published menu."""
+    earliest = start - timedelta(weeks=SILENT_WEEKS)
+    published = {
+        day for (day,) in Menu.query.filter(
+            Menu.restaurant_id.in_(site_ids),
+            Menu.status == 'published',
+            Menu.date >= earliest,
+            Menu.date <= start + timedelta(days=6),
+        ).with_entities(Menu.date)
+    }
+    silent = 0
+    week = start
+    while week >= earliest:
+        days = [week + timedelta(days=offset) for offset in range(7)]
+        if not opens(days[0], days[-1]) or published.intersection(days):
+            break
+        silent += 1
+        week -= timedelta(weeks=1)
+    return silent
+
+
+def _build_reopening(user, sites: list[Restaurant], closures: ClosureRanges, today: date) -> dict:
+    rows = []
+    for site in sorted(sites, key=lambda site: site.name):
+        ranges = closures.get(site.id, [])
+        reopening = first_open_day(site, today, today + timedelta(days=6), ranges)
+        if reopening is None:
+            continue
+        rest_of_week = [
+            reopening + timedelta(days=offset) for offset in range(7 - reopening.weekday())
+        ]
+        open_days = [day for day in rest_of_week if is_open_on(site, day, ranges)]
+        published = {
+            day for (day,) in Menu.query.filter(
+                Menu.restaurant_id == site.id,
+                Menu.status == 'published',
+                Menu.date.in_(open_days),
+            ).with_entities(Menu.date)
+        }
+        rows.append({
+            'name': site.name,
+            'date': format_date_fr(reopening, weekday=True, year=False),
+            'open_days': len(open_days),
+            'published': len(published),
+            'missing': [
+                format_date_fr(day, weekday=True, year=False)
+                for day in open_days if day not in published
+            ],
+        })
+    supervisor = user.is_org_admin()
+    return render_email(
+        'reopening',
+        sites=rows,
+        supervisor=supervisor,
+        url=_base_url() + ('/org' if supervisor else '/admin/calendar'),
+        settings_url=_account_url(user),
+        unsubscribe_url=unsubscribe_url(user.id),
+    )
+
+
+def weekly_mail(user, site_ids: list[int], today: date) -> dict | None:
+    """What a subscriber is owed at its weekly slot: the digest, a reopening notice, or nothing.
+
+    Decided afresh each week from the service calendar and the menus, with no
+    memory of what was sent: a closure edited after the fact is simply read anew.
+    """
+    start, end = last_week(today)
+    sites = Restaurant.query.filter(Restaurant.id.in_(site_ids)).all()
+    closures = closures_by_site(
+        site_ids, start - timedelta(weeks=SILENT_WEEKS), today + timedelta(days=12)
+    )
+
+    def opens(first: date, last: date) -> bool:
+        return any(
+            first_open_day(site, first, last, closures.get(site.id, [])) for site in sites
+        )
+
+    if not opens(start, end):
+        # One notice per closure: only the last slot before the doors open finds
+        # every day up to yesterday closed and an open day within the week ahead.
+        still_closed = not opens(end + timedelta(days=1), today - timedelta(days=1))
+        if still_closed and opens(today, today + timedelta(days=6)):
+            return _build_reopening(user, sites, closures, today)
+        return None
+
+    silent = _silent_weeks(site_ids, start, opens)
+    if silent > SILENT_WEEKS:
+        return None
+    return build_digest(user, site_ids, start, end, silent_notice=silent == SILENT_WEEKS)
 
 
 def digest_recipients(weekday: int | None = None, hour: int | None = None) -> list[User]:
@@ -476,7 +581,7 @@ def send_weekly_digest(app) -> int:
             return 0
 
         now = paris_now()
-        start, end = last_week()
+        start, _ = last_week()
         week = f'{start.isocalendar().year}-{start.isocalendar().week}'
 
         sent = 0
@@ -487,15 +592,17 @@ def send_weekly_digest(app) -> int:
             if not site_ids:
                 continue
             try:
-                digest = build_digest(user, site_ids, start, end)
+                mail = weekly_mail(user, site_ids, now.date())
             except Exception:
                 # One recipient's summary must not cost the others theirs; the
                 # rollback frees the session a failed query would leave unusable.
                 db.session.rollback()
                 app.logger.exception('Weekly digest failed for user %s', user.id)
                 continue
+            if mail is None:
+                continue
             if send_email(
-                user.email, digest['subject'], digest['text'], digest['html'],
+                user.email, mail['subject'], mail['text'], mail['html'],
                 unsubscribe_url=unsubscribe_url(user.id), kind=Kind.DIGEST,
             ):
                 sent += 1

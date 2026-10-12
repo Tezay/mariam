@@ -1,5 +1,9 @@
 Semaine du {{ start }} au {{ end }}, {{ org_name }} ({{ site_count }} sites).
 
+{% if silent_notice -%}
+{% include 'emails/' ~ locale ~ '/silent_notice.txt' %}
+
+{% endif -%}
 Satisfaction   {{ satisfaction.value }}{{ satisfaction.unit }}{% if satisfaction.change.label %} ({{ satisfaction.change.label }}){% endif %}
 Consultations  {{ traffic.views }}{% if traffic.change.label %} ({{ traffic.change.label }}){% endif %}
 Publication    {{ publication.value }}{{ publication.unit }}{% if publication.change.label %} ({{ publication.change.label }}){% endif %}
