@@ -1,0 +1,45 @@
+{% extends "emails/base.html" %}
+
+{% block kicker %}Sécurité{% endblock %}
+
+{% block content %}
+<p style="margin:0 0 14px;font-size:15px;color:#0f172a">
+  <strong>{% include 'emails/' ~ locale ~ '/security_alert.subject.txt' %}</strong>
+</p>
+<p style="margin:0 0 14px">
+  {% if event == 'password_changed' %}
+  Le mot de passe de votre compte Mariam a été modifié. Toutes vos sessions ont été fermées.
+  {% elif event == 'passkey_added' %}
+  Une passkey a été ajoutée à votre compte Mariam. Elle permet de s'y connecter.
+  {% elif event == 'passkey_removed' %}
+  Une passkey a été retirée de votre compte Mariam.
+  {% elif event == 'totp_enabled' %}
+  Une application d'authentification a été associée à votre compte Mariam. Ses codes permettent
+  de s'y connecter.
+  {% elif event == 'totp_replaced' %}
+  L'application d'authentification de votre compte Mariam a été remplacée. Les codes de
+  l'ancienne ne fonctionnent plus.
+  {% elif event == 'totp_disabled' %}
+  L'application d'authentification a été retirée de votre compte Mariam.
+  {% elif event == 'second_factors_reset' %}
+  Un administrateur a réinitialisé la double authentification de votre compte Mariam. Vous
+  configurerez un nouveau second facteur à votre prochaine connexion. Toutes vos sessions ont
+  été fermées.
+  {% endif %}
+</p>
+<p style="margin:0 0 14px;color:#64748b">
+  Le {{ when }}{% if device %}, depuis {{ device }}{% endif %}{% if ip_address %}, adresse IP {{ ip_address }}{% endif %}.
+</p>
+<p style="margin:0">
+  {% if event == 'second_factors_reset' %}
+  Si vous ne l'avez pas demandé, contactez l'administrateur de votre établissement sans attendre.
+  {% else %}
+  Si vous êtes à l'origine de ce changement, vous n'avez rien à faire. Sinon, contactez
+  l'administrateur de votre établissement sans attendre.
+  {% endif %}
+</p>
+{% endblock %}
+
+{% block footer %}
+Ce message de sécurité est envoyé au titulaire du compte.
+{% endblock %}

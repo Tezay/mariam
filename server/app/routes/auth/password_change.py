@@ -13,6 +13,7 @@ from ...schemas.auth import (
 from ...schemas.common import ErrorSchema, MessageSchema
 from ...security import get_client_ip, limiter
 from ...services import passkeys, totp
+from ...services.account import SecurityEvent, notify_security_event
 from ...services.passkeys import Ceremony
 from ..helpers import get_current_user
 from ._common import NO_SESSION, weak_password
@@ -76,6 +77,7 @@ def change_password(data):
     user.revoke_tokens()
     _audit(user, {'success': True})
     db.session.commit()
+    notify_security_event(user, SecurityEvent.PASSWORD_CHANGED)
 
     return jsonify({'message': 'Mot de passe modifié avec succès'}), 200
 
@@ -165,5 +167,6 @@ def passkey_change_password_complete(data):
     user.revoke_tokens()
     _audit(user, {'success': True, 'method': 'passkey'})
     db.session.commit()
+    notify_security_event(user, SecurityEvent.PASSWORD_CHANGED)
 
     return jsonify({'message': 'Mot de passe modifié avec succès'}), 200

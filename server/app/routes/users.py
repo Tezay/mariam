@@ -32,7 +32,7 @@ from ..schemas.users import (
     UserUpdateSchema,
 )
 from ..security import get_client_ip
-from ..services.account import reset_second_factor
+from ..services.account import SecurityEvent, notify_security_event, reset_second_factor
 from .helpers import (
     accessible_restaurant_ids,
     admin_required,
@@ -400,6 +400,7 @@ def reset_user_mfa(user_id):
     )
 
     db.session.commit()
+    notify_security_event(user, SecurityEvent.SECOND_FACTORS_RESET)
 
     return jsonify({'message': 'Double authentification réinitialisée'}), 200
 

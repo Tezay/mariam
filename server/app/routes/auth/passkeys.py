@@ -15,6 +15,7 @@ from ...schemas.auth import (
 from ...schemas.common import ErrorSchema, MessageSchema
 from ...security import get_client_ip, limiter
 from ...services import passkeys
+from ...services.account import SecurityEvent, notify_security_event
 from ...services.passkeys import Ceremony
 from ..helpers import get_current_user, step_up_once_enrolled, step_up_required
 from ._common import NO_SESSION, NOT_CONFIRMED
@@ -90,6 +91,7 @@ def passkey_register_complete(data):
         ip_address=get_client_ip(),
     )
     db.session.commit()
+    notify_security_event(user, SecurityEvent.PASSKEY_ADDED)
 
     return jsonify({
         'message': 'Passkey enregistrée avec succès',
@@ -140,6 +142,7 @@ def delete_passkey(passkey_id):
         ip_address=get_client_ip(),
     )
     db.session.commit()
+    notify_security_event(user, SecurityEvent.PASSKEY_REMOVED)
 
     return jsonify({'message': 'Passkey supprimée'}), 200
 

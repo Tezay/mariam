@@ -1,7 +1,7 @@
 """Outgoing email, over plain SMTP.
 
 The stdlib is enough: a provider SDK would add a dependency and a vendor lock
-for one weekly message. Without `SMTP_HOST` every send is a logged no-op, so a
+for a handful of messages. Without `SMTP_HOST` every send is a logged no-op, so a
 deployment that never configures mail simply has none.
 
 Wording and layout live in `app/templates/emails/`, one folder per language
@@ -13,13 +13,16 @@ import os
 import smtplib
 from datetime import date, timedelta
 from email.message import EmailMessage
+from enum import StrEnum
 
 from flask import current_app, render_template
 from itsdangerous import BadSignature, URLSafeSerializer
 from jinja2 import TemplateNotFound
+from limits import parse
 
 from ..extensions import db
 from ..models import DishCatalog, Organization, Restaurant, User
+from ..security import spend
 from ..utils.time import paris_now, paris_today
 from ..utils.urls import api_base_url, frontend_base_url
 from .access import accessible_restaurant_ids
@@ -52,12 +55,26 @@ WATCHED_SITES = 3
 SMTP_TIMEOUT = 10
 
 
+def support_address() -> str | None:
+    return os.environ.get('SUPPORT_EMAIL', '').strip() or None
+
+
 def is_configured() -> bool:
     return bool(os.environ.get('SMTP_HOST') and os.environ.get('SMTP_SENDER'))
 
 
+class Kind(StrEnum):
+    DIGEST = 'digest'
+    SECURITY = 'security'
+
+
+# Counted per kind as well as per address: a flood of one kind of message
+# must not be what silences a security alert.
+RECIPIENT_LIMIT = parse('10 per day')
+
+
 def send_email(to: str, subject: str, text: str, html: str | None = None,
-               unsubscribe_url: str | None = None) -> bool:
+               unsubscribe_url: str | None = None, *, kind: Kind) -> bool:
     """True when the message left the process; False on any failure."""
     if not is_configured():
         current_app.logger.info('SMTP not configured, email to %s not sent', to)
@@ -67,6 +84,11 @@ def send_email(to: str, subject: str, text: str, html: str | None = None,
     message['From'] = os.environ['SMTP_SENDER']
     message['To'] = to
     message['Subject'] = subject
+    # Replies go to a mailbox someone reads: sent back to a no-reply sender,
+    # they are lost and their author never learns it.
+    support = support_address()
+    if support:
+        message['Reply-To'] = support
     if unsubscribe_url:
         # RFC 8058: lets the mail client draw its own one-click unsubscribe.
         message['List-Unsubscribe'] = f'<{unsubscribe_url}>'
@@ -76,6 +98,9 @@ def send_email(to: str, subject: str, text: str, html: str | None = None,
         message.add_alternative(html, subtype='html')
 
     try:
+        if not spend(RECIPIENT_LIMIT, 'email', kind, to.lower()):
+            current_app.logger.warning('Daily limit reached, %s email to %s not sent', kind, to)
+            return False
         with smtplib.SMTP(
             os.environ['SMTP_HOST'], int(os.environ.get('SMTP_PORT', 587)), timeout=SMTP_TIMEOUT
         ) as server:
@@ -94,19 +119,22 @@ def send_email(to: str, subject: str, text: str, html: str | None = None,
 def render_email(name: str, **context) -> dict:
     """Subject, plain text and HTML of one template, in the configured language."""
     locale = os.environ.get('EMAIL_LOCALE', DEFAULT_LOCALE)
+    context['support_email'] = support_address()
 
-    def render(suffix: str) -> str:
+    def render(file: str) -> str:
         try:
-            return render_template(f'emails/{locale}/{name}.{suffix}', locale=locale, **context)
+            return render_template(f'emails/{locale}/{file}', locale=locale, **context)
         except TemplateNotFound:
             return render_template(
-                f'emails/{DEFAULT_LOCALE}/{name}.{suffix}', locale=DEFAULT_LOCALE, **context
+                f'emails/{DEFAULT_LOCALE}/{file}', locale=DEFAULT_LOCALE, **context
             )
 
+    # The signature is appended here, and by the shell for the HTML part, so no
+    # template can leave it out.
     return {
-        'subject': render('subject.txt').strip(),
-        'text': render('txt').strip() + '\n',
-        'html': render('html'),
+        'subject': render(f'{name}.subject.txt').strip(),
+        'text': f"{render(f'{name}.txt').strip()}\n\n{render('signature.txt').strip()}\n",
+        'html': render(f'{name}.html'),
     }
 
 
@@ -468,7 +496,7 @@ def send_weekly_digest(app) -> int:
                 continue
             if send_email(
                 user.email, digest['subject'], digest['text'], digest['html'],
-                unsubscribe_url=unsubscribe_url(user.id),
+                unsubscribe_url=unsubscribe_url(user.id), kind=Kind.DIGEST,
             ):
                 sent += 1
         app.logger.info('Weekly digest sent to %s recipients', sent)

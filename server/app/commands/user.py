@@ -20,7 +20,13 @@ from ..models.audit_log import AuditLog
 from ..models.organization import Organization
 from ..models.restaurant import Restaurant
 from ..models.user import User
-from ..services.account import change_email, notify_email_changed, reset_second_factor
+from ..services.account import (
+    SecurityEvent,
+    change_email,
+    notify_email_changed,
+    notify_security_event,
+    reset_second_factor,
+)
 from ..utils.email_address import canonical_email
 from ..utils.time import utc_naive_to_paris
 from ..utils.urls import frontend_base_url
@@ -278,6 +284,7 @@ def reset_2fa(email, only_totp, only_passkeys):
         passkeys_removed=removed,
     )
     db.session.commit()
+    alerted = notify_security_event(user, SecurityEvent.SECOND_FACTORS_RESET)
 
     click.echo(f'✅ Second factor reset for {email}')
     if drop_totp:
@@ -285,6 +292,7 @@ def reset_2fa(email, only_totp, only_passkeys):
     if drop_passkeys:
         click.echo(f'   · {removed} passkey(s) removed')
     click.echo('   · Live sessions revoked')
+    click.echo(f"   · {'Alert sent to' if alerted else 'No alert sent to'} {email}")
     if _factors_label(user) == 'none':
         click.echo('ℹ️  The account will have to enrol a method on its next sign-in.')
 

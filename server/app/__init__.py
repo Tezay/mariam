@@ -581,7 +581,9 @@ Disallow: /v1/users/
         if not email_service.is_configured():
             click.echo('❌ SMTP not configured (SMTP_HOST, SMTP_SENDER).')
             return
-        ok = email_service.send_email(to, digest['subject'], digest['text'], digest['html'])
+        ok = email_service.send_email(
+            to, digest['subject'], digest['text'], digest['html'], kind=email_service.Kind.DIGEST
+        )
         click.echo(f'✅ Digest sent to {to}.' if ok else f'❌ Sending to {to} failed.')
 
     # ========================================

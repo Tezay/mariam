@@ -156,10 +156,17 @@ PostgreSQL: the traffic tables hold counters aggregated by site, day, hour and p
 
 ### Transactional email
 
-Mariam sends two emails: the weekly digest, to accounts that opted in from the Notifications
-section of their account page, and an alert to the previous address when an account changes its
-sign-in address. Without `SMTP_HOST` both are logged no-ops: nothing breaks, nobody receives
-anything.
+Mariam sends three kinds of email:
+
+- the weekly digest, to accounts that opted in from the Notifications section of their account
+  page;
+- a security alert to the holder of an account whose password or second factor changes, with
+  the date, the browser and the address the change came from;
+- an alert to the previous address when an account changes its sign-in address.
+
+Security alerts cannot be turned off, and a disabled account receives none. An address receives
+at most ten messages of a kind per day. Without `SMTP_HOST` every send is a logged no-op:
+nothing breaks, nobody receives anything.
 
 Default provider: Scaleway TEM, the same host as production object storage, 300 free emails a month.
 
@@ -175,6 +182,7 @@ SMTP_PORT=587                                    # STARTTLS; port 465 is not sup
 SMTP_USERNAME=<project_id>                       # the Scaleway project id
 SMTP_PASSWORD=<secret key>                       # of the API key
 SMTP_SENDER=Mariam <no-reply@mail.mariam.app>    # must belong to the validated domain
+SUPPORT_EMAIL=contact@example.org                # where replies go, named in the footer
 ```
 
 The digest leaves from the scheduler and the address alert from the backend: both need these

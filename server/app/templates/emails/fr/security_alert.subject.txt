@@ -1,0 +1,8 @@
+{% if event == 'password_changed' %}Votre mot de passe Mariam a été modifié
+{% elif event == 'passkey_added' %}Une passkey a été ajoutée à votre compte Mariam
+{% elif event == 'passkey_removed' %}Une passkey a été retirée de votre compte Mariam
+{% elif event == 'totp_enabled' %}Une application d'authentification a été associée à votre compte Mariam
+{% elif event == 'totp_replaced' %}L'application d'authentification de votre compte Mariam a été remplacée
+{% elif event == 'totp_disabled' %}L'application d'authentification a été retirée de votre compte Mariam
+{% elif event == 'second_factors_reset' %}La double authentification de votre compte Mariam a été réinitialisée
+{% endif %}

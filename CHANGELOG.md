@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+
+- **Security alerts by email**: an account's holder is told when its password or a second factor changes.
+
+### Changed
+
+- **An address receives at most ten emails of a kind per day.**
+- **Emails say what Mariam is**; with `SUPPORT_EMAIL` set they name that contact and replies reach it.
+
 ## [0.18.1] - 2026-10-12
 
 ### Fixed
