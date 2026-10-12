@@ -518,10 +518,11 @@ Disallow: /v1/users/
     @click.option('--slug', required=True, help='Slug URL (sous-domaine)')
     def create_org(name, slug):
         """Crée une organisation (client). Idempotent sur le slug."""
+        from .models.organization import RESERVED_ORG_SLUGS
         from .utils.slug import is_valid_slug, normalize_slug
 
         slug = normalize_slug(slug)
-        if not is_valid_slug(slug):
+        if not is_valid_slug(slug) or slug in RESERVED_ORG_SLUGS:
             click.echo('❌ Invalid or reserved slug.')
             return
         if Organization.query.filter_by(slug=slug).first():

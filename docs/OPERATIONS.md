@@ -163,18 +163,24 @@ anything.
 
 Default provider: Scaleway TEM, the same host as production object storage, 300 free emails a month.
 
-1. Scaleway console, Transactional Email, add the `mariam.app` domain
-2. Publish the DNS records it gives you (SPF, DKIM, return-path MX) and wait for validation
-3. Create an API key with `TransactionalEmailFullAccess`
+1. Scaleway console, Transactional Email, add a sending subdomain such as `mail.mariam.app`:
+   the mailboxes of the main domain and its SPF record are left alone
+2. Publish the DNS records it gives you (SPF, DKIM, MX, DMARC) and wait for validation
+3. Create an API key for an IAM application that holds `TransactionalEmailEmailSmtpCreate` only
 4. Fill in `deploy/.env`:
 
 ```bash
 SMTP_HOST=smtp.tem.scaleway.com
-SMTP_PORT=587
-SMTP_USERNAME=<project_id>                  # the Scaleway project id
-SMTP_PASSWORD=<API key>
-SMTP_SENDER=Mariam <no-reply@mariam.app>    # must belong to the validated domain
+SMTP_PORT=587                                    # STARTTLS; port 465 is not supported
+SMTP_USERNAME=<project_id>                       # the Scaleway project id
+SMTP_PASSWORD=<secret key>                       # of the API key
+SMTP_SENDER=Mariam <no-reply@mail.mariam.app>    # must belong to the validated domain
 ```
+
+The digest leaves from the scheduler and the address alert from the backend: both need these
+variables. The digest's unsubscribe link points to the API, at `FRONTEND_URL/v1` unless `API_URL`
+says otherwise: when the API has a host of its own, give the backend and the scheduler the
+`API_URL` the front end is given.
 
 Check it without waiting for the weekly run:
 

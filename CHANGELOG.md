@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **« Se désabonner » in the weekly digest** led to a path no route serves; the link follows `API_URL` when the API has its own host.
+- **« Gérer mes notifications »** opens the account page, and the digest's links follow the role, not the number of sites.
+- **`flask create-org`** refuses the subdomains reserved for the platform, such as `mail`.
+
 ## [0.18.0] - 2026-10-11
 
 ### Security

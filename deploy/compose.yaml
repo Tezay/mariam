@@ -19,6 +19,7 @@ x-backend-env: &backend-env
   # Fernet key encrypting TOTP secrets at rest. Losing it = MFA reset for all users.
   MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?Définissez MFA_ENCRYPTION_KEY dans .env}
   FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+  API_URL: ${API_URL:-}
   # Internal URL of the frontend container, used to fetch the SPA shell for
   # server-side SEO injection (see routes/seo.py).
   FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://frontend}

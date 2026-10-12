@@ -1,5 +1,8 @@
 """Weekly digest: who receives it, what it carries, and what happens unconfigured."""
 from datetime import date
+from urllib.parse import urlsplit
+
+import pytest
 
 from app.extensions import db
 from app.models import Organization, Restaurant, User
@@ -84,6 +87,7 @@ class TestContent:
         assert 'RU Test' in digest['text']
         assert 'Publication' in digest['text']
         assert '/admin/stats' in digest['text']
+        assert '/admin/account"' in digest['html']
         assert start.strftime('%d/%m') in digest['subject']
 
     def test_a_director_reads_about_the_organization(self, app, client):
@@ -108,7 +112,25 @@ class TestContent:
         assert '2 sites' in digest['text']
         assert 'Couverture' in digest['text']
         assert '/org' in digest['text']
+        assert '/org/account"' in digest['html']
         assert '<html' in digest['html']
+
+    def test_a_director_of_a_single_site_is_still_sent_to_the_organization(self, app):
+        org = Organization(name='Org', slug='org-single')
+        db.session.add(org)
+        db.session.commit()
+        rid = make_restaurant(app)
+        db.session.get(Restaurant, rid).organization_id = org.id
+        director = db.session.get(User, make_user(app, role='org_admin', restaurant_id=rid))
+        director.restaurant_id = None
+        director.organization_id = org.id
+        db.session.commit()
+
+        digest = email_service.build_digest(director, [rid], *email_service.last_week())
+
+        assert 'RU Test' in digest['text']
+        assert '/org/account"' in digest['html']
+        assert '/admin' not in digest['text'] + digest['html']
 
 
 class TestWeek:
@@ -119,6 +141,31 @@ class TestWeek:
 
 
 class TestUnsubscribe:
+    @pytest.mark.parametrize('method, answer', [('POST', 204), ('GET', 200)])
+    def test_the_link_sent_by_email_reaches_the_route(self, app, client, method, answer):
+        make_restaurant(app)
+        uid = _subscribe(make_user(app))
+        link = email_service.unsubscribe_url(uid)
+
+        assert client.open(urlsplit(link).path, method=method).status_code == answer
+        assert db.session.get(User, uid).get_notification_preferences()['weekly_digest'] is False
+
+    @pytest.mark.parametrize('api_url, base', [
+        (None, 'https://mariam.example.org/v1'),
+        ('/v1', 'https://mariam.example.org/v1'),
+        ('https://api.example.org/v1/', 'https://api.example.org/v1'),
+    ])
+    def test_the_link_follows_where_the_api_is_served(self, app, monkeypatch, api_url, base):
+        monkeypatch.setenv('FRONTEND_URL', 'https://mariam.example.org,https://other.example.org')
+        if api_url is None:
+            monkeypatch.delenv('API_URL', raising=False)
+        else:
+            monkeypatch.setenv('API_URL', api_url)
+
+        link = email_service.unsubscribe_url(make_user(app))
+
+        assert link.startswith(f'{base}/public/unsubscribe/')
+
     def test_one_click_turns_the_digest_off(self, app, client):
         make_restaurant(app)
         uid = _subscribe(make_user(app))
