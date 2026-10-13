@@ -17,7 +17,9 @@ from app.extensions import db as _db
 from app.security import limiter as _limiter
 
 _TEST_DB_HOST = os.environ.get('DB_HOST', 'db')
-_TEST_DB_NAME = 'mariam_test_db'
+# Workers of pytest-xdist run at the same time: each gets its own database.
+_WORKER = os.environ.get('PYTEST_XDIST_WORKER')
+_TEST_DB_NAME = f'mariam_test_db_{_WORKER}' if _WORKER else 'mariam_test_db'
 _TEST_DB_URL = f'postgresql://mariam:mariam_secret@{_TEST_DB_HOST}:5432/{_TEST_DB_NAME}'
 
 TEST_PASSWORD = 'TestPass123!'

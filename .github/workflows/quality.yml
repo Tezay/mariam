@@ -167,9 +167,9 @@ jobs:
         ports: ['5432:5432']
         options: >-
           --health-cmd pg_isready
-          --health-interval 10s
+          --health-interval 2s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 25
     env:
       DATABASE_URL: postgresql://mariam:mariam_secret@localhost:5432/mariam_db
       DB_HOST: localhost
@@ -194,7 +194,7 @@ jobs:
 
       - name: Run tests
         working-directory: server
-        run: uv run pytest
+        run: uv run pytest -n auto
 
   lint-frontend:
     name: Frontend lint (ESLint + Prettier)
