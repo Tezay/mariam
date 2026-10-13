@@ -1,4 +1,4 @@
-from marshmallow import EXCLUDE, Schema, fields
+from marshmallow import EXCLUDE, Schema, ValidationError, fields, validates_schema
 
 from .common import NormalizedEmail
 
@@ -42,6 +42,14 @@ class InviteSchema(Schema):
         description="Suggested address; the invitee may enter another at activation",
     )
     role = fields.Str(description="Role: 'admin', 'editor', or 'reader'")
+    send_email = fields.Bool(
+        load_default=False, description="Email the invitation to `email` as well"
+    )
+
+    @validates_schema
+    def _an_address_to_write_to(self, data, **kwargs):
+        if data['send_email'] and not data['email']:
+            raise ValidationError("Une adresse est nécessaire pour envoyer l'invitation.", 'email')
 
 
 class PasswordResetLinkSchema(Schema):
@@ -62,4 +70,12 @@ class InvitationSchema(Schema):
     email = fields.Email(allow_none=True)
     role = fields.Str()
     expires_at = fields.Str()
+    emailed = fields.Bool(description="Whether the invitation was emailed to `email`")
     created_by_name = fields.Str(allow_none=True)
+
+
+class InvitationCreatedSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+    message = fields.Str()
+    invitation = fields.Nested(InvitationSchema)

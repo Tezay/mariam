@@ -57,11 +57,23 @@ import {
   MoreHorizontal,
   SlidersHorizontal,
   Mail,
+  MailCheck,
+  MailX,
   KeyRound,
   Link as LinkIcon,
 } from 'lucide-react';
 
 const INVITATION_CONFIRMATION = { description: 'Pour inviter un nouvel utilisateur.' };
+
+function DeliveryIcon({ emailed }: { emailed: boolean }) {
+  const Icon = emailed ? MailCheck : LinkIcon;
+  const label = emailed ? 'Envoyée par e-mail' : 'Lien à transmettre vous-même';
+  return (
+    <span role="img" aria-label={label} title={label} className="shrink-0 text-muted-foreground">
+      <Icon className="h-4 w-4" aria-hidden />
+    </span>
+  );
+}
 
 // The API sends UTC without an offset.
 const expiryDate = (expiresAt: string) =>
@@ -410,6 +422,7 @@ export function UsersPage() {
                     >
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
+                          <DeliveryIcon emailed={inv.emailed} />
                           <p className="truncate font-medium text-foreground">
                             {inv.email ?? 'Invitation sans adresse'}
                           </p>
@@ -572,8 +585,13 @@ function InviteModal({
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'admin' | 'editor' | 'reader'>('editor');
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<{ token: string } | null>(null);
+  const [result, setResult] = useState<Invitation | null>(null);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
+  const byEmail = Boolean(email.trim());
+  const submitLabel = byEmail ? "Envoyer l'invitation" : 'Créer un lien';
+  const busyLabel = byEmail ? 'Envoi...' : 'Création...';
+  const close = result ? onSuccess : onClose;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -590,11 +608,7 @@ function InviteModal({
 
     setIsLoading(true);
     try {
-      const invitation = await adminApi.createInvitation(
-        isOrgScope ? 'org_admin' : role,
-        suggested
-      );
-      setResult({ token: invitation.token });
+      setResult(await adminApi.createInvitation(isOrgScope ? 'org_admin' : role, suggested));
     } catch (err) {
       setError(getApiErrorMessage(err, 'Erreur lors de la création'));
     } finally {
@@ -603,33 +617,59 @@ function InviteModal({
   };
 
   const copyLink = () => {
-    if (result) {
-      navigator.clipboard.writeText(`${window.location.origin}/activate/${result.token}`);
-    }
+    if (!result) return;
+    navigator.clipboard.writeText(`${window.location.origin}/activate/${result.token}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-black/50" onClick={onClose} />
+      <div className="fixed inset-0 z-50 bg-black/50" onClick={close} />
       <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-card p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-foreground">
             {isOrgScope ? 'Inviter un superviseur' : 'Inviter un utilisateur'}
           </h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <button onClick={close} className="text-muted-foreground hover:text-foreground">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {result ? (
           <div className="space-y-4">
-            <div className="rounded-lg bg-green-500/10 p-4 text-green-600 dark:text-green-400">
-              <p className="font-medium">Invitation créée</p>
-              <p className="mt-1 text-sm">
-                Envoyez ce lien à la personne concernée. Il est valable 72 h et ne fonctionne qu'une
-                fois.
-              </p>
-            </div>
+            {result.email && !result.emailed ? (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-300">
+                <p className="flex items-center gap-2 font-medium">
+                  <MailX className="h-4 w-4 shrink-0" />
+                  L'e-mail n'a pas pu être envoyé
+                </p>
+                <p className="mt-1 text-sm">
+                  L'invitation existe quand même : copiez ce lien et envoyez-le vous-même à{' '}
+                  {result.email}. Il est valable 72 h, ne fonctionne qu'une fois, et reste
+                  disponible dans les invitations en attente.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-lg bg-green-500/10 p-4 text-green-600 dark:text-green-400">
+                <p className="font-medium">
+                  {result.emailed ? 'Invitation envoyée' : 'Invitation créée'}
+                </p>
+                <p className="mt-1 text-sm">
+                  {result.emailed ? (
+                    <>
+                      Un e-mail est parti à {result.email}. Le lien ci-dessous reste valable 72 h et
+                      ne fonctionne qu'une fois, si vous préférez le transmettre vous-même.
+                    </>
+                  ) : (
+                    <>
+                      Envoyez ce lien à la personne concernée. Il est valable 72 h et ne fonctionne
+                      qu'une fois.
+                    </>
+                  )}
+                </p>
+              </div>
+            )}
             <div className="break-all rounded-lg bg-muted p-3 text-sm text-foreground">
               {window.location.origin}/activate/{result.token}
             </div>
@@ -639,8 +679,17 @@ function InviteModal({
             </p>
             <div className="flex gap-2">
               <Button onClick={copyLink} className="flex-1 gap-2">
-                <Copy className="h-4 w-4" />
-                Copier le lien
+                {copied ? (
+                  <>
+                    <Check className="h-4 w-4" />
+                    Copié
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4" />
+                    Copier le lien
+                  </>
+                )}
               </Button>
               <Button variant="outline" onClick={onSuccess}>
                 Fermer
@@ -659,7 +708,8 @@ function InviteModal({
                 className="mt-1"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Elle préremplit le formulaire de la personne invitée, qui pourra la modifier.
+                Avec une adresse, l'invitation y est envoyée par e-mail. Sans adresse, vous obtenez
+                un lien à transmettre vous-même.
               </p>
             </div>
 
@@ -709,7 +759,7 @@ function InviteModal({
 
             <div className="flex gap-2 pt-2">
               <Button type="submit" disabled={isLoading} className="flex-1">
-                {isLoading ? 'Création...' : "Créer l'invitation"}
+                {isLoading ? busyLabel : submitLabel}
               </Button>
               <Button type="button" variant="outline" onClick={onClose}>
                 Annuler

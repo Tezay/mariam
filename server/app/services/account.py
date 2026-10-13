@@ -4,9 +4,11 @@ from enum import StrEnum
 
 from flask import has_request_context, request
 
-from ..models import ActivationLink, User
+from ..extensions import db
+from ..models import ActivationLink, Organization, Restaurant, User
 from ..security import get_client_ip
 from ..utils.time import format_date_fr, paris_now
+from ..utils.urls import frontend_base_url
 from . import email_service
 from .email_service import Kind
 from .passkeys import describe_device
@@ -53,6 +55,30 @@ def notify_email_changed(previous: str, current: str) -> bool:
     alert = email_service.render_email('email_changed', new_address=f'{local[:1]}•••@{domain}')
     return email_service.send_email(
         previous, alert['subject'], alert['text'], alert['html'], kind=Kind.SECURITY
+    )
+
+
+def _one_line(text: str | None) -> str | None:
+    return ' '.join(text.split()) if text else None
+
+
+def notify_invitation(link: ActivationLink, inviter: User) -> bool:
+    place = (
+        db.session.get(Restaurant, link.restaurant_id) if link.restaurant_id
+        else db.session.get(Organization, link.organization_id) if link.organization_id
+        else None
+    )
+    # The two names are typed by accounts and leave for an address outside the
+    # product: a line break would let them reshape the message, or its subject.
+    mail = email_service.render_email(
+        'invitation',
+        url=f'{frontend_base_url()}/activate/{link.token}',
+        inviter=_one_line(inviter.username),
+        place=_one_line(place.name) if place else None,
+        role=link.role,
+    )
+    return email_service.send_email(
+        link.email, mail['subject'], mail['text'], mail['html'], kind=Kind.INVITATION
     )
 
 

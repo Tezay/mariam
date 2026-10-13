@@ -31,6 +31,7 @@ class ActivationLink(db.Model):
     used_at = db.Column(db.DateTime, nullable=True)
     # Naive UTC like its neighbours, which is_valid() compares it with.
     revoked_at = db.Column(db.DateTime, nullable=True)
+    emailed = db.Column(db.Boolean, nullable=False, default=False, server_default='false')
     created_at = db.Column(db.DateTime, default=utc_now_naive)
     created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
@@ -131,6 +132,7 @@ class ActivationLink(db.Model):
             'email': self.email,
             'role': self.role,
             'expires_at': self.expires_at.isoformat(),
+            'emailed': self.emailed,
             'created_by_name': (author.username or author.email) if author else None,
         }
     

@@ -17,6 +17,7 @@ export interface Invitation {
   role: User['role'];
   expires_at: string;
   created_by_name: string | null;
+  emailed: boolean;
 }
 
 export interface PasswordResetLink {
@@ -72,7 +73,11 @@ export const adminApi = {
   },
 
   createInvitation: async (role: User['role'], email?: string): Promise<Invitation> => {
-    const response = await api.post('/users/invite', { role, email });
+    const response = await api.post('/users/invite', {
+      role,
+      email,
+      send_email: Boolean(email),
+    });
     return response.data.invitation;
   },
 
