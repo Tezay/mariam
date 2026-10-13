@@ -1,6 +1,10 @@
 """
 Tests de la configuration restaurant : accès refusé sans JWT, CRUD config.
 """
+import pytest
+
+from app.extensions import db
+from app.models import Restaurant
 from conftest import make_restaurant, make_user, get_token, auth_headers
 
 
@@ -51,3 +55,38 @@ class TestRestaurantUpdate:
                          json={'name': 'Test'},
                          headers=auth_headers(token))
         assert res.status_code == 403
+
+
+class TestSiteName:
+    def _rename(self, app, client, name):
+        rid = make_restaurant(app)
+        make_user(app)
+        res = client.put(
+            '/v1/settings', json={'name': name}, headers=auth_headers(get_token(client))
+        )
+        return res, db.session.get(Restaurant, rid).name
+
+    @pytest.mark.parametrize('name', [
+        "Resto U' Créteil", 'RU n°2 – bât. B', 'R.U. Nord', 'Crous & Go (Saclay)', 'x' * 50,
+    ])
+    def test_an_ordinary_name_is_kept(self, app, client, name):
+        res, stored = self._rename(app, client, name)
+
+        assert res.status_code == 200
+        assert stored == name
+
+    def test_stray_whitespace_is_collapsed(self, app, client):
+        res, stored = self._rename(app, client, '  RU \n  Nord ')
+
+        assert res.status_code == 200
+        assert stored == 'RU Nord'
+
+    @pytest.mark.parametrize('name', [
+        '', '   ', 'x' * 51, 'RU https://exemple.com', 'exemple.com', 'www.exemple.com',
+        'contact@exemple', 'RU Nord/Sud', 'RU Nord\\Sud', 'RU : Nord', 'St.Denis', 'RU\x00Nord',
+    ])
+    def test_a_name_empty_too_long_or_carrying_an_address_is_refused(self, app, client, name):
+        res, stored = self._rename(app, client, name)
+
+        assert res.status_code == 422
+        assert stored == 'RU Test'

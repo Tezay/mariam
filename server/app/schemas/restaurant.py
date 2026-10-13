@@ -1,6 +1,7 @@
 from marshmallow import EXCLUDE, Schema, fields, validate
 
 from ..models.menu_vote import VOTE_ICON_PRESETS
+from .common import SiteName
 
 
 class ServiceHoursDaySchema(Schema):
@@ -55,7 +56,7 @@ class RestaurantSchema(Schema):
 class RestaurantUpdateSchema(Schema):
     class Meta:
         unknown = EXCLUDE
-    name = fields.Str()
+    name = SiteName()
     logo_url = fields.Str(allow_none=True)
     is_active = fields.Bool()
     # Address

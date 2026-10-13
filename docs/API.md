@@ -501,7 +501,7 @@ Notes:
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
 | `GET` | `/v1/settings` | editor+ | Full restaurant settings |
-| `PUT` | `/v1/settings` | admin | Update settings |
+| `PUT` | `/v1/settings` | admin | Update settings; `name` holds 1 to 50 characters and no web or email address |
 | `GET` | `/v1/restaurants` | admin | List the caller's restaurants |
 | `GET` | `/v1/restaurant/calendar-settings` | editor+ | Calendar display settings (public holidays, school vacations) |
 | `PUT` | `/v1/restaurant/calendar-settings` | editor+ | Update calendar display settings |

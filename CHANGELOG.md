@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The weekly digest pauses** while every site is closed, and after two weeks without a published menu.
 - **An address receives at most ten emails of a kind per day.**
 - **Emails say what Mariam is**; with `SUPPORT_EMAIL` set they name that contact and replies reach it.
+- **A site's name** holds at most 50 characters, and no web or email address.
 
 ## [0.18.1] - 2026-10-12
 

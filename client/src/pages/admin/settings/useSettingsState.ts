@@ -16,6 +16,7 @@ import { adminApi, CalendarSettings } from '@/lib/api/admin';
 import { DietaryTag, CertificationItem } from '@/lib/api/taxonomy';
 import { ServiceHours, RestaurantWithConfig } from '@/lib/api/restaurant';
 import {
+  validateSiteName,
   validateEmail,
   validatePhone,
   serializeRestaurantState,
@@ -35,6 +36,7 @@ export function useSettingsState() {
 
   // ── Section restaurant ───────────────────────────────────────────────────
   const [name, setName] = useState('');
+  const [nameError, setNameError] = useState<string | null>(null);
   const [serviceDays, setServiceDays] = useState<number[]>([0, 1, 2, 3, 4]);
   const [serviceHours, setServiceHours] = useState<ServiceHours>({});
   const [sameHoursForAll, setSameHoursForAll] = useState(true);
@@ -178,11 +180,13 @@ export function useSettingsState() {
 
   // ── Sauvegarde unifiée (les 3 sections) ──────────────────────────────────
   const saveAll = useCallback(async (): Promise<SaveOutcome> => {
+    const nErr = validateSiteName(name);
     const eErr = validateEmail(email);
     const pErr = validatePhone(phone);
+    setNameError(nErr);
     setEmailError(eErr);
     setPhoneError(pErr);
-    if (eErr || pErr || (!!addressLabel && !addressConfirmed)) {
+    if (nErr || eErr || pErr || (!!addressLabel && !addressConfirmed)) {
       return 'validation-error';
     }
 
@@ -328,6 +332,8 @@ export function useSettingsState() {
     saveAll,
     name,
     setName,
+    nameError,
+    setNameError,
     serviceDays,
     setServiceDays,
     serviceHours,
