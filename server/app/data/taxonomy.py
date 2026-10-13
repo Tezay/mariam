@@ -286,27 +286,3 @@ DEFAULT_ENABLED_CERT_IDS: set[str] = {
     "v_label",            # V-Label
     "bleu_blanc_coeur",   # Bleu-Blanc-Cœur
 }
-
-
-# ──────────────────────────────────────────────────────────────────────
-#  HELPERS (utilisés côté serveur)
-# ──────────────────────────────────────────────────────────────────────
-
-def get_tag_by_id(tag_id: str) -> dict | None:
-    """Retourne un tag par son identifiant."""
-    return next((t for t in DIETARY_TAGS if t["id"] == tag_id), None)
-
-
-def get_certification_by_id(cert_id: str) -> dict | None:
-    """Retourne une certification par son identifiant."""
-    return next((c for c in CERTIFICATIONS if c["id"] == cert_id), None)
-
-
-def get_all_tag_ids() -> set[str]:
-    """Retourne l'ensemble de tous les identifiants de tags."""
-    return {t["id"] for t in DIETARY_TAGS}
-
-
-def get_all_certification_ids() -> set[str]:
-    """Retourne l'ensemble de tous les identifiants de certifications."""
-    return {c["id"] for c in CERTIFICATIONS}

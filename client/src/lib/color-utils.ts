@@ -148,23 +148,6 @@ export function generateEventPalette(hex: string): EventPalette {
 }
 
 /**
- * Retourne un objet CSS variables inline pour appliquer la palette à un container.
- */
-export function paletteToStyle(palette: EventPalette): React.CSSProperties {
-  return {
-    '--event-bg': palette.bg,
-    '--event-card': palette.card,
-    '--event-accent': palette.accent,
-    '--event-accent-hover': palette.accentHover,
-    '--event-text': palette.text,
-    '--event-text-muted': palette.textMuted,
-    '--event-border': palette.border,
-    '--event-button': palette.button,
-    '--event-button-text': palette.buttonText,
-  } as React.CSSProperties;
-}
-
-/**
  * Palette de couleurs prédéfinies pour le sélecteur de couleur.
  */
 export const EVENT_PRESET_COLORS = [
