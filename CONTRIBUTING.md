@@ -95,8 +95,9 @@ docker compose exec backend flask db upgrade
 5. Open a pull request against `main`
 6. Address review comments before merging
 
-`.github/pull_request_template.md` lists what is checked before merge.
+The pull request template asks for a summary, the changes under the headings of
+`CHANGELOG.md`, and how they were tested.
 
 `main` takes no direct push. A pull request merges by squash once the `CI result` and
-`Security result` checks pass; [docs/TESTING.md](docs/TESTING.md#ci) says what runs for which
-change.
+`Security result` checks pass: its title becomes the commit on `main`, so it follows the commit
+convention above. [docs/TESTING.md](docs/TESTING.md#ci) says what runs for which change.
