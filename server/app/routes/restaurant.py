@@ -107,8 +107,8 @@ def get_settings():
 def update_settings(data):
     """Update the active restaurant's settings.
 
-    Editable fields: `name`, `address`, `logo_url`, `service_days`,
-    `menu_categories`, `dietary_tags` (list of IDs), `certifications` (list of IDs).
+    Editable fields: `name`, `address`, `service_days`, `menu_categories`,
+    `dietary_tags` (list of IDs), `certifications` (list of IDs).
     """
     current_user_id = int(get_jwt_identity())
     user = get_current_user()
@@ -118,8 +118,6 @@ def update_settings(data):
 
     if 'name' in data:
         restaurant.name = data['name']
-    if 'logo_url' in data:
-        restaurant.logo_url = data['logo_url']
 
     # Address (BAN-verified)
     if 'address_label' in data:

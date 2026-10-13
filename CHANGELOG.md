@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Emails say what Mariam is**; with `SUPPORT_EMAIL` set they name that contact and replies reach it.
 - **A site's name** holds at most 50 characters, and no web or email address.
 
+### Removed
+
+- **`logo_url` in `PUT /v1/settings`**: no interface sent it; a site's logo is no longer writable through the API.
+
 ### Fixed
 
 - **Dark theme**: borders, native controls, toasts and chart lines follow it across the dashboard.
