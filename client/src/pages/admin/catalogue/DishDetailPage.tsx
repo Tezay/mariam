@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { DishDetailView } from '@/features/catalog/DishDetailView';
 
 export function DishDetailPage() {

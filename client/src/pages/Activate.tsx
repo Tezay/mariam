@@ -7,7 +7,7 @@
  *    dashboard enrolment page also uses, then straight into the session
  */
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { authApi, type ActivationLinkInfo } from '@/lib/api/auth';
 import { DISPLAY_NAME_RULE, parseDisplayName } from '@/lib/display-name';

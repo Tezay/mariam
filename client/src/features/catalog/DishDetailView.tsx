@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, BookOpen, ImagePlus, Pencil, Scale, Trash2 } from 'lucide-react';
 import { TagIcon } from '@/components/TagIcon';

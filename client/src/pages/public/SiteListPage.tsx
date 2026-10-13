@@ -3,7 +3,7 @@
  * its menu at /:slug/menu. Light mode only (public page).
  */
 import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { ChevronRight, UtensilsCrossed } from 'lucide-react';
 import { useTenant } from '@/contexts/TenantContext';
 import { useDocumentMeta } from '@/lib/use-document-meta';

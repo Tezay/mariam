@@ -14,7 +14,7 @@
  * - Désabonnement
  */
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { usePwaInstall } from '@/contexts/PwaInstallContext';
 import { Logo } from '@/components/Logo';
 import {

@@ -5,7 +5,7 @@
  * `/:slug/menu` redirects to it. Multi-site: root lists the sites, each menu at
  * `/:slug/menu`.
  */
-import { Navigate, Outlet, useParams } from 'react-router-dom';
+import { Navigate, Outlet, useParams } from 'react-router';
 import { TenantProvider, useTenant } from '@/contexts/TenantContext';
 import { MenuDisplay } from './MenuDisplay';
 import { SiteListPage } from './SiteListPage';

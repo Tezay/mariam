@@ -4,7 +4,7 @@
  * Gère le fetch des données et orchestre tous les composants mobiles.
  */
 import { useState, useMemo, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { trackPageView } from '@/lib/telemetry';
 import { Zap, CalendarOff } from 'lucide-react';
 import { ExceptionalClosure } from '@/lib/api/closures';

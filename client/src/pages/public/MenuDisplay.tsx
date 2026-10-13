@@ -5,7 +5,7 @@
  * TvMenuDisplay ou MobileMenuDisplay pour le restaurant résolu (slug).
  */
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import { useTenant } from '@/contexts/TenantContext';
 import { useDocumentMeta } from '@/lib/use-document-meta';
 import { TvMenuDisplay } from './tv/TvMenuDisplay';

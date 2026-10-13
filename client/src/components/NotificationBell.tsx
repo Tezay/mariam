@@ -7,7 +7,7 @@
  * - Clic -> navigation vers /notifications
  */
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { Bell } from 'lucide-react';
 import { getExistingSubscription, isPushSupported } from '@/lib/push';
 

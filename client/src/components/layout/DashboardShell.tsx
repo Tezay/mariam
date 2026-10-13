@@ -5,7 +5,7 @@
  * dashboards cannot drift apart; callers only supply their nav and options.
  */
 import { Suspense, type ReactNode } from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink } from 'react-router';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { Logo } from '@/components/Logo';

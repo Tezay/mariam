@@ -5,7 +5,7 @@
  * method is active: there is deliberately no way to skip it.
  */
 import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { ShieldAlert } from 'lucide-react';
 import {
   startRegistration,

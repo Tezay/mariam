@@ -12,7 +12,7 @@
  *   → Si MFA TOTP activé : étape code à 6 chiffres
  */
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { dashboardPathForRole } from '@/lib/dashboard-routes';
 import { authApi } from '@/lib/api/auth';

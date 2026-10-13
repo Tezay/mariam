@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
 import { useDocumentMeta } from '@/lib/use-document-meta';
 import { PublicShell } from './PublicShell';

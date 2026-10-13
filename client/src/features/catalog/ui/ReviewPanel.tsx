@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { MessageSquareOff, Trophy } from 'lucide-react';
 import type { DishSatisfaction } from '@/lib/api/catalog';
 import { RatingDistribution } from '@/features/analytics/ui/RatingDistribution';

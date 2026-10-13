@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { PackageX, Package, BookOpen, Trash2 } from 'lucide-react';
 import type { MenuItem } from '@/lib/api/menus';
 import type { MenuCategory } from '@/lib/api/categories';

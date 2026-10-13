@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { PublicationsView } from '@/features/analytics/PublicationsView';
 import { useOrgSites } from '@/features/analytics/hooks/useAnalyticsQueries';
 import { PageHeader } from '../ui';

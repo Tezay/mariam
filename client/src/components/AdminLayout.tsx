@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { restaurantApi, ServiceHours } from '@/lib/api/restaurant';
 import { isInServiceHours } from '@/lib/utils';
