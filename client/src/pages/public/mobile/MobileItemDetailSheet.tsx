@@ -1,8 +1,7 @@
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import type { MenuItemData } from '../menu-types';
 import type { DietaryTag, CertificationItem } from '@/lib/api/taxonomy';
-import { DynamicIcon as Icon } from 'lucide-react/dynamic';
-import type { IconName } from 'lucide-react/dynamic';
+import { TagIcon } from '@/components/TagIcon';
 
 const TAG_COLOR_CLASSES: Record<string, string> = {
   green: 'bg-green-100 text-green-700 border-green-200',
@@ -37,7 +36,7 @@ function TagChip({ tag }: { tag: DietaryTag }) {
     <span
       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${TAG_COLOR_CLASSES[tag.color] || 'border-gray-200 bg-gray-100 text-gray-700'}`}
     >
-      <Icon name={tag.icon as IconName} className="h-3 w-3 shrink-0" />
+      <TagIcon name={tag.icon} className="h-3 w-3 shrink-0" />
       {tag.label}
     </span>
   );

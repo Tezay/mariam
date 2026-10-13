@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, BookOpen, ImagePlus, Pencil, Scale, Trash2 } from 'lucide-react';
-import { DynamicIcon as Icon } from 'lucide-react/dynamic';
-import type { IconName } from 'lucide-react/dynamic';
+import { TagIcon } from '@/components/TagIcon';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 import { catalogApi, type CatalogPeriod } from '@/lib/api/catalog';
 import { categoriesApi } from '@/lib/api/categories';
@@ -315,9 +314,7 @@ export function DishDetailView({ dishId }: { dishId: number }) {
                         key={tag.id}
                         className="flex items-center gap-1.5 rounded-lg border border-border px-2 py-1 text-xs text-muted-foreground"
                       >
-                        {tag.icon && (
-                          <Icon name={tag.icon as IconName} className="h-3 w-3 shrink-0" />
-                        )}
+                        {tag.icon && <TagIcon name={tag.icon} className="h-3 w-3 shrink-0" />}
                         {tag.label}
                       </span>
                     ))}

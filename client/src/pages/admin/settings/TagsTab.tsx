@@ -6,8 +6,7 @@ import { useState, useEffect } from 'react';
 import { publicApi } from '@/lib/api/public';
 import { DietaryTagCategory, CertificationCategory } from '@/lib/api/taxonomy';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { DynamicIcon as Icon } from 'lucide-react/dynamic';
-import type { IconName } from 'lucide-react/dynamic';
+import { TagIcon } from '@/components/TagIcon';
 import type { SettingsState } from './useSettingsState';
 
 export function TagsTab({ state }: { state: SettingsState }) {
@@ -61,7 +60,7 @@ export function TagsTab({ state }: { state: SettingsState }) {
                         : 'border-border text-muted-foreground hover:border-muted-foreground'
                     }`}
                   >
-                    <Icon name={tag.icon as IconName} className="h-4 w-4" />
+                    <TagIcon name={tag.icon} className="h-4 w-4" />
                     <span>{tag.label}</span>
                   </button>
                 ))}

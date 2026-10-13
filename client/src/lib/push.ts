@@ -82,8 +82,9 @@ export function requiresPwaForPush(): boolean {
 // Service Worker - helpers internes
 // ========================================
 
-// Timeout par défaut pour l'attente du Service Worker (ms)
-const SW_READY_TIMEOUT = 10_000;
+// The worker activates once its precache is downloaded: on a first visit, a slow
+// connection stretches that well past ten seconds.
+const SW_READY_TIMEOUT = 30_000;
 
 // URL du SW minimal push (servi depuis public/)
 const PUSH_SW_URL = '/sw-push.js';

@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Dark theme**: borders, native controls, toasts and chart lines follow it across the dashboard.
+- **Notifications on a first visit**: the service worker precaches a tenth of the files it did, so it is ready sooner.
 
 ## [0.18.1] - 2026-10-12
 

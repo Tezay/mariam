@@ -18,6 +18,20 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
       'no-empty': 'warn',
+      // lucide-react/dynamic makes the build emit one file per icon of the
+      // library, and the service worker precaches every one of them.
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'lucide-react/dynamic',
+              message:
+                "Importez l'icône depuis lucide-react ; pour une étiquette, utilisez TagIcon (@/components/TagIcon).",
+            },
+          ],
+        },
+      ],
       // A bare `new Date()` follows the viewer's timezone; every date this
       // product shows is a Paris date.
       'no-restricted-syntax': [

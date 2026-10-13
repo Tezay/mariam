@@ -20,8 +20,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { DynamicIcon as Icon } from 'lucide-react/dynamic';
-import type { IconName } from 'lucide-react/dynamic';
+import { TagIcon } from '@/components/TagIcon';
 import { cn } from '@/lib/utils';
 import { CsvStepIndicator } from '@/components/csv-import/CsvStepIndicator';
 import { CsvDropzone } from '@/components/csv-import/CsvDropzone';
@@ -402,10 +401,7 @@ export function CatalogueImportDialog({
                                   style={{ color: t.color }}
                                   title={t.label}
                                 >
-                                  <Icon
-                                    name={t.icon as IconName}
-                                    className="h-2.5 w-2.5 shrink-0"
-                                  />
+                                  <TagIcon name={t.icon} className="h-2.5 w-2.5 shrink-0" />
                                   <span className="text-muted-foreground">{t.label}</span>
                                 </span>
                               );

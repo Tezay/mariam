@@ -8,7 +8,7 @@ import { trackPageView } from '@/lib/telemetry';
 import { ExceptionalClosure } from '@/lib/api/closures';
 import { CertificationItem } from '@/lib/api/taxonomy';
 import { generateEventPalette } from '@/lib/color-utils';
-import { DynamicIcon as Icon } from 'lucide-react/dynamic';
+import { TagIcon } from '@/components/TagIcon';
 import { InlineError, getErrorType } from '@/components/InlineError';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
@@ -28,7 +28,6 @@ import type {
   EventData,
   CategorySubstitutionData,
 } from '../menu-types';
-import type { IconName } from 'lucide-react/dynamic';
 import { usePublicMenu } from '../use-public-menu';
 
 // ─── Constantes badges ──────────────────────────────────────────────────────
@@ -475,13 +474,13 @@ export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
             <div
               className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1 shadow-sm ${cls}`}
             >
-              <Icon name={tag.icon as IconName} className="h-5 w-5" />
+              <TagIcon name={tag.icon} className="h-5 w-5" />
               <span className="text-lg font-medium">{tag.label}</span>
             </div>
           </PopoverTrigger>
           <PopoverContent className="w-52 p-3" align="start">
             <div className="mb-1 flex items-center gap-2">
-              <Icon name={tag.icon as IconName} className="h-4 w-4 shrink-0" />
+              <TagIcon name={tag.icon} className="h-4 w-4 shrink-0" />
               <span className="text-sm font-semibold">{tag.label}</span>
             </div>
             {TAG_CATEGORY_NAMES[tag.category_id] && (

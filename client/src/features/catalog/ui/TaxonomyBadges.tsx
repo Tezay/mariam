@@ -1,5 +1,4 @@
-import { DynamicIcon as Icon } from 'lucide-react/dynamic';
-import type { IconName } from 'lucide-react/dynamic';
+import { TagIcon } from '@/components/TagIcon';
 import type { CertificationItem, DietaryTag } from '@/lib/api/taxonomy';
 import { cn } from '@/lib/utils';
 
@@ -38,9 +37,9 @@ export function TaxonomyBadges({
     <span className={cn('flex flex-wrap items-center gap-1.5', className)}>
       {tags.map((tag) =>
         tag.icon ? (
-          <Icon
+          <TagIcon
             key={tag.id}
-            name={tag.icon as IconName}
+            name={tag.icon}
             aria-label={tag.label}
             className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
           />
