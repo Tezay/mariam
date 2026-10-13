@@ -9,6 +9,7 @@ Two layers: pytest for the backend, through Docker, and Vitest for the frontend,
 | pytest | Test runner |
 | pytest-flask | Flask test client |
 | pytest-cov | Coverage report |
+| pytest-xdist | Parallel runs |
 | factory-boy | Test data factories |
 
 Declared under `[dependency-groups.dev]` in `server/pyproject.toml`.
@@ -20,15 +21,19 @@ docker compose exec backend uv run pytest
 docker compose exec backend uv run pytest tests/test_auth.py
 docker compose exec backend uv run pytest tests/test_auth.py::TestLogin
 docker compose exec backend uv run pytest -v
+docker compose exec backend uv run pytest -n 4
 ```
+
+`-n` spreads the tests over that many processes. CI runs `-n auto`, one process per core; a
+plain `pytest` stays sequential.
 
 Coverage is printed in the terminal, uncovered lines under the `Missing` column.
 
 ### Test database
 
 Tests run against a dedicated `mariam_test_db`, created on first run by `server/conftest.py`.
-Every table is truncated after each test by an `autouse` fixture, so tests are isolated and order
-independent.
+A parallel run gives each process its own, `mariam_test_db_gw0` and so on. Every table is
+truncated before each test by an `autouse` fixture, so tests are isolated and order independent.
 
 ### Suites
 
