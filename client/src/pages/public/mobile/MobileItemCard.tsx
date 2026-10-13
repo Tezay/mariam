@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import type { MenuItemData } from '../menu-types';
 import type { CategoryColor } from '@/lib/category-colors';
-import { DynamicIcon as Icon } from 'lucide-react/dynamic';
-import type { IconName } from 'lucide-react/dynamic';
+import { TagIcon } from '@/components/TagIcon';
 
 const TAG_ICON_COLOR: Record<string, { text: string; bg: string }> = {
   green: { text: 'text-green-600', bg: 'bg-green-50' },
@@ -64,7 +63,7 @@ function BadgesBubble({
             title={tag.label}
             className={`flex h-4 w-4 items-center justify-center rounded-full ${colors.bg}`}
           >
-            <Icon name={tag.icon as IconName} className={`h-2.5 w-2.5 ${colors.text}`} />
+            <TagIcon name={tag.icon} className={`h-2.5 w-2.5 ${colors.text}`} />
           </span>
         );
       })}

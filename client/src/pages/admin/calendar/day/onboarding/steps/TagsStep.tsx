@@ -3,8 +3,7 @@
  * La validation crée immédiatement le plat au catalogue (puis étape photo).
  */
 import { ChevronRight, Loader2 } from 'lucide-react';
-import { DynamicIcon as Icon } from 'lucide-react/dynamic';
-import type { IconName } from 'lucide-react/dynamic';
+import { TagIcon } from '@/components/TagIcon';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { UseOnboardingStateReturn } from '../useOnboardingState';
@@ -60,8 +59,8 @@ export function TagsStep({ state }: { state: UseOnboardingStateReturn }) {
                             : {}),
                         }}
                       >
-                        <Icon
-                          name={tag.icon as IconName}
+                        <TagIcon
+                          name={tag.icon}
                           className="h-3.5 w-3.5"
                           style={{ color: tag.color }}
                         />

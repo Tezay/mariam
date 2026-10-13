@@ -1,5 +1,4 @@
-import { DynamicIcon as Icon } from 'lucide-react/dynamic';
-import type { IconName } from 'lucide-react/dynamic';
+import { TagIcon } from '@/components/TagIcon';
 import type { MenuItem } from '@/lib/api/menus';
 
 interface AdminTagsBubbleProps {
@@ -25,7 +24,7 @@ export function AdminTagsBubble({ item }: AdminTagsBubbleProps) {
           className="flex h-4 w-4 items-center justify-center rounded-full"
           style={{ backgroundColor: tag.color + '22' }}
         >
-          <Icon name={tag.icon as IconName} className="h-2.5 w-2.5" style={{ color: tag.color }} />
+          <TagIcon name={tag.icon} className="h-2.5 w-2.5" style={{ color: tag.color }} />
         </span>
       ))}
 

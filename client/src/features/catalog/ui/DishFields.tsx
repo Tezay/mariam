@@ -1,5 +1,4 @@
-import { DynamicIcon as Icon } from 'lucide-react/dynamic';
-import type { IconName } from 'lucide-react/dynamic';
+import { TagIcon } from '@/components/TagIcon';
 import type { CertificationItem, DietaryTag } from '@/lib/api/taxonomy';
 import type { MenuCategory } from '@/lib/api/categories';
 import { Input } from '@/components/ui/input';
@@ -98,7 +97,7 @@ export function DishFields({
                 active={draft.tagIds.includes(tag.id)}
                 onClick={() => onChange({ ...draft, tagIds: toggle(draft.tagIds, tag.id) })}
               >
-                {tag.icon && <Icon name={tag.icon as IconName} className="h-3.5 w-3.5 shrink-0" />}
+                {tag.icon && <TagIcon name={tag.icon} className="h-3.5 w-3.5 shrink-0" />}
                 {tag.label}
               </Chip>
             ))}

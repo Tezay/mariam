@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { DynamicIcon as Icon } from 'lucide-react/dynamic';
-import type { IconName } from 'lucide-react/dynamic';
+import { TagIcon } from '@/components/TagIcon';
 import { catalogApi, type BulkDeleteResult } from '@/lib/api/catalog';
 import { type CertificationItem, type DietaryTag } from '@/lib/api/taxonomy';
 import { type MenuCategory } from '@/lib/api/categories';
@@ -264,7 +263,7 @@ export function useBulkActions({
                     : 'border-border bg-muted text-muted-foreground hover:border-primary/40'
                 )}
               >
-                {tag.icon && <Icon name={tag.icon as IconName} className="h-3.5 w-3.5 shrink-0" />}
+                {tag.icon && <TagIcon name={tag.icon} className="h-3.5 w-3.5 shrink-0" />}
                 {tag.label}
               </button>
             ))}

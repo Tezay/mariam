@@ -11,8 +11,7 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { DynamicIcon as Icon } from 'lucide-react/dynamic';
-import type { IconName } from 'lucide-react/dynamic';
+import { TagIcon } from '@/components/TagIcon';
 import type { CertificationItem, DietaryTag } from '@/lib/api/taxonomy';
 import type { MenuCategory } from '@/lib/api/categories';
 import { Button } from '@/components/ui/button';
@@ -279,9 +278,7 @@ export function CatalogToolbar({
                       active={filters.tagIds.includes(tag.id)}
                       onClick={() => patch({ tagIds: toggleIn(filters.tagIds, tag.id) })}
                     >
-                      {tag.icon && (
-                        <Icon name={tag.icon as IconName} className="h-3.5 w-3.5 shrink-0" />
-                      )}
+                      {tag.icon && <TagIcon name={tag.icon} className="h-3.5 w-3.5 shrink-0" />}
                       <span className="truncate">{tag.label}</span>
                     </Row>
                   ))}

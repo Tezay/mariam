@@ -17,8 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { DynamicIcon as Icon } from 'lucide-react/dynamic';
-import type { IconName } from 'lucide-react/dynamic';
+import { TagIcon } from '@/components/TagIcon';
 import {
   ChefHat,
   Clock,
@@ -120,7 +119,7 @@ function ItemRow({ item, isToggling, onToggle }: ItemRowProps) {
                 variant="outline"
                 className="gap-1 px-1.5 py-0 text-[10px] font-normal"
               >
-                <Icon name={tag.icon as IconName} className="h-2.5 w-2.5" />
+                <TagIcon name={tag.icon} className="h-2.5 w-2.5" />
                 {tag.label}
               </Badge>
             ))}
