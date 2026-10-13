@@ -18,7 +18,6 @@ export interface RestaurantConfig {
 
 export interface RestaurantSettings {
   name?: string;
-  logo_url?: string;
   service_days?: number[];
   service_hours?: ServiceHours;
   address_label?: string | null;

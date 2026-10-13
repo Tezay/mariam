@@ -57,7 +57,6 @@ class RestaurantUpdateSchema(Schema):
     class Meta:
         unknown = EXCLUDE
     name = SiteName()
-    logo_url = fields.Str(allow_none=True)
     is_active = fields.Bool()
     # Address
     address_label = fields.Str(allow_none=True)
