@@ -38,7 +38,9 @@ import { duplicateFrom, type DuplicateDish } from './duplicate';
 import { DuplicateNotice } from './ui/DuplicateNotice';
 import { countChanges, draftOf, type DishDraft } from './dish-draft';
 
-const USAGE_CHART: ChartConfig = { count: { label: 'Passages au menu', color: '#093EAA' } };
+const USAGE_CHART: ChartConfig = {
+  count: { label: 'Passages au menu', color: 'hsl(var(--primary))' },
+};
 const SPARSE_SERIES = 10;
 
 function Section({

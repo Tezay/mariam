@@ -381,7 +381,7 @@ export function AdminDayDisplay({
             <>
               {!canEdit && menu?.chef_note && (
                 <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-900/20">
-                  <ChefHat className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                  <ChefHat className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" />
                   <p className="text-sm text-amber-900 dark:text-amber-100">{menu.chef_note}</p>
                 </div>
               )}

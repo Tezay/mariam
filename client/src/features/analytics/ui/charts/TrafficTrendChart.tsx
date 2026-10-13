@@ -9,7 +9,7 @@ import type { TrafficSeriesPoint } from '@/lib/api/analytics';
 import { formatDayLabel } from '../../format';
 
 const CHART_CONFIG: ChartConfig = {
-  views: { label: 'Consultations', color: '#093EAA' },
+  views: { label: 'Consultations', color: 'hsl(var(--primary))' },
   unique_visitors: { label: 'Visiteurs uniques', color: '#6FC3A5' },
 };
 

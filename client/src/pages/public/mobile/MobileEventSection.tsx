@@ -129,7 +129,7 @@ function MobileEventDetailOverlay({ event, onClose }: { event: EventData; onClos
         )}
       </div>
 
-      <div className="shrink-0 border-t bg-white p-4">
+      <div className="shrink-0 border-t border-gray-200 bg-white p-4">
         <button
           onClick={onClose}
           className="w-full rounded-xl py-3 font-medium text-white transition-colors"

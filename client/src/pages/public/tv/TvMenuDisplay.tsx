@@ -84,7 +84,7 @@ function CertBadge({ cert, size = 'sm' }: { cert: CertificationItem; size?: 'sm'
         {cert.guarantee && (
           <p className="mb-2 text-xs leading-snug text-gray-600">{cert.guarantee}</p>
         )}
-        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 border-t pt-2 text-xs text-muted-foreground">
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 border-t border-gray-200 pt-2 text-xs text-muted-foreground">
           {cert.issuer && <span>{cert.issuer}</span>}
           <span>{JURISDICTION_LABELS[cert.jurisdiction]}</span>
           <span>{SCHEME_LABELS[cert.scheme_type]}</span>
@@ -542,7 +542,7 @@ export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
         className="flex h-full w-full flex-col"
       >
         {/* Header TV */}
-        <header className="flex shrink-0 items-center justify-between border-b bg-white px-10 py-8 shadow-sm">
+        <header className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-10 py-8 shadow-sm">
           <div className="flex items-center gap-8">
             {todayData?.restaurant?.logo_url && (
               <img

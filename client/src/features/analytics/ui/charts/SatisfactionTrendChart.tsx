@@ -12,7 +12,7 @@ const formatHour = (hour: number | string) => `${String(hour).padStart(2, '0')}h
 const SPARSE_SERIES = 10;
 
 const CHART_CONFIG: ChartConfig = {
-  score: { label: 'Score moyen', color: '#093EAA' },
+  score: { label: 'Score moyen', color: 'hsl(var(--primary))' },
 };
 
 export function SatisfactionTrendChart({
