@@ -4,7 +4,7 @@
  * needs to know whether the organization has one site or thirty.
  */
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { AnalyticsTabs, type AnalyticsTab } from '@/features/analytics/ui/AnalyticsTabs';
 import { PublicationsView } from '@/features/analytics/PublicationsView';
 import { SatisfactionView } from '@/features/analytics/SatisfactionView';

@@ -6,7 +6,7 @@
  * Layout 2 colonnes sur desktop (menu + rail récapitulatif), empilé sur mobile.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { menusApi, Menu, MenuItem } from '@/lib/api/menus';
 import { categoriesApi, MenuCategory } from '@/lib/api/categories';
 import { closuresApi } from '@/lib/api/closures';

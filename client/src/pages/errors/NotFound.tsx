@@ -1,7 +1,7 @@
 /**
  * 404 - Page Not Found
  */
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { Home, ArrowLeft } from 'lucide-react';

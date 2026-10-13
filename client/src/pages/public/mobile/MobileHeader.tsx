@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Phone, Mail, Users, Accessibility, Bell } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { getServiceStatus, groupConsecutiveHours } from '@/lib/service-utils';
 import type { RestaurantPublic } from '../menu-types';
 import type { ExceptionalClosure } from '@/lib/api/closures';

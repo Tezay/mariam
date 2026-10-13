@@ -6,7 +6,7 @@
  * appareil, puis redirige vers l'onboarding PWA.
  */
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import { authApi } from '@/lib/api/auth';
 import { isConfirmationRequired } from '@/lib/api/errors';
 import { passkeyRegistrationError } from '@/lib/passkey-errors';

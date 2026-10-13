@@ -7,7 +7,7 @@
 import { RefreshCw, Home, WifiOff, ServerCrash, Ban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/Logo';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 export interface InlineErrorProps {
   /** Type d'erreur pour adapter le message */

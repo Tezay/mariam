@@ -7,7 +7,7 @@
  * - Changement de mot de passe (TOTP ou passkey selon ce qui est disponible)
  */
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { RoleBadge } from '@/components/dashboard/RoleBadge';
 import { APP_ENVIRONMENT, APP_VERSION } from '@/lib/runtime-config';

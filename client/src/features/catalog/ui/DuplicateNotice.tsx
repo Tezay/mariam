@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import type { DuplicateDish } from '../duplicate';
 
 export function DuplicateNotice({ duplicate }: { duplicate: DuplicateDish }) {

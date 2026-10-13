@@ -4,7 +4,7 @@
  * Page sécurisée (admin) pour consulter les logs d'audit.
  */
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { isAxiosError } from 'axios';
 import { adminApi } from '@/lib/api/admin';
 import { restaurantApi, type AdminSite } from '@/lib/api/restaurant';

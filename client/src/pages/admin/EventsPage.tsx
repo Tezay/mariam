@@ -9,7 +9,7 @@
  * - Création via dialog EventEditor
  */
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { eventsApi, Event } from '@/lib/api/events';
 import { notify } from '@/lib/toast';
 import { parisToday } from '@/lib/date-utils';

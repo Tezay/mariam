@@ -6,7 +6,7 @@
  * sur son appareil, avec des instructions adaptées à chaque plateforme.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { dashboardPathForRole } from '@/lib/dashboard-routes';
 import { QRCodeSVG } from 'qrcode.react';

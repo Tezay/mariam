@@ -4,7 +4,7 @@
  * Mariam, not by the organization's supervisor.
  */
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router';
 import { ArrowLeft, Building2, Users, CalendarClock, CheckCircle2 } from 'lucide-react';
 import { orgApi, type OrgSite } from '@/lib/api/org';
 import { adminApi } from '@/lib/api/admin';

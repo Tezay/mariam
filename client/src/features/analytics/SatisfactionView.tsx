@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { AlertTriangle, MessageSquareHeart, SmilePlus, Users, Utensils } from 'lucide-react';
 import type { SatisfactionDishRow, SatisfactionSiteRow } from '@/lib/api/analytics';
 import { Button } from '@/components/ui/button';
