@@ -542,8 +542,8 @@ Requires `admin` role.
 | `DELETE` | `/v1/users/<id>` | Delete a user (requires a confirmed session) |
 | `POST` | `/v1/users/<id>/reset-mfa` | Remove a user's TOTP and passkeys and end their sessions (requires a confirmed session) |
 | `POST` | `/v1/users/<id>/reset-password` | Email a user a password reset link, returned only when it could not be emailed (requires a confirmed session) |
-| `POST` | `/v1/users/invite` | Create an invitation link (requires a confirmed session); `email` is optional and only pre-fills the activation form |
-| `GET` | `/v1/users/invitations` | List pending invitations |
+| `POST` | `/v1/users/invite` | Create an invitation link (requires a confirmed session); `send_email` also emails it to `email`, and the invitation's `emailed` tells whether it left; `email` is optional and only pre-fills the activation form |
+| `GET` | `/v1/users/invitations` | List pending invitations, each with whether it was emailed |
 | `DELETE` | `/v1/users/invitations/<id>` | Revoke a pending invitation |
 
 Invitations follow the same boundary as accounts: a supervisor lists and revokes supervisor

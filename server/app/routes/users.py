@@ -20,12 +20,14 @@ Endpoints:
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_smorest import Blueprint
+from limits import parse
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
 from ..models import ActivationLink, AuditLog, User
 from ..schemas.common import ErrorSchema, MessageSchema
 from ..schemas.users import (
+    InvitationCreatedSchema,
     InvitationSchema,
     InviteSchema,
     PasswordResetLinkSchema,
@@ -33,9 +35,10 @@ from ..schemas.users import (
     UserAdminSchema,
     UserUpdateSchema,
 )
-from ..security import get_client_ip
+from ..security import get_client_ip, spend
 from ..services.account import (
     SecurityEvent,
+    notify_invitation,
     notify_password_reset,
     notify_security_event,
     reset_second_factor,
@@ -48,6 +51,9 @@ from .helpers import (
     paginated_response,
     step_up_required,
 )
+
+# The limit by recipient does not bound an account that writes to many addresses.
+INVITATION_EMAILS = parse('20 per day')
 
 users_bp = Blueprint(
     'users', __name__,
@@ -126,7 +132,7 @@ def _pending_invitations(caller):
 @admin_required
 @step_up_required
 @users_bp.arguments(InviteSchema)
-@users_bp.response(201, InvitationSchema)
+@users_bp.response(201, InvitationCreatedSchema)
 @users_bp.alt_response(400, schema=ErrorSchema, description="Invalid role")
 @users_bp.alt_response(
     403, schema=ErrorSchema, description="Identity confirmation required, or role out of scope"
@@ -137,7 +143,9 @@ def create_invitation(data):
 
     Requires a confirmed session. Returns a token to send to the invitee so they
     can set up their account and MFA via `/activate/<token>`. The email is optional
-    and only pre-fills the activation form: the invitee enters their own.
+    and pre-fills the activation form, where the invitee may enter another. With
+    `send_email` the invitation is also emailed to it, twenty times a day at most
+    for one administrator; the invitation's `emailed` tells whether it left.
     """
     current_user_id = int(get_jwt_identity())
     inviter = get_current_user()
@@ -164,6 +172,12 @@ def create_invitation(data):
     if email and User.query.filter_by(email=email).first():
         return jsonify({'error': 'Cet email est déjà utilisé'}), 409
 
+    # Spent before anything is written: a limiter that fails must stop the
+    # request here, not after the invitation exists.
+    by_email = data['send_email'] and spend(
+        INVITATION_EMAILS, 'invitation-email', str(current_user_id)
+    )
+
     link = ActivationLink.create_invite_link(
         email=email,
         role=role,
@@ -180,11 +194,15 @@ def create_invitation(data):
         restaurant_id=target_restaurant_id,
         target_type='activation_link',
         target_id=link.id,
-        details={'email': email, 'role': role},
+        details={'email': email, 'role': role, 'by_email': by_email},
         ip_address=get_client_ip()
     )
 
     db.session.commit()
+
+    if by_email and notify_invitation(link, inviter):
+        link.emailed = True
+        db.session.commit()
 
     return jsonify({
         'message': 'Invitation créée',

@@ -1,0 +1,12 @@
+{%- set roles = {'admin': "qu'administrateur", 'editor': "qu'éditeur", 'reader': 'que lecteur', 'org_admin': 'que superviseur'} -%}
+Bonjour,
+
+{{ inviter or 'Un administrateur' }} vous invite à rejoindre {{ place or 'son établissement' }} sur Mariam, en tant {{ roles[role] }}.
+
+Accepter l'invitation : {{ url }}
+
+Ce lien est valable 72 heures et ne sert qu'une fois.
+
+Vous ne connaissez pas cette personne ? Ignorez ce message : aucun compte n'est créé sans vous.
+
+Ce message vous est envoyé à la demande d'un administrateur{% if place %} de {{ place }}{% endif %}.

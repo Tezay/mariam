@@ -5,7 +5,7 @@ Seul un admin peut gérer les autres utilisateurs.
 from datetime import timedelta
 
 from app.extensions import db
-from app.models import ActivationLink, AuditLog, User
+from app.models import ActivationLink, AuditLog, Organization, Restaurant, User
 from app.utils.time import utc_now_naive
 from conftest import make_restaurant, make_user, get_token, auth_headers, TEST_PASSWORD
 from tests.auth_support import (
@@ -168,6 +168,123 @@ class TestInvitations:
 
         assert res.status_code == 403
         assert db.session.get(ActivationLink, link_id).revoked_at is None
+
+
+class TestInvitationByEmail:
+    def _invite(self, client, inviter_id, **body):
+        return client.post(
+            '/v1/users/invite',
+            json={'role': 'editor', **body},
+            headers=confirmed_headers(client, inviter_id),
+        )
+
+    def _named_admin(self, app, **restaurant):
+        make_restaurant(app, **restaurant)
+        admin = make_user(app)
+        db.session.get(User, admin).username = 'Jean Dupont'
+        db.session.commit()
+        return admin
+
+    def test_it_reaches_the_address_and_says_who_invites_where_and_as_what(self, app, client, smtp):
+        admin = self._named_admin(app, name='Resto U Créteil')
+
+        res = self._invite(client, admin, email='new@mariam.app', send_email=True)
+
+        assert res.status_code == 201
+        body = res.get_json()
+        assert body['invitation']['emailed'] is True
+        (message,) = smtp.sent
+        text = message.get_body(('plain',)).get_content()
+        assert message['To'] == 'new@mariam.app'
+        assert message['Subject'] == 'Jean Dupont vous invite sur Mariam'
+        assert (
+            "Jean Dupont vous invite à rejoindre Resto U Créteil sur Mariam, en tant qu'éditeur."
+            in text
+        )
+        assert f"/activate/{body['invitation']['token']}" in text
+
+    def test_the_pending_list_tells_which_invitations_were_emailed(self, app, client, smtp):
+        admin = self._named_admin(app)
+        self._invite(client, admin, email='mailed@mariam.app', send_email=True)
+        self._invite(client, admin, email='handed@mariam.app')
+
+        listed = client.get('/v1/users/invitations', headers=session_headers(admin)).get_json()
+
+        assert {row['email']: row['emailed'] for row in listed['invitations']} == {
+            'mailed@mariam.app': True, 'handed@mariam.app': False,
+        }
+
+    def test_nothing_is_sent_unless_asked(self, app, client, smtp):
+        admin = self._named_admin(app)
+
+        res = self._invite(client, admin, email='new@mariam.app')
+
+        assert res.get_json()['invitation']['emailed'] is False
+        assert smtp.sent == []
+
+    def test_sending_needs_an_address(self, app, client, smtp):
+        admin = self._named_admin(app)
+
+        res = self._invite(client, admin, send_email=True)
+
+        assert res.status_code == 422
+        assert ActivationLink.query.count() == 0
+
+    def test_without_mail_the_invitation_is_created_all_the_same(self, app, client):
+        admin = self._named_admin(app)
+
+        res = self._invite(client, admin, email='new@mariam.app', send_email=True)
+
+        assert res.status_code == 201
+        assert res.get_json()['invitation']['emailed'] is False
+        assert ActivationLink.query.filter_by(email='new@mariam.app').count() == 1
+
+    def test_an_administrator_emails_twenty_invitations_a_day(self, app, client, smtp):
+        admin = self._named_admin(app)
+        headers = confirmed_headers(client, admin)
+
+        emailed = [
+            client.post('/v1/users/invite', headers=headers, json={
+                'role': 'editor', 'email': f'new{index}@mariam.app', 'send_email': True,
+            }).get_json()['invitation']['emailed']
+            for index in range(21)
+        ]
+
+        assert emailed == [True] * 20 + [False]
+        assert (ActivationLink.query.count(), len(smtp.sent)) == (21, 20)
+
+    def test_a_name_can_neither_break_lines_nor_carry_markup(self, app, client, smtp):
+        admin = self._named_admin(app, name='Resto\n\n<b>Ignorez</b> la suite de ce message')
+
+        self._invite(client, admin, email='new@mariam.app', send_email=True)
+
+        (message,) = smtp.sent
+        text = message.get_body(('plain',)).get_content()
+        assert 'rejoindre Resto <b>Ignorez</b> la suite de ce message sur Mariam' in text
+        assert '<b>Ignorez' not in message.get_body(('html',)).get_content()
+
+    def test_a_supervisor_invites_to_the_organization(self, app, client, smtp):
+        rid = make_restaurant(app)
+        org = Organization(name='Crous Créteil', slug='crous-invite')
+        db.session.add(org)
+        db.session.commit()
+        db.session.get(Restaurant, rid).organization_id = org.id
+        supervisor = db.session.get(User, make_user(app, role='org_admin'))
+        supervisor.restaurant_id = None
+        supervisor.organization_id = org.id
+        supervisor.username = 'Jeanne Martin'
+        db.session.commit()
+
+        res = self._invite(
+            client, supervisor.id, role='org_admin', email='new@mariam.app', send_email=True
+        )
+
+        assert res.status_code == 201
+        text = smtp.sent[0].get_body(('plain',)).get_content()
+        assert (
+            'Jeanne Martin vous invite à rejoindre Crous Créteil sur Mariam, en tant que superviseur.'
+            in text
+        )
 
 
 class TestSecondFactorReset:

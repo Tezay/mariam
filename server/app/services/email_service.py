@@ -69,6 +69,7 @@ def is_configured() -> bool:
 
 class Kind(StrEnum):
     DIGEST = 'digest'
+    INVITATION = 'invitation'
     RESET = 'reset'
     SECURITY = 'security'
 
