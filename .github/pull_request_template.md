@@ -1,24 +1,36 @@
-## Description
+<!--
+Title: Conventional Commits, `type(scope): short description`.
+The pull request is merged by squash, so its title becomes the commit on `main`.
+-->
 
-<!-- Décrivez les changements apportés et pourquoi -->
+## Summary
 
-## Type de changement
+<!-- What this changes and why, in a sentence or two. -->
 
-- [ ] `feat` — Nouvelle fonctionnalité
-- [ ] `fix` — Correction de bug
-- [ ] `chore` — Maintenance / dépendances / CI
-- [ ] `refactor` — Refactoring sans changement de comportement
-- [ ] `docs` — Documentation uniquement
+<!-- Keep the sections that apply and delete the others. They are the categories of CHANGELOG.md. -->
 
-## Checklist
+## Security
 
-- [ ] Tests ajoutés ou mis à jour pour couvrir les changements
-- [ ] `ruff check app/` passe sans erreur (backend)
-- [ ] `bun run lint` et `bun run format:check` passent (frontend)
-- [ ] Migration Alembic créée si un modèle SQLAlchemy a changé
-- [ ] `CHANGELOG.md` mis à jour (section `[Unreleased]`)
-- [ ] Pas de secret dans le diff (`git diff HEAD | grep -iE "secret|password|token|key"`)
+-
 
-## Captures d'écran / démo
+## Added
 
-<!-- Si changement UI, joindre une capture avant/après -->
+-
+
+## Changed
+
+-
+
+## Removed
+
+-
+
+## Fixed
+
+-
+
+## Testing
+
+<!-- Tests added or changed, what was run, and what could not be verified. -->
+
+-
