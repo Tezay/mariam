@@ -75,16 +75,6 @@ class Menu(db.Model):
 
         return data
     
-    def get_items_by_category(self):
-        """Retourne les items groupés par category_id (entier)."""
-        categories = {}
-        for item in self.items:
-            cat = item.category_id
-            if cat not in categories:
-                categories[cat] = []
-            categories[cat].append(item.to_dict())
-        return categories
-    
     def __repr__(self):
         return f'<Menu {self.date} - {self.status}>'
 

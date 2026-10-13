@@ -22,14 +22,3 @@ export function leafCategories(cats: MenuCategory[]): MenuCategory[] {
   }
   return result;
 }
-
-/**
- * Normalise un nom de plat : espaces compactés, première lettre en majuscule.
- * Miroir de `_capitalize_name` côté serveur (routes/catalog.py).
- */
-export function normalizeDishName(name: string): string {
-  return name
-    .trim()
-    .replace(/\s+/g, ' ')
-    .replace(/^./, (c) => c.toUpperCase());
-}

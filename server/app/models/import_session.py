@@ -31,10 +31,6 @@ class ImportSession(db.Model):
         self.rows = json.dumps(rows)
         self.expires_at = utc_now_naive() + timedelta(minutes=expires_minutes)
     
-    def get_columns(self) -> list:
-        """Retourne les colonnes comme liste Python."""
-        return json.loads(self.columns)
-    
     def get_rows(self) -> list:
         """Retourne les lignes comme liste de dictionnaires."""
         return json.loads(self.rows)
