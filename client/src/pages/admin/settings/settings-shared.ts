@@ -2,6 +2,7 @@
  * Constantes et helpers partagés entre les onglets de la page Mon restaurant.
  */
 import { ServiceHours } from '@/lib/api/restaurant';
+import { parseSiteName, SITE_NAME_RULE } from '@/lib/site-name';
 
 export const DAY_NAMES = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
@@ -11,6 +12,10 @@ export const PAYMENT_OPTIONS: { id: string; label: string }[] = [
   { id: 'cash', label: 'Espèces' },
   { id: 'ticket_restaurant', label: 'Ticket restaurant' },
 ];
+
+export function validateSiteName(val: string): string | null {
+  return parseSiteName(val) === null ? SITE_NAME_RULE : null;
+}
 
 export function validateEmail(val: string): string | null {
   if (!val) return null;

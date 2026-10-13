@@ -2,6 +2,7 @@ from marshmallow import EXCLUDE, Schema, ValidationError, fields
 
 from ..utils.display_name import parse_display_name
 from ..utils.email_address import canonical_email
+from ..utils.site_name import SITE_NAME_MAX, parse_site_name
 
 
 class ErrorSchema(Schema):
@@ -34,5 +35,16 @@ class DisplayName(fields.Str):
             raise ValidationError(
                 'Le nom doit contenir 2 à 50 caractères : lettres, espaces, tirets, '
                 'apostrophes ou points.'
+            )
+        return name
+
+
+class SiteName(fields.Str):
+    def _deserialize(self, value, attr, data, **kwargs):
+        name = parse_site_name(super()._deserialize(value, attr, data, **kwargs))
+        if name is None:
+            raise ValidationError(
+                f'Le nom doit faire 1 à {SITE_NAME_MAX} caractères et ne contenir ni adresse '
+                'web ni adresse e-mail (« / », « : » et « @ » sont refusés).'
             )
         return name

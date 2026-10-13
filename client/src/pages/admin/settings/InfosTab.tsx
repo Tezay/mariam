@@ -7,13 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { MapPin } from 'lucide-react';
-import { validateEmail, validatePhone } from './settings-shared';
+import { validateSiteName, validateEmail, validatePhone } from './settings-shared';
 import type { SettingsState } from './useSettingsState';
 
 export function InfosTab({ state }: { state: SettingsState }) {
   const {
     name,
     setName,
+    nameError,
+    setNameError,
     addressLabel,
     setAddressLabel,
     setAddressLat,
@@ -50,9 +52,21 @@ export function InfosTab({ state }: { state: SettingsState }) {
           <Input
             id="name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (nameError) setNameError(null);
+            }}
+            onBlur={(e) => setNameError(validateSiteName(e.target.value))}
             placeholder="Restaurant Universitaire"
+            className={nameError ? 'border-destructive focus-visible:ring-destructive' : ''}
           />
+          {nameError ? (
+            <p className="mt-1 text-xs text-destructive">{nameError}</p>
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Il s'affiche sur le menu public et dans les invitations envoyées par e-mail.
+            </p>
+          )}
         </div>
 
         {/* Adresse BAN */}
