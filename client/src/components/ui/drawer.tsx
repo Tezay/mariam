@@ -43,7 +43,7 @@ const DrawerContent = React.forwardRef<
       {...props}
     >
       {/* Drag handle */}
-      <div className="mx-auto mb-1 mt-3 h-1.5 w-12 shrink-0 rounded-full bg-gray-200" />
+      <div className="mx-auto mb-1 mt-3 h-1.5 w-12 shrink-0 rounded-full bg-gray-200 dark:bg-border" />
 
       {/* Bouton fermeture */}
       {!hideClose && (

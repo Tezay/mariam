@@ -72,7 +72,7 @@ function Toggle({
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-mariam-blue focus:ring-offset-2 ${
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-mariam-blue focus:ring-offset-2 focus:ring-offset-white ${
           checked ? 'bg-mariam-blue' : 'bg-gray-300'
         }`}
       >
@@ -376,7 +376,8 @@ export function NotificationsPage() {
   // ========================================
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    // Drawn light whatever the theme: the native time field must not turn dark.
+    <div className="min-h-screen bg-gray-50 [color-scheme:light]">
       {/* Header */}
       <header className="flex items-center gap-3 bg-mariam-blue p-4 text-white">
         <button
@@ -457,7 +458,7 @@ export function NotificationsPage() {
                 </div>
 
                 {/* Préférences pré-activation */}
-                <div className="space-y-1 border-t pt-4 text-left">
+                <div className="space-y-1 border-t border-gray-200 pt-4 text-left">
                   <Toggle
                     checked={prefs.notify_today_menu}
                     onChange={(v) => setPrefs((p) => ({ ...p, notify_today_menu: v }))}

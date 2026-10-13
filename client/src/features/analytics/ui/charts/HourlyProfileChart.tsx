@@ -7,7 +7,7 @@ import {
 } from '@/components/ui/chart';
 
 const CHART_CONFIG: ChartConfig = {
-  views: { label: 'Consultations', color: '#093EAA' },
+  views: { label: 'Consultations', color: 'hsl(var(--primary))' },
 };
 
 const formatHour = (hour: number | string) => `${String(hour).padStart(2, '0')}h`;

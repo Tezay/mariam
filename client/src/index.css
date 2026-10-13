@@ -61,6 +61,7 @@
    DARK MODE (optionnel)
    ======================================== */
 .dark {
+  color-scheme: dark;
   --background: 220 20% 10%;
   --background-alt: 220 18% 14%;
   --foreground: 220 14% 96%;

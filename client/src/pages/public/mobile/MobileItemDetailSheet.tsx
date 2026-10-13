@@ -35,7 +35,7 @@ const SCHEME_LABELS: Record<string, string> = {
 function TagChip({ tag }: { tag: DietaryTag }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${TAG_COLOR_CLASSES[tag.color] || 'bg-gray-100 text-gray-700'}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${TAG_COLOR_CLASSES[tag.color] || 'border-gray-200 bg-gray-100 text-gray-700'}`}
     >
       <Icon name={tag.icon as IconName} className="h-3 w-3 shrink-0" />
       {tag.label}

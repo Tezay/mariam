@@ -53,7 +53,7 @@ export function SubstituteCombobox({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1 rounded-full border border-dashed border-orange-300 px-2 py-0.5 text-xs text-orange-500 transition-colors hover:border-orange-400 hover:bg-orange-50"
+          className="flex items-center gap-1 rounded-full border border-dashed border-orange-300 px-2 py-0.5 text-xs text-orange-500 transition-colors hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-orange-500/10"
         >
           <Plus className="h-2.5 w-2.5" />
           Ajouter

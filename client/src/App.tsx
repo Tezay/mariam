@@ -14,6 +14,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { useAuth } from './contexts/AuthContext';
 import { PwaInstallProvider } from './contexts/PwaInstallContext';
+import { useTheme } from './contexts/ThemeProvider';
 // Chemin public critique (menu) — chargé en eager pour un premier rendu rapide.
 import { TenantLayout, PublicRoot, MonoMenu, SluggedMenu } from './pages/public/PublicRoutes';
 import { ErrorBoundary, PublicErrorFallback } from './components/ErrorBoundary';
@@ -213,13 +214,21 @@ function OrgRoute({ children }: { children: React.ReactNode }) {
 }
 
 function ResponsiveToaster() {
+  const { resolvedTheme } = useTheme();
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 1024);
     window.addEventListener('resize', handler);
     return () => window.removeEventListener('resize', handler);
   }, []);
-  return <Toaster position={isMobile ? 'top-center' : 'bottom-right'} richColors closeButton />;
+  return (
+    <Toaster
+      theme={resolvedTheme}
+      position={isMobile ? 'top-center' : 'bottom-right'}
+      richColors
+      closeButton
+    />
+  );
 }
 
 /** Fallback shown while a lazy-loaded route chunk is fetched. */

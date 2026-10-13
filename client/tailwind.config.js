@@ -59,6 +59,14 @@ export default {
                     }
                 }
             },
+            // A border or a focus-ring offset written without a colour follows the theme,
+            // not Tailwind's light grey and white.
+            borderColor: {
+                DEFAULT: "hsl(var(--border))",
+            },
+            ringOffsetColor: {
+                DEFAULT: "hsl(var(--background))",
+            },
             borderRadius: {
                 lg: "var(--radius)",
                 md: "calc(var(--radius) - 2px)",

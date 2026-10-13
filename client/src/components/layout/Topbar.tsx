@@ -52,7 +52,8 @@ export function Topbar({
   accountPath,
 }: TopbarProps) {
   const { user, logout } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
   const { toggle, setMobileOpen } = useSidebar();
   const navigate = useNavigate();
   const title = usePageTitle(pageTitles, fallbackTitle);
@@ -135,12 +136,9 @@ export function Topbar({
               Mon compte
             </NavLink>
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="gap-2"
-          >
-            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            {theme === 'dark' ? 'Mode clair' : 'Mode sombre'}
+          <DropdownMenuItem onClick={() => setTheme(isDark ? 'light' : 'dark')} className="gap-2">
+            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {isDark ? 'Mode clair' : 'Mode sombre'}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem

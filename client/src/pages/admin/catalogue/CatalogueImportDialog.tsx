@@ -360,7 +360,7 @@ export function CatalogueImportDialog({
                   </span>
                 )}
                 {previewData.duplicate_count > 0 && (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-800">
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-400">
                     {previewData.duplicate_count} doublon
                     {previewData.duplicate_count > 1 ? 's' : ''} ignoré
                     {previewData.duplicate_count > 1 ? 's' : ''}
