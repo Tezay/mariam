@@ -21,6 +21,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { fuzzyMatches } from '@/lib/fuzzy';
+import { Spinner } from '@/components/ui/spinner';
 
 type SearchResult =
   | { kind: 'page'; label: string; to: string; icon: ReactNode }
@@ -304,9 +305,7 @@ export function GlobalSearch() {
             <X className="h-3.5 w-3.5" />
           </button>
         )}
-        {loading && (
-          <span className="absolute right-2 h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        )}
+        {loading && <Spinner className="absolute right-2 size-3 text-primary" />}
       </div>
 
       {open && results.length > 0 && (

@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import { passkeyRegistrationError } from '@/lib/passkey-errors';
+import { Spinner } from '@/components/ui/spinner';
 
 export interface SecondFactorEnrolment {
   /** Registers the passkey and updates the session. */
@@ -202,7 +203,7 @@ export function SecondFactorSetup({ enrolment }: { enrolment: SecondFactorEnrolm
           <img src={qrCode} alt="QR Code MFA" className="h-48 w-48 rounded border border-border" />
         ) : (
           <div className="flex h-48 w-48 items-center justify-center rounded border border-border">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+            <Spinner className="size-8 text-primary" />
           </div>
         )}
       </div>

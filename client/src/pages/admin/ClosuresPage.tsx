@@ -30,6 +30,7 @@ import {
   ChevronRight,
   XCircle,
 } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 
 interface ClosureFormData {
   isSingleDay: boolean;
@@ -256,7 +257,7 @@ export function ClosuresPage() {
 
       {isLoading && (
         <div className="flex justify-center py-16">
-          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+          <Spinner className="size-8 text-primary" />
         </div>
       )}
       {!isLoading && Boolean(error) && (

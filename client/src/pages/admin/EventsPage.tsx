@@ -39,6 +39,7 @@ import {
   Image as ImageIcon,
   Megaphone,
 } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 
 type FilterMode = 'upcoming' | 'past' | 'all';
 
@@ -410,7 +411,7 @@ export function EventsPage() {
       {/* Contenu */}
       {isLoading ? (
         <div className="flex justify-center py-12">
-          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
+          <Spinner className="size-8 text-primary" />
         </div>
       ) : events.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">

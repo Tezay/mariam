@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Plus, Info, Calendar, GraduationCap } from 'lucide-react';
 import type { SettingsState } from './useSettingsState';
+import { Spinner } from '@/components/ui/spinner';
 
 export function CalendriersTab({ state }: { state: SettingsState }) {
   const { calendarSettings: settings, setCalendarSettings } = state;
@@ -117,7 +118,7 @@ export function CalendriersTab({ state }: { state: SettingsState }) {
   if (!settings) {
     return (
       <div className="flex justify-center py-8">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+        <Spinner className="size-8 text-primary" />
       </div>
     );
   }

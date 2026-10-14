@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { ShieldCheck, ShieldOff, AlertCircle, Check, Smartphone } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Spinner } from '@/components/ui/spinner';
 
 export function TotpManager() {
   const { user, refreshUser } = useAuth();
@@ -235,7 +236,7 @@ export function TotpManager() {
 
           {isLoading && !qrCode ? (
             <div className="flex justify-center py-8">
-              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+              <Spinner className="size-8 text-primary" />
             </div>
           ) : (
             <>

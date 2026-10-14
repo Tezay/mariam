@@ -23,6 +23,7 @@ import { DndContext, closestCenter } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CategoryRow, SortableCatList, CategoryPatch } from './CategoryComponents';
+import { Spinner } from '@/components/ui/spinner';
 
 /** The two refusals the server raises on the leaf rule, with what it counted. */
 function conflictCount(error: unknown, key: 'stranded_dishes' | 'attached_dishes'): number | null {
@@ -141,7 +142,7 @@ export function CategoriesTab() {
       <CardContent>
         {catLoading ? (
           <div className="flex justify-center py-4">
-            <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-primary" />
+            <Spinner className="size-8 text-primary" />
           </div>
         ) : (
           <div className="space-y-3">
