@@ -18,6 +18,7 @@ import { useTheme } from './contexts/ThemeProvider';
 // Chemin public critique (menu) — chargé en eager pour un premier rendu rapide.
 import { TenantLayout, PublicRoot, MonoMenu, SluggedMenu } from './pages/public/PublicRoutes';
 import { ErrorBoundary, PublicErrorFallback } from './components/ErrorBoundary';
+import { PageLoader } from './components/PageLoader';
 import { dashboardPathForRole } from './lib/dashboard-routes';
 
 // Tout le reste (auth, admin, org, notifications) est chargé à la demande pour
@@ -114,21 +115,12 @@ const DishDetailPage = lazy(() =>
 // Error pages
 import { NotFound, Forbidden } from './pages/errors';
 
-// Spinner plein écran (attente de l'état d'authentification)
-function FullScreenSpinner() {
-  return (
-    <div className="flex h-screen items-center justify-center">
-      <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
-    </div>
-  );
-}
-
 // Route protégée pour l'admin (authentification requise)
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return <FullScreenSpinner />;
+    return <PageLoader />;
   }
 
   if (!isAuthenticated) {
@@ -143,7 +135,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
-    return <FullScreenSpinner />;
+    return <PageLoader />;
   }
 
   if (user?.role !== 'admin') {
@@ -158,7 +150,7 @@ function SiteDashboardRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
-    return <FullScreenSpinner />;
+    return <PageLoader />;
   }
 
   if (user?.role === 'org_admin') {
@@ -173,7 +165,7 @@ function EditorRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
-    return <FullScreenSpinner />;
+    return <PageLoader />;
   }
 
   if (user?.role !== 'admin' && user?.role !== 'editor') {
@@ -188,7 +180,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuth();
 
   if (isLoading) {
-    return <FullScreenSpinner />;
+    return <PageLoader />;
   }
 
   if (isAuthenticated) {
@@ -203,7 +195,7 @@ function OrgRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
-    return <FullScreenSpinner />;
+    return <PageLoader />;
   }
 
   if (user?.role !== 'org_admin') {
@@ -228,15 +220,6 @@ function ResponsiveToaster() {
       richColors
       closeButton
     />
-  );
-}
-
-/** Fallback shown while a lazy-loaded route chunk is fetched. */
-function PageLoader() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary" />
-    </div>
   );
 }
 

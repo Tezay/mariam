@@ -1,10 +1,7 @@
 /**
- * MARIAM — Service Worker (injectManifest via vite-plugin-pwa / Workbox).
- *
- * Gère :
- * - Le précache des assets statiques (Workbox injectManifest)
- * - La réception des messages push (événement `push`)
- * - Le clic sur les notifications (événement `notificationclick`)
+ * Production service worker, bundled by scripts/build-sw.mjs, which also
+ * injects the precache list. public/sw-push.js is its push-only twin for
+ * development.
  */
 import { precacheAndRoute } from 'workbox-precaching';
 
@@ -29,10 +26,7 @@ self.addEventListener('activate', (event) => {
 // ========================================
 // Manifest dynamique selon le rôle utilisateur
 // ========================================
-// Doit être enregistré AVANT precacheAndRoute : Workbox enregistre son propre
-// listener fetch lors de l'appel à precacheAndRoute et servirait /site.webmanifest
-// depuis son précache si ce handler était déclaré après.
-// Le rôle est persisté dans CacheStorage par le client React après chaque auth.
+// The React client stores the role in CacheStorage after each sign-in.
 self.addEventListener('fetch', (event) => {
   const { pathname } = new URL(event.request.url);
   if (pathname === '/manifest.webmanifest' || pathname === '/site.webmanifest') {
@@ -54,7 +48,7 @@ async function resolveDynamicManifest() {
       }
     }
   } catch (_) {}
-  return fetch('/manifest.webmanifest');
+  return fetch('/site.webmanifest');
 }
 
 // ========================================

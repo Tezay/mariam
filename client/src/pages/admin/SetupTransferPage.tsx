@@ -18,6 +18,7 @@ import {
   startRegistration,
   type PublicKeyCredentialCreationOptionsJSON,
 } from '@simplewebauthn/browser';
+import { Spinner } from '@/components/ui/spinner';
 
 type State = 'validating' | 'success' | 'passkey_pending' | 'passkey_done' | 'error';
 
@@ -84,7 +85,7 @@ export function SetupTransferPage() {
 
       {state === 'validating' && (
         <div className="flex flex-col items-center gap-4 text-center">
-          <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-primary" />
+          <Spinner className="size-8 text-primary" />
           <p className="text-muted-foreground">Connexion en cours…</p>
         </div>
       )}

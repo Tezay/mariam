@@ -31,6 +31,7 @@ import { CategoriesTab } from './settings/CategoriesTab';
 import { TagsTab } from './settings/TagsTab';
 import { SatisfactionTab } from './settings/SatisfactionTab';
 import { CalendriersTab } from './settings/CalendriersTab';
+import { Spinner } from '@/components/ui/spinner';
 
 export function SettingsPage() {
   const location = useLocation();
@@ -72,7 +73,7 @@ export function SettingsPage() {
   if (isLoading) {
     return (
       <div className="container-mariam flex justify-center py-8">
-        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-primary" />
+        <Spinner className="size-8 text-primary" />
       </div>
     );
   }

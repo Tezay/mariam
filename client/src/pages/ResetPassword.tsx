@@ -19,6 +19,7 @@ import {
   startAuthentication,
   type PublicKeyCredentialRequestOptionsJSON,
 } from '@simplewebauthn/browser';
+import { PageLoader } from '@/components/PageLoader';
 
 type Step = 'loading' | 'invalid' | 'form' | 'success';
 type VerificationMethod = 'totp' | 'passkey';
@@ -142,11 +143,7 @@ export function ResetPassword() {
   };
 
   if (step === 'loading') {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   if (step === 'invalid') {

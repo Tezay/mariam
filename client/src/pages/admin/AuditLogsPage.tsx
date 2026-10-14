@@ -34,6 +34,7 @@ import {
   Search,
   X,
 } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 
 interface AuditLog {
   id: number;
@@ -312,7 +313,7 @@ export function AuditLogsPage() {
       {/* Table */}
       {isLoading ? (
         <div className="flex justify-center py-12">
-          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
+          <Spinner className="size-8 text-primary" />
         </div>
       ) : logs.length === 0 ? (
         <Card>

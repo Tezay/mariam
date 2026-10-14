@@ -29,6 +29,7 @@ import {
   Ellipsis,
   SquarePlus,
 } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 
 const INSTALL_DONE_KEY = 'mariam-pwa-install-done';
 
@@ -310,7 +311,7 @@ function DesktopInstructions({ onDone }: { onDone: () => void }) {
           <div className="relative rounded-xl border-2 border-primary/20 bg-white p-4">
             {isGenerating || !qrUrl ? (
               <div className="flex h-48 w-48 items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+                <Spinner className="size-8 text-primary" />
               </div>
             ) : (
               <QRCodeSVG value={qrUrl} size={192} bgColor="#ffffff" fgColor="#093EAA" level="M" />

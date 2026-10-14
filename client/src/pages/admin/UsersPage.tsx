@@ -62,6 +62,7 @@ import {
   KeyRound,
   Link as LinkIcon,
 } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 
 const INVITATION_CONFIRMATION = { description: 'Pour inviter un nouvel utilisateur.' };
 
@@ -339,7 +340,7 @@ export function UsersPage() {
 
       {isLoading ? (
         <div className="flex justify-center py-12">
-          <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-primary"></div>
+          <Spinner className="size-8 text-primary" />
         </div>
       ) : (
         <div className="space-y-6">

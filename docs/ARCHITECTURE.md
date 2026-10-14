@@ -6,7 +6,7 @@ Technical reference for the deployed system.
 
 | Component | Technology | Role |
 |---|---|---|
-| Frontend | React 18, Vite, Nginx | User interface, port 80 |
+| Frontend | React 18, React Router 7, Vite, Nginx | User interface, port 80 |
 | Backend | Flask, Gunicorn | REST API and authentication, port 5000 internally |
 | Scheduler | Flask, APScheduler | Scheduled jobs, its own container |
 | Database | PostgreSQL 15 | Persistent storage, port 5432 internally |
@@ -59,10 +59,8 @@ Technical reference for the deployed system.
 `deploy/nginx/nginx.conf` handles:
 
 1. Reverse proxy: `/v1/*` and `/health` to `backend:5000`, which avoids CORS entirely.
-2. Private routes (`/admin`, `/org`, `/login`, `/activate`, `/reset-password`, `/notifications`):
-   the SPA is served statically (`try_files $uri /index.html`).
-3. Public pages (`/`, `/menu`, `/<slug>/menu`, `/sitemap.xml`): proxied to Flask (`@shell`), which
-   injects SEO meta and JSON-LD. Real files, assets, manifests and favicons stay static.
+2. `/sitemap.xml`: proxied to Flask, which builds it from the organization of the requested host.
+3. Every other path: the single-page app, served statically (`try_files $uri /index.html`).
 4. Static assets cached for a year, GZIP on.
 5. `server_name _` accepts any `*.mariam.app` subdomain; the `Host` header reaches the backend,
    which resolves the organization from it.
@@ -90,15 +88,16 @@ allows it. Behind a Cloudflare Tunnel, each public hostname declared on the tunn
 CNAME, so a tenant is added by declaring its hostname rather than by relying on a wildcard.
 `server_name _` accepts every subdomain and forwards the host.
 
-### SEO shell
+### Indexing
 
-Public pages are proxied to Flask (`routes/seo.py`), which fetches the frontend's `index.html`
-(`FRONTEND_ORIGIN`, cached) and injects `<title>`, description, Open Graph and Twitter tags, a
-canonical URL, and a Schema.org `Restaurant` JSON-LD with the day's menu. Scrapers do not run
-JavaScript, so link previews and indexing depend on this.
+Pages are rendered in the browser from one `index.html`, generated at build time by React Router
+(`client/src/root.tsx`) and identical for every tenant. A crawler or link preview that does not
+run JavaScript therefore reads the generic title and description, not a restaurant's.
 
-`sitemap.xml` is generated per host from the organization's active sites. `robots.txt`, served by
-nginx, allows public pages, blocks `/admin`, `/org` and the API, and points at the sitemap.
+`sitemap.xml` is generated per host from the organization's active sites (`routes/sitemap.py`).
+`robots.txt`, served by nginx, allows public pages, blocks `/admin`, `/org` and the API, and
+points at the sitemap. Both exist only behind `deploy/nginx/nginx.conf`: a frontend image served
+on its own answers `index.html` for every path.
 
 ### Onboarding a client
 
@@ -172,10 +171,11 @@ Browser ──(1) subscribe──→ Backend ──(2) signed message──→ P
 | File | Used in | Module format |
 |---|---|---|
 | `client/public/sw-push.js` | Development, registered by `push.ts` | Classic, no imports |
-| `client/src/sw-push.js` | Production, built by VitePWA and Workbox | ES modules |
+| `client/src/sw-push.js` | Production, bundled by `client/scripts/build-sw.mjs` with Workbox | ES modules |
 
-`devOptions.enabled` is false in `vite.config.ts`, so development registers the minimal worker
-directly while production ships the Workbox build with asset precaching.
+Development registers the minimal worker directly. A production build bundles the other one and
+injects its precache list once the app is built; `client/src/entry.client.tsx` registers it, and
+a page still running the previous build reloads when the new worker takes over.
 
 ### Headers
 

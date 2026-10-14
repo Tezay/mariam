@@ -9,6 +9,7 @@ import { Navigate, Outlet, useParams } from 'react-router';
 import { TenantProvider, useTenant } from '@/contexts/TenantContext';
 import { MenuDisplay } from './MenuDisplay';
 import { SiteListPage } from './SiteListPage';
+import { PageLoader } from '@/components/PageLoader';
 
 export function TenantLayout() {
   return (
@@ -19,11 +20,7 @@ export function TenantLayout() {
 }
 
 function TenantLoading() {
-  return (
-    <div className="flex h-screen items-center justify-center bg-slate-50">
-      <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-primary" />
-    </div>
-  );
+  return <PageLoader className="bg-slate-50" />;
 }
 
 function TenantError() {
