@@ -1,8 +1,7 @@
 {
     "compilerOptions": {
         "types": [
-            "vite/client",
-            "vite-plugin-pwa/client"
+            "vite/client"
         ],
         "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
         "target": "ES2020",
@@ -28,6 +27,10 @@
         "noFallthroughCasesInSwitch": true,
         "noUncheckedSideEffectImports": true,
         /* Paths for Shadcn */
+        "rootDirs": [
+            ".",
+            "./.react-router/types"
+        ],
         "paths": {
             "@/*": [
                 "./src/*"
@@ -35,6 +38,7 @@
         }
     },
     "include": [
-        "src"
+        "src",
+        ".react-router/types/**/*"
     ]
 }

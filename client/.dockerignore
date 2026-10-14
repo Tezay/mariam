@@ -6,8 +6,8 @@
 node_modules/
 
 # Build output
-dist/
 build/
+.react-router/
 
 # Environment
 .env

@@ -18,8 +18,15 @@ updates:
           - react-dom
           - '@types/react'
           - '@types/react-dom'
+      # Pinned to one exact version: @react-router/node refuses any other react-router.
+      react-router:
+        patterns:
+          - react-router
+          - '@react-router/*'
       radix-ui:
         patterns: ['@radix-ui/*']
+      workbox:
+        patterns: ['workbox-*']
       tiptap:
         patterns: ['@tiptap/*']
       vite:
@@ -28,7 +35,6 @@ updates:
           - vitest
           - '@vitejs/*'
           - '@vitest/*'
-          - vite-plugin-pwa
           - jsdom
       lint-format:
         patterns:

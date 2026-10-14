@@ -422,8 +422,11 @@ The frontend image sends HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Ref
 config serves it. The API adds `X-Content-Type-Options` itself.
 
 The Content-Security-Policy is report-only for now. `client/docker-entrypoint.sh` writes it at
-container start, adding the API origin from `API_URL` and the Sentry host from `SENTRY_DSN`. To
-make it enforcing:
+container start, adding the API origin from `API_URL` and the Sentry host from `SENTRY_DSN`.
+
+It cannot be enforced as written: `index.html` carries the router's inline bootstrap scripts,
+which `script-src 'self'` refuses, so the app would not start. They first need a nonce or a hash
+in the policy. Once they have one, to make it enforcing:
 
 1. Browse the admin, a public menu and the TV display with the browser console open, and clear
    every `Content-Security-Policy-Report-Only` violation

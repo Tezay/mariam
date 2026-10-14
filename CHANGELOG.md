@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **React Router 7** replaces `react-router-dom` 6; the current page stays visible while the next one loads.
+- **The frontend is built by React Router's framework mode**, still as a single-page app; the build needs Node 22 alongside Bun and writes to `build/client`.
+- **The service worker is built by `client/scripts/build-sw.mjs`**, with Workbox, in place of `vite-plugin-pwa`.
+- **One loading indicator** across the app, announced to screen readers.
+
+### Removed
+
+- **The SEO shell served by Flask** and its `FRONTEND_ORIGIN` setting: a frontend image deployed on its own never reached it. `/sitemap.xml` stays.
 
 ## [0.19.0] - 2026-10-13
 

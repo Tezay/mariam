@@ -4,6 +4,7 @@
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) 4.x or later
 - [Bun](https://bun.sh/) 1.x or later
+- [Node.js](https://nodejs.org/) 22 or later, to build or serve the client outside Docker
 - Git 2.x or later
 
 ## Development setup

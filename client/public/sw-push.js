@@ -1,12 +1,8 @@
 /**
- * MARIAM — Service Worker minimal pour les notifications push.
+ * Push-only service worker for development, registered by push.ts.
  *
- * Ce fichier est servi statiquement depuis public/ et enregistré
- * directement par push.ts en mode développement.
- *
- * En production, le Service Worker Workbox (généré par vite-plugin-pwa
- * via injectManifest depuis src/sw-push.js) inclut ces mêmes handlers
- * ainsi que la gestion du cache statique.
+ * Production ships the worker built from src/sw-push.js, which carries these
+ * handlers plus the precache.
  */
 
 // ========================================
