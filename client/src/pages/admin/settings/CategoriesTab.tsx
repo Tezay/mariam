@@ -1,7 +1,3 @@
-/**
- * Onglet Catégories : CRUD des catégories de menu (enregistrement immédiat,
- * indépendant du bouton Enregistrer global).
- */
 import { useState, useEffect, useCallback } from 'react';
 import { isAxiosError } from 'axios';
 import { categoriesApi, MenuCategory } from '@/lib/api/categories';
@@ -44,7 +40,7 @@ export function CategoriesTab() {
       const { categories: cats } = await categoriesApi.list();
       setCategories(cats);
     } catch {
-      // ignore
+      // The tab then shows no categories.
     } finally {
       setCatLoading(false);
     }
@@ -60,7 +56,6 @@ export function CategoriesTab() {
       setCategories((prev) =>
         prev.map((c) => {
           if (c.id === id) return { ...c, ...updated };
-          // Mettre à jour dans les sous-catégories
           if (c.subcategories?.some((s) => s.id === id)) {
             return {
               ...c,

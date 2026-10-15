@@ -102,7 +102,6 @@ function SingleDatePicker({ onSelect, onBack }: SingleDatePickerProps) {
 
   return (
     <div className="w-64 p-2">
-      {/* Header */}
       <div className="mb-2 flex items-center gap-1">
         <button
           type="button"
@@ -130,7 +129,6 @@ function SingleDatePicker({ onSelect, onBack }: SingleDatePickerProps) {
         </button>
       </div>
 
-      {/* Day headers */}
       <div className="mb-1 grid grid-cols-7">
         {FR_DAYS_MINI.map((d, i) => (
           <div key={i} className="py-0.5 text-center text-[10px] font-medium text-muted-foreground">
@@ -139,7 +137,6 @@ function SingleDatePicker({ onSelect, onBack }: SingleDatePickerProps) {
         ))}
       </div>
 
-      {/* Day cells */}
       <div className="grid grid-cols-7 gap-y-0.5">
         {days.map((date) => {
           const inMonth = date >= firstOfMonth && date <= lastOfMonth;
@@ -165,7 +162,6 @@ function SingleDatePicker({ onSelect, onBack }: SingleDatePickerProps) {
         })}
       </div>
 
-      {/* Confirm button */}
       <Button
         size="sm"
         className="mt-2 h-7 w-full rounded-xl text-xs"
@@ -223,7 +219,6 @@ export function CalendarToolbar({
 
   return (
     <div className="flex shrink-0 items-center gap-1.5 border-b border-border bg-card px-3 py-2">
-      {/* Navigation */}
       <div className="flex items-center gap-1">
         <button
           type="button"
@@ -251,7 +246,6 @@ export function CalendarToolbar({
         </button>
       </div>
 
-      {/* Label période */}
       <button
         type="button"
         onClick={onToday}
@@ -262,9 +256,8 @@ export function CalendarToolbar({
 
       <div className="flex-1" />
 
-      {/* Pill toggles + CTA groupés (ne se séparent jamais par wrap) */}
+      {/* One group, so that they never wrap apart */}
       <div className="flex shrink-0 items-center gap-1.5">
-        {/* Toggle vues desktop — pill animée */}
         <div className="relative hidden items-center rounded-xl border border-border bg-muted/40 p-0.5 md:flex">
           <span
             aria-hidden
@@ -294,7 +287,6 @@ export function CalendarToolbar({
           ))}
         </div>
 
-        {/* Toggle vues mobile — pill animée */}
         <div className="relative flex items-center rounded-xl border border-border bg-muted/40 p-0.5 md:hidden">
           <span
             aria-hidden
@@ -324,7 +316,6 @@ export function CalendarToolbar({
           ))}
         </div>
 
-        {/* CTA "+" */}
         {canEdit && (
           <DropdownMenu open={dropdownOpen} onOpenChange={handleDropdownOpenChange}>
             <DropdownMenuTrigger asChild>

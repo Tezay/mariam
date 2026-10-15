@@ -4,8 +4,6 @@ import type { Menu, MenuItem } from '@/lib/api/menus';
 import type { DishCatalogItem } from '@/lib/api/catalog';
 import { notify } from '@/lib/toast';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export interface UseMenuEditorOptions {
   date: string;
   menu: Menu | null;
@@ -85,7 +83,7 @@ export function useMenuEditor({
   const [originalSubstitutions, setOriginalSubstitutions] = useState<SubstitutionMap>(() =>
     subsFromMenu(menu)
   );
-  // ID créé par save() au démarrage sans menu ; la ref évite les closures périmées.
+  // Set by the first save() of a day without a menu; the ref keeps closures current.
   const [savedMenuId, setSavedMenuId] = useState<number | undefined>(menu?.id);
   const savedMenuIdRef = useRef<number | undefined>(menu?.id);
 
@@ -96,7 +94,6 @@ export function useMenuEditor({
     if (items.length !== originalItems.length) return true;
     if (items.some((item, i) => serializeItem(item) !== serializeItem(originalItems[i])))
       return true;
-    // Vérifier si les substitutions ont changé
     const allCatIds = new Set([
       ...Object.keys(substitutions).map(Number),
       ...Object.keys(originalSubstitutions).map(Number),
@@ -170,8 +167,6 @@ export function useMenuEditor({
     setSubstitutions((prev) => ({ ...prev, [categoryId]: dishes }));
   }, []);
 
-  // ─── Save ─────────────────────────────────────────────────────────────────
-
   const buildSaveItems = (currentItems: MenuItem[]) =>
     currentItems.map(({ id, ...rest }) => {
       if (id !== undefined && id < 0) return rest;
@@ -191,7 +186,6 @@ export function useMenuEditor({
         );
         setSavedMenuId(savedMenu.id);
         savedMenuIdRef.current = savedMenu.id;
-        // Sauvegarder les substitutions modifiées
         for (const [catId, dishes] of Object.entries(substitutions)) {
           const catIdNum = Number(catId);
           const origIds = (originalSubstitutions[catIdNum] ?? [])

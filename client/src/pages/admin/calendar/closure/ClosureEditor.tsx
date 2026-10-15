@@ -162,10 +162,8 @@ export function ClosureEditor({
   const inputClass =
     'w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary';
 
-  // ── Corps du formulaire ───────────────────────
   const body = (
     <div className="space-y-4">
-      {/* Jour / Plage — segmented control */}
       <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted/50 p-1">
         {(
           [
@@ -245,7 +243,6 @@ export function ClosureEditor({
     </div>
   );
 
-  // ── Actions (partagées) ──────────────────────────────────────────────────
   const actions = (
     <>
       {isEditing && (

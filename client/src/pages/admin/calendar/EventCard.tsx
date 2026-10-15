@@ -40,7 +40,6 @@ export function EventCard({ event, compact = false, onEdit }: EventCardProps) {
         borderLeft: `3px solid ${color}`,
       }}
     >
-      {/* Image gauche */}
       {image && (
         <img
           src={image.url}
@@ -49,9 +48,7 @@ export function EventCard({ event, compact = false, onEdit }: EventCardProps) {
         />
       )}
 
-      {/* Contenu */}
       <div className="min-w-0 flex-1">
-        {/* Badge Événement */}
         <span
           className="mb-1.5 inline-block rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide"
           style={{

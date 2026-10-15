@@ -1,7 +1,3 @@
-/**
- * Confirmation d'ajout : check animé, hint photo discret pour un plat sans
- * image, puis "ajouter un autre" ou passer à la suite.
- */
 import { Check, Camera, Plus, ChevronRight } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { getCategoryColor } from '@/lib/category-colors';
@@ -56,7 +52,6 @@ export function ItemAddedStep({ state }: { state: UseOnboardingStateReturn }) {
           )}
         </div>
 
-        {/* Hint photo discret pour un plat sans image */}
         {activeDish && !activeDish.image_url && (
           <button
             type="button"

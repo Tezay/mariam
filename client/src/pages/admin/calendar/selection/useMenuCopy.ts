@@ -12,15 +12,12 @@ export const CONFLICT_OPTIONS: { value: ConflictMode; label: string; desc: strin
   { value: 'ignore', label: 'Ignorer', desc: 'Saute les jours déjà remplis' },
 ];
 
-/** Retire les champs propres à un item persisté pour le ré-enregistrer ailleurs. */
+/** Without the fields of a saved item, so that it can be saved elsewhere. */
 function stripItem({ id: _id, dish: _dish, menu_id: _menuId, ...rest }: MenuItem) {
   return rest;
 }
 
-/**
- * Applique des plats à un jour cible selon le mode de conflit.
- * Retourne true si le menu a été écrit, false s'il a été ignoré.
- */
+/** True when the menu was written, false when it was left alone. */
 async function applyItemsToDate(
   date: string,
   sourceItems: MenuItem[],
@@ -35,7 +32,7 @@ async function applyItemsToDate(
 
   let items: ReturnType<typeof stripItem>[];
   if (mode === 'replace') {
-    // N'écrase que les catégories présentes dans la source, garde les autres
+    // Only the categories the source brings are replaced.
     const cats = new Set(clean.map((i) => i.category_id));
     items = [...base.filter((i) => !cats.has(i.category_id)), ...clean];
   } else if (mode === 'add') {
@@ -52,16 +49,15 @@ interface UseMenuCopyParams {
   direction: CopyDirection;
   restaurantId: number | undefined;
   onDone: () => void;
-  /** export : plats à copier vers les dates choisies. */
+  /** Export: the dishes to copy to the chosen dates. */
   sourceItems?: MenuItem[];
-  /** import : jour de destination qui reçoit les plats des dates choisies. */
+  /** Import: the day that receives the dishes of the chosen dates. */
   targetDate?: string;
 }
 
 /**
- * Moteur de copie de menu bidirectionnel.
- * - export : `dates` = jours cibles, on y applique `sourceItems`.
- * - import : `dates` = jours sources, on fusionne leurs plats dans `targetDate`.
+ * Export applies `sourceItems` to each of `dates`; import merges the dishes of
+ * `dates` into `targetDate`.
  */
 export function useMenuCopy({
   direction,
@@ -112,7 +108,6 @@ export function useMenuCopy({
           );
         }
       } else {
-        // import : fusionne les plats de tous les jours sources choisis
         const merged: MenuItem[] = [];
         for (const date of dates) {
           const menu = await menusApi.getByDate(date, restaurantId).catch(() => null);

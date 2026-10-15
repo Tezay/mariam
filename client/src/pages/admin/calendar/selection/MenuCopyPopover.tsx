@@ -12,16 +12,15 @@ interface MenuCopyPopoverProps {
   direction: CopyDirection;
   restaurantId: number | undefined;
   onDone: () => void;
-  /** export : plats à copier */
+  /** Export: the dishes to copy. */
   sourceItems?: MenuItem[];
-  /** import : jour de destination */
+  /** Import: the day that receives them. */
   targetDate?: string;
-  /** Mode bouton : élément déclencheur rendu dans un PopoverTrigger */
+  /** Rendered as the trigger; without it, `open` drives the popover. */
   children?: ReactNode;
-  /** Mode contrôlé : ouverture pilotée par le parent */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  /** Point d'ancrage virtuel (clic droit) */
+  /** Where a right-click opened it. */
   anchorPoint?: { x: number; y: number } | null;
   align?: 'start' | 'center' | 'end';
 }

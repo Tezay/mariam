@@ -1,11 +1,3 @@
-/**
- * Wizard de création de menu (mobile-first).
- *
- * Overlay plein écran (couvre sidebar et navbars — mode immersif), boucle par
- * catégorie avec étapes tags/photo/substitutions, aperçu du menu en continu
- * (panel desktop, drawer mobile), auto-save du brouillon, dialogue de sortie
- * à trois choix.
- */
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
@@ -42,9 +34,9 @@ interface MenuOnboardingWizardProps {
   date: string;
   restaurantId: number | undefined;
   categories: MenuCategory[];
-  /** Fermé après une action qui a pu modifier les données (refresh conseillé). */
+  /** After a change the caller should reload for. */
   onDone: () => void;
-  /** Fermé sans qu'aucune donnée n'ait été créée. */
+  /** Nothing was created. */
   onCancel: () => void;
 }
 
@@ -69,7 +61,6 @@ export function MenuOnboardingWizard({
   const { fly, registerTarget, overlay } = useFlyToPreview();
   const { height, keyboardOpen } = useVisualViewportHeight();
 
-  // Mode immersif : navbar mobile masquée pendant tout l'onboarding
   useEffect(() => {
     setImmersive(true);
     return () => setImmersive(false);
@@ -93,7 +84,6 @@ export function MenuOnboardingWizard({
   };
 
   const handleRequestClose = () => {
-    // Rien créé ni modifié → fermeture directe
     if (!editor.menuId && editor.items.length === 0 && !editor.isDirty) {
       onCancel();
       return;
@@ -123,7 +113,6 @@ export function MenuOnboardingWizard({
       )}
 
       <div className="flex min-h-0 flex-1">
-        {/* Colonne wizard */}
         <div className="flex min-w-0 flex-1 flex-col">
           {state.isBootstrapping ? (
             <div className="flex flex-1 items-center justify-center">
@@ -163,7 +152,6 @@ export function MenuOnboardingWizard({
           )}
         </div>
 
-        {/* Aperçu desktop */}
         {step.kind !== 'celebration' && (
           <MenuPreviewPanel
             groups={state.groups}
@@ -174,7 +162,6 @@ export function MenuOnboardingWizard({
         )}
       </div>
 
-      {/* Aperçu mobile (poignée + drawer) */}
       {step.kind !== 'celebration' && !state.isBootstrapping && (
         <MenuPreviewDrawer
           groups={state.groups}
@@ -187,7 +174,6 @@ export function MenuOnboardingWizard({
 
       {overlay}
 
-      {/* Dialogue de sortie — trois choix */}
       <AlertDialog open={exitDialogOpen} onOpenChange={setExitDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

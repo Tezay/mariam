@@ -19,8 +19,7 @@ interface OptionButtonProps extends ComponentPropsWithoutRef<'button'> {
   primary?: boolean;
 }
 
-// forwardRef requis : utilisé comme enfant de <PopoverTrigger asChild>, qui
-// clone l'élément et lui transmet une ref + ses handlers (ouverture du popover).
+// PopoverTrigger asChild hands it a ref and its handlers.
 const OptionButton = forwardRef<HTMLButtonElement, OptionButtonProps>(
   ({ icon: Icon, label, desc, primary, className, ...props }, ref) => (
     <button

@@ -124,7 +124,10 @@ test('every inline script carries the nonce the policy announces', async () => {
 test('the policy lists the configured third parties and nothing else', async () => {
   const policy = (await request('/')).headers['content-security-policy-report-only'];
   const directive = (name) => policy.split('; ').find((part) => part.startsWith(`${name} `));
-  assert.match(directive('script-src'), /^script-src 'self' 'nonce-[^']+' https:\/\/stats\.example\.test$/);
+  assert.match(
+    directive('script-src'),
+    /^script-src 'self' 'nonce-[^']+' https:\/\/stats\.example\.test$/
+  );
   assert.equal(
     directive('connect-src'),
     "connect-src 'self' https://api.example.test https://stats.example.test https://errors.example.test"
@@ -146,15 +149,18 @@ test('/config.js exposes the public settings only', async () => {
   const window = {};
   vm.runInNewContext(script.body, { window });
   // Copied out of the sandbox: its objects have another realm's prototype.
-  assert.deepEqual({ ...window.__RUNTIME_CONFIG__ }, {
-    API_URL: 'https://api.example.test/v1',
-    APP_VERSION: '9.9.9',
-    CANONICAL_HOST: '',
-    UMAMI_SCRIPT_URL: 'https://stats.example.test/script.js',
-    UMAMI_WEBSITE_ID: 'site-1',
-    SENTRY_DSN: 'https://key@errors.example.test/1',
-    SENTRY_ENVIRONMENT: 'production',
-  });
+  assert.deepEqual(
+    { ...window.__RUNTIME_CONFIG__ },
+    {
+      API_URL: 'https://api.example.test/v1',
+      APP_VERSION: '9.9.9',
+      CANONICAL_HOST: '',
+      UMAMI_SCRIPT_URL: 'https://stats.example.test/script.js',
+      UMAMI_WEBSITE_ID: 'site-1',
+      SENTRY_DSN: 'https://key@errors.example.test/1',
+      SENTRY_ENVIRONMENT: 'production',
+    }
+  );
 });
 
 test('/robots.txt points at the sitemap of the requested host', async () => {

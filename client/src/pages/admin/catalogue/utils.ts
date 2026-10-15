@@ -1,6 +1,6 @@
 import { MenuCategory } from '@/lib/api/categories';
 
-/** Aplatit l'arbre de catégories (parents suivis de leurs sous-catégories). */
+/** Each parent followed by its subcategories. */
 export function flattenCategories(cats: MenuCategory[]): MenuCategory[] {
   const result: MenuCategory[] = [];
   for (const cat of cats) {
@@ -10,7 +10,7 @@ export function flattenCategories(cats: MenuCategory[]): MenuCategory[] {
   return result;
 }
 
-/** Catégories feuilles uniquement (celles qui peuvent contenir des plats). */
+/** The categories that may hold dishes. */
 export function leafCategories(cats: MenuCategory[]): MenuCategory[] {
   const result: MenuCategory[] = [];
   for (const cat of cats) {

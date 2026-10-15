@@ -1,4 +1,3 @@
-// Fonction utilitaire de Shadcn/ui
 import { clsx, type ClassValue } from 'clsx';
 import { parisNow } from './date-utils';
 import { twMerge } from 'tailwind-merge';
@@ -7,11 +6,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/**
- * Détermine si l'heure actuelle est dans la plage de service du jour.
- * @param serviceHours - Horaires indexés par jour (0=Lundi … 6=Dimanche, convention backend)
- * @param now - Date de référence (défaut : maintenant)
- */
 /** JS getDay() is Sunday-first; the backend indexes weekdays from Monday. */
 export function backendWeekday(date = parisNow()): number {
   return date.getDay() === 0 ? 6 : date.getDay() - 1;

@@ -1,14 +1,10 @@
-/**
- * MARIAM - Affichage public du menu - Mode Mobile
- *
- * Gère le fetch des données et orchestre tous les composants mobiles.
- */
 import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router';
 import { trackPageView } from '@/lib/telemetry';
 import { Zap, CalendarOff } from 'lucide-react';
 import { ExceptionalClosure } from '@/lib/api/closures';
-import { InlineError, getErrorType } from '@/components/InlineError';
+import { InlineError } from '@/components/InlineError';
+import { getErrorType } from '@/lib/api/errors';
 import { jsDayToMariamDay, getNextOpeningDate } from '@/lib/service-utils';
 import { parisToday, addDays, parisDayOfWeek } from '@/lib/date-utils';
 import { usePublicMenu } from '../use-public-menu';
@@ -51,12 +47,10 @@ function ActiveClosureMessage({ closure }: { closure: ExceptionalClosure }) {
   );
 }
 
-/** Fenêtre d'affichage des fermetures à venir sur mobile */
 const CLOSURE_WINDOW_DAYS = 14;
 const CLOSURE_MAX_COUNT = 5;
 
-/** Ne garde que les fermetures commençant dans les 14 prochains jours, plafonnées à 5.
- *  La liste reçue est déjà triée par start_date croissant (backend). */
+/** The list arrives sorted by start_date. */
 function filterUpcomingClosures(closures: ExceptionalClosure[]): ExceptionalClosure[] {
   const cutoff = addDays(parisToday(), CLOSURE_WINDOW_DAYS);
   return closures.filter((c) => c.start_date <= cutoff).slice(0, CLOSURE_MAX_COUNT);
@@ -94,7 +88,6 @@ export function MobileMenuDisplay({ restaurantSlug }: { restaurantSlug: string }
     );
   }
 
-  // Détecter si le jour sélectionné est un jour de fermeture
   const serviceDays = restaurant?.config?.service_days ?? [];
   const mariamToday = jsDayToMariamDay(parisDayOfWeek());
   const mariamTomorrow = (mariamToday + 1) % 7;
@@ -103,22 +96,17 @@ export function MobileMenuDisplay({ restaurantSlug }: { restaurantSlug: string }
 
   return (
     <PublicShell>
-      {/* Header restaurant */}
       {restaurant && <MobileHeader restaurant={restaurant} activeClosure={activeClosure} />}
 
-      {/* Note du chef */}
       {currentData?.menu?.chef_note && <MobileChefNote note={currentData.menu.chef_note} />}
 
-      {/* Toggle Aujourd'hui / Demain */}
       <MobileDayToggle selected={selectedDay} onChange={setSelectedDay} />
 
-      {/* Contenu scrollable */}
       <div className="flex-1 overflow-y-auto">
         {isPending ? (
           <MobileMenuSkeleton />
         ) : (
           <>
-            {/* Événement du jour — en tête de page, toujours mis en avant */}
             {todayEvent && selectedDay === 'today' && (
               <div className="px-4 pt-4">
                 <MobileTodayEvent event={todayEvent} />
@@ -147,15 +135,12 @@ export function MobileMenuDisplay({ restaurantSlug }: { restaurantSlug: string }
               <MobileVoteCard siteSlug={restaurantSlug} />
             )}
 
-            {/* Événements à venir — toujours affichés */}
             <MobileEventSection upcomingEvents={upcomingEvents} />
 
-            {/* Fermetures exceptionnelles à venir */}
             {visibleClosures.length > 0 && <MobileClosureSection closures={visibleClosures} />}
           </>
         )}
 
-        {/* Footer */}
         <footer className="flex flex-col items-center gap-2 py-6 text-center">
           <a
             href="https://mariam.app"
@@ -175,7 +160,6 @@ export function MobileMenuDisplay({ restaurantSlug }: { restaurantSlug: string }
         </footer>
       </div>
 
-      {/* Sheet détail item */}
       <MobileItemDetailSheet
         item={selectedItem}
         open={!!selectedItem}

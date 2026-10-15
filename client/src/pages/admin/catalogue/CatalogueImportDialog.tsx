@@ -58,7 +58,6 @@ export function CatalogueImportDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Configuration
   const [nameColumn, setNameColumn] = useState('');
   const [tagColumns, setTagColumns] = useState<Set<string>>(new Set());
   const [categoryId, setCategoryId] = useState<number | ''>('');
@@ -67,7 +66,6 @@ export function CatalogueImportDialog({
 
   const isExport = uploadData?.is_catalog_export ?? false;
 
-  // Catégories feuilles avec contexte parent (« Parent › Sous-catégorie »)
   const categoryOptions = useMemo(() => {
     const opts: { id: number; label: string }[] = [];
     for (const c of categories) {
@@ -102,7 +100,6 @@ export function CatalogueImportDialog({
     onClose();
   };
 
-  // Étape 1 : upload
   const handleUpload = async (file: File) => {
     setIsLoading(true);
     setError(null);
@@ -126,7 +123,6 @@ export function CatalogueImportDialog({
     }
   };
 
-  // Étape 2 → 3 : prévisualisation
   const importParams = () =>
     isExport
       ? { file_id: uploadData!.file_id, category_map: categoryMap }
@@ -153,7 +149,6 @@ export function CatalogueImportDialog({
     }
   };
 
-  // Étape 3 : confirmation
   const handleConfirm = async () => {
     if (!canPreview) return;
     setIsLoading(true);
@@ -205,7 +200,6 @@ export function CatalogueImportDialog({
         <CsvStepIndicator steps={STEPS} current={step} />
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto py-2">
-          {/* Étape 1 — Fichier */}
           {step === 'upload' && (
             <CsvDropzone
               accept=".csv,.xlsx,.xls"
@@ -214,7 +208,6 @@ export function CatalogueImportDialog({
             />
           )}
 
-          {/* Étape 2 — Correspondance des catégories (export Mariam) */}
           {step === 'configure' && uploadData && isExport && (
             <div className="space-y-4">
               <div className="rounded-xl border border-border bg-muted/40 p-3">
@@ -255,7 +248,6 @@ export function CatalogueImportDialog({
             </div>
           )}
 
-          {/* Étape 2 — Configuration */}
           {step === 'configure' && uploadData && !isExport && (
             <div className="space-y-5">
               <div className="space-y-1.5">
@@ -345,7 +337,6 @@ export function CatalogueImportDialog({
             </div>
           )}
 
-          {/* Étape 3 — Aperçu */}
           {step === 'preview' && previewData && (
             <div className="space-y-3">
               <div className="flex flex-wrap gap-2 text-xs">

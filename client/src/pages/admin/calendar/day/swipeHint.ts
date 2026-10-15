@@ -1,9 +1,6 @@
-/**
- * Indice de swipe : suggère le geste une seule fois par session navigateur.
- */
 let hintConsumed = false;
 
-/** Renvoie true au plus une fois par session ; false ensuite. */
+/** True the first time only, until the page reloads. */
 export function consumeSwipeHint(): boolean {
   if (hintConsumed) return false;
   hintConsumed = true;

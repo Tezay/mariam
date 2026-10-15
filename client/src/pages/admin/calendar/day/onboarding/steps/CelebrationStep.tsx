@@ -1,7 +1,3 @@
-/**
- * Menu publié : célébration légère (canvas-confetti chargé à la demande,
- * désactivé si prefers-reduced-motion) puis retour au calendrier.
- */
 import { useEffect } from 'react';
 import { PartyPopper } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';

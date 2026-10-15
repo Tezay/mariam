@@ -1,8 +1,3 @@
-/**
- * Animation "vol vers l'aperçu" : un clone stylé comme la box d'item part
- * du point d'interaction et rejoint l'aperçu du menu (panel desktop ou
- * poignée mobile). Discret, ~450 ms, désactivé si prefers-reduced-motion.
- */
 import { useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -23,7 +18,6 @@ export function useFlyToPreview() {
   const targetsRef = useRef<Map<string, HTMLElement | null>>(new Map());
   const reducedMotion = useReducedMotion();
 
-  /** Les aperçus (panel desktop, poignée mobile) enregistrent leur élément cible. */
   const registerTarget = useCallback(
     (key: string) => (el: HTMLElement | null) => {
       targetsRef.current.set(key, el);
@@ -34,7 +28,7 @@ export function useFlyToPreview() {
   const fly = useCallback(
     (sourceEl: HTMLElement | null, label: string, color: CategoryColor) => {
       if (reducedMotion || !sourceEl) return;
-      // Cible active = celle qui est réellement visible au breakpoint courant
+      // The target visible at the current breakpoint.
       let target: DOMRect | null = null;
       for (const el of targetsRef.current.values()) {
         const rect = el?.getBoundingClientRect();

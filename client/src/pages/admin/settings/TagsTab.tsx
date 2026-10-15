@@ -1,7 +1,3 @@
-/**
- * Onglet Tags & Labels : tags alimentaires et certifications activés
- * pour le restaurant (sauvegardés via le bouton Enregistrer global).
- */
 import { useState, useEffect } from 'react';
 import { publicApi } from '@/lib/api/public';
 import { DietaryTagCategory, CertificationCategory } from '@/lib/api/taxonomy';
@@ -73,7 +69,6 @@ export function TagsTab({ state }: { state: SettingsState }) {
         </CardContent>
       </Card>
 
-      {/* Certifications */}
       <Card>
         <CardHeader>
           <CardTitle>Certifications et labels</CardTitle>

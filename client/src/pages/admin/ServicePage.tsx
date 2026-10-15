@@ -1,10 +1,3 @@
-/**
- * MARIAM — Page « Service en cours »
- *
- * Vue opérationnelle du jour : suivi des ruptures (Switch par item),
- * note du chef (autosave), statut de service et actions rapides.
- * Layout 2 colonnes sur desktop (menu + rail récapitulatif), empilé sur mobile.
- */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { menusApi, Menu, MenuItem } from '@/lib/api/menus';
@@ -75,10 +68,6 @@ function nextServiceSlot(serviceHours: ServiceHours): string | null {
   return null;
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Ligne d'item — Switch de rupture
-// ────────────────────────────────────────────────────────────────────────────
-
 interface ItemRowProps {
   item: MenuItem;
   isToggling: boolean;
@@ -135,10 +124,6 @@ function ItemRow({ item, isToggling, onToggle }: ItemRowProps) {
     </div>
   );
 }
-
-// ────────────────────────────────────────────────────────────────────────────
-// Rail récapitulatif
-// ────────────────────────────────────────────────────────────────────────────
 
 interface SummaryCardProps {
   lastUpdated: Date | null;
@@ -275,10 +260,6 @@ function ActionsCard({ isFullscreen, onToggleFullscreen, onOpenEditor }: Actions
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Page principale
-// ────────────────────────────────────────────────────────────────────────────
-
 export function ServicePage() {
   const navigate = useNavigate();
   const today = parisToday();
@@ -307,7 +288,7 @@ export function ServicePage() {
       setChefNote((prev) => menuRes?.chef_note ?? prev);
       setLastUpdated(nowInstant());
     } catch {
-      /* ignore polling errors */
+      /* The next poll tries again. */
     }
   }, [today]);
 
@@ -370,7 +351,7 @@ export function ServicePage() {
           : prev
       );
     } catch {
-      /* ignore */
+      /* The switch stays as it was. */
     } finally {
       setTogglingId(null);
     }
@@ -387,7 +368,6 @@ export function ServicePage() {
     }
   };
 
-  // ── Rendu des catégories (colonne principale) ────────────────────────────
   const renderLeafItems = (category: MenuCategory) => {
     const items = (menu?.items ?? [])
       .filter((i) => i.category_id === category.id)
@@ -431,7 +411,6 @@ export function ServicePage() {
     return renderLeafItems(cat);
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
@@ -458,7 +437,6 @@ export function ServicePage() {
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
       <div className="grid gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
-        {/* Colonne principale — menu */}
         <div className="order-2 min-w-0 lg:order-1">
           {closure.closed && !published ? (
             <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-border py-16 text-center">
@@ -493,7 +471,6 @@ export function ServicePage() {
           )}
         </div>
 
-        {/* Rail récapitulatif */}
         <aside className="order-1 space-y-4 self-start lg:sticky lg:top-6 lg:order-2">
           <SummaryCard
             lastUpdated={lastUpdated}

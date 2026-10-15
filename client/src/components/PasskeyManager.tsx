@@ -1,11 +1,3 @@
-/**
- * MARIAM - Gestionnaire de Passkeys
- *
- * Permet à l'utilisateur d'enregistrer, lister et supprimer ses passkeys WebAuthn.
- *
- * Contrainte : impossible de supprimer la dernière passkey si le TOTP n'est pas actif
- * (l'utilisateur doit toujours avoir au moins une méthode 2FA active).
- */
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIdentityConfirmed, useStepUp } from '@/hooks/useStepUp';
@@ -61,7 +53,7 @@ export function PasskeyManager() {
       const list = await authApi.listPasskeys();
       setPasskeys(list);
     } catch {
-      // silencieux
+      // The list then shows empty.
     } finally {
       setIsLoading(false);
     }
@@ -79,7 +71,6 @@ export function PasskeyManager() {
       return;
     }
     // The browser creates a passkey only in answer to a click, and confirming
-    // has spent this one.
     if (!identityConfirmed) {
       setMessage({
         type: 'success',
@@ -150,7 +141,7 @@ export function PasskeyManager() {
     if (editingId === passkey.id) handleRenameCancel();
     setDeleteError(null);
 
-    // Vérification locale avant l'appel réseau
+    // The server refuses it too; this explains why.
     if (passkeys.length === 1 && !mfaEnabled) {
       setDeleteError(
         'Impossible de supprimer la dernière passkey sans authentification par code active. ' +
@@ -187,7 +178,6 @@ export function PasskeyManager() {
 
   return (
     <div className="space-y-3">
-      {/* Erreur de suppression */}
       {deleteError && (
         <div className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -195,7 +185,6 @@ export function PasskeyManager() {
         </div>
       )}
 
-      {/* Liste des passkeys */}
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Chargement...</p>
       ) : passkeys.length === 0 ? (
@@ -295,7 +284,6 @@ export function PasskeyManager() {
         </ul>
       )}
 
-      {/* Bouton d'ajout */}
       <Dialog
         open={dialogOpen}
         onOpenChange={(open) => {

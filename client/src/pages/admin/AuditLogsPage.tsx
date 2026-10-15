@@ -1,8 +1,3 @@
-/**
- * MARIAM - Audit Logs Page
- *
- * Page sécurisée (admin) pour consulter les logs d'audit.
- */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { isAxiosError } from 'axios';
@@ -56,7 +51,6 @@ interface AuditLogsResponse {
   pages: number;
 }
 
-// Action labels fr
 const ACTION_LABELS: Record<string, string> = {
   login: 'Connexion',
   login_failed: 'Échec connexion',
@@ -93,7 +87,6 @@ const ACTION_LABELS: Record<string, string> = {
   dish_image_delete: 'Suppr. image plat',
 };
 
-// Couleurs des badges par catégorie d'action
 const getActionBadgeVariant = (
   action: string
 ): 'default' | 'secondary' | 'destructive' | 'outline' => {
@@ -117,16 +110,13 @@ export function AuditLogsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [selectedDetails, setSelectedDetails] = useState<Record<string, unknown> | null>(null);
 
-  // Pagination
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
-  // Filtres
   const [actionFilter, setActionFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Charger logs
   const loadLogs = async () => {
     setIsLoading(true);
     try {
@@ -163,7 +153,6 @@ export function AuditLogsPage() {
       .catch(() => {});
   }, [isOrgScope]);
 
-  // Export
   const handleExport = async () => {
     const confirmed = await confirmIdentity({
       title: "Exporter le journal d'audit",
@@ -185,7 +174,6 @@ export function AuditLogsPage() {
     }
   };
 
-  // Filtre local par recherche
   const filteredLogs = logs.filter(
     (log) =>
       !searchTerm ||
@@ -194,7 +182,6 @@ export function AuditLogsPage() {
       log.ip_address?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Ecran de MFA requis
   if (mfaRequired) {
     return (
       <div className="container-mariam max-w-2xl py-12">
@@ -231,7 +218,6 @@ export function AuditLogsPage() {
 
   return (
     <div className="container-mariam py-6">
-      {/* Header */}
       <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <div className="flex items-center gap-2">
@@ -249,7 +235,6 @@ export function AuditLogsPage() {
         </Button>
       </div>
 
-      {/* Filters */}
       <Card className="mb-6">
         <CardContent className="pt-6">
           <div className="flex flex-col gap-4 md:flex-row">
@@ -310,7 +295,6 @@ export function AuditLogsPage() {
         </CardContent>
       </Card>
 
-      {/* Table */}
       {isLoading ? (
         <div className="flex justify-center py-12">
           <Spinner className="size-8 text-primary" />
@@ -386,7 +370,6 @@ export function AuditLogsPage() {
             </Table>
           </Card>
 
-          {/* Pagination */}
           <div className="mt-6 flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
               {total} log{total > 1 ? 's' : ''} au total
@@ -418,7 +401,6 @@ export function AuditLogsPage() {
         </>
       )}
 
-      {/* Détails d'un log */}
       {selectedDetails && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"

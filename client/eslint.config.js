@@ -1,4 +1,5 @@
 import js from '@eslint/js';
+import { defineConfig } from 'eslint/config';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
@@ -18,7 +19,7 @@ const handDrawnSpinner = {
     'Use Spinner (@/components/ui/spinner), or PageLoader for a whole page: the app has a single loading indicator.',
 };
 
-export default tseslint.config(
+export default defineConfig(
   { ignores: ['build', '.react-router'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
@@ -69,6 +70,11 @@ export default tseslint.config(
     // The helper itself reads the machine clock, and its tests pin it.
     files: ['src/lib/date-utils.ts', 'src/__tests__/**'],
     rules: { 'no-restricted-syntax': 'off' },
+  },
+  {
+    // A shadcn component exports its variants, and a context its hook.
+    files: ['src/components/ui/**', 'src/contexts/**'],
+    rules: { 'react-refresh/only-export-components': 'off' },
   },
   {
     // The TV display keeps its own, larger indicator.

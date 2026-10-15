@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react';
 
-/**
- * Hauteur réelle du viewport visuel (rétrécit quand le clavier mobile s'ouvre).
- * Retourne { height, keyboardOpen } — height vaut null si l'API n'existe pas
- * (fallback CSS 100dvh côté appelant).
- */
+/** Shrinks when the mobile keyboard opens; `height` is null without the Visual Viewport API, where the caller falls back to 100dvh. */
 export function useVisualViewportHeight(): { height: number | null; keyboardOpen: boolean } {
   const [height, setHeight] = useState<number | null>(() => window.visualViewport?.height ?? null);
 

@@ -3,10 +3,9 @@ import { cn } from '@/lib/utils';
 import type { GroupState } from './useSelection';
 
 interface SelectionCheckboxProps {
-  /** 'all' = coché, 'some' = indéterminé, 'none' = vide. Ou un booléen pour un item. */
+  /** 'some' shows as indeterminate; an item takes a boolean. */
   state: GroupState | boolean;
   onToggle: () => void;
-  /** Taille de la boîte (défaut 16px) */
   size?: 'sm' | 'md';
   className?: string;
   'aria-label'?: string;

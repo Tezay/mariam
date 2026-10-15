@@ -1,6 +1,3 @@
-/**
- * Onglet Infos : nom, adresse (autocomplétion BAN), contact et capacité.
- */
 import { useState, useRef } from 'react';
 import { banApi, BanSuggestion } from '@/lib/api/geocoding';
 import { Input } from '@/components/ui/input';
@@ -69,7 +66,6 @@ export function InfosTab({ state }: { state: SettingsState }) {
           )}
         </div>
 
-        {/* Adresse BAN */}
         <div>
           <Label htmlFor="address">Adresse</Label>
           <div className="relative">

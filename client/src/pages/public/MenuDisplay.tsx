@@ -1,9 +1,3 @@
-/**
- * MARIAM - Affichage public du menu
- *
- * Orchestrateur : détecte le mode TV (>= 1920px ou ?mode=tv) et délègue à
- * TvMenuDisplay ou MobileMenuDisplay pour le restaurant résolu (slug).
- */
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 import { useTenant } from '@/contexts/TenantContext';

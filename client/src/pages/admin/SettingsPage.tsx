@@ -1,13 +1,4 @@
-/**
- * MARIAM - Page Mon restaurant
- *
- * Conteneur des sept onglets de configuration. L'état est centralisé dans
- * useSettingsState ; un unique bouton « Enregistrer » sauvegarde les sections
- * modifiées (restaurant, préférences de notifications, calendriers) et une
- * garde de sortie prévient toute navigation avec des changements non sauvés.
- * L'onglet Catégories fait exception : ses modifications sont persistées
- * immédiatement, indépendamment du bouton global.
- */
+/** One save bar for every tab but Categories, whose changes are saved as they are made. */
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router';
 import { Button } from '@/components/ui/button';
@@ -41,7 +32,6 @@ export function SettingsPage() {
   const [tab, setTab] = useState('infos');
   const [pendingNavHref, setPendingNavHref] = useState<string | null>(null);
 
-  // Avertissement avant de fermer/recharger l'onglet du navigateur
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasChanges) {
@@ -53,7 +43,6 @@ export function SettingsPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasChanges]);
 
-  // Interception des clics de navigation interne avec changements non sauvés
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       const anchor = (e.target as HTMLElement).closest('a');
@@ -139,7 +128,6 @@ export function SettingsPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Barre de sauvegarde unifiée : visible dès qu'une section est modifiée */}
       {hasChanges && (
         <>
           <div aria-hidden className="h-20 sidebar:hidden" />

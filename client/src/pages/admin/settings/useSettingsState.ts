@@ -1,13 +1,7 @@
 /**
- * État global de la page Mon restaurant.
- *
- * Regroupe les trois sections sauvegardées par le bouton « Enregistrer » commun :
- * - restaurant (Infos, Horaires, Accessibilité, Tags & Labels) → PUT /settings
- * - calendar (Calendriers, par restaurant)                     → PUT /restaurant/calendar-settings
- *
- * Le dirty tracking compare chaque section à un snapshot sérialisé pris au
- * chargement, mis à jour section par section après une sauvegarde réussie
- * (une section en échec reste marquée comme modifiée).
+ * Each section the Save button writes is compared with a snapshot taken on load
+ * and renewed section by section after a save, so a section that fails stays
+ * modified.
  */
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { notify } from '@/lib/toast';
@@ -34,7 +28,6 @@ export function useSettingsState() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // ── Section restaurant ───────────────────────────────────────────────────
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
   const [serviceDays, setServiceDays] = useState<number[]>([0, 1, 2, 3, 4]);
@@ -54,14 +47,12 @@ export function useSettingsState() {
   const [paymentMethods, setPaymentMethods] = useState<string[]>(['izly', 'cb']);
   const [pmrAccess, setPmrAccess] = useState<boolean | null>(null);
 
-  // ── Sections notifications & calendriers ────────────────────────────────
   const [voteEnabled, setVoteEnabled] = useState(true);
   const [voteCategoryIds, setVoteCategoryIds] = useState<number[]>([]);
   const [voteIconPreset, setVoteIconPreset] = useState(DEFAULT_PRESET_ID);
   const [calendarSettings, setCalendarSettings] = useState<CalendarSettings | null>(null);
 
   // State, not a ref: `hasChanges` is derived from these, and a ref mutation
-  // would leave the unsaved-changes guard armed after a successful save.
   const [baseline, setBaseline] = useState<Snapshots>({
     restaurant: '',
     calendar: '',
@@ -96,7 +87,6 @@ export function useSettingsState() {
     );
   }, [isLoading, baseline, restaurantSnapshot, calendarSnapshot, calendarSettings]);
 
-  // ── Chargement initial ───────────────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
       try {
@@ -122,7 +112,6 @@ export function useSettingsState() {
         const loadedVoteCategories = data.config?.vote_category_ids ?? [];
         const loadedVotePreset = data.config?.vote_icon_preset ?? DEFAULT_PRESET_ID;
 
-        // Tous les jours actifs partagent-ils les mêmes horaires ?
         const hourValues = Object.values(loadedServiceHours);
         const allSame =
           hourValues.length > 0 &&
@@ -170,7 +159,7 @@ export function useSettingsState() {
           calendar: JSON.stringify(loadedCalendar),
         });
       } catch {
-        // ignore — la page affiche un état vide
+        // The page then shows an empty state.
       } finally {
         setIsLoading(false);
       }
@@ -178,7 +167,6 @@ export function useSettingsState() {
     load();
   }, []);
 
-  // ── Sauvegarde unifiée (les 3 sections) ──────────────────────────────────
   const saveAll = useCallback(async (): Promise<SaveOutcome> => {
     const nErr = validateSiteName(name);
     const eErr = validateEmail(email);
@@ -219,7 +207,6 @@ export function useSettingsState() {
             vote_icon_preset: voteIconPreset,
           })) as RestaurantWithConfig;
 
-          // Recharger l'état canonique depuis la réponse serveur
           const savedLabel = saved.address_label || '';
           const savedLat = saved.address_lat ?? null;
           const savedLon = saved.address_lon ?? null;

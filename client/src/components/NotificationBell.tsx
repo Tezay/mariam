@@ -1,11 +1,3 @@
-/**
- * MARIAM — Bouton cloche de notifications.
- *
- * Affiché en haut à droite de l'interface /menu (mobile).
- * - Si souscrit  : cloche pleine (avec indicateur)
- * - Si non souscrit : cloche vide
- * - Clic -> navigation vers /notifications
- */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Bell } from 'lucide-react';
@@ -23,7 +15,7 @@ export function NotificationBell() {
         setIsSubscribed(!!sub);
       })
       .catch(() => {
-        // Silencieux
+        // The bell then shows as unsubscribed.
       });
   }, []);
 

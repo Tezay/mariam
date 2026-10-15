@@ -1,8 +1,3 @@
-/**
- * Photo du plat (facultative, mise en avant) : le plat existe déjà au
- * catalogue, l'upload est direct. Toujours skipable, modifiable plus tard
- * depuis la page Catalogue.
- */
 import { useState, useRef } from 'react';
 import { Camera, Check, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';

@@ -1,16 +1,3 @@
-/**
- * MARIAM - Page de connexion
- *
- * Deux modes selon la compatibilité du navigateur :
- *
- * Mode passkey-first (navigateurs modernes) :
- *   → Bouton "Se connecter avec cet appareil" (empreinte / Face ID / Windows Hello)
- *   → Lien secondaire "Se connecter avec mon mot de passe"
- *
- * Mode password (fallback) :
- *   → Email + mot de passe
- *   → Si MFA TOTP activé : étape code à 6 chiffres
- */
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,19 +22,15 @@ export function Login() {
   const passkeySupported = typeof window !== 'undefined' && !!window.PublicKeyCredential;
   const [mode, setMode] = useState<LoginMode>(passkeySupported ? 'passkey-first' : 'password');
 
-  // Formulaire email/password
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  // Étape MFA
   const [mfaToken, setMfaToken] = useState('');
   const [mfaCode, setMfaCode] = useState('');
 
-  // UI
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // ── Connexion par passkey (mode passkey-first) ──────────────────────────
   const handlePasskeyLogin = async () => {
     setError('');
     setIsLoading(true);
@@ -78,7 +61,6 @@ export function Login() {
     }
   };
 
-  // ── Connexion email + password ──────────────────────────────────────────
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -112,7 +94,6 @@ export function Login() {
     }
   };
 
-  // ── Vérification code TOTP ──────────────────────────────────────────────
   const handleMfaSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -134,14 +115,12 @@ export function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8">
-        {/* Header */}
         <div className="flex flex-col items-center text-center">
           <Logo className="h-20 w-auto" />
           <p className="mt-4 text-muted-foreground">Plateforme de gestion des menus</p>
         </div>
 
         <div className="rounded-lg border border-border bg-card p-8 shadow-lg">
-          {/* ── Mode passkey-first ─────────────────────────────── */}
           {mode === 'passkey-first' && (
             <div className="space-y-6">
               <div className="text-center">
@@ -192,7 +171,6 @@ export function Login() {
             </div>
           )}
 
-          {/* ── Mode password ──────────────────────────────────── */}
           {mode === 'password' && (
             <form onSubmit={handlePasswordSubmit} className="space-y-6">
               <div>
@@ -260,7 +238,6 @@ export function Login() {
             </form>
           )}
 
-          {/* ── Mode MFA (TOTP) ────────────────────────────────── */}
           {mode === 'mfa' && (
             <div className="space-y-6">
               <div className="text-center">
@@ -322,7 +299,6 @@ export function Login() {
           )}
         </div>
 
-        {/* Lien vers menu public */}
         <div className="text-center">
           <Link to="/menu" className="text-sm text-muted-foreground hover:text-primary">
             Consulter le menu du jour →

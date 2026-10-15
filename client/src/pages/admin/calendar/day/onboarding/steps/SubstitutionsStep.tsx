@@ -1,8 +1,3 @@
-/**
- * Fin de catégorie : plats de substitution optionnels (max 3), skipables
- * en un tap. Réutilise SubstitutionsSection (même UI que le popover
- * "En cas de rupture ?" du calendrier).
- */
 import { ArrowLeftRight, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SubstitutionsSection } from '../../SubstitutionsSection';

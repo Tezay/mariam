@@ -1,11 +1,3 @@
-/**
- * MARIAM - Account activation
- *
- * Steps:
- * 1. Account       — name, address and password, all chosen by the invitee
- * 2. Second factor — passkey or authenticator application, on the screens the
- *    dashboard enrolment page also uses, then straight into the session
- */
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,27 +27,22 @@ export function Activate() {
   const navigate = useNavigate();
   const { activateComplete } = useAuth();
 
-  // État global
   const [step, setStep] = useState<Step>('loading');
   const [linkInfo, setLinkInfo] = useState<ActivationLinkInfo | null>(null);
 
-  // Formulaire mot de passe
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  // MFA / passkey setup
   const [qrCode, setQrCode] = useState('');
   const [mfaSecret, setMfaSecret] = useState('');
   const [userId, setUserId] = useState<number>(0);
   const [setupToken, setSetupToken] = useState('');
 
-  // UI
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Vérifier le lien au chargement
   useEffect(() => {
     const checkLink = async () => {
       if (!token) {
@@ -78,7 +65,6 @@ export function Activate() {
     checkLink();
   }, [token]);
 
-  // Validation du mot de passe
   const validatePassword = (pwd: string) => {
     const errors: string[] = [];
     if (pwd.length < 12) errors.push('Au moins 12 caractères');
@@ -100,7 +86,6 @@ export function Activate() {
       : (linkInfo?.restaurant_name ?? linkInfo?.organization_name);
   const role = roleLabel(linkInfo?.role);
 
-  // Soumission du mot de passe → affiche le choix 2FA
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -138,7 +123,6 @@ export function Activate() {
   };
 
   // The activation endpoints carry their own setup token: there is no session
-  // to authenticate with until one of these two calls succeeds.
   const enrolment: SecondFactorEnrolment = {
     registerPasskey: async () => {
       const { options, challenge_token } = await authApi.passkeySetupBegin(userId, setupToken);
@@ -156,8 +140,6 @@ export function Activate() {
       navigate('/admin');
     },
   };
-
-  // ── Loading / invalid steps ─────────────────────────────────────────────
 
   if (step === 'loading') {
     return <PageLoader />;
@@ -185,7 +167,6 @@ export function Activate() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-md space-y-8">
-        {/* Header */}
         <div className="flex flex-col items-center text-center">
           <Logo className="h-20 w-auto" />
           <p className="mt-4 text-muted-foreground">
@@ -196,7 +177,6 @@ export function Activate() {
         </div>
 
         <div className="rounded-lg border border-border bg-card p-8 shadow-lg">
-          {/* ── Step 1: account ─────────────────────────────── */}
           {step === 'password' && (
             <form onSubmit={handlePasswordSubmit} className="space-y-5">
               {destination && (
@@ -312,7 +292,6 @@ export function Activate() {
             </form>
           )}
 
-          {/* ── Step 2: second factor ───────────────────────── */}
           {step === 'second-factor' && <SecondFactorSetup enrolment={enrolment} />}
         </div>
       </div>

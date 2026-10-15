@@ -1,7 +1,3 @@
-/**
- * Composants de l'onglet Catégories : ligne éditable (drag & drop, couleur,
- * mise en avant, suppression) et liste triable.
- */
 import { useState, useEffect } from 'react';
 import { MenuCategory } from '@/lib/api/categories';
 import { Button } from '@/components/ui/button';
@@ -63,7 +59,6 @@ export function CategoryRow({ category, onUpdate, onDelete, indent = false }: Ca
       className={`rounded-xl bg-muted/50 p-2 sm:p-3 ${indent ? 'ml-4 border-l-2 border-border sm:ml-8' : ''}`}
     >
       <div className="flex items-center gap-1.5 sm:gap-2">
-        {/* Drag handle */}
         <div
           {...listeners}
           {...attributes}
@@ -73,7 +68,6 @@ export function CategoryRow({ category, onUpdate, onDelete, indent = false }: Ca
           <GripVertical className="h-4 w-4" />
         </div>
 
-        {/* Nom */}
         <Input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
@@ -82,7 +76,6 @@ export function CategoryRow({ category, onUpdate, onDelete, indent = false }: Ca
           placeholder="Nom de la catégorie"
         />
 
-        {/* Actions : masquées sur très petit écran, visibles sinon */}
         <div className="hidden shrink-0 items-center gap-1 sm:flex">
           <ActionButtons
             category={category}
@@ -93,7 +86,6 @@ export function CategoryRow({ category, onUpdate, onDelete, indent = false }: Ca
         </div>
       </div>
 
-      {/* Actions sur mobile */}
       <div className="mt-1.5 flex items-center justify-end gap-1 border-t border-border/50 pt-1.5 sm:hidden">
         <ActionButtons
           category={category}
@@ -116,7 +108,6 @@ interface ActionButtonsProps {
 function ActionButtons({ category, hasSubcategories, onUpdate, onDelete }: ActionButtonsProps) {
   return (
     <>
-      {/* Palette couleur */}
       {!hasSubcategories ? (
         <Popover>
           <PopoverTrigger asChild>
@@ -168,7 +159,6 @@ function ActionButtons({ category, hasSubcategories, onUpdate, onDelete }: Actio
         <div className="h-8 w-8 shrink-0" />
       )}
 
-      {/* Mise en avant (highlight) — legacy, probablement retiré prochainement */}
       {!hasSubcategories ? (
         <button
           onClick={() => onUpdate(category.id, { is_highlighted: !category.is_highlighted })}
@@ -193,7 +183,6 @@ function ActionButtons({ category, hasSubcategories, onUpdate, onDelete }: Actio
         <div className="h-8 w-8 shrink-0" />
       )}
 
-      {/* Supprimer */}
       {category.is_protected ? (
         <div
           className="p-2 text-muted-foreground/40"

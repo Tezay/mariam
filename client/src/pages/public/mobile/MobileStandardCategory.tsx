@@ -7,11 +7,10 @@ interface MobileStandardCategoryProps {
   color: CategoryColor;
   onItemTap: (item: MenuItemData) => void;
   hideHeader?: boolean;
-  /** Substitutions par category_id ; affichées si la catégorie a un item en rupture. */
   substitutions?: Record<string, CategorySubstitutionData[]>;
 }
 
-/** Déplace l'item au nom le plus long en dernière position quand le nombre est impair */
+/** With an odd count, the longest name goes last, where it spans the row. */
 function reorderForGrid(items: MenuItemData[]): MenuItemData[] {
   if (items.length % 2 === 0) return items;
   let longestIdx = 0;
@@ -26,7 +25,6 @@ function reorderForGrid(items: MenuItemData[]): MenuItemData[] {
   return reordered;
 }
 
-/** Affichage 2 items par rangée pour les catégories non-highlight */
 export function MobileStandardCategory({
   category,
   color,
@@ -39,7 +37,6 @@ export function MobileStandardCategory({
 
   const orderedItems = reorderForGrid(items);
 
-  // Plats de substitution : affichés uniquement si un item de la catégorie est en rupture
   const oosPresent = items.some((i) => i.is_out_of_stock);
   const subCards: MenuItemData[] = oosPresent
     ? (substitutions?.[category.id] ?? []).map((s) => ({

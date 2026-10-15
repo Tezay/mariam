@@ -1,14 +1,13 @@
 export interface CategoryColor {
-  bg: string; // fond de la card (saturé)
-  border: string; // border-bottom de la card (plus foncé, effet 3D)
-  label: string; // texte sur la card ('#FFFFFF' ou '#4A2E00' pour le saffron)
-  sectionLabel: string; // couleur du titre de section sur fond blanc
-  sectionBorder: string; // ligne décorative du header de section
-  addBg: string; // fond du bouton "Ajouter un plat" (~10% opacité)
-  addLabel: string; // texte du bouton "Ajouter" (lisible sur addBg)
+  bg: string;
+  border: string; // The bottom edge that gives the card its depth
+  label: string;
+  sectionLabel: string;
+  sectionBorder: string;
+  addBg: string; // The add-a-dish button, at about 10% opacity
+  addLabel: string;
 }
 
-/** Map des couleurs disponibles par clé nommée */
 export const COLOR_KEY_MAP: Record<string, CategoryColor> = {
   indigo: {
     bg: '#4F6BDB',
@@ -66,7 +65,6 @@ export const COLOR_KEY_MAP: Record<string, CategoryColor> = {
   },
 };
 
-/** Palette de fallback cyclique */
 const CATEGORY_BG_PALETTE: CategoryColor[] = [
   COLOR_KEY_MAP.indigo,
   COLOR_KEY_MAP.sky,
@@ -76,11 +74,7 @@ const CATEGORY_BG_PALETTE: CategoryColor[] = [
   COLOR_KEY_MAP.lilac,
 ];
 
-/**
- * Retourne la couleur d'une catégorie.
- * Si `colorKey` est défini et connu, l'utilise directement.
- * Sinon, fallback cyclique basé sur `fallbackOrder`.
- */
+/** The colour `colorKey` names, else one taken from the palette by `fallbackOrder`. */
 export function getCategoryColor(
   colorKey: string | null | undefined,
   fallbackOrder: number

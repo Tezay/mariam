@@ -1,13 +1,3 @@
-/**
- * Carrousel mobile de suggestions : 1 à 4 rangées qui défilent en boucle à
- * des vitesses (et sens) différents, façon sélection de sujets iOS.
- *
- * - Chaque plat n'apparaît que dans UNE rangée (répartition round-robin) ;
- *   la boucle infinie duplique la rangée mais ne s'active que si son contenu
- *   déborde de l'écran (sinon rangée statique, pas de doublon visible).
- * - Défilement manuel possible : l'animation se met en pause au toucher.
- * - Désactivé si prefers-reduced-motion (rangées statiques scrollables).
- */
 import { useRef, useState, useLayoutEffect } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import type { DishCatalogItem } from '@/lib/api/catalog';
@@ -21,12 +11,9 @@ interface SuggestionCarouselProps {
 }
 
 // Pixels per second, deliberately out of sync between rows. Speed, not
-// duration: a fixed duration makes a long row race, and a row is as long as
-// the catalogue is deep.
 const ROW_SPEEDS_PX_S = [18, 14, 20, 16];
 
-/** Marge latérale (px) des rangées statiques — réservée dans la mesure de
- *  débordement pour que le choix statique/boucle soit stable. */
+/** Reserved in the overflow measure too, so that the choice between static and looping holds. */
 const STATIC_ROW_PADDING_PX = 16;
 
 function rowCountFor(n: number): number {
@@ -102,12 +89,11 @@ function CarouselRow({
     return () => observer.disconnect();
   }, [dishes]);
 
-  // La boucle (et donc la duplication) ne s'active que si la rangée déborde
-  // de l'espace disponible marges comprises — la mesure ne dépend pas du
-  // padding appliqué ensuite, donc pas d'oscillation statique/boucle.
+  // Looping, and the copy it needs, starts only when the row overflows its space,
+  // margins included. The measure ignores the padding applied after it, so a row
+  // cannot flip between static and looping.
   const looping = animate && width.content > width.outer - 2 * STATIC_ROW_PADDING_PX;
   // The animation travels exactly one copy of the row, so this holds the speed
-  // whatever its length.
   const duration = Math.max(width.content, 1) / speed;
 
   return (
@@ -119,8 +105,7 @@ function CarouselRow({
       onPointerCancel={() => setPaused(false)}
       onPointerLeave={() => setPaused(false)}
     >
-      {/* Rangée statique : marge latérale pour ne pas coller aux bords ;
-                rangée en boucle : aucune, les chips passent par le bord. */}
+      {/* A static row keeps its margins; a looping one runs through the edges. */}
       <div
         className={cn('flex w-max', !looping && 'px-4')}
         style={
@@ -160,7 +145,7 @@ export function SuggestionCarousel({ dishes, color, onSelect }: SuggestionCarous
   const reducedMotion = useReducedMotion();
   const rowCount = rowCountFor(dishes.length);
 
-  // Répartition round-robin : chaque plat n'apparaît que dans une rangée
+  // Round-robin: each dish appears in one row only.
   const rows: DishCatalogItem[][] = Array.from({ length: rowCount }, () => []);
   dishes.forEach((dish, i) => rows[i % rowCount].push(dish));
 

@@ -1,11 +1,3 @@
-/**
- * MARIAM - Page Mon Compte
- *
- * Affiche les informations du compte et permet de gérer la sécurité :
- * - TOTP (application d'authentification)
- * - Passkeys (Touch ID, Face ID, Windows Hello)
- * - Changement de mot de passe (TOTP ou passkey selon ce qui est disponible)
- */
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
@@ -62,8 +54,6 @@ import {
   startAuthentication,
   type PublicKeyCredentialRequestOptionsJSON,
 } from '@simplewebauthn/browser';
-
-// ─── PWA Install Section ──────────────────────────────────────────────────────
 
 function NotificationSection() {
   const { user } = useAuth();
@@ -176,8 +166,6 @@ function TourSection() {
 }
 
 type VerificationMethod = 'totp' | 'passkey';
-
-// ─── Privacy Dialog ───────────────────────────────────────────────────────────
 
 function Block({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -408,11 +396,9 @@ export function AccountPage() {
   const hasPasskeys = (user?.passkeys_count ?? 0) > 0;
   const passkeySupported = typeof window !== 'undefined' && !!window.PublicKeyCredential;
 
-  // Méthode de vérification disponible : TOTP en priorité si actif
   const defaultMethod: VerificationMethod = hasMfa ? 'totp' : 'passkey';
   const canUseBoth = hasMfa && hasPasskeys && passkeySupported;
 
-  // États du formulaire de changement de mot de passe
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -439,7 +425,6 @@ export function AccountPage() {
     return null;
   };
 
-  // Changement de mot de passe via TOTP
   const handleChangeWithTotp = async (e: React.FormEvent) => {
     e.preventDefault();
     const validationError = validatePasswords();
@@ -476,7 +461,6 @@ export function AccountPage() {
     }
   };
 
-  // Changement de mot de passe via passkey (2 étapes intégrées dans le dialog)
   const handleChangeWithPasskey = async (e: React.FormEvent) => {
     e.preventDefault();
     const validationError = validatePasswords();
@@ -488,16 +472,13 @@ export function AccountPage() {
     setIsSubmitting(true);
     setMessage(null);
     try {
-      // Étape 1 : valider le mot de passe actuel côté serveur + obtenir le challenge
       const { options, challenge_token } =
         await authApi.passkeyChangePasswordBegin(currentPassword);
 
-      // Étape 2 : vérification biométrique
       const credential = await startAuthentication({
         optionsJSON: options as unknown as PublicKeyCredentialRequestOptionsJSON,
       });
 
-      // Étape 3 : appliquer le nouveau mot de passe
       await authApi.passkeyChangePasswordComplete(newPassword, challenge_token, credential);
 
       setMessage({ type: 'success', text: 'Mot de passe modifié avec succès' });
@@ -547,7 +528,6 @@ export function AccountPage() {
   return (
     <div className="container-mariam py-6">
       <div className="mx-auto max-w-3xl space-y-8">
-        {/* Identité */}
         <div className="flex items-start gap-4">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg font-semibold text-primary">
             {(user?.username || user?.email || '?').charAt(0).toUpperCase()}
@@ -578,7 +558,6 @@ export function AccountPage() {
         </div>
         <ProfileDialog open={isProfileOpen} onOpenChange={setIsProfileOpen} />
 
-        {/* Informations du compte */}
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-foreground">Compte</h2>
           <dl className="divide-y divide-border rounded-xl border border-border bg-card">
@@ -601,15 +580,12 @@ export function AccountPage() {
           </dl>
         </section>
 
-        {/* Sécurité */}
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-foreground">Sécurité</h2>
 
           <SecurityLock>
-            {/* TOTP */}
             <TotpManager />
 
-            {/* Passkeys */}
             <div className="space-y-3 rounded-lg border border-border bg-card p-4">
               <div className="flex items-center gap-2">
                 <Fingerprint className="h-5 w-5 shrink-0 text-primary" />
@@ -623,7 +599,6 @@ export function AccountPage() {
               <PasskeyManager />
             </div>
 
-            {/* Mot de passe */}
             <div className="flex flex-col justify-between gap-4 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center">
               <div>
                 <p className="font-medium text-foreground">Mot de passe</p>
@@ -674,7 +649,6 @@ export function AccountPage() {
                     </div>
                   )}
 
-                  {/* Champs communs aux deux méthodes */}
                   <div className="space-y-3">
                     <div className="space-y-2">
                       <Label htmlFor="currentPassword">Mot de passe actuel</Label>
@@ -712,7 +686,6 @@ export function AccountPage() {
                     </div>
                   </div>
 
-                  {/* Sélecteur de méthode de vérification (si les deux sont disponibles) */}
                   {canUseBoth && (
                     <div className="flex overflow-hidden rounded-xl border border-border text-sm">
                       <button
@@ -740,7 +713,6 @@ export function AccountPage() {
                     </div>
                   )}
 
-                  {/* Vérification TOTP */}
                   {hasMfa && (!canUseBoth || verificationMethod === 'totp') && (
                     <form onSubmit={handleChangeWithTotp} className="space-y-4">
                       <div className="space-y-2">
@@ -773,7 +745,6 @@ export function AccountPage() {
                     </form>
                   )}
 
-                  {/* Vérification passkey */}
                   {hasPasskeys &&
                     passkeySupported &&
                     (!hasMfa || verificationMethod === 'passkey') && (
@@ -812,7 +783,6 @@ export function AccountPage() {
         {/* Personal by nature, so they live with the account rather than with the site. */}
         <NotificationSection />
 
-        {/* Application — installation PWA (admin/editor uniquement) */}
         {(user?.role === 'admin' || user?.role === 'editor') && (
           <>
             <AppInstallSection />

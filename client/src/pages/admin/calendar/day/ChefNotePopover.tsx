@@ -6,7 +6,7 @@ import type { UseMenuEditorReturn } from './useMenuEditor';
 
 interface ChefNotePopoverProps {
   editor: UseMenuEditorReturn;
-  /** Version compacte (header de colonne semaine). */
+  /** For the week column header. */
   compact?: boolean;
   side?: 'top' | 'bottom' | 'left' | 'right';
   align?: 'start' | 'center' | 'end';

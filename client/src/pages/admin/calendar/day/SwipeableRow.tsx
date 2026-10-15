@@ -3,28 +3,26 @@ import type { ReactNode } from 'react';
 import { motion, useMotionValue, useTransform, animate, type PanInfo } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
-// ── Réglages du geste (aucune valeur dispersée dans la logique) ──────────────
-const COMMIT_THRESHOLD = 72; // px pour valider l'action
-const MAX_REVEAL = 104; // largeur max révélée d'un panneau
-const HINT_PEEK = 46; // px de l'indice (positif = révèle le panneau gauche)
-const HINT_DELAY_MS = 500; // délai avant de jouer l'indice
+const COMMIT_THRESHOLD = 72; // px
+const MAX_REVEAL = 104; // px
+const HINT_PEEK = 46; // px; positive reveals the left panel
+const HINT_DELAY_MS = 500;
 const SPRING = { type: 'spring', stiffness: 500, damping: 40 } as const;
 
 export interface SwipeAction {
   icon: ReactNode;
   label: string;
-  /** classes du panneau (fond + texte) */
   className: string;
   onTrigger: () => void;
-  /** 'destructive' → la carte sort de l'écran ; 'toggle' → retour élastique */
+  /** 'destructive' sends the card off screen; 'toggle' springs it back. */
   variant: 'destructive' | 'toggle';
 }
 
 interface SwipeableRowProps {
   children: ReactNode;
-  /** Révélé en glissant vers la droite (panneau à gauche). */
+  /** Revealed by swiping right. */
   left?: SwipeAction;
-  /** Révélé en glissant vers la gauche (panneau à droite). */
+  /** Revealed by swiping left. */
   right?: SwipeAction;
   hint?: boolean;
   disabled?: boolean;
@@ -42,7 +40,6 @@ export function SwipeableRow({
   const containerRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
 
-  // Largeurs des panneaux qui suivent le doigt (style notifications iOS)
   const leftWidth = useTransform(x, (v) => Math.max(0, Math.min(v, MAX_REVEAL)));
   const rightWidth = useTransform(x, (v) => Math.max(0, Math.min(-v, MAX_REVEAL)));
   const leftOpacity = useTransform(x, [0, COMMIT_THRESHOLD], [0, 1]);
@@ -50,7 +47,6 @@ export function SwipeableRow({
   const leftScale = useTransform(x, [0, COMMIT_THRESHOLD], [0.6, 1]);
   const rightScale = useTransform(x, [0, -COMMIT_THRESHOLD], [0.6, 1]);
 
-  // Indice discret : révèle brièvement un panneau puis revient
   useEffect(() => {
     if (!hint || disabled) return;
     const t = setTimeout(() => {
@@ -91,7 +87,6 @@ export function SwipeableRow({
 
   return (
     <div ref={containerRef} className="relative">
-      {/* Panneau gauche (glisser à droite) */}
       {left && (
         <motion.div
           aria-hidden
@@ -112,7 +107,6 @@ export function SwipeableRow({
         </motion.div>
       )}
 
-      {/* Panneau droit (glisser à gauche) */}
       {right && (
         <motion.div
           aria-hidden
@@ -133,7 +127,6 @@ export function SwipeableRow({
         </motion.div>
       )}
 
-      {/* Contenu déplaçable */}
       <motion.div
         drag={disabled ? false : 'x'}
         dragConstraints={{ left: -MAX_REVEAL, right: MAX_REVEAL }}
