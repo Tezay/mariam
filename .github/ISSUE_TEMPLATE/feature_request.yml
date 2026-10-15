@@ -1,40 +1,40 @@
 name: Feature request
-description: Proposer une nouvelle fonctionnalité ou amélioration
+description: Suggest a new feature or an improvement
 labels: [enhancement]
 body:
   - type: textarea
     id: problem
     attributes:
-      label: Problème à résoudre
-      description: Quel besoin ou frustration cette fonctionnalité adresse-t-elle ?
-      placeholder: "En tant que gestionnaire de menu, je ne peux pas… ce qui m'oblige à…"
+      label: Problem to solve
+      description: Which need or frustration would this feature address?
+      placeholder: "As a menu manager, I cannot… which forces me to…"
     validations:
       required: true
 
   - type: textarea
     id: solution
     attributes:
-      label: Solution proposée
-      description: Décrivez la fonctionnalité souhaitée
+      label: Proposed solution
+      description: Describe the feature you would like
     validations:
       required: true
 
   - type: textarea
     id: alternatives
     attributes:
-      label: Alternatives envisagées
-      description: Avez-vous considéré d'autres approches ?
+      label: Alternatives considered
+      description: Have you thought of other approaches?
     validations:
       required: false
 
   - type: dropdown
     id: priority
     attributes:
-      label: Priorité estimée
+      label: Estimated priority
       options:
-        - Critique (bloquant pour les utilisateurs)
-        - Haute (impact significatif)
-        - Moyenne (amélioration utile)
-        - Basse (nice-to-have)
+        - Critical (blocks users)
+        - High (significant impact)
+        - Medium (useful improvement)
+        - Low (nice to have)
     validations:
       required: true
