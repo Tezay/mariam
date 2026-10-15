@@ -135,7 +135,7 @@ jobs:
             row "Backend image build" "$IMAGE_BACKEND" "packaging files in \`server/\`"
             row "Frontend image build" "$IMAGE_FRONTEND" "packaging files in \`client/\`"
             row "Backup image, ShellCheck and round trip" "$BACKUP" "\`deploy/backup/\`, \`deploy/scripts/restore.sh\`"
-            row "Proxy image and configuration" "$PROXY" "\`deploy/nginx/\`"
+            row "Proxy image, ShellCheck, routing and client address" "$PROXY" "\`deploy/nginx/\`"
             echo
             echo "A change to this workflow runs every row."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -358,7 +358,7 @@ jobs:
         run: ./deploy/backup/round-trip-test.sh
 
   proxy:
-    name: Proxy image (nginx -t)
+    name: Proxy image (ShellCheck + routing and client address)
     needs: changes
     if: needs.changes.outputs.proxy == 'true'
     runs-on: ubuntu-latest
@@ -366,11 +366,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Build
-        run: docker build -t mariam-proxy:ci deploy/nginx
+      - name: ShellCheck
+        run: shellcheck deploy/nginx/*.sh
 
-      - name: Check the rendered configuration
-        run: docker run --rm mariam-proxy:ci nginx -t
+      - name: Routing and client address
+        run: ./deploy/nginx/test.sh
 
   result:
     name: CI result

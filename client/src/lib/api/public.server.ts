@@ -21,10 +21,8 @@ export function forwardedHeaders(request: Request): Record<string, string> {
     Origin: publicOrigin(request),
   };
   // Without it the API would rate-limit every visitor as this one server.
-  const visitor =
-    request.headers.get('cf-connecting-ip') ??
-    request.headers.get('x-forwarded-for')?.split(',')[0].trim();
-  if (visitor) headers['X-Forwarded-For'] = visitor;
+  const visitor = request.headers.get('x-real-ip');
+  if (visitor) headers['X-Real-IP'] = visitor;
   return headers;
 }
 
