@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { Links, Meta, Outlet, Scripts } from 'react-router';
 import '@fontsource-variable/inter';
 import './index.css';
-import { PageLoader } from './components/PageLoader';
 
 export function Layout({ children }: { children: ReactNode }) {
   return (
@@ -52,10 +51,6 @@ export function Layout({ children }: { children: ReactNode }) {
       </body>
     </html>
   );
-}
-
-export function HydrateFallback() {
-  return <PageLoader />;
 }
 
 export default function Root() {

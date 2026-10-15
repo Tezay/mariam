@@ -334,11 +334,6 @@ def create_app(config_class=None):
     api.register_blueprint(org_bp,           url_prefix='/v1/org')
     api.register_blueprint(analytics_bp,     url_prefix='/v1/analytics')
 
-    # A plain Flask blueprint: the sitemap is served at the root, outside the
-    # /v1 OpenAPI namespace.
-    from .routes.sitemap import sitemap_bp
-    app.register_blueprint(sitemap_bp)
-
     @app.route('/health')
     @limiter.exempt
     def health_check():

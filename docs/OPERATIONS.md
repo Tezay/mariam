@@ -112,8 +112,8 @@ cache, traffic counters and scheduled-job locks. The production compose ships th
 
 `REDIS_URL` is required in production: the backend and the scheduler refuse to start without it,
 or with `memory://`. The scheduler runs the backend image with the backend's environment plus
-`ENABLE_SCHEDULER=1`. A platform that deploys them as separate resources, such as Coolify, needs
-the same variables and the same image tag on both, and both redeployed at each release.
+`ENABLE_SCHEDULER=1`. A platform that deploys them separately needs the same variables and the
+same image tag on both, and both redeployed at each release.
 
 ```bash
 # Switching from a managed instance
@@ -411,24 +411,41 @@ TLS is terminated by Cloudflare in front of the VPS; nginx listens on `:80`.
   leg is encrypted too
 - Firewall the VPS to accept only Cloudflare addresses on `:80` and `:443`. Otherwise the origin
   is reachable directly and the nginx real-IP handling can be bypassed
-- Enable HSTS at Cloudflare; nginx sends it as well. Cloudflare also covers an API on its own host,
+- Enable HSTS at Cloudflare; the frontend sends it as well. Cloudflare also covers an API on its own host,
   which has no nginx in front
 
 ### Security headers
 
-The frontend image sends HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` and
-`Permissions-Policy` from
-[`client/nginx/security-headers.conf`](../client/nginx/security-headers.conf), whichever nginx
-config serves it. The API adds `X-Content-Type-Options` itself.
+The frontend server (`client/server.js`) sends HSTS, `X-Content-Type-Options`, `X-Frame-Options`,
+`Referrer-Policy` and `Permissions-Policy` on everything it answers. `deploy/nginx` adds the same
+to the API's responses; the API sets `X-Content-Type-Options` itself.
 
-The Content-Security-Policy is report-only for now. `client/docker-entrypoint.sh` writes it at
-container start, adding the API origin from `API_URL` and the Sentry host from `SENTRY_DSN`.
-
-It cannot be enforced as written: `index.html` carries the router's inline bootstrap scripts,
-which `script-src 'self'` refuses, so the app would not start. They first need a nonce or a hash
-in the policy. Once they have one, to make it enforcing:
+The Content-Security-Policy is report-only for now. The server writes it for each page
+(`client/src/lib/runtime-config.server.ts`), with a nonce for the router's inline scripts and the
+origins the deployment configures: the API when `API_URL` is absolute, Umami, Sentry. To make it
+enforcing:
 
 1. Browse the admin, a public menu and the TV display with the browser console open, and clear
    every `Content-Security-Policy-Report-Only` violation
-2. In `client/docker-entrypoint.sh`, rename the header to `Content-Security-Policy`
+2. In `client/src/entry.server.tsx`, rename the header to `Content-Security-Policy`
 3. Release, then check the console again
+
+### Frontend container
+
+The image runs a Node server as an unprivileged user.
+
+| Setting | Value |
+|---|---|
+| Port | `3000`, or `PORT` |
+| Healthcheck | Declared in the image, on `GET /healthz`, and run by Docker and Compose. The image carries neither `curl` nor `wget`: a probe run inside the container must call `node`, as the image's does, or reach `/healthz` over the network |
+| Memory | 384 MB is comfortable |
+
+| Variable | Role |
+|---|---|
+| `API_URL` | Where browsers reach the API: `/v1` behind `deploy/nginx`, or the API's own host, `https://api.example.org/v1` |
+| `API_INTERNAL_URL` | Optional. Where the server itself reaches the API, for instance `http://backend:5000/v1` on a shared Docker network. Without it the server goes through `API_URL`: its calls then all carry the server's own address and draw on a single `PUBLIC_RATE_LIMIT` budget |
+| `UMAMI_SCRIPT_URL`, `UMAMI_WEBSITE_ID` | Optional, together: the tracker's script and the site it reports as |
+| `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | Optional: error reporting from the browser |
+| `CANONICAL_HOST` | See "Migrating a tenant to a new hostname" |
+
+The variables are read at each request: changing one takes a restart, not a rebuild.

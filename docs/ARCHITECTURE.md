@@ -6,7 +6,8 @@ Technical reference for the deployed system.
 
 | Component | Technology | Role |
 |---|---|---|
-| Frontend | React 18, React Router 7, Vite, Nginx | User interface, port 80 |
+| Frontend | React 18, React Router 7, Node 22 | User interface and the server that answers it, port 3000 internally |
+| Proxy | Nginx, optional | One origin for the frontend and the API, port 80 |
 | Backend | Flask, Gunicorn | REST API and authentication, port 5000 internally |
 | Scheduler | Flask, APScheduler | Scheduled jobs, its own container |
 | Database | PostgreSQL 15 | Persistent storage, port 5432 internally |
@@ -22,13 +23,17 @@ Technical reference for the deployed system.
                                   ▼ HTTP :80
             ┌─────────────────────────────────────────────┐
             │                   NGINX                     │
-            │  Static SPA build   ·   Reverse proxy /v1/* │
-            └─────────────────────────────────────────────┘
-                                  │
-                                  ▼ HTTP :5000
+            │    /v1/* to the API  ·  the rest to Node    │
+            └───────┬─────────────────────────────┬───────┘
+                    │                             ▼ HTTP :3000
+                    │              ┌──────────────────────────────┐
+                    │              │     NODE + REACT ROUTER      │
+                    │              │ Pages · robots.txt · sitemap │
+                    │              └──────────────┬───────────────┘
+                    ▼ HTTP :5000                  ▼
             ┌─────────────────────────────────────────────┐
             │            GUNICORN + FLASK                 │
-            │  Auth · Menus · Catalogue · Analytics · Org  │
+            │  Auth · Menus · Catalogue · Analytics · Org │
             └───────┬──────────────────┬──────────────────┘
                     │                  │
         TCP :5432   ▼                  ▼  :6379
@@ -45,8 +50,8 @@ Technical reference for the deployed system.
                     └───────────────│  SCHEDULER   │
                                     │  APScheduler │
                                     └──────────────┘
-                                  │
-                                  ▼ S3 API (HTTPS)
+                                           │
+                                           ▼ S3 API (HTTPS)
             ┌─────────────────────────────────────────────┐
             │  Object storage                             │
             │  Development: MinIO, :9000 API / :9001 UI   │
@@ -56,14 +61,31 @@ Technical reference for the deployed system.
 
 ## Nginx
 
-`deploy/nginx/nginx.conf` handles:
+Optional. `deploy/nginx/nginx.conf` puts the frontend and the API behind one origin, which avoids
+CORS entirely. A platform that routes hostnames itself can expose the two containers directly,
+the API on a host of its own.
 
-1. Reverse proxy: `/v1/*` and `/health` to `backend:5000`, which avoids CORS entirely.
-2. `/sitemap.xml`: proxied to Flask, which builds it from the organization of the requested host.
-3. Every other path: the single-page app, served statically (`try_files $uri /index.html`).
-4. Static assets cached for a year, GZIP on.
-5. `server_name _` accepts any `*.mariam.app` subdomain; the `Host` header reaches the backend,
-   which resolves the organization from it.
+1. `/v1/*` and `/health` go to `backend:5000`, behind per-address rate limits.
+2. Every other path goes to `frontend:3000`.
+3. `server_name _` accepts any `*.mariam.app` subdomain; the `Host` header reaches both
+   containers, which resolve the organization from it.
+
+## Frontend server
+
+`client/server.js` serves the build on port 3000: static files, the pages, and four paths it
+answers itself.
+
+| Path | Content |
+|---|---|
+| `/config.js` | The deployment's public settings, read from the environment at each request |
+| `/robots.txt` | Crawl rules, pointing at the sitemap of the requested host |
+| `/sitemap.xml` | The organization's active sites, asked from the API |
+| `/healthz` | Liveness, for the container healthcheck |
+
+Pages are rendered in the browser: the server answers the document with a loading indicator, and
+the application takes over. To reach the API the server uses `API_INTERNAL_URL` when the
+deployment sets one and `API_URL` otherwise, and forwards the visitor's address so the API's rate
+limit keeps counting visitors.
 
 ## Configuration
 
@@ -90,14 +112,12 @@ CNAME, so a tenant is added by declaring its hostname rather than by relying on 
 
 ### Indexing
 
-Pages are rendered in the browser from one `index.html`, generated at build time by React Router
-(`client/src/root.tsx`) and identical for every tenant. A crawler or link preview that does not
-run JavaScript therefore reads the generic title and description, not a restaurant's.
+Pages are rendered in the browser, and the server answers the same document for every tenant: a
+crawler or link preview that does not run JavaScript reads the generic title and description,
+not a restaurant's.
 
-`sitemap.xml` is generated per host from the organization's active sites (`routes/sitemap.py`).
-`robots.txt`, served by nginx, allows public pages, blocks `/admin`, `/org` and the API, and
-points at the sitemap. Both exist only behind `deploy/nginx/nginx.conf`: a frontend image served
-on its own answers `index.html` for every path.
+`robots.txt` allows public pages and blocks `/admin`, `/org` and the API. `sitemap.xml` lists the
+organization's active sites. The frontend server answers both for the requested host.
 
 ### Onboarding a client
 
@@ -111,7 +131,7 @@ Modern browsers resolve `*.localhost` to `127.0.0.1` with no configuration:
 
 ```
 http://crous-example.localhost:5173/site-a/menu
-curl -H "Host: crous-example.localhost" http://localhost:5000/sitemap.xml
+curl -k https://crous-example.localhost:5173/sitemap.xml
 ```
 
 `lvh.me` works the same way if needed.

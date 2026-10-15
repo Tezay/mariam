@@ -10,13 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **React Router 7** replaces `react-router-dom` 6; the current page stays visible while the next one loads.
-- **The frontend is built by React Router's framework mode**, still as a single-page app; the build needs Node 22 alongside Bun and writes to `build/client`.
+- **The frontend is built by React Router's framework mode**; the build needs Node 22 alongside Bun.
 - **The service worker is built by `client/scripts/build-sw.mjs`**, with Workbox, in place of `vite-plugin-pwa`.
 - **One loading indicator** across the app, announced to screen readers.
+- **The frontend runs a Node server** in place of nginx, on port 3000; `deploy/compose.yaml` keeps nginx in front.
+- **`robots.txt` and `sitemap.xml` are answered by the frontend**, for the requested host.
+- **Umami needs `UMAMI_SCRIPT_URL`** beside `UMAMI_WEBSITE_ID`, and loads only when both are set.
+- **The Content-Security-Policy carries a nonce** and names only the configured third parties; still report-only.
+
+### Fixed
+
+- **`deploy/nginx` follows a recreated container** instead of answering 502 until its own restart.
 
 ### Removed
 
-- **The SEO shell served by Flask** and its `FRONTEND_ORIGIN` setting: a frontend image deployed on its own never reached it. `/sitemap.xml` stays.
+- **The SEO shell and the sitemap served by Flask**, with the `FRONTEND_ORIGIN` setting.
 
 ## [0.19.0] - 2026-10-13
 

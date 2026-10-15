@@ -14,8 +14,4 @@ describe('canonicalTarget', () => {
     expect(canonicalTarget('old.example.app', undefined)).toBeNull();
     expect(canonicalTarget('old.example.app', '   ')).toBeNull();
   });
-
-  it('returns null when the placeholder was never substituted', () => {
-    expect(canonicalTarget('old.example.app', '__CANONICAL_HOST__')).toBeNull();
-  });
 });

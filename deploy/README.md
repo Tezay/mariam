@@ -9,7 +9,8 @@ deploy/
 ├── compose.yaml          # Service orchestration
 ├── .env.example          # Environment variable template
 ├── nginx/
-│   └── nginx.conf        # Reverse proxy configuration
+│   ├── nginx.conf        # Reverse proxy configuration
+│   └── security-headers.conf
 └── scripts/
     ├── install.sh        # Initial setup
     ├── run.sh            # Start and stop
