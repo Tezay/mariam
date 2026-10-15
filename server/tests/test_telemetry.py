@@ -18,7 +18,7 @@ def _track(client, page_kind, site=None, ip='198.51.100.4', user_agent='Mozilla/
         json=payload,
         headers={
             'Origin': 'http://localhost:5173',
-            'X-Forwarded-For': ip,
+            'X-Real-IP': ip,
             'User-Agent': user_agent,
         },
     )

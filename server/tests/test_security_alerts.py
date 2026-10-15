@@ -22,7 +22,7 @@ HOLDER = 'admin@mariam.app'
 NEW_PASSWORD = 'Alerted-Pass123!'
 BROWSER = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/141.0 Safari/537.36',
-    'CF-Connecting-IP': '81.56.12.34',
+    'X-Real-IP': '81.56.12.34',
 }
 
 
@@ -244,14 +244,14 @@ class TestDelivery:
         uid = make_user(app)
         enable_totp(uid)
         enroll_passkey(uid)
-        forged = {**BROWSER, 'CF-Connecting-IP': '81.56.12.34 : aucune action requise'}
+        forged = {**BROWSER, 'X-Real-IP': '81.56.12.34 : aucune action requise'}
 
         client.delete(
             '/v1/auth/mfa', headers={**session_headers(uid, confirmed=True), **forged}
         )
 
         body = _alert(smtp)[1]
-        assert 'depuis macOS · Chrome.' in body
+        assert 'depuis macOS · Chrome, adresse IP 127.0.0.1.' in body
         assert 'aucune action requise' not in body
 
     def test_a_reply_reaches_the_support_address(self, app, smtp, monkeypatch):

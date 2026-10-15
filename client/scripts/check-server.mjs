@@ -168,7 +168,7 @@ test('/sitemap.xml lists the sites, asking the API as the visitor', async () => 
   apiAnswer = organization('alpha', 'beta');
   apiRequests = [];
   const sitemap = await request('/sitemap.xml', {
-    headers: { 'CF-Connecting-IP': '203.0.113.7' },
+    headers: { 'X-Real-IP': '203.0.113.7' },
   });
 
   assert.match(sitemap.headers['content-type'], /^application\/xml/);
@@ -179,7 +179,7 @@ test('/sitemap.xml lists the sites, asking the API as the visitor', async () => 
   assert.equal(apiRequests.length, 1);
   assert.equal(apiRequests[0].url, '/v1/public/org');
   assert.equal(apiRequests[0].headers.origin, ORIGIN);
-  assert.equal(apiRequests[0].headers['x-forwarded-for'], '203.0.113.7');
+  assert.equal(apiRequests[0].headers['x-real-ip'], '203.0.113.7');
 });
 
 test('/sitemap.xml of a single site is its menu at the root', async () => {

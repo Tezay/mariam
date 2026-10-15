@@ -29,17 +29,12 @@ describe('forwardedHeaders', () => {
     expect(forwardedHeaders(page()).Origin).toBe('https://demo.example.test');
   });
 
-  it('passes on the visitor address, the one Cloudflare gives first', () => {
-    const headers = { 'CF-Connecting-IP': '203.0.113.7', 'X-Forwarded-For': '198.51.100.1' };
-    expect(forwardedHeaders(page(headers))['X-Forwarded-For']).toBe('203.0.113.7');
-  });
-
-  it('keeps the first hop of a forwarding chain', () => {
-    const headers = { 'X-Forwarded-For': '203.0.113.7, 10.0.0.2' };
-    expect(forwardedHeaders(page(headers))['X-Forwarded-For']).toBe('203.0.113.7');
+  it('passes on the visitor address the proxy established', () => {
+    const headers = { 'X-Real-IP': '203.0.113.7' };
+    expect(forwardedHeaders(page(headers))['X-Real-IP']).toBe('203.0.113.7');
   });
 
   it('claims no address when it was given none', () => {
-    expect(forwardedHeaders(page())).not.toHaveProperty('X-Forwarded-For');
+    expect(forwardedHeaders(page())).not.toHaveProperty('X-Real-IP');
   });
 });

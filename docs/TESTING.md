@@ -147,7 +147,7 @@ check a pull request needs to merge.
 
 | Workflow | Required check | What it runs |
 |---|---|---|
-| [`quality.yml`](../.github/workflows/quality.yml) | `CI result` | ruff, mypy and pytest for `server/`; ESLint, Prettier, Vitest and the build for `client/`; the production images, built without being published |
+| [`quality.yml`](../.github/workflows/quality.yml) | `CI result` | ruff, mypy and pytest for `server/`; ESLint, Prettier, Vitest and the build for `client/`; the production images, built without being published; ShellCheck, then the backup and proxy images against throwaway services |
 | [`security.yml`](../.github/workflows/security.yml) | `Security result` | `uv audit` and `bun audit` |
 
 What runs depends on the event and on the paths a change touches:
@@ -162,9 +162,10 @@ What runs depends on the event and on the paths a change touches:
 
 - **Backend jobs** follow `server/`.
 - **Frontend jobs** follow `client/` and `.editorconfig`, which Prettier reads.
-- **Image builds** follow the packaging files: `Dockerfile.prod`, the entrypoint, `nginx.conf`, `.dockerignore`, the manifest and the lockfile.
+- **Image builds** follow the packaging files: `Dockerfile.prod`, the backend's entrypoint, the frontend's `server.js`, `.dockerignore`, the manifest and the lockfile.
+- **Backup and proxy jobs** follow `deploy/backup/` with `deploy/scripts/restore.sh`, and `deploy/nginx/`.
 - A change to a workflow runs everything that workflow holds.
-- `docs/`, `deploy/` and the other root files run nothing.
+- `docs/`, the rest of `deploy/` and the other root files run nothing.
 
 **A green check can mean skipped.** A skipped job was not needed; it did not pass. The summary of
 each workflow's *Detect changes* job lists what ran, what was skipped, and which paths decide it.

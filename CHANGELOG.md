@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The API sets its own security headers**, whatever proxy stands in front: HSTS, `no-store`, a CSP that loads nothing.
 - **Backups are encrypted** before they leave the server, which holds no key able to read or delete them.
+- **The visitor's address comes from configured proxies only** (`TRUSTED_PROXIES`, `REAL_IP_HEADER`); a client cannot choose it.
 
 ### Added
 
@@ -43,10 +44,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The API's `robots.txt`**: every API response carries `X-Robots-Tag: noindex` instead.
 - **`BACKUP_INTERVAL_SECONDS` and `BACKUP_RETENTION_DAYS`**: retention belongs to the bucket's lifecycle rules.
 - **`deploy/scripts/install.sh`, `init.sh` and `run.sh`**, and `PORT`: `docs/INSTALL.md` gives the compose commands.
+- **The proxy's own rate limits**: the API's are the only ones.
 
 ### Fixed
 
 - **`deploy/nginx` follows a recreated container** instead of answering 502 until its own restart.
+- **`/health/ready` through the proxy** reaches the API instead of the frontend.
 
 ## [0.19.0] - 2026-10-13
 

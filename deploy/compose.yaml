@@ -163,6 +163,9 @@ services:
     logging: *default-logging
     mem_limit: 64m
     cpus: 0.25
+    environment:
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+      REAL_IP_HEADER: ${REAL_IP_HEADER:-}
     depends_on:
       frontend:
         condition: service_healthy

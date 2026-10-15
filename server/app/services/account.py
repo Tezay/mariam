@@ -1,5 +1,4 @@
 """Changes to an account that the dashboard and the CLI must make the same way."""
-import ipaddress
 from enum import StrEnum
 
 from flask import has_request_context, request
@@ -89,15 +88,6 @@ def notify_password_reset(user: User, url: str) -> bool:
     )
 
 
-def _client_address() -> str | None:
-    # Read from headers a client can forge once it bypasses the proxy: only
-    # what parses as an address may reach the message.
-    try:
-        return str(ipaddress.ip_address(get_client_ip()))
-    except ValueError:
-        return None
-
-
 def notify_security_event(user: User, event: SecurityEvent) -> bool:
     """To call after the commit: an alert for a change that then rolled back would be false.
 
@@ -114,7 +104,7 @@ def notify_security_event(user: User, event: SecurityEvent) -> bool:
         event=event,
         when=f'{format_date_fr(now.date())} à {now.hour} h {now.minute:02d}',
         device=describe_device(request.user_agent.string) if own_act else None,
-        ip_address=_client_address() if own_act else None,
+        ip_address=get_client_ip() if own_act else None,
     )
     return email_service.send_email(
         user.email, alert['subject'], alert['text'], alert['html'], kind=Kind.SECURITY

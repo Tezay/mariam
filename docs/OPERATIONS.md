@@ -436,10 +436,23 @@ one to five minutes, with email or SMS alerting.
 TLS is terminated in front of the server; the `proxy` service listens on `:80`.
 
 - Encrypt the leg from the TLS terminator to the server too: an origin certificate, or a tunnel.
-- Where the proxy's port is published, accept it from the terminator only. The proxy takes the
-  client address from the ranges in its `set_real_ip_from` lines; a server reachable directly lets
-  that be bypassed.
+- Where the proxy's port is published, accept it from the terminator only, or a client can claim
+  any address to the proxy.
 - The frontend and the API send HSTS.
+
+### Client address
+
+The proxy establishes the visitor's address once: from `REAL_IP_HEADER`, on a connection from one
+of `TRUSTED_PROXIES`, and from the connection itself otherwise. It passes it on as `X-Real-IP`,
+which the API believes only from a peer on the deployment's own network.
+
+| Variable | Default | Set it to |
+|---|---|---|
+| `TRUSTED_PROXIES` | the private and loopback ranges | the ranges the TLS terminator connects from, when they are public |
+| `REAL_IP_HEADER` | `X-Forwarded-For`, read right to left past trusted entries | the header a CDN in front sets to the visitor's address |
+
+The API and the frontend server must be reachable through the proxy only: every rate limit, audit
+entry and vote ceiling keys on this address.
 
 ### Security headers
 

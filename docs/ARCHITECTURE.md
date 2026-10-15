@@ -67,10 +67,12 @@ Technical reference for the deployed system.
 The `proxy` service, an image built from `deploy/nginx`, puts the frontend and the API behind one
 origin, which avoids CORS entirely. It is the only service that receives outside traffic.
 
-1. `/v1/*` and `/health` go to `backend:5000`, behind per-address rate limits.
+1. `/v1/*` and `/health` go to `backend:5000`.
 2. Every other path goes to `frontend:3000`.
 3. `server_name _` accepts any `*.mariam.app` subdomain; the `Host` header reaches both
    containers, which resolve the organization from it.
+4. The visitor's address is established here, from the trusted proxies in front, and passed on
+   as `X-Real-IP`. Rate limits live in the API alone.
 
 ## Frontend server
 

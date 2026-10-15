@@ -8,6 +8,7 @@ Gunicorn ; la blacklist de tokens utilise le même Redis (préfixe
 
 Sans REDIS_URL, fallback automatique sur un stockage en mémoire (dev).
 """
+import ipaddress
 import os
 
 from flask_limiter import Limiter
@@ -87,21 +88,29 @@ def is_token_blacklisted(jti: str) -> bool:
     return False
 
 
-def get_client_ip():
-    """
-    Retourne l'adresse IP réelle du client.
+# Private and loopback ranges only: is_private also takes in reserved and
+# documentation ones.
+_INTERNAL_NETWORKS = tuple(
+    ipaddress.ip_network(network)
+    for network in ('10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '127.0.0.0/8', 'fc00::/7', '::1/128')
+)
 
-    - Production (Cloudflare) : utilise CF-Connecting-IP (fiable, non falsifiable).
-    - Fallback : X-Forwarded-For, puis remote_addr.
+
+def get_client_ip() -> str:
+    """The visitor's address, and always a valid one.
+
+    X-Real-IP, as the proxy and the frontend server set it, is believed only from
+    a peer on an internal network: a client reaching the API directly is counted
+    under its own address.
     """
     from flask import request
-    cf_ip = request.headers.get('CF-Connecting-IP', '').strip()
-    if cf_ip:
-        return cf_ip
-    forwarded_for = request.headers.get('X-Forwarded-For', '')
-    if forwarded_for:
-        return forwarded_for.split(',')[0].strip()
-    return request.remote_addr or '127.0.0.1'
+    peer = request.remote_addr or '127.0.0.1'
+    try:
+        if any(ipaddress.ip_address(peer) in network for network in _INTERNAL_NETWORKS):
+            return str(ipaddress.ip_address(request.headers.get('X-Real-IP', '')))
+    except ValueError:
+        pass
+    return peer
 
 
 # Redis URL depuis l'environnement (service local ou instance managée)
