@@ -1,7 +1,4 @@
-"""
-Tests de gestion des utilisateurs : création, rôles, désactivation.
-Seul un admin peut gérer les autres utilisateurs.
-"""
+"""User management, by an admin only: creation, roles, deactivation."""
 from datetime import timedelta
 
 from app.extensions import db

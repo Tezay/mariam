@@ -1,26 +1,15 @@
-"""
-Modèle MenuCategory — Catégories et sous-catégories de menu par restaurant.
-
-Structure :
-- Les catégories principales ont parent_id = NULL
-- Les sous-catégories ont parent_id → MenuCategory.id (max 1 niveau d'imbrication)
-- is_protected : ne peut pas être supprimé (ex: Plat principal, Protéines, Accompagnements)
-- is_highlighted : items affichés en grand format avec image visible par défaut
-"""
-
 from ..extensions import db
 from ..utils.time import utc_now_naive
 
 
 class MenuCategory(db.Model):
-    """Catégorie ou sous-catégorie de menu d'un restaurant."""
-
     __tablename__ = 'menu_categories'
 
     id = db.Column(db.Integer, primary_key=True)
     restaurant_id = db.Column(
         db.Integer, db.ForeignKey('restaurants.id', ondelete='CASCADE'), nullable=False
     )
+    # One level only: a subcategory has none of its own.
     parent_id = db.Column(
         db.Integer, db.ForeignKey('menu_categories.id', ondelete='CASCADE'), nullable=True
     )
@@ -32,7 +21,6 @@ class MenuCategory(db.Model):
     created_at = db.Column(db.DateTime, default=utc_now_naive)
     updated_at = db.Column(db.DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 
-    # Sous-catégories (relation enfants)
     subcategories = db.relationship(
         'MenuCategory',
         backref=db.backref('parent', remote_side='MenuCategory.id'),
@@ -42,7 +30,6 @@ class MenuCategory(db.Model):
         cascade='all, delete-orphan',
     )
 
-    # Items de menu liés à cette catégorie
     menu_items = db.relationship(
         'MenuItem',
         backref='category_obj',

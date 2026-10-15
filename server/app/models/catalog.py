@@ -1,19 +1,6 @@
-"""
-Modèles DishCatalog et CategorySubstitution — Catalogue de plats par restaurant.
-
-Architecture :
-- DishCatalog : entité plat réutilisable par restaurant, avec image, tags et certifications.
-- CategorySubstitution : plats de substitution définis par catégorie (affiché si un item
-  de la catégorie est en rupture).
-- dish_dietary_tags / dish_certifications : tables de jonction N:N.
-"""
 from datetime import UTC, datetime
 
 from ..extensions import db
-
-# ──────────────────────────────────────────────────────────────────────
-#  TABLES DE JONCTION  (N:N)
-# ──────────────────────────────────────────────────────────────────────
 
 dish_dietary_tags = db.Table(
     'dish_dietary_tags',
@@ -48,13 +35,7 @@ dish_certifications = db.Table(
 )
 
 
-# ──────────────────────────────────────────────────────────────────────
-#  MODÈLES
-# ──────────────────────────────────────────────────────────────────────
-
 class DishCatalog(db.Model):
-    """Entité plat réutilisable, liée à un restaurant et une catégorie."""
-
     __tablename__ = 'dish_catalog'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -63,8 +44,7 @@ class DishCatalog(db.Model):
         db.ForeignKey('restaurants.id', ondelete='CASCADE'),
         nullable=False,
     )
-    # Catégorie par défaut du plat (feuille : sous-catégorie ou catégorie sans enfant)
-    # nullable : préservé si la catégorie est supprimée
+    # Always a leaf.
     category_id = db.Column(
         db.Integer,
         db.ForeignKey('menu_categories.id', ondelete='SET NULL'),
@@ -83,7 +63,6 @@ class DishCatalog(db.Model):
         onupdate=lambda: datetime.now(UTC),
     )
 
-    # Relations taxonomie
     tags = db.relationship(
         'DietaryTag',
         secondary=dish_dietary_tags,
@@ -120,7 +99,7 @@ class DishCatalog(db.Model):
 
 
 class CategorySubstitution(db.Model):
-    """Plat de substitution par menu et par catégorie — affiché quand un item est en rupture."""
+    """A dish offered, for one menu and category, when a dish of that category runs out."""
 
     __tablename__ = 'category_substitutions'
 

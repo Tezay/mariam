@@ -1,12 +1,3 @@
-"""
-Modèle AuditLog - Journal des actions sensibles.
-
-Enregistre les actions critiques pour la sécurité et la traçabilité :
-- Connexions/déconnexions
-- Publications de menus
-- Gestion des utilisateurs
-- Modifications de configuration
-"""
 import json
 from datetime import UTC
 
@@ -15,8 +6,6 @@ from ..utils.time import utc_now_naive
 
 
 class AuditLog(db.Model):
-    """Journal d'audit des actions sensibles."""
-    
     __tablename__ = 'audit_logs'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -28,14 +17,12 @@ class AuditLog(db.Model):
     target_type = db.Column(db.String(50), nullable=True)  # user, menu, event, etc.
     target_id = db.Column(db.Integer, nullable=True)
     details = db.Column(db.Text, nullable=True)  # JSON
-    ip_address = db.Column(db.String(45), nullable=True)  # IPv4 ou IPv6
+    ip_address = db.Column(db.String(45), nullable=True)  # IPv4 or IPv6
     user_agent = db.Column(db.String(500), nullable=True)
     created_at = db.Column(db.DateTime, default=utc_now_naive, index=True)
     
-    # Relation
     user = db.relationship('User', backref='audit_logs', foreign_keys=[user_id])
     
-    # Actions prédéfinies
     ACTION_LOGIN = 'login'
     ACTION_LOGIN_FAILED = 'login_failed'
     ACTION_LOGOUT = 'logout'
@@ -80,7 +67,7 @@ class AuditLog(db.Model):
     @classmethod
     def log(cls, action, user_id=None, target_type=None, target_id=None,
             details=None, ip_address=None, user_agent=None, restaurant_id=None):
-        """Crée une nouvelle entrée de journal."""
+        """Added to the session; the caller commits it with the change it records."""
         log_entry = cls(
             user_id=user_id,
             restaurant_id=restaurant_id,
@@ -92,11 +79,9 @@ class AuditLog(db.Model):
             user_agent=user_agent
         )
         db.session.add(log_entry)
-        # Note: Le commit est fait par l'appelant pour grouper les transactions
         return log_entry
     
     def get_details(self):
-        """Parse les détails JSON."""
         if self.details:
             try:
                 return json.loads(self.details)
@@ -105,7 +90,6 @@ class AuditLog(db.Model):
         return None
     
     def to_dict(self):
-        """Sérialise l'entrée de journal en dictionnaire JSON."""
         return {
             'id': self.id,
             'user_id': self.user_id,

@@ -1,4 +1,3 @@
-"""Proxy des jours fériés français (calendrier.api.gouv.fr) avec cache Redis 24h."""
 import json
 import logging
 
@@ -10,11 +9,7 @@ CACHE_TTL_SECONDS = 86400
 
 
 def get_jours_feries(year: int) -> list[dict] | None:
-    """Retourne les jours fériés métropole pour une année donnée.
-
-    Format : [{'date': 'YYYY-MM-DD', 'description': str}, ...], trié par date.
-    Retourne None si l'API externe est injoignable et le cache vide.
-    """
+    """Sorted by date; None when the API is unreachable and nothing is cached."""
     from ..security import _get_blacklist_redis
 
     cache_key = f'jours_feries:{year}'
@@ -25,7 +20,7 @@ def get_jours_feries(year: int) -> list[dict] | None:
             if cached:
                 return json.loads(cached)
         except Exception:
-            logger.warning('Cache Redis indisponible en lecture pour %s', cache_key)
+            logger.warning('Redis unavailable, cannot read %s', cache_key)
 
     try:
         resp = requests.get(
@@ -34,16 +29,16 @@ def get_jours_feries(year: int) -> list[dict] | None:
         )
         resp.raise_for_status()
         raw: dict = resp.json()
-        # Format API : {"2026-01-01": "Jour de l'An", ...}
+        # {"2026-01-01": "Jour de l'An", ...}
         result = [{'date': d, 'description': desc} for d, desc in sorted(raw.items())]
     except Exception:
-        logger.warning('API jours fériés injoignable pour %s', year)
+        logger.warning('Public holidays API unreachable for %s', year)
         return None
 
     if r:
         try:
             r.setex(cache_key, CACHE_TTL_SECONDS, json.dumps(result))
         except Exception:
-            logger.warning('Cache Redis indisponible en écriture pour %s', cache_key)
+            logger.warning('Redis unavailable, cannot write %s', cache_key)
 
     return result

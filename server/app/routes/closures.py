@@ -1,15 +1,3 @@
-"""
-Closures routes for MARIAM — Exceptional restaurant closures.
-
-Public endpoints (no authentication required):
-- GET /v1/closures     Active upcoming/current closures
-
-Editor endpoints (JWT required):
-- GET    /v1/closures           List all closures
-- POST   /v1/closures           Create a closure
-- PUT    /v1/closures/<id>      Update a closure
-- DELETE /v1/closures/<id>      Delete a closure
-"""
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 from flask_smorest import Blueprint
@@ -38,14 +26,6 @@ closures_bp = Blueprint(
     description='Exceptional closures — Public display and editor management'
 )
 
-
-# ============================================================
-# HELPERS
-# ============================================================
-
-# ============================================================
-# LISTE DES FERMETURES — route unifiée public/éditeur
-# ============================================================
 
 @closures_bp.route('', methods=['GET'])
 @closures_bp.response(200, PublicClosuresResponseSchema)
@@ -110,7 +90,6 @@ def list_closures():
         return jsonify({'closures': [c.to_dict(today) for c in closures]}), 200
 
     else:
-        # Vue publique : actives, end_date >= today
         query = ExceptionalClosure.query.filter(
             ExceptionalClosure.restaurant_id == restaurant_id,
             ExceptionalClosure.is_active,
@@ -183,10 +162,6 @@ def create_closure(data):
 
     return jsonify({'message': 'Fermeture créée', 'closure': closure.to_dict(today)}), 201
 
-
-# ============================================================
-# ROUTES PARAMÉTRÉES
-# ============================================================
 
 @closures_bp.route('/<int:closure_id>', methods=['PUT'])
 @editor_required

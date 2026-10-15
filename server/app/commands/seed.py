@@ -48,7 +48,7 @@ def register_commands(app):
         click.echo(f'  Cert. categories    : {cert_cat_count}')
         click.echo(f'  Certifications      : {cert_count}  ({cert_kw_count} keywords)')
         click.echo('=' * 50)
-        click.echo('  ✅  Done — database up to date.\n')
+        click.echo('  Done — database up to date.\n')
 
 
 def _upsert_dietary_tag_categories() -> int:

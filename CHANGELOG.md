@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The proxy is an image**, `mariam-proxy`, published with the others; the server no longer needs the repository.
 - **`MARIAM_TAG` is required**: a deployment runs a named release, never `latest`.
 - **"Vos données"** says that backups are encrypted and kept 30 days.
+- **Logs and command output** reworded, without emoji; the scheduled jobs carry new names.
 
 ### Removed
 

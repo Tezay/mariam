@@ -1,13 +1,3 @@
-"""
-Category routes for MARIAM — CRUD for menu categories and subcategories.
-
-Admin endpoints (JWT required, admin role):
-- GET    /v1/settings/categories              List all categories + subcategories
-- POST   /v1/settings/categories              Create a category (or subcategory if parent_id)
-- PUT    /v1/settings/categories/<id>         Update label, order, is_highlighted
-- DELETE /v1/settings/categories/<id>         Delete (forbidden if is_protected)
-- PUT    /v1/settings/categories/reorder      Reorder categories (array of {id, order})
-"""
 from flask import jsonify
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_smorest import Blueprint
@@ -31,17 +21,9 @@ categories_bp = Blueprint(
 )
 
 
-# ============================================================
-# HELPERS
-# ============================================================
-
 def _get_restaurant(user):
     return get_active_restaurant(user)
 
-
-# ============================================================
-# ROUTES
-# ============================================================
 
 @categories_bp.route('/settings/categories', methods=['GET'])
 @categories_bp.response(200, MenuCategorySchema(many=True))

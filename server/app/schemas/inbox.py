@@ -8,7 +8,7 @@ class LiveAlertSchema(Schema):
     key = fields.Str()
     title = fields.Str()
     body = fields.Str()
-    severity = fields.Str(description="info | warning | error")
+    severity = fields.Str(metadata={'description': "info | warning | error"})
     site_ids = fields.List(fields.Int())
     site_names = fields.List(fields.Str())
 

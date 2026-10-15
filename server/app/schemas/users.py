@@ -17,7 +17,7 @@ class UserAdminSchema(Schema):
     id = fields.Int(dump_only=True)
     email = fields.Email()
     username = fields.Str(allow_none=True)
-    role = fields.Str(description="'admin', 'editor', or 'reader'")
+    role = fields.Str(metadata={'description': "'admin', 'editor', or 'reader'"})
     mfa_enabled = fields.Bool()
     is_active = fields.Bool()
     restaurant_id = fields.Int(allow_none=True)
@@ -28,7 +28,7 @@ class UserAdminSchema(Schema):
 class UserUpdateSchema(Schema):
     class Meta:
         unknown = EXCLUDE
-    role = fields.Str(description="'admin', 'editor', or 'reader'")
+    role = fields.Str(metadata={'description': "'admin', 'editor', or 'reader'"})
     is_active = fields.Bool()
     restaurant_id = fields.Int(allow_none=True)
 
@@ -39,11 +39,11 @@ class InviteSchema(Schema):
     email = NormalizedEmail(
         allow_none=True,
         load_default=None,
-        description="Suggested address; the invitee may enter another at activation",
+        metadata={'description': "Suggested address; the invitee may enter another at activation"},
     )
-    role = fields.Str(description="Role: 'admin', 'editor', or 'reader'")
+    role = fields.Str(metadata={'description': "Role: 'admin', 'editor', or 'reader'"})
     send_email = fields.Bool(
-        load_default=False, description="Email the invitation to `email` as well"
+        load_default=False, metadata={'description': "Email the invitation to `email` as well"}
     )
 
     @validates_schema
@@ -56,9 +56,9 @@ class PasswordResetLinkSchema(Schema):
     class Meta:
         unknown = EXCLUDE
     message = fields.Str()
-    emailed = fields.Bool(description="Whether the link reached the account's address")
+    emailed = fields.Bool(metadata={'description': "Whether the link reached the account's address"})
     reset_url = fields.Str(
-        allow_none=True, description="The link, only when it could not be emailed"
+        allow_none=True, metadata={'description': "The link, only when it could not be emailed"}
     )
 
 
@@ -70,7 +70,7 @@ class InvitationSchema(Schema):
     email = fields.Email(allow_none=True)
     role = fields.Str()
     expires_at = fields.Str()
-    emailed = fields.Bool(description="Whether the invitation was emailed to `email`")
+    emailed = fields.Bool(metadata={'description': "Whether the invitation was emailed to `email`"})
     created_by_name = fields.Str(allow_none=True)
 
 

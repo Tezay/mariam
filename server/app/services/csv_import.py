@@ -1,10 +1,3 @@
-"""
-Helpers partagés d'import CSV/Excel — parsing de fichier et détection de taxonomie.
-
-Utilisés par l'import de menus et l'import du catalogue de plats (routes/imports.py).
-Le parsing est générique (encodage, délimiteur, CSV, Excel) ; la détection de tags
-s'appuie sur les mots-clés de taxonomie stockés en base.
-"""
 import csv
 import io
 import re
@@ -14,7 +7,6 @@ from .text_match import normalize
 
 
 def detect_encoding(file_content: bytes) -> str:
-    """Détecte l'encodage d'un fichier (chardet si disponible, sinon essais successifs)."""
     try:
         import chardet
         result = chardet.detect(file_content)
@@ -30,7 +22,6 @@ def detect_encoding(file_content: bytes) -> str:
 
 
 def detect_delimiter(sample: str) -> str:
-    """Devine le délimiteur d'un CSV à partir de la première ligne."""
     delimiters = [';', ',', '\t', '|']
     max_count = 0
     best_delimiter = ';'
@@ -73,10 +64,10 @@ def parse_excel_content(file_content: bytes) -> tuple[list[str], list[dict]]:
 
 
 def parse_upload(file) -> tuple[list[str], list[dict], str | None]:
-    """Parse un fichier uploadé (CSV ou Excel) et retourne (colonnes, lignes, délimiteur).
+    """Parse a CSV or Excel upload into (columns, rows, delimiter).
 
-    Le délimiteur vaut None pour les fichiers Excel. Lève ValueError si le format
-    n'est pas supporté ou si le fichier est vide.
+    The delimiter is None for Excel. Raises ValueError on an unsupported format or
+    an empty file.
     """
     filename = (file.filename or '').lower()
     if not (filename.endswith('.csv') or filename.endswith('.xlsx') or filename.endswith('.xls')):
@@ -101,12 +92,10 @@ def parse_upload(file) -> tuple[list[str], list[dict], str | None]:
 
 
 def normalize_label(label: str) -> str:
-    """Normalise un label pour la comparaison (minuscules, sans accents)."""
     return normalize(label)
 
 
 def detect_tags_from_text(text: str) -> dict:
-    """Détecte tags alimentaires et certifications dans un texte via les mots-clés DB."""
     text_lower = text.lower()
     detected_tag_ids: set[str] = set()
     detected_cert_ids: set[str] = set()
@@ -120,7 +109,7 @@ def detect_tags_from_text(text: str) -> dict:
 
 
 def clean_item_name(name: str) -> str:
-    """Nettoie un nom de plat issu d'un CSV (retire emojis et suffixes de régime)."""
+    """Strip the emoji and diet suffixes a menu file adds to dish names."""
     for emoji in ['🌱', '🥬', '🥗', '🕌', '🌿', '🇫🇷', '♻️', '🐟', '🐄', '🐔']:
         name = name.replace(emoji, '')
     name = re.sub(r'\s*[\(\[](vg|végétarien|bio|halal|sans porc|local)[\)\]]', '', name, flags=re.IGNORECASE)

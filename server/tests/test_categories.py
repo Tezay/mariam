@@ -1,7 +1,4 @@
-"""
-Tests CRUD des catégories de menu : création, lecture, mise à jour,
-suppression, ordre, hiérarchie parent/enfant, protection.
-"""
+"""Menu categories: CRUD, order, parent and child, protection."""
 import pytest
 from conftest import make_restaurant, make_user, get_token, auth_headers
 

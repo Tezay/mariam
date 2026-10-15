@@ -1,7 +1,3 @@
-"""
-MARIAM - Schemas Marshmallow centralisés.
-Utilisés par Flask-Smorest pour la documentation OpenAPI et la validation.
-"""
 from .auth import (
     ActivateAccountSchema,
     ChangePasswordSchema,

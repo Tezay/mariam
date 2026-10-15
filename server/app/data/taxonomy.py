@@ -1,16 +1,7 @@
-"""
-MARIAM — Registre unique des tags alimentaires et certifications.
-
-CE FICHIER EST LA SOURCE DE VÉRITÉ.
-
-Les tables DB sont peuplées à partir de ces données lors de la migration
-initiale. Elles servent ensuite de référentiel pour les FK.
+"""The source of truth for dietary tags and certifications. A new entry also needs
+an Alembic migration that inserts its row.
 """
 from typing import Any
-
-# ──────────────────────────────────────────────────────────────────────
-#  CATÉGORIES DE TAGS ALIMENTAIRES
-# ──────────────────────────────────────────────────────────────────────
 
 DIETARY_TAG_CATEGORIES = [
     {
@@ -39,36 +30,29 @@ DIETARY_TAG_CATEGORIES = [
     },
 ]
 
-# ──────────────────────────────────────────────────────────────────────
-#  TAGS ALIMENTAIRES (déclaratifs, pas de certification externe)
-# ──────────────────────────────────────────────────────────────────────
 
 DIETARY_TAGS: list[dict[str, Any]] = [
-    # ── Régime / composition ──
     {"id": "vegetarian",      "label": "Végétarien",           "icon": "leaf",         "color": "green",  "category_id": "regime_composition", "sort_order": 1},
     {"id": "vegan",           "label": "Vegan",                "icon": "sprout",       "color": "green",  "category_id": "regime_composition", "sort_order": 2},
     {"id": "pescetarian",     "label": "Pescetarien",          "icon": "fish",         "color": "blue",   "category_id": "regime_composition", "sort_order": 3},
     {"id": "halal",           "label": "Halal (déclaratif)",   "icon": "badge-check",  "color": "teal",   "category_id": "regime_composition", "sort_order": 4},
     {"id": "pork_free",       "label": "Sans porc",            "icon": "ban",          "color": "orange", "category_id": "regime_composition", "sort_order": 5},
     {"id": "alcohol_free",    "label": "Sans alcool",          "icon": "wine-off",     "color": "purple", "category_id": "regime_composition", "sort_order": 6},
-    # ── Exclusions simplifiées ──
     {"id": "gluten_free",     "label": "Sans gluten",          "icon": "wheat-off",    "color": "amber",  "category_id": "exclusions",         "sort_order": 7},
     {"id": "lactose_free",    "label": "Sans lactose",         "icon": "milk-off",     "color": "blue",   "category_id": "exclusions",         "sort_order": 8},
     {"id": "nut_free",        "label": "Sans fruits à coque",  "icon": "nut-off",      "color": "amber",  "category_id": "exclusions",         "sort_order": 9},
-    # ── Préparation ──
     {"id": "homemade",        "label": "Fait maison",          "icon": "chef-hat",     "color": "blue",   "category_id": "preparation",        "sort_order": 10},
     {"id": "chef_special",    "label": "Plat du chef",         "icon": "sparkles",     "color": "indigo", "category_id": "preparation",        "sort_order": 11},
     {"id": "traditional",     "label": "Recette traditionnelle","icon": "notebook-pen", "color": "orange", "category_id": "preparation",        "sort_order": 12},
     {"id": "local_product",   "label": "Produit local",        "icon": "map-pin",      "color": "blue",   "category_id": "preparation",        "sort_order": 13},
     {"id": "seasonal",        "label": "Produit de saison",    "icon": "tree-pine",    "color": "green",  "category_id": "preparation",        "sort_order": 14},
     {"id": "hot_appetizer",   "label": "Entrée chaude",        "icon": "soup",         "color": "orange", "category_id": "preparation",        "sort_order": 15},
-    # ── Goût / profil ──
     {"id": "spicy",           "label": "Épicé",                "icon": "flame",        "color": "red",    "category_id": "taste_profile",      "sort_order": 15},
     {"id": "low_salt",        "label": "Peu salé",             "icon": "droplets",     "color": "cyan",   "category_id": "taste_profile",      "sort_order": 16},
     {"id": "sweet_savory",    "label": "Sucré-salé",           "icon": "candy",        "color": "pink",   "category_id": "taste_profile",      "sort_order": 17},
 ]
 
-# Mots-clés de détection CSV  (tag_id → liste de mots-clés, minuscule)
+# Lowercase.
 DIETARY_TAG_KEYWORDS: dict[str, list[str]] = {
     "vegetarian":   ["végétarien", "vegetarien", "veggie", "sans viande", "vg", "🌱", "🥬", "🥗", "🥦"],
     "vegan":        ["vegan", "végan", "vgn"],
@@ -90,9 +74,6 @@ DIETARY_TAG_KEYWORDS: dict[str, list[str]] = {
     "sweet_savory": ["sucré-salé", "sucre-sale", "sweet savory"],
 }
 
-# ──────────────────────────────────────────────────────────────────────
-#  CATÉGORIES DE CERTIFICATIONS
-# ──────────────────────────────────────────────────────────────────────
 
 CERTIFICATION_CATEGORIES = [
     {
@@ -107,12 +88,8 @@ CERTIFICATION_CATEGORIES = [
     },
 ]
 
-# ──────────────────────────────────────────────────────────────────────
-#  CERTIFICATIONS  (preuves requises, logos officiels)
-# ──────────────────────────────────────────────────────────────────────
 
 CERTIFICATIONS: list[dict[str, Any]] = [
-    # ── Labels officiels publics (État / UE) ──
     {
         "id": "ab",
         "name": "AB",
@@ -197,7 +174,6 @@ CERTIFICATIONS: list[dict[str, Any]] = [
         "category_id": "public_official",
         "sort_order": 7,
     },
-    # ── Labels privés certifiés ──
     {
         "id": "v_label",
         "name": "V-Label",
@@ -248,7 +224,7 @@ CERTIFICATIONS: list[dict[str, Any]] = [
     },
 ]
 
-# Mots-clés de détection CSV  (certification_id → liste de mots-clés)
+# Lowercase.
 CERTIFICATION_KEYWORDS: dict[str, list[str]] = {
     "ab":                ["ab", "agriculture biologique", "bio", "biologique", "organic", "🌿"],
     "eurofeuille":       ["eurofeuille", "bio ue", "biologique ue", "eu organic"],
@@ -264,25 +240,21 @@ CERTIFICATION_KEYWORDS: dict[str, list[str]] = {
 }
 
 
-# ──────────────────────────────────────────────────────────────────────
-#  TAGS & CERTIFICATIONS ACTIVÉS PAR DÉFAUT
-# ──────────────────────────────────────────────────────────────────────
-
 DEFAULT_ENABLED_TAG_IDS: set[str] = {
-    "vegetarian",     # Végétarien
-    "pork_free",      # Sans porc
-    "gluten_free",    # Sans gluten
-    "homemade",       # Fait maison
-    "chef_special",   # Plat du chef
-    "local_product",  # Produit local
-    "seasonal",       # Produit de saison
+    "vegetarian",
+    "pork_free",
+    "gluten_free",
+    "homemade",
+    "chef_special",
+    "local_product",
+    "seasonal",
 }
 
 DEFAULT_ENABLED_CERT_IDS: set[str] = {
-    "ab",                 # Agriculture Biologique
-    "eurofeuille",        # Bio UE
-    "label_rouge",        # Label Rouge
-    "hve",                # Haute Valeur Environnementale
-    "v_label",            # V-Label
-    "bleu_blanc_coeur",   # Bleu-Blanc-Cœur
+    "ab",
+    "eurofeuille",
+    "label_rouge",
+    "hve",
+    "v_label",
+    "bleu_blanc_coeur",
 }

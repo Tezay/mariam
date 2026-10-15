@@ -1,12 +1,3 @@
-"""
-Modèle User - Utilisateur de MARIAM avec authentification sécurisée.
-
-Différences par rapport à un modèle User classique :
-- Support des rôles (admin, editor, reader)
-- Authentification MFA/TOTP obligatoire
-- Association possible à un restaurant (multi-RU ready)
-- Validation de mot de passe fort
-"""
 import re
 from datetime import UTC, datetime
 
@@ -20,8 +11,6 @@ from ..utils.time import utc_now_naive
 
 
 class User(db.Model):
-    """Utilisateur de MARIAM avec authentification sécurisée."""
-
     __tablename__ = 'users'
     __table_args__ = (
         db.CheckConstraint('email = lower(email)', name='ck_users_email_lowercase'),
@@ -40,33 +29,26 @@ class User(db.Model):
     mfa_secret = db.Column(EncryptedSecret, nullable=True)
     mfa_enabled = db.Column(db.Boolean, default=False)
 
-    # Statut du compte
     is_active = db.Column(db.Boolean, default=True)
     is_rescue_account = db.Column(db.Boolean, default=False)
 
-    # Multi-tenant: link to the restaurant (site) and the organization (client)
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=True)
     organization_id = db.Column(
         db.Integer, db.ForeignKey('organizations.id'), nullable=True, index=True
     )
 
-    # Timestamps
     created_at = db.Column(db.DateTime, default=utc_now_naive)
     last_login = db.Column(db.DateTime, nullable=True)
-    # Token revocation: any JWT issued (iat) before this instant is rejected.
-    # Set on password change/reset and MFA reset.
+    # Any token issued before this instant is rejected.
     tokens_valid_after = db.Column(db.DateTime, nullable=True)
 
-    # Préférences de notifications in-app
     notification_preferences = db.Column(db.JSON, nullable=True, default=None)
 
     # Account-scoped so it survives a change of device, unlike localStorage.
     ui_preferences = db.Column(db.JSON, nullable=True, default=None)
 
-    # Passkeys WebAuthn
     passkeys = db.relationship('Passkey', back_populates='user', lazy='dynamic', cascade='all, delete-orphan')
     
-    # Rôles valides
     ROLE_ORG_ADMIN = 'org_admin'  # Supervisor: every site of its organization
     ROLE_ADMIN = 'admin'          # Admin of a single restaurant (site)
     ROLE_EDITOR = 'editor'
@@ -82,10 +64,7 @@ class User(db.Model):
         return canonical_email(value)
 
     def set_password(self, password):
-        """
-        Hash et stocke le mot de passe.
-        Lève une exception si le mot de passe n'est pas assez fort.
-        """
+        """Raises ValueError, with a message for the user, when the password is too weak."""
         if not self.validate_password_strength(password):
             raise ValueError(
                 "Le mot de passe doit contenir au moins 12 caractères, "
@@ -94,20 +73,10 @@ class User(db.Model):
         self.password_hash = generate_password_hash(password)
     
     def check_password(self, password):
-        """Vérifie si le mot de passe correspond au hash stocké."""
         return check_password_hash(self.password_hash, password)
     
     @staticmethod
     def validate_password_strength(password):
-        """
-        Valide la force du mot de passe.
-        Critères :
-        - Au moins 12 caractères
-        - Au moins une majuscule
-        - Au moins une minuscule
-        - Au moins un chiffre
-        - Au moins un caractère spécial
-        """
         if len(password) < 12:
             return False
         if not re.search(r'[A-Z]', password):
@@ -121,12 +90,10 @@ class User(db.Model):
         return True
     
     def set_mfa_secret(self, secret):
-        """Stocke le secret TOTP pour MFA."""
         self.mfa_secret = secret
         self.mfa_enabled = True
     
     def disable_mfa(self):
-        """Désactive le MFA (admin only, pour reset)."""
         self.mfa_secret = None
         self.mfa_enabled = False
 
@@ -140,7 +107,6 @@ class User(db.Model):
 
 
     def is_org_admin(self):
-        """Return True if the user supervises every site of an organization."""
         return self.role == self.ROLE_ORG_ADMIN
 
     def is_admin(self):
@@ -152,12 +118,7 @@ class User(db.Model):
         return self.role in (self.ROLE_ORG_ADMIN, self.ROLE_ADMIN, self.ROLE_EDITOR)
 
     def revoke_tokens(self):
-        """Invalidate every JWT issued so far (access + refresh).
-
-        Checked in the token loader: a token whose `iat` predates
-        `tokens_valid_after` is rejected. Called on password change/reset and
-        MFA reset.
-        """
+        """Invalidate every token issued so far, refresh tokens included."""
         self.tokens_valid_after = datetime.now(UTC).replace(tzinfo=None)
 
     def revocation_marker(self) -> str:
@@ -201,13 +162,10 @@ class User(db.Model):
         return {**defaults, **(self.ui_preferences or {})}
 
     def update_last_login(self):
-        """Met à jour la date de dernière connexion."""
         self.last_login = utc_now_naive()
     
     def to_dict(self, include_sensitive=False, include_tenant=False):
-        """
-        Sérialise l'utilisateur en dictionnaire JSON.
-        N'inclut jamais le password_hash ni le mfa_secret.
+        """Never includes the password hash or the TOTP secret.
 
         `include_tenant` resolves the site and organization names, which costs a
         query each: reserve it for the caller's own profile, never for a list.

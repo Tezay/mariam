@@ -1,22 +1,3 @@
-"""
-User and invitation management routes for MARIAM.
-
-All endpoints require the admin role, except the /me ones, which any
-authenticated user calls on its own account.
-
-Endpoints:
-- GET  /v1/users                    List users
-- GET  /v1/users/<id>               User details
-- PUT  /v1/users/<id>               Update a user
-- DELETE /v1/users/<id>             Delete a user
-- POST /v1/users/<id>/reset-mfa     Reset a user's MFA
-- POST /v1/users/<id>/reset-password  Send a user a password reset link
-- POST /v1/users/invite             Create an invitation link
-- GET  /v1/users/invitations        List pending invitations
-- DELETE /v1/users/invitations/<id> Revoke a pending invitation
-- GET  /v1/users/me/ui-preferences  Interface state of the current user
-- PUT  /v1/users/me/ui-preferences  Update it
-"""
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_smorest import Blueprint
@@ -60,10 +41,6 @@ users_bp = Blueprint(
     description='Users — Account and invitation management (admin)'
 )
 
-
-# ============================================================
-# HELPERS
-# ============================================================
 
 def _tenant_users_filter(caller):
     """Users the caller may see: its own site, or its whole organization.
@@ -124,9 +101,6 @@ def _pending_invitations(caller):
         ActivationLink.link_type == 'invite', ActivationLink.pending_filter(), scope
     )
 
-# ============================================================
-# ROUTES STATIQUES — avant /<int:user_id>
-# ============================================================
 
 @users_bp.route('/invite', methods=['POST'])
 @admin_required
@@ -258,10 +232,6 @@ def revoke_invitation(invitation_id):
 
     return jsonify({'message': 'Invitation révoquée'}), 200
 
-
-# ============================================================
-# ROUTES PARAMÉTRÉES — après les routes statiques
-# ============================================================
 
 @users_bp.route('', methods=['GET'])
 @users_bp.response(200, UserAdminSchema(many=True))
@@ -494,10 +464,6 @@ def send_password_reset(user_id):
         'reset_url': None if emailed else url,
     }), 200
 
-
-# ============================================================
-# UI PREFERENCES — self-service, any authenticated role
-# ============================================================
 
 @users_bp.route('/me/ui-preferences', methods=['GET'])
 @jwt_required()

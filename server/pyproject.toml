@@ -1,7 +1,7 @@
 [project]
 name = "mariam-backend"
 version = "0.19.0"
-description = "MARIAM - Gérez les menus simplement."
+description = "Menu management for university restaurants."
 requires-python = ">=3.11"
 dependencies = [
     # Framework
@@ -78,10 +78,8 @@ ignore = ["B008", "E501"]  # B008: Flask default-arg patterns; E501: line length
 python_version = "3.11"
 ignore_missing_imports = true
 
-# Flask-SQLAlchemy exposes `db.Model` as a dynamic instance attribute; mypy
-# cannot use it as a base class (name-defined), and ORM relationships trip
-# attr-defined. The model layer is thin declarative code — keep full checking
-# everywhere else.
+# mypy can neither use Flask-SQLAlchemy's `db.Model` as a base class nor resolve
+# the ORM's relationship attributes.
 [[tool.mypy.overrides]]
 module = "app.models.*"
 disable_error_code = ["name-defined", "attr-defined"]
@@ -89,3 +87,4 @@ disable_error_code = ["name-defined", "attr-defined"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--cov=app --cov-report=term-missing -q"
+filterwarnings = ["error::DeprecationWarning:app\\."]

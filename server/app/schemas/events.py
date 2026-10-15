@@ -18,10 +18,10 @@ class EventSchema(Schema):
     title = fields.Str()
     subtitle = fields.Str(allow_none=True)
     description = fields.Str(allow_none=True)
-    color = fields.Str(description="Hex color code (e.g. '#3498DB')")
-    event_date = fields.Str(description="Event date (YYYY-MM-DD)")
-    status = fields.Str(description="'draft' or 'published'")
-    visibility = fields.Str(description="'tv', 'mobile', or 'all'")
+    color = fields.Str(metadata={'description': "Hex color code (e.g. '#3498DB')"})
+    event_date = fields.Str(metadata={'description': "Event date (YYYY-MM-DD)"})
+    status = fields.Str(metadata={'description': "'draft' or 'published'"})
+    visibility = fields.Str(metadata={'description': "'tv', 'mobile', or 'all'"})
     is_active = fields.Bool()
     images = fields.List(fields.Nested(EventImageSchema))
     created_at = fields.Str(dump_only=True, allow_none=True)
@@ -37,14 +37,14 @@ class EventListSchema(Schema):
 class EventCreateSchema(Schema):
     class Meta:
         unknown = EXCLUDE
-    title = fields.Str(required=True, description="Event title")
-    event_date = fields.Str(required=True, description="Event date (YYYY-MM-DD)")
+    title = fields.Str(required=True, metadata={'description': "Event title"})
+    event_date = fields.Str(required=True, metadata={'description': "Event date (YYYY-MM-DD)"})
     restaurant_id = fields.Int()
     subtitle = fields.Str(allow_none=True)
-    description = fields.Str(allow_none=True, description="Markdown description")
-    color = fields.Str(description="Hex color code (e.g. '#3498DB')")
-    status = fields.Str(description="'draft' or 'published'")
-    visibility = fields.Str(description="'tv', 'mobile', or 'all'")
+    description = fields.Str(allow_none=True, metadata={'description': "Markdown description"})
+    color = fields.Str(metadata={'description': "Hex color code (e.g. '#3498DB')"})
+    status = fields.Str(metadata={'description': "'draft' or 'published'"})
+    visibility = fields.Str(metadata={'description': "'tv', 'mobile', or 'all'"})
 
 
 class EventUpdateSchema(Schema):
@@ -54,9 +54,9 @@ class EventUpdateSchema(Schema):
     subtitle = fields.Str(allow_none=True)
     description = fields.Str(allow_none=True)
     color = fields.Str()
-    event_date = fields.Str(description="Event date (YYYY-MM-DD)")
-    status = fields.Str(description="'draft' or 'published'")
-    visibility = fields.Str(description="'tv', 'mobile', or 'all'")
+    event_date = fields.Str(metadata={'description': "Event date (YYYY-MM-DD)"})
+    status = fields.Str(metadata={'description': "'draft' or 'published'"})
+    visibility = fields.Str(metadata={'description': "'tv', 'mobile', or 'all'"})
     is_active = fields.Bool()
 
 
@@ -65,4 +65,4 @@ class PublicEventsResponseSchema(Schema):
         unknown = EXCLUDE
     today_event = fields.Dict(allow_none=True)
     upcoming_events = fields.List(fields.Dict())
-    events = fields.List(fields.Dict(), description="All events (backward compat)")
+    events = fields.List(fields.Dict(), metadata={'description': "All events (backward compat)"})

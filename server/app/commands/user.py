@@ -38,11 +38,6 @@ def register_commands(app):
     app.cli.add_command(user_cli)
 
 
-# ============================================================
-# HELPERS
-# ============================================================
-
-
 def _address(value: str) -> str:
     try:
         return canonical_email(value)
@@ -133,11 +128,6 @@ def _row(label: str, value) -> None:
     click.echo(f'  {label:<20}: {value}')
 
 
-# ============================================================
-# READ
-# ============================================================
-
-
 @user_cli.command('list')
 @click.option('--role', default=None, help='Filter by role')
 @click.option('--site', default=None, help='Filter by site (id or slug)')
@@ -203,11 +193,6 @@ def show_user(email):
     click.echo('=' * 60 + '\n')
 
 
-# ============================================================
-# SECURITY
-# ============================================================
-
-
 @user_cli.command('invite')
 @click.argument('email')
 @click.option('--role', required=True, help='org_admin | admin | editor | reader')
@@ -237,9 +222,9 @@ def invite_user(email, role, restaurant, org):
     )
     db.session.commit()
 
-    click.echo(f'✅ Invited {email} ({role}) → {destination}')
-    click.echo(f'🔗 {frontend_base_url()}/activate/{link.token}')
-    click.echo('⚠️  Expires in 72 h, single use.')
+    click.echo(f'Invited {email} ({role}) → {destination}')
+    click.echo(f'{frontend_base_url()}/activate/{link.token}')
+    click.echo('Expires in 72 h, single use.')
 
 
 @user_cli.command('reset-password')
@@ -261,9 +246,9 @@ def reset_password(email):
     _audit(AuditLog.ACTION_PASSWORD_RESET_REQUEST, user, method='cli')
     db.session.commit()
 
-    click.echo(f'✅ Password reset link for {email}')
-    click.echo(f'🔗 {frontend_base_url()}/reset-password/{link.token}')
-    click.echo('⚠️  Expires in 72 h, single use, second factor required.')
+    click.echo(f'Password reset link for {email}')
+    click.echo(f'{frontend_base_url()}/reset-password/{link.token}')
+    click.echo('Expires in 72 h, single use, second factor required.')
 
 
 @user_cli.command('reset-2fa')
@@ -286,7 +271,7 @@ def reset_2fa(email, only_totp, only_passkeys):
     db.session.commit()
     alerted = notify_security_event(user, SecurityEvent.SECOND_FACTORS_RESET)
 
-    click.echo(f'✅ Second factor reset for {email}')
+    click.echo(f'Second factor reset for {email}')
     if drop_totp:
         click.echo('   · TOTP disabled')
     if drop_passkeys:
@@ -294,12 +279,7 @@ def reset_2fa(email, only_totp, only_passkeys):
     click.echo('   · Live sessions revoked')
     click.echo(f"   · {'Alert sent to' if alerted else 'No alert sent to'} {email}")
     if _factors_label(user) == 'none':
-        click.echo('ℹ️  The account will have to enrol a method on its next sign-in.')
-
-
-# ============================================================
-# EDIT
-# ============================================================
+        click.echo('The account will have to enrol a method on its next sign-in.')
 
 
 @user_cli.command('set-email')
@@ -318,7 +298,7 @@ def set_email(email, new_email):
     db.session.commit()
     alerted = notify_email_changed(previous, new_email)
 
-    click.echo(f'✅ {previous} → {new_email}')
+    click.echo(f'{previous} → {new_email}')
     click.echo('   · Live sessions revoked')
     click.echo(f"   · {'Alert sent to' if alerted else 'No alert sent to'} {previous}")
 
@@ -349,7 +329,7 @@ def set_role(email, role, restaurant, org):
     user.revoke_tokens()
     _audit(AuditLog.ACTION_USER_UPDATE, user, field='role', old=previous, new=role)
     db.session.commit()
-    click.echo(f'✅ {email}: {previous} → {role} ({destination})')
+    click.echo(f'{email}: {previous} → {role} ({destination})')
     click.echo('   · Live sessions revoked')
 
 
@@ -361,7 +341,7 @@ def enable_user(email):
     user.is_active = True
     _audit(AuditLog.ACTION_USER_UPDATE, user, field='is_active', new=True)
     db.session.commit()
-    click.echo(f'✅ Account enabled: {email}')
+    click.echo(f'Account enabled: {email}')
 
 
 @user_cli.command('disable')
@@ -373,7 +353,7 @@ def disable_user(email):
     user.revoke_tokens()
     _audit(AuditLog.ACTION_USER_UPDATE, user, field='is_active', new=False)
     db.session.commit()
-    click.echo(f'✅ Account disabled: {email}')
+    click.echo(f'Account disabled: {email}')
     click.echo('   · Live sessions revoked')
 
 
@@ -390,5 +370,5 @@ def delete_user(email, yes):
     _audit(AuditLog.ACTION_USER_DELETE, user, role=user.role)
     db.session.delete(user)
     db.session.commit()
-    click.echo(f'✅ Account deleted: {email}')
-    click.echo('ℹ️  Its audit log entries are kept.')
+    click.echo(f'Account deleted: {email}')
+    click.echo('Its audit log entries are kept.')

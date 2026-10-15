@@ -84,8 +84,7 @@ def register_commands(app):
     @app.cli.command('seed-demo')
     def seed_demo():
         """Create demo restaurant, admin user, and a published week of menus."""
-        # 1. Ensure taxonomy is seeded first
-        click.echo('\n⏳ Checking reference taxonomy...')
+        click.echo('\nChecking reference taxonomy...')
         _upsert_dietary_tag_categories()
         _upsert_dietary_tags()
         _upsert_dietary_tag_keywords()
@@ -94,7 +93,6 @@ def register_commands(app):
         _upsert_certification_keywords()
         db.session.commit()
 
-        # 2. Organization and its sites
         organization = _ensure_demo_organization()
         db.session.commit()
         password = _generate_password()
@@ -116,7 +114,6 @@ def register_commands(app):
             view_count += views
             vote_count += votes
 
-        # 3. Accounts: one site admin and the director who oversees them all
         admin = _ensure_demo_user(password, restaurants[0].id)
         _ensure_demo_director(password, organization.id)
         db.session.commit()
@@ -124,7 +121,6 @@ def register_commands(app):
         db.session.commit()
         restaurant = restaurants[0]
 
-        # 7. Summary
         frontend_url = app.config.get('FRONTEND_URL', 'http://localhost:5173')
         # A single-site organization serves its menu at the root; a multi-site
         # one lists its sites there instead.
@@ -150,12 +146,8 @@ def register_commands(app):
         click.echo(f'  TV view      : {frontend_url}{menu_path}?mode=tv')
         click.echo(f'  Mobile view  : {frontend_url}{menu_path}')
         click.echo('=' * 55)
-        click.echo('  ✅  Ready for the demo.\n')
+        click.echo('  Ready for the demo.\n')
 
-
-# ──────────────────────────────────────────────────────────────────────
-#  Restaurant
-# ──────────────────────────────────────────────────────────────────────
 
 def _ensure_demo_organization() -> Organization:
     organization = Organization.query.filter_by(slug=_DEMO_SLUG).first()
@@ -176,9 +168,9 @@ def _ensure_demo_restaurant(organization: Organization, site: dict) -> Restauran
     if not restaurant:
         restaurant = Restaurant(name=site['name'], code=site['code'], is_active=True)
         db.session.add(restaurant)
-        click.echo(f'  ✓ Site created: {site["name"]}')
+        click.echo(f'  Site created: {site["name"]}')
     else:
-        click.echo(f'  ✓ Site reused: {site["name"]} (id {restaurant.id})')
+        click.echo(f'  Site reused: {site["name"]} (id {restaurant.id})')
 
     restaurant.organization_id = organization.id
     restaurant.slug = restaurant.slug or site['slug']
@@ -207,10 +199,6 @@ def _ensure_service_hours(restaurant_id: int) -> None:
                 close_time=_DEMO_CLOSE_TIME,
             ))
 
-
-# ──────────────────────────────────────────────────────────────────────
-#  Menu categories
-# ──────────────────────────────────────────────────────────────────────
 
 _CATEGORY_TREE: list[dict[str, Any]] = [
     {
@@ -296,13 +284,9 @@ def _ensure_menu_categories(restaurant_id: int) -> dict:
 
             result[child_label] = existing[child_label].id
 
-    click.echo(f'  ✓ {len(result)} menu categories')
+    click.echo(f'  {len(result)} menu categories')
     return result
 
-
-# ──────────────────────────────────────────────────────────────────────
-#  User
-# ──────────────────────────────────────────────────────────────────────
 
 def _generate_password() -> str:
     chars = string.ascii_letters + string.digits
@@ -323,21 +307,17 @@ def _ensure_demo_user(password: str, restaurant_id: int) -> User:
             restaurant_id=restaurant_id,
         )
         db.session.add(user)
-        click.echo(f'  ✓ Demo account created ({_DEMO_EMAIL})')
+        click.echo(f'  Demo account created ({_DEMO_EMAIL})')
     else:
         user.password_hash = generate_password_hash(password)
         user.is_active = True
         user.mfa_enabled = False
-        click.echo(f'  ✓ Demo password reset ({_DEMO_EMAIL})')
+        click.echo(f'  Demo password reset ({_DEMO_EMAIL})')
     user.notification_preferences = {
         **user.get_notification_preferences(), 'weekly_digest': True
     }
     return user
 
-
-# ──────────────────────────────────────────────────────────────────────
-#  Menus
-# ──────────────────────────────────────────────────────────────────────
 
 _DEMO_WEEKS = 5
 
@@ -372,7 +352,6 @@ def _menu_plan(site: dict) -> list[tuple[date, list]]:
     return plan
 
 
-# Realistic CROUS-style menu items: (name, category_label, tag_ids)
 _WEEK_MENUS = [
     # Monday
     [
@@ -464,7 +443,6 @@ def _create_demo_menus(
     item_count = 0
 
     for day_date, day_items in plan:
-        # Delete existing menu for this date (idempotent)
         existing = Menu.query.filter_by(
             restaurant_id=restaurant_id, date=day_date
         ).first()
@@ -507,13 +485,9 @@ def _create_demo_menus(
 
         menu_count += 1
 
-    click.echo(f'  ✓ {menu_count} menus created/updated ({item_count} dishes)')
+    click.echo(f'  {menu_count} menus created/updated ({item_count} dishes)')
     return menu_count, item_count
 
-
-# ──────────────────────────────────────────────────────────────────────
-#  Analytics history
-# ──────────────────────────────────────────────────────────────────────
 
 # Five weeks: the traffic alert compares a day to the four previous same
 # weekdays, and the digest compares a week to the one before.
@@ -543,7 +517,7 @@ def _ensure_demo_director(password: str, organization_id: int) -> User:
             mfa_enabled=False,
         )
         db.session.add(user)
-        click.echo(f'  ✓ Supervisor created ({_DIRECTOR_EMAIL})')
+        click.echo(f'  Supervisor created ({_DIRECTOR_EMAIL})')
     user.password_hash = generate_password_hash(password)
     user.is_active = True
     user.mfa_enabled = False

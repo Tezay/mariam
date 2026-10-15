@@ -14,15 +14,15 @@ class ServiceHoursDaySchema(Schema):
 class RestaurantConfigSchema(Schema):
     class Meta:
         unknown = EXCLUDE
-    service_days = fields.List(fields.Int(), description="Active service days (0=Monday, 6=Sunday)")
+    service_days = fields.List(fields.Int(), metadata={'description': "Active service days (0=Monday, 6=Sunday)"})
     service_hours = fields.Dict(
         keys=fields.Str(),
         values=fields.Nested(ServiceHoursDaySchema),
-        description="Opening hours per day index {'0': {open, close}, ...}",
+        metadata={'description': "Opening hours per day index {'0': {open, close}, ...}"},
     )
-    menu_categories = fields.List(fields.Dict(), description="Menu category definitions")
-    dietary_tags = fields.List(fields.Dict(), description="Available dietary tags")
-    certifications = fields.List(fields.Dict(), description="Available certifications")
+    menu_categories = fields.List(fields.Dict(), metadata={'description': "Menu category definitions"})
+    dietary_tags = fields.List(fields.Dict(), metadata={'description': "Available dietary tags"})
+    certifications = fields.List(fields.Dict(), metadata={'description': "Available certifications"})
 
 
 class RestaurantSchema(Schema):
@@ -30,7 +30,7 @@ class RestaurantSchema(Schema):
         unknown = EXCLUDE
     id = fields.Int(dump_only=True)
     name = fields.Str()
-    code = fields.Str(description="Unique restaurant code")
+    code = fields.Str(metadata={'description': "Unique restaurant code"})
     logo_url = fields.Str(allow_none=True)
     is_active = fields.Bool()
     # Address (BAN-verified)
@@ -81,5 +81,5 @@ class RestaurantUpdateSchema(Schema):
     vote_category_ids = fields.List(fields.Int())
     vote_icon_preset = fields.Str(validate=validate.OneOf(VOTE_ICON_PRESETS))
     menu_categories = fields.List(fields.Dict())
-    dietary_tags = fields.List(fields.Raw(), description="List of tag IDs or tag objects with 'id'")
-    certifications = fields.List(fields.Raw(), description="List of cert IDs or cert objects with 'id'")
+    dietary_tags = fields.List(fields.Raw(), metadata={'description': "List of tag IDs or tag objects with 'id'"})
+    certifications = fields.List(fields.Raw(), metadata={'description': "List of cert IDs or cert objects with 'id'"})

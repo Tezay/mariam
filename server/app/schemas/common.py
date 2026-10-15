@@ -8,14 +8,14 @@ from ..utils.site_name import SITE_NAME_MAX, parse_site_name
 class ErrorSchema(Schema):
     class Meta:
         unknown = EXCLUDE
-    error = fields.Str(description="Error message")
-    message = fields.Str(description="Detailed error description")
+    error = fields.Str(metadata={'description': "Error message"})
+    message = fields.Str(metadata={'description': "Detailed error description"})
 
 
 class MessageSchema(Schema):
     class Meta:
         unknown = EXCLUDE
-    message = fields.Str(description="Success message")
+    message = fields.Str(metadata={'description': "Success message"})
 
 
 class NormalizedEmail(fields.Email):

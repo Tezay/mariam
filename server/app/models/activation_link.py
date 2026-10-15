@@ -1,11 +1,3 @@
-"""
-Modèle ActivationLink - Liens d'activation à usage unique.
-
-Utilisé pour :
-- Créer le premier compte administrateur lors de l'installation
-- Inviter de nouveaux utilisateurs
-- Réinitialiser les accès en cas de problème
-"""
 import secrets
 from datetime import timedelta
 
@@ -17,8 +9,6 @@ from ..utils.time import utc_now_naive
 
 
 class ActivationLink(db.Model):
-    """Lien d'activation à usage unique et durée limitée."""
-    
     __tablename__ = 'activation_links'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -26,7 +16,7 @@ class ActivationLink(db.Model):
     # An invitation's address is a suggestion; a reset link's names the account.
     email = db.Column(db.String(120), nullable=True)
     link_type = db.Column(db.String(20), nullable=False)  # first_admin, invite, password_reset
-    role = db.Column(db.String(20), default='editor')  # Rôle attribué à l'activation
+    role = db.Column(db.String(20), default='editor')
     expires_at = db.Column(db.DateTime, nullable=False)
     used_at = db.Column(db.DateTime, nullable=True)
     # Naive UTC like its neighbours, which is_valid() compares it with.
@@ -38,7 +28,6 @@ class ActivationLink(db.Model):
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=True)
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=True)
     
-    # Relation
     created_by = db.relationship('User', backref='created_activation_links', foreign_keys=[created_by_id])
     
     ACCOUNT_CREATION_TYPES = ('first_admin', 'invite')
@@ -57,12 +46,10 @@ class ActivationLink(db.Model):
 
     @classmethod
     def generate_token(cls):
-        """Génère un token sécurisé unique."""
         return secrets.token_urlsafe(64)
     
     @classmethod
     def create_first_admin_link(cls, expires_hours=72):
-        """Crée un lien d'activation pour le premier administrateur."""
         return cls(
             token=cls.generate_token(),
             link_type='first_admin',
@@ -73,7 +60,6 @@ class ActivationLink(db.Model):
     @classmethod
     def create_invite_link(cls, email=None, role='editor', created_by_id=None,
                            expires_hours=72, restaurant_id=None, organization_id=None):
-        """Crée un lien d'invitation pour un nouvel utilisateur."""
         return cls(
             token=cls.generate_token(),
             email=email,
@@ -87,11 +73,7 @@ class ActivationLink(db.Model):
 
     @classmethod
     def create_password_reset_link(cls, email, created_by_id=None, expires_hours=72):
-        """
-        Crée un lien de réinitialisation de mot de passe.
-        Invalide automatiquement les anciens liens de reset non utilisés.
-        """
-        # Invalider les anciens liens de reset pour cet email
+        """Also spends the unused reset links of the same address."""
         old_links = cls.query.filter_by(
             email=email,
             link_type='password_reset',
@@ -104,7 +86,7 @@ class ActivationLink(db.Model):
             token=cls.generate_token(),
             email=email,
             link_type='password_reset',
-            role=None,  # Pas de changement de rôle
+            role=None,
             expires_at=utc_now_naive() + timedelta(hours=expires_hours),
             created_by_id=created_by_id
         )
@@ -117,7 +99,6 @@ class ActivationLink(db.Model):
         )
 
     def mark_as_used(self):
-        """Marque le lien comme utilisé."""
         self.used_at = utc_now_naive()
 
     def revoke(self):

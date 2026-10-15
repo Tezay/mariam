@@ -1,4 +1,3 @@
-"""Helpers partagés entre les routes authentifiées."""
 import re
 from functools import wraps
 
@@ -35,7 +34,7 @@ def editor_required(f):
 
 
 def admin_required(f):
-    """Décorateur : accès réservé aux administrateurs."""
+    """Site admins and supervisors."""
     @wraps(f)
     @jwt_required()
     def decorated_function(*args, **kwargs):
@@ -169,16 +168,18 @@ def scoped_get(model, resource_id):
 
 
 def normalize_dish_name(name: str) -> str:
-    """Normalise un nom de plat : espaces compactés, première lettre en majuscule.
-
-    Miroir de `normalizeDishName` côté client (pages/admin/catalogue/utils.ts).
-    """
+    """Kept in step with normalizeDishName (client/src/pages/admin/catalogue/utils.ts)."""
     name = re.sub(r'\s+', ' ', name.strip())
     return name[0].upper() + name[1:] if name else name
 
 
 def get_or_create_dish(restaurant_id: int, item_data: dict) -> 'DishCatalog | None':
-    """Retourne un plat existant (dish_id) ou en crée un nouveau (name + tag_ids + cert_ids)."""
+    """The dish of `dish_id`, else the one of that name in its category, else a new
+    one from `name`, `category_id`, `tag_ids` and `certification_ids`, flushed but
+    not committed.
+
+    None for a blank name, or for a `dish_id` that belongs to another site.
+    """
     dish_id = item_data.get('dish_id')
     if dish_id:
         return DishCatalog.query.filter_by(id=dish_id, restaurant_id=restaurant_id).first()
@@ -187,7 +188,6 @@ def get_or_create_dish(restaurant_id: int, item_data: dict) -> 'DishCatalog | No
     if not name:
         return None
 
-    # Réutilise un plat existant de même nom dans la même catégorie (assure indempotence)
     existing = DishCatalog.query.filter(
         DishCatalog.restaurant_id == restaurant_id,
         DishCatalog.category_id == item_data.get('category_id'),

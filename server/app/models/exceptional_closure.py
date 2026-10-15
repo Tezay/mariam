@@ -4,21 +4,18 @@ from ..extensions import db
 
 
 class ExceptionalClosure(db.Model):
-    """Fermeture exceptionnelle du restaurant (vacances, jours fériés, travaux, grèves…)."""
-
     __tablename__ = 'exceptional_closures'
 
     id            = db.Column(db.Integer, primary_key=True)
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=False)
 
     start_date  = db.Column(db.Date, nullable=False, index=True)
-    end_date    = db.Column(db.Date, nullable=False, index=True)  # == start_date pour 1 seul jour
-    reason      = db.Column(db.String(100), nullable=True)        # "Vacances scolaires", "Grève"…
+    end_date    = db.Column(db.Date, nullable=False, index=True)  # Inclusive
+    reason      = db.Column(db.String(100), nullable=True)
     description = db.Column(db.Text, nullable=True)
 
     is_active = db.Column(db.Boolean, default=True, nullable=False)
 
-    # Suivi des notifications push (J-7 / J-1 avant start_date)
     notified_7d = db.Column(db.Boolean, default=False, nullable=False)
     notified_1d = db.Column(db.Boolean, default=False, nullable=False)
 
