@@ -129,14 +129,17 @@ def create_app(config_class=None):
     app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
     
     # ========================================
-    # CONFIGURATION API DOCUMENTATION (OpenAPI/Swagger)
+    # API DOCUMENTATION (OpenAPI / Swagger UI)
     # ========================================
     app.config['API_TITLE'] = 'MARIAM API'
     app.config['API_VERSION'] = 'v1'
     app.config['OPENAPI_VERSION'] = '3.0.3'
-    app.config['OPENAPI_URL_PREFIX'] = '/'
+    # Under /v1, which every proxy in front already sends to the API.
+    app.config['OPENAPI_URL_PREFIX'] = '/v1'
     app.config['OPENAPI_SWAGGER_UI_PATH'] = '/docs'
-    app.config['OPENAPI_SWAGGER_UI_URL'] = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist/'
+    app.config['OPENAPI_SWAGGER_UI_URL'] = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.33.2/'
+    # Otherwise Swagger UI sends the spec's address to swagger.io for a badge.
+    app.config['OPENAPI_SWAGGER_UI_CONFIG'] = {'validatorUrl': None}
     
     # ========================================
     # ERROR TRACKING (Sentry) — no-op when SENTRY_DSN is unset
@@ -283,11 +286,8 @@ def create_app(config_class=None):
         methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
     )
 
-    # Deployed on its own host, the API has no nginx in front to add it.
-    @app.after_request
-    def _forbid_mime_sniffing(response):
-        response.headers.setdefault('X-Content-Type-Options', 'nosniff')
-        return response
+    from .security_headers import configure_security_headers
+    configure_security_headers(app)
 
     # ========================================
     # API v1 — Flask-Smorest (OpenAPI / Swagger)
@@ -343,7 +343,7 @@ def create_app(config_class=None):
             'status': 'healthy',
             'message': 'MARIAM API is running',
             'version': os.environ.get('APP_VERSION', 'dev'),
-            'docs': '/docs',
+            'docs': '/v1/docs',
         }
 
     @app.route('/health/ready')
@@ -382,64 +382,6 @@ def create_app(config_class=None):
             200 if healthy else 503,
         )
 
-    # ========================================
-    # ROBOTS.TXT — Contrôle d'accès crawlers & IA
-    # ========================================
-    @app.route('/robots.txt')
-    @limiter.exempt
-    def robots_txt():
-        """Autorise le crawling des routes publiques (/v1/) et bloque les routes sensibles."""
-        content = """User-agent: *
-Allow: /v1/menus/
-Allow: /v1/events
-Allow: /v1/restaurant
-Allow: /v1/taxonomy
-Disallow: /v1/auth/
-Disallow: /v1/users/
-Disallow: /v1/audit-logs/
-Disallow: /v1/imports/
-
-User-agent: GPTBot
-Allow: /v1/menus/
-Allow: /v1/events
-Allow: /v1/restaurant
-Allow: /v1/taxonomy
-Disallow: /v1/auth/
-Disallow: /v1/users/
-Disallow: /v1/audit-logs/
-
-User-agent: OAI-SearchBot
-Allow: /v1/menus/
-Allow: /v1/events
-Disallow: /v1/auth/
-Disallow: /v1/users/
-
-User-agent: ChatGPT-User
-Allow: /v1/menus/
-Allow: /v1/events
-Disallow: /v1/auth/
-Disallow: /v1/users/
-
-User-agent: CCBot
-Disallow: /
-
-User-agent: anthropic-ai
-Allow: /v1/menus/
-Allow: /v1/events
-Allow: /v1/restaurant
-Allow: /v1/taxonomy
-Disallow: /v1/auth/
-Disallow: /v1/users/
-
-User-agent: Google-Extended
-Allow: /v1/menus/
-Allow: /v1/events
-Allow: /v1/restaurant
-Disallow: /v1/auth/
-Disallow: /v1/users/
-"""
-        return app.response_class(content, mimetype='text/plain', status=200)
-    
     # ========================================
     # COMMANDES CLI
     # ========================================

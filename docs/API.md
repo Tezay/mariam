@@ -2,7 +2,7 @@
 
 The Mariam API follows REST conventions. All endpoints are prefixed with `/v1`. Responses are JSON.
 
-**Interactive documentation (Swagger UI):** `https://<your-ru>.mariam.app/docs`
+**Interactive documentation (Swagger UI):** `/v1/docs` on the API, with the spec at `/v1/openapi.json`
 
 ## Errors
 

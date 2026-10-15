@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **The API sets its own security headers**, whatever proxy stands in front: HSTS, `no-store`, a CSP that loads nothing.
+
 ### Changed
 
 - **React Router 7** replaces `react-router-dom` 6; the current page stays visible while the next one loads.
@@ -17,14 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`robots.txt` and `sitemap.xml` are answered by the frontend**, for the requested host.
 - **Umami needs `UMAMI_SCRIPT_URL`** beside `UMAMI_WEBSITE_ID`, and loads only when both are set.
 - **The Content-Security-Policy carries a nonce** and names only the configured third parties; still report-only.
-
-### Fixed
-
-- **`deploy/nginx` follows a recreated container** instead of answering 502 until its own restart.
+- **The API documentation moves to `/v1/docs`**, with Swagger UI pinned to one version.
 
 ### Removed
 
 - **The SEO shell and the sitemap served by Flask**, with the `FRONTEND_ORIGIN` setting.
+- **The API's `robots.txt`**: every API response carries `X-Robots-Tag: noindex` instead.
+
+### Fixed
+
+- **`deploy/nginx` follows a recreated container** instead of answering 502 until its own restart.
 
 ## [0.19.0] - 2026-10-13
 

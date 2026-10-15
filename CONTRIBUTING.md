@@ -19,7 +19,7 @@ curl http://localhost:5000/health
 | Service | Address | Credentials |
 |---|---|---|
 | Frontend | https://localhost:5173 | |
-| Backend API | http://localhost:5000 · docs at `/api/v1/docs` | |
+| Backend API | http://localhost:5000 · docs at `/v1/docs` | |
 | MinIO console | http://localhost:9001 | `mariam_minio` / `mariam_minio_secret` |
 | PostgreSQL | localhost:5432 | `mariam` / `mariam_secret` / `mariam_db` |
 
