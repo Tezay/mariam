@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - **The API sets its own security headers**, whatever proxy stands in front: HSTS, `no-store`, a CSP that loads nothing.
+- **Backups are encrypted** before they leave the server, which holds no key able to read or delete them.
+
+### Added
+
+- **`BACKUP_HEARTBEAT_URL`**, fetched after each successful backup, so a missing day can raise an alert.
+- **`mariam-backup verify`** restores a backup into a scratch database, from any machine with Docker.
 
 ### Changed
 
@@ -22,11 +28,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Umami needs `UMAMI_SCRIPT_URL`** beside `UMAMI_WEBSITE_ID`, and loads only when both are set.
 - **The Content-Security-Policy carries a nonce** and names only the configured third parties; still report-only.
 - **The API documentation moves to `/v1/docs`**, with Swagger UI pinned to one version.
+- **Backups run at a fixed time**, `BACKUP_TIME` (03:00), and each dump is restored before it is uploaded.
+- **The backup image is published** with the others; a server no longer builds it.
+- **Postgres 17** for the database, the backup image and CI; a volume created by Postgres 15 needs a dump and restore.
+- **`deploy/compose.yaml` requires** `S3_REGION`, `BACKUP_S3_REGION` and `BACKUP_AGE_RECIPIENT`.
+- **"Vos données"** says that backups are encrypted and kept 30 days.
 
 ### Removed
 
 - **The SEO shell and the sitemap served by Flask**, with the `FRONTEND_ORIGIN` setting.
 - **The API's `robots.txt`**: every API response carries `X-Robots-Tag: noindex` instead.
+- **`BACKUP_INTERVAL_SECONDS` and `BACKUP_RETENTION_DAYS`**: retention belongs to the bucket's lifecycle rules.
 
 ### Fixed
 

@@ -173,20 +173,16 @@ Security alerts cannot be turned off, and a disabled account receives none. An a
 at most ten messages of a kind per day. Without `SMTP_HOST` every send is a logged no-op:
 nothing breaks, nobody receives anything.
 
-Default provider: Scaleway TEM, the same host as production object storage, 300 free emails a month.
-
-1. Scaleway console, Transactional Email, add a sending subdomain such as `mail.mariam.app`:
-   the mailboxes of the main domain and its SPF record are left alone
-2. Publish the DNS records it gives you (SPF, DKIM, MX, DMARC) and wait for validation
-3. Create an API key for an IAM application that holds `TransactionalEmailEmailSmtpCreate` only
-4. Fill in `deploy/.env`:
+Any SMTP relay that accepts STARTTLS on port 587; port 465 is not supported. Send from a
+subdomain of its own, such as `mail.example.org`, with SPF, DKIM and DMARC published, and give the
+relay credentials that can only send.
 
 ```bash
-SMTP_HOST=smtp.tem.scaleway.com
-SMTP_PORT=587                                    # STARTTLS; port 465 is not supported
-SMTP_USERNAME=<project_id>                       # the Scaleway project id
-SMTP_PASSWORD=<secret key>                       # of the API key
-SMTP_SENDER=Mariam <no-reply@mail.mariam.app>    # must belong to the validated domain
+SMTP_HOST=smtp.example.org
+SMTP_PORT=587
+SMTP_USERNAME=<username>
+SMTP_PASSWORD=<password>
+SMTP_SENDER=Mariam <no-reply@mail.example.org>   # must belong to the verified domain
 SUPPORT_EMAIL=contact@example.org                # where replies go, named in the footer
 ```
 
@@ -279,9 +275,8 @@ Any row with passkeys and no TOTP must enrol one first, or wait for an admin to 
 afterwards. Keep one administrator account whose TOTP you control: it is what lets you reset the
 others.
 
-1. Publish the new hostname and leave the old one serving. Behind a Cloudflare Tunnel, add a public
-   hostname pointing at the same service; the CNAME is created for you. Add the domain to the
-   frontend application and redeploy it, or the proxy answers 404.
+1. Publish the new hostname and leave the old one serving: route it to the same service at the edge
+   (DNS, tunnel or load balancer), and to the frontend in the platform's proxy, or it answers 404.
 2. Set `WEBAUTHN_RP_ID` to the apex domain rather than the tenant host, so future passkeys survive
    every later rename. `WEBAUTHN_ORIGIN` and `FRONTEND_URL` take the new hostname; both accept a
    single origin for WebAuthn.
@@ -345,23 +340,48 @@ docker volume rm deploy_postgres_data_prod
 
 ### Automated off-site backups
 
-The `backup` service runs a daily `pg_dump` pushed to a dedicated Scaleway bucket, separate from
-media, with configurable retention.
+Daily at `BACKUP_TIME`, in the container's time zone, the `backup` service dumps the database,
+restores the dump into a scratch server inside its container, encrypts it with
+[age](https://age-encryption.org) and uploads it as `daily/mariam-<UTC>.dump.age`, then fetches
+`BACKUP_HEARTBEAT_URL`. A dump that does not restore is not uploaded. The service deletes nothing:
+retention is the bucket's.
 
-1. Create a bucket (for example `mariam-backups`) with versioning enabled
-2. Create a dedicated API key, ideally scoped to that bucket
-3. Fill `BACKUP_S3_ENDPOINT`, `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`, `BACKUP_S3_BUCKET`
-4. Redeploy, then check `docker compose -f deploy/compose.yaml logs backup`
+Setup:
 
-Restoring, which overwrites the database:
+1. **Key pair**: `docker run --rm --entrypoint age-keygen ghcr.io/tezay/mariam-backup`. The public
+   key goes in `BACKUP_AGE_RECIPIENT`; the identity stays offline.
+2. **Bucket**, dedicated, preferably in an account or project of its own, in a storage class
+   replicated across availability zones:
+   - versioning and Object Lock, default retention 30 days, compliance mode;
+   - lifecycle rule on `daily/`: expire current versions after 30 days, noncurrent versions after
+     1 day, incomplete multipart uploads after 1 day.
+3. **Keys**: the server's may only `s3:PutObject` (multipart included). The restore key,
+   `s3:GetObject` and `s3:ListBucket`, stays off the server.
+4. **Heartbeat** (optional): a check that alerts when a day passes without a request.
+5. First run: `docker compose -f deploy/compose.yaml run --rm backup once`.
+
+Verify, from any machine; it restores into a scratch server and counts each table's rows:
 
 ```bash
-./deploy/scripts/restore.sh                                 # latest dump
-./deploy/scripts/restore.sh mariam-YYYYMMDD-HHMMSS.dump     # a specific one
+docker run --rm -i \
+  -e BACKUP_S3_ENDPOINT=<endpoint> -e BACKUP_S3_REGION=<region> -e BACKUP_S3_BUCKET=<bucket> \
+  -e BACKUP_S3_ACCESS_KEY=<restore key> -e BACKUP_S3_SECRET_KEY=<restore secret> \
+  ghcr.io/tezay/mariam-backup verify latest < ~/mariam-backup-identity.txt
 ```
 
-Test the restore regularly: the only reliable backup is one that has already been restored. Run it
-on a throwaway instance and check the data.
+Restore, in a single transaction, with the backend and the scheduler stopped meanwhile:
+
+```bash
+cd deploy
+RESTORE_S3_ACCESS_KEY=<restore key> RESTORE_S3_SECRET_KEY=<restore secret> \
+  ./scripts/restore.sh ~/mariam-backup-identity.txt [NAME|latest]
+```
+
+Keep `MFA_ENCRYPTION_KEY` and the VAPID key pair offline with the identity: a restored database is
+unusable without the first, and loses its push subscriptions without the second.
+
+Deployed outside `deploy/compose.yaml`, the image runs on its own with these variables and `PG*`
+pointing at the database.
 
 ### Media bucket versioning
 
@@ -404,14 +424,12 @@ one to five minutes, with email or SMS alerting.
 
 ### TLS
 
-TLS is terminated by Cloudflare in front of the VPS; nginx listens on `:80`.
+TLS is terminated in front of the server; `deploy/nginx` listens on `:80`.
 
-- SSL/TLS mode: Full (strict)
-- Generate a Cloudflare Origin Certificate and install it on the VPS, so the Cloudflare-to-origin
-  leg is encrypted too
-- Firewall the VPS to accept only Cloudflare addresses on `:80` and `:443`. Otherwise the origin
-  is reachable directly and the nginx real-IP handling can be bypassed
-- Enable HSTS at Cloudflare; the frontend and the API send it as well
+- Encrypt the leg from the TLS terminator to the server too: an origin certificate, or a tunnel.
+- Accept `:80` and `:443` from the terminator only. `deploy/nginx` takes the client address from
+  the ranges in its `set_real_ip_from` lines; a server reachable directly lets that be bypassed.
+- The frontend and the API send HSTS.
 
 ### Security headers
 

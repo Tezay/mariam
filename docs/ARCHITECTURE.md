@@ -10,7 +10,7 @@ Technical reference for the deployed system.
 | Proxy | Nginx, optional | One origin for the frontend and the API, port 80 |
 | Backend | Flask, Gunicorn | REST API and authentication, port 5000 internally |
 | Scheduler | Flask, APScheduler | Scheduled jobs, its own container |
-| Database | PostgreSQL 15 | Persistent storage, port 5432 internally |
+| Database | PostgreSQL 17 | Persistent storage, port 5432 internally |
 | Cache and counters | Redis 8 | Token blacklist, rate limits, telemetry counters, job locks |
 | Object storage | Scaleway Object Storage, MinIO in development | Dish images, event media, logos |
 | Push | Web Push (VAPID) | Browser notifications |
