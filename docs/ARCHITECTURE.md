@@ -7,18 +7,21 @@ Technical reference for the deployed system.
 | Component | Technology | Role |
 |---|---|---|
 | Frontend | React 18, React Router 7, Node 22 | User interface and the server that answers it, port 3000 internally |
-| Proxy | Nginx, optional | One origin for the frontend and the API, port 80 |
+| Proxy | Nginx | One origin for the frontend and the API, port 80 |
 | Backend | Flask, Gunicorn | REST API and authentication, port 5000 internally |
 | Scheduler | Flask, APScheduler | Scheduled jobs, its own container |
 | Database | PostgreSQL 17 | Persistent storage, port 5432 internally |
 | Cache and counters | Redis 8 | Token blacklist, rate limits, telemetry counters, job locks |
-| Object storage | Scaleway Object Storage, MinIO in development | Dish images, event media, logos |
+| Object storage | Any S3-compatible service, MinIO in development | Dish images, event media, logos |
 | Push | Web Push (VAPID) | Browser notifications |
 
 ## Request flow
 
 ```
                      Mobile · Admin · Display screens
+                                  │
+                                  ▼ HTTPS
+                 TLS terminator: platform proxy, tunnel or CDN
                                   │
                                   ▼ HTTP :80
             ┌─────────────────────────────────────────────┐
@@ -55,15 +58,14 @@ Technical reference for the deployed system.
             ┌─────────────────────────────────────────────┐
             │  Object storage                             │
             │  Development: MinIO, :9000 API / :9001 UI   │
-            │  Production: s3.fr-par.scw.cloud            │
+            │  Production: any S3-compatible service      │
             └─────────────────────────────────────────────┘
 ```
 
-## Nginx
+## Proxy
 
-Optional. `deploy/nginx/nginx.conf` puts the frontend and the API behind one origin, which avoids
-CORS entirely. A platform that routes hostnames itself can expose the two containers directly,
-the API on a host of its own.
+The `proxy` service, an image built from `deploy/nginx`, puts the frontend and the API behind one
+origin, which avoids CORS entirely. It is the only service that receives outside traffic.
 
 1. `/v1/*` and `/health` go to `backend:5000`, behind per-address rate limits.
 2. Every other path goes to `frontend:3000`.
@@ -105,10 +107,8 @@ that is empty.
 
 ### DNS
 
-One proxied Cloudflare record per tenant host, or a wildcard `*.mariam.app` where the deployment
-allows it. Behind a Cloudflare Tunnel, each public hostname declared on the tunnel creates its own
-CNAME, so a tenant is added by declaring its hostname rather than by relying on a wildcard.
-`server_name _` accepts every subdomain and forwards the host.
+One record per tenant host, or a wildcard `*.mariam.app`, pointing at the TLS terminator in front
+of the proxy. `server_name _` accepts every subdomain and forwards the host.
 
 ### Indexing
 

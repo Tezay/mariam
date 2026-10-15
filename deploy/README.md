@@ -1,19 +1,15 @@
 # Production deployment
 
-Everything needed to run Mariam in production.
-
 ## Structure
 
 ```
 deploy/
-├── compose.yaml          # Service orchestration
-├── .env.example          # Environment variable template
-├── nginx/
-│   └── nginx.conf        # Reverse proxy configuration
+├── compose.yaml          # The whole stack, from published images
+├── .env.example          # Environment template
+├── backup/               # Backup image: dump, check, encrypt, upload
+├── nginx/                # Proxy image: /v1 to the API, the rest to the pages
 └── scripts/
-    ├── install.sh        # Initial setup
-    ├── run.sh            # Start and stop
-    └── init.sh           # First admin and restaurant
+    └── restore.sh        # Replace the database with a backup
 ```
 
 Documentation lives at the repository root, under `docs/`.
@@ -21,13 +17,25 @@ Documentation lives at the repository root, under `docs/`.
 ## Quick start
 
 ```bash
-./scripts/install.sh   # 1. setup
-                       # 2. fill in .env
-./scripts/run.sh       # 3. start
-./scripts/init.sh      # 4. first start only
+git checkout vX.Y.Z           # the release MARIAM_TAG names
+cp .env.example .env          # then fill it in
+docker compose pull
+docker compose up -d
+docker compose exec backend flask create-activation-link
 ```
 
-The application listens on `http://localhost`, port 80. Set `PORT=8080` in `.env` if it is taken.
+No port is published. Behind a platform, route the hosts to the `proxy` service, port 80. On a
+server of its own, publish it in `compose.override.yaml`, which compose reads next to
+`compose.yaml`:
+
+```yaml
+services:
+  proxy:
+    ports:
+      - "80:80"
+```
+
+TLS ends in front of the proxy: see "TLS" in [OPERATIONS.md](../docs/OPERATIONS.md).
 
 ## Updating
 
@@ -38,8 +46,9 @@ Alembic migrations run automatically when the backend container starts, and some
 # 1. Back up, every time
 docker compose run --rm backup once
 
-# 2. Deploy
-git pull && ./scripts/run.sh
+# 2. Deploy: check out the release, set MARIAM_TAG in .env to it
+git fetch --tags && git checkout vX.Y.Z
+docker compose pull && docker compose up -d
 
 # 3. If it goes wrong
 # RESTORE_S3_ACCESS_KEY=... RESTORE_S3_SECRET_KEY=... ./scripts/restore.sh ~/mariam-backup-identity.txt

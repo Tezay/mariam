@@ -29,6 +29,7 @@ jobs:
       image_backend: ${{ steps.decide.outputs.image_backend }}
       image_frontend: ${{ steps.decide.outputs.image_frontend }}
       backup: ${{ steps.decide.outputs.backup }}
+      proxy: ${{ steps.decide.outputs.proxy }}
     steps:
       - name: Choose mode
         id: mode
@@ -81,6 +82,9 @@ jobs:
               - 'deploy/backup/**'
               - 'deploy/scripts/restore.sh'
               - '.github/workflows/quality.yml'
+            proxy:
+              - 'deploy/nginx/**'
+              - '.github/workflows/quality.yml'
 
       - name: Decide
         id: decide
@@ -91,12 +95,13 @@ jobs:
           IMAGE_BACKEND: ${{ steps.filter.outputs.image_backend }}
           IMAGE_FRONTEND: ${{ steps.filter.outputs.image_frontend }}
           BACKUP: ${{ steps.filter.outputs.backup }}
+          PROXY: ${{ steps.filter.outputs.proxy }}
         run: |
           case "$MODE" in
-            release) BACKEND=true FRONTEND=true IMAGE_BACKEND=false IMAGE_FRONTEND=false BACKUP=true ;;
-            full) BACKEND=true FRONTEND=true IMAGE_BACKEND=true IMAGE_FRONTEND=true BACKUP=true ;;
+            release) BACKEND=true FRONTEND=true IMAGE_BACKEND=false IMAGE_FRONTEND=false BACKUP=true PROXY=true ;;
+            full) BACKEND=true FRONTEND=true IMAGE_BACKEND=true IMAGE_FRONTEND=true BACKUP=true PROXY=true ;;
           esac
-          for value in "$BACKEND" "$FRONTEND" "$IMAGE_BACKEND" "$IMAGE_FRONTEND" "$BACKUP"; do
+          for value in "$BACKEND" "$FRONTEND" "$IMAGE_BACKEND" "$IMAGE_FRONTEND" "$BACKUP" "$PROXY"; do
             if [ "$value" != true ] && [ "$value" != false ]; then
               echo "::error::A path filter gave no decision in $MODE mode."
               exit 1
@@ -108,6 +113,7 @@ jobs:
             echo "image_backend=$IMAGE_BACKEND"
             echo "image_frontend=$IMAGE_FRONTEND"
             echo "backup=$BACKUP"
+            echo "proxy=$PROXY"
           } >> "$GITHUB_OUTPUT"
 
           row() {
@@ -129,6 +135,7 @@ jobs:
             row "Backend image build" "$IMAGE_BACKEND" "packaging files in \`server/\`"
             row "Frontend image build" "$IMAGE_FRONTEND" "packaging files in \`client/\`"
             row "Backup image, ShellCheck and round trip" "$BACKUP" "\`deploy/backup/\`, \`deploy/scripts/restore.sh\`"
+            row "Proxy image and configuration" "$PROXY" "\`deploy/nginx/\`"
             echo
             echo "A change to this workflow runs every row."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -350,6 +357,21 @@ jobs:
       - name: Back up, verify and restore
         run: ./deploy/backup/round-trip-test.sh
 
+  proxy:
+    name: Proxy image (nginx -t)
+    needs: changes
+    if: needs.changes.outputs.proxy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build
+        run: docker build -t mariam-proxy:ci deploy/nginx
+
+      - name: Check the rendered configuration
+        run: docker run --rm mariam-proxy:ci nginx -t
+
   result:
     name: CI result
     needs:
@@ -362,6 +384,7 @@ jobs:
       - image-backend
       - image-frontend
       - backup
+      - proxy
     # always(), not !cancelled(): a required check that is skipped counts as passed.
     if: always()
     runs-on: ubuntu-latest
