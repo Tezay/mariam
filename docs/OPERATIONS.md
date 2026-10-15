@@ -1,30 +1,25 @@
 # Operations
 
-Day-to-day commands for running Mariam in production. Scripts live in `deploy/scripts/`.
+Day-to-day commands for running Mariam in production, run from the `deploy/` folder.
 
 ## Service control
 
 ```bash
-./deploy/scripts/run.sh            # start (same as `up`)
-./deploy/scripts/run.sh down       # stop
-./deploy/scripts/run.sh restart    # rebuild and restart
-./deploy/scripts/run.sh logs       # follow logs
-./deploy/scripts/run.sh status     # service health
+docker compose up -d                # start, or apply a change
+docker compose down                 # stop
+docker compose ps                   # state and health of each service
+docker compose logs -f --tail=100   # follow the logs
 ```
 
 ## Administration
 
-### First start
+### First administrator
+
+At its first start, the backend applies the migrations and creates the default site. The first
+account comes from an activation link:
 
 ```bash
-./deploy/scripts/init.sh
-```
-
-### Instance bootstrap
-
-```bash
-docker compose -f deploy/compose.yaml exec backend flask create-activation-link
-docker compose -f deploy/compose.yaml exec backend flask init-restaurant
+docker compose exec backend flask create-activation-link
 ```
 
 ### Accounts
@@ -63,12 +58,12 @@ An organization is a client; its slug is the public subdomain, `<slug>.mariam.ap
 
 ```bash
 # 1. Create the organization (idempotent on the slug)
-docker compose -f deploy/compose.yaml exec backend \
+docker compose exec backend \
   flask create-org --name "Example Organization" --slug example-org
 
 # 2. Invite the supervisor, attached to the organization and to no site
 #    (--org takes an id or a slug; site roles take --restaurant instead)
-docker compose -f deploy/compose.yaml exec backend \
+docker compose exec backend \
   flask user invite supervisor@example.com --role org_admin --org example-org
 ```
 
@@ -80,7 +75,7 @@ first user of a new organization.
 ### Resetting a password
 
 ```bash
-docker compose -f deploy/compose.yaml exec backend flask user reset-password user@example.com
+docker compose exec backend flask user reset-password user@example.com
 ```
 
 Without a terminal, on serverless environments, set `RESET_PASSWORD_EMAIL=user@example.com`
@@ -229,16 +224,32 @@ Both must be temporary: remove them after the deployment.
 ### Manual dump and restore
 
 ```bash
-docker exec -t mariam_db_prod pg_dump -U mariam mariam_db > backup_$(date +%Y%m%d_%H%M%S).sql
-cat backup_file.sql | docker exec -i mariam_db_prod psql -U mariam -d mariam_db   # overwrites
-docker exec -it mariam_db_prod psql -U mariam -d mariam_db                        # console
+docker compose exec -T db pg_dump -U mariam -Fc mariam_db > mariam.dump
+docker compose exec -T db pg_restore -U mariam -d mariam_db --clean --if-exists --no-owner < mariam.dump
+docker compose exec db psql -U mariam -d mariam_db   # console
 ```
+
+### Moving a database into this stack
+
+From another deployment on the same major Postgres version, restore before the rest of the stack
+starts:
+
+```bash
+pg_dump -Fc <connection to the old database> > mariam.dump
+docker compose up -d db
+docker compose exec -T db pg_restore -U mariam -d mariam_db --no-owner < mariam.dump
+docker compose up -d
+```
+
+Redis starts empty, so the tokens the old deployment revoked are forgotten: change `JWT_SECRET_KEY`
+at the same time, and everyone signs in again. Media stay where they are: keep the `S3_*` values.
 
 ## Updating
 
 ```bash
-git pull origin main
-./deploy/scripts/run.sh restart
+docker compose run --rm backup once
+git fetch --tags && git checkout vX.Y.Z   # then MARIAM_TAG=X.Y.Z in .env
+docker compose pull && docker compose up -d
 ```
 
 ### Testing a release candidate
@@ -307,10 +318,10 @@ covers every browser.
 
 ## Troubleshooting
 
-**The application does not start.** Read `./deploy/scripts/run.sh logs`, check that every required
-variable is set in `.env`, and that the port is free (`lsof -i :80`).
+**The application does not start.** Read `docker compose logs`. Compose refuses to start while a
+required variable is empty, and names it.
 
-**Database connection errors.** Check the db container with `./deploy/scripts/run.sh status`, then
+**Database connection errors.** Check the db container with `docker compose ps`, then
 the credentials in `.env`. `Database connection failed after 30 attempts` also appears when the
 startup guard rejects the configuration: the entrypoint probes the database with `flask db current`,
 which loads the app, so a missing secret surfaces as a connection failure. Check the variables
@@ -330,10 +341,10 @@ connection.
 **Full reset**, which destroys all data:
 
 ```bash
-./deploy/scripts/run.sh down
+docker compose down
 docker volume rm deploy_postgres_data_prod
-./deploy/scripts/run.sh
-./deploy/scripts/init.sh
+docker compose up -d
+docker compose exec backend flask create-activation-link
 ```
 
 ## Production readiness
@@ -358,7 +369,7 @@ Setup:
 3. **Keys**: the server's may only `s3:PutObject` (multipart included). The restore key,
    `s3:GetObject` and `s3:ListBucket`, stays off the server.
 4. **Heartbeat** (optional): a check that alerts when a day passes without a request.
-5. First run: `docker compose -f deploy/compose.yaml run --rm backup once`.
+5. First run: `docker compose run --rm backup once`.
 
 Verify, from any machine; it restores into a scratch server and counts each table's rows:
 
@@ -390,15 +401,13 @@ and logos from accidental deletion.
 
 ### Rollback
 
-Images are published to GHCR on every tag.
+Images are published to GHCR on every tag. Rolling back is deploying the previous release:
 
 ```bash
-# in deploy/.env
-MARIAM_TAG=0.14.0
-./deploy/scripts/run.sh
+git checkout vX.Y.Z   # then MARIAM_TAG=X.Y.Z in .env
+docker compose pull && docker compose up -d
 ```
 
-Without `MARIAM_TAG`, production follows `latest`. Pinning a tag gives a reproducible deployment.
 Migrations are forward-only: rolling back the code does not roll back the schema, so restore a
 dump if the schema has to go back too.
 
@@ -424,11 +433,12 @@ one to five minutes, with email or SMS alerting.
 
 ### TLS
 
-TLS is terminated in front of the server; `deploy/nginx` listens on `:80`.
+TLS is terminated in front of the server; the `proxy` service listens on `:80`.
 
 - Encrypt the leg from the TLS terminator to the server too: an origin certificate, or a tunnel.
-- Accept `:80` and `:443` from the terminator only. `deploy/nginx` takes the client address from
-  the ranges in its `set_real_ip_from` lines; a server reachable directly lets that be bypassed.
+- Where the proxy's port is published, accept it from the terminator only. The proxy takes the
+  client address from the ranges in its `set_real_ip_from` lines; a server reachable directly lets
+  that be bypassed.
 - The frontend and the API send HSTS.
 
 ### Security headers

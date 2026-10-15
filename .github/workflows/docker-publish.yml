@@ -48,6 +48,9 @@ jobs:
           - component: backup
             context: ./deploy/backup
             file: Dockerfile
+          - component: proxy
+            context: ./deploy/nginx
+            file: Dockerfile
 
     steps:
       - name: Checkout repository
@@ -106,5 +109,6 @@ jobs:
             echo "${{ env.REGISTRY }}/${{ github.repository }}-backend:${GITHUB_REF_NAME#v}"
             echo "${{ env.REGISTRY }}/${{ github.repository }}-frontend:${GITHUB_REF_NAME#v}"
             echo "${{ env.REGISTRY }}/${{ github.repository }}-backup:${GITHUB_REF_NAME#v}"
+            echo "${{ env.REGISTRY }}/${{ github.repository }}-proxy:${GITHUB_REF_NAME#v}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

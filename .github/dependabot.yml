@@ -82,6 +82,7 @@ updates:
       - /server
       - /client
       - /deploy/backup
+      - /deploy/nginx
     schedule:
       interval: monthly
     open-pull-requests-limit: 3

@@ -47,9 +47,9 @@ server {
     # through would let anyone reaching the origin directly forge the address
     # that Flask rate-limits and counts on.
 
-    # Names are looked up at each request through Docker's DNS: a recreated
-    # container may come back on another address.
-    resolver 127.0.0.11 valid=10s ipv6=off;
+    # Names are looked up at each request: a recreated container may come back on
+    # another address.
+    resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
     set $backend http://backend:5000;
     set $frontend http://frontend:3000;
 

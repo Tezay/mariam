@@ -1,5 +1,7 @@
 # Images are built by CI and pulled here rather than built on the server, so a
 # deploy cannot fail on a missing toolchain and a rollback is a tag change.
+# No port is published: route the hosts to the proxy service, or publish its
+# port in compose.override.yaml.
 
 x-logging: &default-logging
   driver: json-file
@@ -67,7 +69,6 @@ x-backend-env: &backend-env
 services:
   db:
     image: postgres:17-alpine
-    container_name: mariam_db_prod
     restart: unless-stopped
     logging: *default-logging
     mem_limit: 512m
@@ -83,12 +84,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - mariam_network
 
   backend:
-    image: ${BACKEND_IMAGE:-ghcr.io/tezay/mariam-backend}:${MARIAM_TAG:-latest}
-    container_name: mariam_backend_prod
+    image: ${BACKEND_IMAGE:-ghcr.io/tezay/mariam-backend}:${MARIAM_TAG:?}
     restart: unless-stopped
     logging: *default-logging
     mem_limit: 512m
@@ -109,12 +107,9 @@ services:
       timeout: 5s
       retries: 3
       start_period: 40s
-    networks:
-      - mariam_network
 
   redis:
     image: redis:8-alpine
-    container_name: mariam_redis_prod
     restart: unless-stopped
     logging: *default-logging
     mem_limit: 320m
@@ -129,12 +124,9 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-    networks:
-      - mariam_network
 
   scheduler:
-    image: ${BACKEND_IMAGE:-ghcr.io/tezay/mariam-backend}:${MARIAM_TAG:-latest}
-    container_name: mariam_scheduler_prod
+    image: ${BACKEND_IMAGE:-ghcr.io/tezay/mariam-backend}:${MARIAM_TAG:?}
     restart: unless-stopped
     logging: *default-logging
     mem_limit: 256m
@@ -146,12 +138,9 @@ services:
     depends_on:
       backend:
         condition: service_healthy  # ensures migrations have run
-    networks:
-      - mariam_network
 
   frontend:
-    image: ${FRONTEND_IMAGE:-ghcr.io/tezay/mariam-frontend}:${MARIAM_TAG:-latest}
-    container_name: mariam_frontend_prod
+    image: ${FRONTEND_IMAGE:-ghcr.io/tezay/mariam-frontend}:${MARIAM_TAG:?}
     restart: unless-stopped
     logging: *default-logging
     mem_limit: 384m
@@ -167,29 +156,19 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    networks:
-      - mariam_network
 
   proxy:
-    image: nginx:stable-alpine
-    container_name: mariam_proxy_prod
+    image: ${PROXY_IMAGE:-ghcr.io/tezay/mariam-proxy}:${MARIAM_TAG:?}
     restart: unless-stopped
     logging: *default-logging
     mem_limit: 64m
     cpus: 0.25
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    ports:
-      - "${PORT:-80}:80"
     depends_on:
       frontend:
         condition: service_healthy
-    networks:
-      - mariam_network
 
   backup:
-    image: ${BACKUP_IMAGE:-ghcr.io/tezay/mariam-backup}:${MARIAM_TAG:-latest}
-    container_name: mariam_backup_prod
+    image: ${BACKUP_IMAGE:-ghcr.io/tezay/mariam-backup}:${MARIAM_TAG:?}
     restart: unless-stopped
     logging: *default-logging
     mem_limit: 256m
@@ -211,13 +190,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    networks:
-      - mariam_network
 
 volumes:
   postgres_data_prod:
   redis_data:
-
-networks:
-  mariam_network:
-    driver: bridge

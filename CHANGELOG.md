@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The backup image is published** with the others; a server no longer builds it.
 - **Postgres 17** for the database, the backup image and CI; a volume created by Postgres 15 needs a dump and restore.
 - **`deploy/compose.yaml` requires** `S3_REGION`, `BACKUP_S3_REGION` and `BACKUP_AGE_RECIPIENT`.
+- **`deploy/compose.yaml` publishes no port and names no container**: route the hosts to `proxy`, or publish it in `compose.override.yaml`.
+- **The proxy is an image**, `mariam-proxy`, published with the others; the server no longer needs the repository.
+- **`MARIAM_TAG` is required**: a deployment runs a named release, never `latest`.
 - **"Vos données"** says that backups are encrypted and kept 30 days.
 
 ### Removed
@@ -39,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The SEO shell and the sitemap served by Flask**, with the `FRONTEND_ORIGIN` setting.
 - **The API's `robots.txt`**: every API response carries `X-Robots-Tag: noindex` instead.
 - **`BACKUP_INTERVAL_SECONDS` and `BACKUP_RETENTION_DAYS`**: retention belongs to the bucket's lifecycle rules.
+- **`deploy/scripts/install.sh`, `init.sh` and `run.sh`**, and `PORT`: `docs/INSTALL.md` gives the compose commands.
 
 ### Fixed
 
