@@ -179,7 +179,6 @@ services:
     cpus: 0.25
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./nginx/security-headers.conf:/etc/nginx/snippets/security-headers.conf:ro
     ports:
       - "${PORT:-80}:80"
     depends_on:

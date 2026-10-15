@@ -180,10 +180,32 @@ class TestUnauthorizedSpeaksOfTheSession:
 
 
 class TestResponseHeaders:
-    def test_responses_forbid_mime_sniffing(self, app, client):
-        res = client.get('/health')
+    def test_api_responses_carry_the_security_headers(self, client):
+        headers = client.get('/health').headers
 
-        assert res.headers['X-Content-Type-Options'] == 'nosniff'
+        assert headers['Strict-Transport-Security'] == 'max-age=31536000; includeSubDomains'
+        assert headers['X-Content-Type-Options'] == 'nosniff'
+        assert headers['X-Frame-Options'] == 'DENY'
+        assert headers['Referrer-Policy'] == 'no-referrer'
+        assert headers['Cache-Control'] == 'no-store'
+        assert headers['X-Robots-Tag'] == 'noindex'
+        assert headers['Content-Security-Policy'] == "default-src 'none'; frame-ancestors 'none'"
+
+    def test_the_docs_page_loads_the_configured_swagger_ui_only(self, app, client):
+        res = client.get('/v1/docs')
+
+        swagger_ui = app.config['OPENAPI_SWAGGER_UI_URL']
+        assert res.status_code == 200
+        assert f'{swagger_ui}swagger-ui-bundle.js' in res.get_data(as_text=True)
+        assert f"script-src {swagger_ui} 'unsafe-inline'" in res.headers['Content-Security-Policy']
+
+    def test_the_unsubscribe_page_keeps_its_inline_styles_and_runs_no_script(self, client):
+        res = client.get('/v1/public/unsubscribe/MQ.forged-signature')
+
+        policy = res.headers['Content-Security-Policy']
+        assert res.status_code == 200
+        assert "style-src 'unsafe-inline'" in policy
+        assert 'script-src' not in policy
 
 
 class TestProductionGuard:

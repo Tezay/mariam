@@ -321,9 +321,9 @@ startup guard rejects the configuration: the entrypoint probes the database with
 which loads the app, so a missing secret surfaces as a connection failure. Check the variables
 before suspecting Postgres.
 
-**A healthcheck reporting `curl: not found`.** The backend image carries neither `curl` nor `wget`.
-An orchestrator that shells out for an HTTP check needs the Python equivalent, the one
-`deploy/compose.yaml` uses:
+**A healthcheck reporting `curl: not found`.** The backend image carries neither `curl` nor `wget`,
+and declares no healthcheck of its own: it also runs the scheduler, which listens on no port. Each
+service declares its check, as `deploy/compose.yaml` does for the backend with this command:
 
 ```bash
 python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=3)"
@@ -411,16 +411,20 @@ TLS is terminated by Cloudflare in front of the VPS; nginx listens on `:80`.
   leg is encrypted too
 - Firewall the VPS to accept only Cloudflare addresses on `:80` and `:443`. Otherwise the origin
   is reachable directly and the nginx real-IP handling can be bypassed
-- Enable HSTS at Cloudflare; the frontend sends it as well. Cloudflare also covers an API on its own host,
-  which has no nginx in front
+- Enable HSTS at Cloudflare; the frontend and the API send it as well
 
 ### Security headers
 
-The frontend server (`client/server.js`) sends HSTS, `X-Content-Type-Options`, `X-Frame-Options`,
-`Referrer-Policy` and `Permissions-Policy` on everything it answers. `deploy/nginx` adds the same
-to the API's responses; the API sets `X-Content-Type-Options` itself.
+Each application sets the headers of what it answers, whatever proxy stands in front.
 
-The Content-Security-Policy is report-only for now. The server writes it for each page
+- The frontend server (`client/server.js`) sends HSTS, `X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy` and `Permissions-Policy`.
+- The API (`server/app/security_headers.py`) sends HSTS, `X-Content-Type-Options`,
+  `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Cache-Control: no-store`,
+  `X-Robots-Tag: noindex` and an enforced Content-Security-Policy that loads nothing. Its two HTML
+  pages, the API documentation and the unsubscribe confirmation, have a policy of their own.
+
+The frontend's Content-Security-Policy is report-only for now. The server writes it for each page
 (`client/src/lib/runtime-config.server.ts`), with a nonce for the router's inline scripts and the
 origins the deployment configures: the API when `API_URL` is absolute, Umami, Sentry. To make it
 enforcing:

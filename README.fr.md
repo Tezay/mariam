@@ -62,7 +62,7 @@ cd mariam
 docker compose up -d --build
 ```
 
-Frontend sur `https://localhost:5173`, API sur `http://localhost:5000`, OpenAPI sur `/api/v1/docs`.
+Frontend sur `https://localhost:5173`, API sur `http://localhost:5000`, OpenAPI sur `/v1/docs`.
 Voir [docs/INSTALL.md](docs/INSTALL.md) pour la production.
 
 ## Documentation
