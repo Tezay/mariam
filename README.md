@@ -50,7 +50,7 @@ analytics views serve both, scoped by role.
 |---|---|
 | Frontend | React 18, TypeScript, Vite, Tailwind, shadcn/ui, Recharts, TanStack Query |
 | Backend | Flask 3, flask-smorest, SQLAlchemy 2, Alembic, Gunicorn |
-| Data | PostgreSQL 15, Redis 8, S3-compatible object storage |
+| Data | PostgreSQL 17, Redis 8, S3-compatible object storage |
 | Infrastructure | Docker Compose, Nginx, GitHub Actions |
 
 ## Quick start
@@ -59,6 +59,8 @@ analytics views serve both, scoped by role.
 git clone https://github.com/Tezay/mariam
 cd mariam
 docker compose up -d --build
+make db-upgrade   # the development server does not migrate on start
+make db-demo      # optional: a demo site, its admin and a week of menus
 ```
 
 Frontend on `https://localhost:5173`, API on `http://localhost:5000`, OpenAPI at `/v1/docs`.

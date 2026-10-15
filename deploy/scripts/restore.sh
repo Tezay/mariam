@@ -1,38 +1,28 @@
 #!/bin/bash
-# ========================================
-# MARIAM - Database restore from S3 backup
-# ========================================
-# Restores the Postgres database from a dump stored in the backup bucket.
-# Runs inside a one-off `backup` container so it reuses its tools (pg_restore,
-# mc) and environment (PG*, BACKUP_S3_*).
+# Replaces the database with an encrypted backup. The server's own key can only
+# write: bring the restore key and the age identity, which never stay on the server.
 #
-# Usage:
-#   ./scripts/restore.sh              # restore the latest dump
-#   ./scripts/restore.sh mariam-YYYYMMDD-HHMMSS.dump   # restore a specific dump
-#
-# ⚠️  DESTRUCTIVE: overwrites the current database.
+#   RESTORE_S3_ACCESS_KEY=... RESTORE_S3_SECRET_KEY=... ./scripts/restore.sh IDENTITY_FILE [NAME|latest]
 set -euo pipefail
 
+: "${1:?Usage: restore.sh IDENTITY_FILE [NAME|latest]}"
+backup=${2:-latest}
+: "${RESTORE_S3_ACCESS_KEY:?Set RESTORE_S3_ACCESS_KEY to a key that can read the backup bucket}"
+: "${RESTORE_S3_SECRET_KEY:?Set RESTORE_S3_SECRET_KEY to a key that can read the backup bucket}"
+[ -r "$1" ] || { echo "Cannot read $1" >&2; exit 1; }
+identity="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+
 cd "$(dirname "$0")/.."
-DUMP="${1:-latest}"
 
-echo "⚠️  This will OVERWRITE the current database with backup: ${DUMP}"
-read -r -p "Type 'RESTORE' to continue: " confirm
-[ "$confirm" = "RESTORE" ] || { echo "Aborted."; exit 1; }
+echo "This replaces the database with the backup '$backup'."
+read -r -p "Type RESTORE to continue: " answer
+[ "$answer" = RESTORE ] || { echo "Aborted."; exit 1; }
 
-docker compose run --rm --no-deps -e RESTORE_DUMP="$DUMP" --entrypoint sh backup -c '
-  set -eu
-  mc alias set backup "$BACKUP_S3_ENDPOINT" "$BACKUP_S3_ACCESS_KEY" "$BACKUP_S3_SECRET_KEY" >/dev/null
-  DEST="backup/${BACKUP_S3_BUCKET}/daily"
-  if [ "$RESTORE_DUMP" = "latest" ]; then
-    NAME=$(mc ls "$DEST/" | awk "{print \$NF}" | sort | tail -n1)
-  else
-    NAME="$RESTORE_DUMP"
-  fi
-  [ -n "$NAME" ] || { echo "No dump found in $DEST"; exit 1; }
-  echo "Downloading $NAME ..."
-  mc cp "$DEST/$NAME" /tmp/restore.dump
-  echo "Restoring into $PGDATABASE ..."
-  pg_restore --clean --if-exists --no-owner -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" /tmp/restore.dump
-  echo "✅ Restore complete."
-'
+# A failed restore leaves the database unchanged, so the services restart either way.
+docker compose stop backend scheduler
+trap 'docker compose start backend scheduler' EXIT
+
+docker compose run --rm --no-deps -T \
+    -e BACKUP_S3_ACCESS_KEY="$RESTORE_S3_ACCESS_KEY" \
+    -e BACKUP_S3_SECRET_KEY="$RESTORE_S3_SECRET_KEY" \
+    backup restore "$backup" <"$identity"

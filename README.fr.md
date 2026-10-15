@@ -51,7 +51,7 @@ deux rôles, avec un périmètre résolu par le rôle.
 |---|---|
 | Frontend | React 18, TypeScript, Vite, Tailwind, shadcn/ui, Recharts, TanStack Query |
 | Backend | Flask 3, flask-smorest, SQLAlchemy 2, Alembic, Gunicorn |
-| Données | PostgreSQL 15, Redis 8, stockage objet compatible S3 |
+| Données | PostgreSQL 17, Redis 8, stockage objet compatible S3 |
 | Infrastructure | Docker Compose, Nginx, GitHub Actions |
 
 ## Démarrage rapide
@@ -60,6 +60,8 @@ deux rôles, avec un périmètre résolu par le rôle.
 git clone https://github.com/Tezay/mariam
 cd mariam
 docker compose up -d --build
+make db-upgrade   # le serveur de développement n'applique pas les migrations au démarrage
+make db-demo      # facultatif : un site de démonstration, son administrateur et une semaine de menus
 ```
 
 Frontend sur `https://localhost:5173`, API sur `http://localhost:5000`, OpenAPI sur `/v1/docs`.

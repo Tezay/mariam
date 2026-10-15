@@ -24,7 +24,7 @@ x-backend-env: &backend-env
   S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?}
   S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?}
   S3_BUCKET_NAME: ${S3_BUCKET_NAME:-mariam-uploads}
-  S3_REGION: ${S3_REGION:-fr-par}
+  S3_REGION: ${S3_REGION:?}
   S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
   VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:?}
   VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:?}
@@ -66,7 +66,7 @@ x-backend-env: &backend-env
 
 services:
   db:
-    image: postgres:15-alpine
+    image: postgres:17-alpine
     container_name: mariam_db_prod
     restart: unless-stopped
     logging: *default-logging
@@ -188,25 +188,26 @@ services:
       - mariam_network
 
   backup:
-    build:
-      context: ./backup
-    image: mariam-backup:local
+    image: ${BACKUP_IMAGE:-ghcr.io/tezay/mariam-backup}:${MARIAM_TAG:-latest}
     container_name: mariam_backup_prod
     restart: unless-stopped
     logging: *default-logging
     mem_limit: 256m
     cpus: 0.5
     environment:
+      TZ: Europe/Paris
       PGHOST: db
       PGUSER: ${POSTGRES_USER:-mariam}
       PGPASSWORD: ${POSTGRES_PASSWORD}
       PGDATABASE: ${POSTGRES_DB:-mariam_db}
       BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:?}
+      BACKUP_S3_REGION: ${BACKUP_S3_REGION:?}
       BACKUP_S3_ACCESS_KEY: ${BACKUP_S3_ACCESS_KEY:?}
       BACKUP_S3_SECRET_KEY: ${BACKUP_S3_SECRET_KEY:?}
       BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:?}
-      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
-      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:?}
+      BACKUP_TIME: ${BACKUP_TIME:-03:00}
+      BACKUP_HEARTBEAT_URL: ${BACKUP_HEARTBEAT_URL:-}
     depends_on:
       db:
         condition: service_healthy

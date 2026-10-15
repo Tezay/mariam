@@ -41,8 +41,13 @@ jobs:
         include:
           - component: backend
             context: ./server
+            file: Dockerfile.prod
           - component: frontend
             context: ./client
+            file: Dockerfile.prod
+          - component: backup
+            context: ./deploy/backup
+            file: Dockerfile
 
     steps:
       - name: Checkout repository
@@ -71,7 +76,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
-          file: ${{ matrix.context }}/Dockerfile.prod
+          file: ${{ matrix.context }}/${{ matrix.file }}
           push: true
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
@@ -100,5 +105,6 @@ jobs:
             echo '```'
             echo "${{ env.REGISTRY }}/${{ github.repository }}-backend:${GITHUB_REF_NAME#v}"
             echo "${{ env.REGISTRY }}/${{ github.repository }}-frontend:${GITHUB_REF_NAME#v}"
+            echo "${{ env.REGISTRY }}/${{ github.repository }}-backup:${GITHUB_REF_NAME#v}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

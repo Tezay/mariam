@@ -36,14 +36,16 @@ Alembic migrations run automatically when the backend container starts, and some
 
 ```bash
 # 1. Back up, every time
-docker compose exec db pg_dump -U mariam -Fc mariam_db > backup_$(date +%Y%m%d_%H%M%S).dump
+docker compose run --rm backup once
 
 # 2. Deploy
 git pull && ./scripts/run.sh
 
 # 3. If it goes wrong
-# docker compose exec -T db pg_restore -U mariam -d mariam_db --clean < backup_XXXX.dump
+# RESTORE_S3_ACCESS_KEY=... RESTORE_S3_SECRET_KEY=... ./scripts/restore.sh ~/mariam-backup-identity.txt
 ```
+
+Setting up the backups: see "Automated off-site backups" in [OPERATIONS.md](../docs/OPERATIONS.md).
 
 **v0.13**: migration `bfb39474c140` deletes every existing menu item, moving to the dish catalogue
 without converting data, and requires `REDIS_URL`, `WEBAUTHN_RP_ID` and `WEBAUTHN_ORIGIN` in

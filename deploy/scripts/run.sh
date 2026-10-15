@@ -28,12 +28,9 @@ COMMAND=${1:-up}
 
 case "$COMMAND" in
     up|start|deploy)
-        # Pull the tagged images from GHCR, build the local backup image, then
-        # recreate changed containers in place (no full down = near-zero downtime).
         # Pin/rollback a release by setting MARIAM_TAG in .env (e.g. MARIAM_TAG=0.15.0).
         echo "🚀 Déploiement de MARIAM (production, tag=${MARIAM_TAG:-latest})..."
-        docker compose pull db backend frontend
-        docker compose build backup
+        docker compose pull
         docker compose up -d
         echo ""
         echo "✅ Application déployée !"
@@ -54,8 +51,7 @@ case "$COMMAND" in
 
     restart)
         echo "🔄 Redéploiement de MARIAM (sans coupure complète)..."
-        docker compose pull db backend frontend
-        docker compose build backup
+        docker compose pull
         docker compose up -d
         echo "✅ Redéployé"
         ;;

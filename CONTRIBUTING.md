@@ -13,6 +13,8 @@
 git clone https://github.com/Tezay/mariam
 cd mariam
 docker compose up -d --build
+make db-upgrade   # the development server does not migrate on start
+make db-demo      # optional: a demo site, its admin and a week of menus
 curl http://localhost:5000/health
 ```
 

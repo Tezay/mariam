@@ -231,8 +231,9 @@ function PrivacyDialog({ tenant }: { tenant?: string | null }) {
 
           <Block title="Fin d’accès">
             <p>
-              Lorsque votre établissement ferme votre compte, ses données sont supprimées. Les
-              entrées de journal déjà écrites suivent leur propre durée de six mois.
+              Lorsque votre établissement ferme votre compte, ses données sont supprimées, puis
+              disparaissent des sauvegardes 30 jours plus tard. Les entrées de journal déjà écrites
+              suivent leur propre durée de six mois.
             </p>
           </Block>
 
@@ -261,7 +262,9 @@ function PrivacyDialog({ tenant }: { tenant?: string | null }) {
                 Les mots de passe ne sont jamais conservés en clair et les secrets de double
                 authentification sont chiffrés en base.
               </li>
-              <li>Sauvegardes quotidiennes de la base de données.</li>
+              <li>
+                Sauvegardes quotidiennes de la base de données, chiffrées et conservées 30 jours.
+              </li>
             </ul>
           </Block>
 

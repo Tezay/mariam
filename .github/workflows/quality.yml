@@ -28,6 +28,7 @@ jobs:
       frontend: ${{ steps.decide.outputs.frontend }}
       image_backend: ${{ steps.decide.outputs.image_backend }}
       image_frontend: ${{ steps.decide.outputs.image_frontend }}
+      backup: ${{ steps.decide.outputs.backup }}
     steps:
       - name: Choose mode
         id: mode
@@ -71,12 +72,14 @@ jobs:
               - '.github/workflows/quality.yml'
             image_frontend:
               - 'client/Dockerfile.prod'
-              - 'client/docker-entrypoint.sh'
-              - 'client/nginx.conf'
-              - 'client/nginx/**'
+              - 'client/server.js'
               - 'client/.dockerignore'
               - 'client/package.json'
               - 'client/bun.lock'
+              - '.github/workflows/quality.yml'
+            backup:
+              - 'deploy/backup/**'
+              - 'deploy/scripts/restore.sh'
               - '.github/workflows/quality.yml'
 
       - name: Decide
@@ -87,12 +90,13 @@ jobs:
           FRONTEND: ${{ steps.filter.outputs.frontend }}
           IMAGE_BACKEND: ${{ steps.filter.outputs.image_backend }}
           IMAGE_FRONTEND: ${{ steps.filter.outputs.image_frontend }}
+          BACKUP: ${{ steps.filter.outputs.backup }}
         run: |
           case "$MODE" in
-            release) BACKEND=true FRONTEND=true IMAGE_BACKEND=false IMAGE_FRONTEND=false ;;
-            full) BACKEND=true FRONTEND=true IMAGE_BACKEND=true IMAGE_FRONTEND=true ;;
+            release) BACKEND=true FRONTEND=true IMAGE_BACKEND=false IMAGE_FRONTEND=false BACKUP=true ;;
+            full) BACKEND=true FRONTEND=true IMAGE_BACKEND=true IMAGE_FRONTEND=true BACKUP=true ;;
           esac
-          for value in "$BACKEND" "$FRONTEND" "$IMAGE_BACKEND" "$IMAGE_FRONTEND"; do
+          for value in "$BACKEND" "$FRONTEND" "$IMAGE_BACKEND" "$IMAGE_FRONTEND" "$BACKUP"; do
             if [ "$value" != true ] && [ "$value" != false ]; then
               echo "::error::A path filter gave no decision in $MODE mode."
               exit 1
@@ -103,6 +107,7 @@ jobs:
             echo "frontend=$FRONTEND"
             echo "image_backend=$IMAGE_BACKEND"
             echo "image_frontend=$IMAGE_FRONTEND"
+            echo "backup=$BACKUP"
           } >> "$GITHUB_OUTPUT"
 
           row() {
@@ -123,6 +128,7 @@ jobs:
             row "Frontend lint, tests and build" "$FRONTEND" "\`client/\`, \`.editorconfig\`"
             row "Backend image build" "$IMAGE_BACKEND" "packaging files in \`server/\`"
             row "Frontend image build" "$IMAGE_FRONTEND" "packaging files in \`client/\`"
+            row "Backup image, ShellCheck and round trip" "$BACKUP" "\`deploy/backup/\`, \`deploy/scripts/restore.sh\`"
             echo
             echo "A change to this workflow runs every row."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -159,7 +165,7 @@ jobs:
     timeout-minutes: 15
     services:
       postgres:
-        image: postgres:15
+        image: postgres:17
         env:
           POSTGRES_USER: mariam
           POSTGRES_PASSWORD: mariam_secret
@@ -329,6 +335,21 @@ jobs:
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
 
+  backup:
+    name: Backup image (ShellCheck + round trip)
+    needs: changes
+    if: needs.changes.outputs.backup == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: ShellCheck
+        run: shellcheck deploy/backup/*.sh deploy/scripts/restore.sh
+
+      - name: Back up, verify and restore
+        run: ./deploy/backup/round-trip-test.sh
+
   result:
     name: CI result
     needs:
@@ -340,6 +361,7 @@ jobs:
       - build-frontend
       - image-backend
       - image-frontend
+      - backup
     # always(), not !cancelled(): a required check that is skipped counts as passed.
     if: always()
     runs-on: ubuntu-latest
