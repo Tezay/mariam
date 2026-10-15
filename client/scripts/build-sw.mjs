@@ -27,12 +27,11 @@ const { count, size, warnings } = await injectManifest({
   swDest: `${outDir}/${worker}`,
   globDirectory: outDir,
   globPatterns: [
-    '**/*.{js,css,html,ico,png,svg}',
+    '**/*.{js,css,ico,png,svg}',
     // Latin covers French, Œ and € included; other subsets load on demand.
     'assets/inter-latin-wght-normal-*.woff2',
   ],
-  // config.js is written at container start, and a worker never caches itself.
-  globIgnores: ['config.js', worker],
+  globIgnores: [worker],
   // Vite already hashes these names.
   dontCacheBustURLsMatching: /^assets\//,
 });

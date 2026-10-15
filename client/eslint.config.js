@@ -8,14 +8,14 @@ import tseslint from 'typescript-eslint';
 const viewerClock = {
   selector: 'NewExpression[callee.name="Date"][arguments.length=0]',
   message:
-    'Utilisez parisNow(), parisToday() ou nowInstant() de @/lib/date-utils : new Date() suit le fuseau du visiteur.',
+    "Use parisNow(), parisToday() or nowInstant() from @/lib/date-utils: new Date() follows the viewer's timezone.",
 };
 
 const handDrawnSpinner = {
   selector:
     "JSXOpeningElement[name.name=/^(div|span)$/] > JSXAttribute[name.name='className'] > Literal[value=/\\banimate-spin\\b/]",
   message:
-    "Utilisez Spinner (@/components/ui/spinner), ou PageLoader pour une page entière : un seul indicateur de chargement dans l'application.",
+    'Use Spinner (@/components/ui/spinner), or PageLoader for a whole page: the app has a single loading indicator.',
 };
 
 export default tseslint.config(
@@ -29,7 +29,22 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      'react-refresh/only-export-components': [
+        'warn',
+        {
+          allowConstantExport: true,
+          // What a React Router route module exports beside its component.
+          allowExportNames: [
+            'loader',
+            'clientLoader',
+            'action',
+            'clientAction',
+            'meta',
+            'links',
+            'headers',
+          ],
+        },
+      ],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
       'no-empty': 'warn',
@@ -42,7 +57,7 @@ export default tseslint.config(
             {
               name: 'lucide-react/dynamic',
               message:
-                "Importez l'icône depuis lucide-react ; pour une étiquette, utilisez TagIcon (@/components/TagIcon).",
+                'Import the icon from lucide-react; for a tag, use TagIcon (@/components/TagIcon).',
             },
           ],
         },

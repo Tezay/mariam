@@ -6,11 +6,9 @@
  * already visited the old host. Only same-origin code can unregister that
  * worker, hence this runs before the app registers its own.
  */
-const PLACEHOLDER = '__CANONICAL_HOST__';
-
 export function canonicalTarget(currentHost: string, canonicalHost?: string): string | null {
   const target = canonicalHost?.trim();
-  if (!target || target === PLACEHOLDER || target === currentHost) {
+  if (!target || target === currentHost) {
     return null;
   }
   return target;

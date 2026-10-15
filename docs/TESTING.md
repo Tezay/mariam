@@ -43,7 +43,7 @@ One file per domain in `server/tests/`, grouped roughly as:
 |---|---|
 | Authentication and hardening | `test_auth.py`, `test_auth_<module>.py` (one per module of `routes/auth/`), `test_crypto.py`, `test_hardening.py` |
 | Menus and catalogue | `test_menus.py`, `test_categories.py`, `test_catalog.py`, `test_csv_import.py` |
-| Public surface | `test_public_menu.py`, `test_public_slugged.py`, `test_sitemap.py` |
+| Public surface | `test_public_menu.py`, `test_public_slugged.py` |
 | Analytics | `test_analytics_stats.py`, `test_telemetry.py`, `test_votes.py` |
 | Organization | `test_org_catalog.py`, `test_alerts.py`, `test_email_digest.py` |
 | Cross-cutting | `test_tenant_isolation.py`, `test_retention.py`, `test_inbox.py`, `test_users.py`, `test_restaurant.py`, `test_storage.py` |

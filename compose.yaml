@@ -138,8 +138,8 @@ services:
     container_name: mariam_frontend
     restart: unless-stopped
     environment:
-      VITE_API_URL: /v1
       API_PROXY_TARGET: http://backend:5000
+      API_INTERNAL_URL: http://backend:5000/v1
     volumes:
       - ./client:/app
       # Keeps the image's node_modules, which the bind mount above would shadow.

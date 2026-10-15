@@ -281,6 +281,10 @@ jobs:
         working-directory: client
         run: bun run build
 
+      - name: Server check
+        working-directory: client
+        run: bun run test:server
+
   image-backend:
     name: Backend image (build only)
     needs: changes

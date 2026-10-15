@@ -16,7 +16,7 @@ async function registerServiceWorker() {
     });
     await worker.register();
   } catch (error) {
-    console.error('[MARIAM] Échec enregistrement SW :', error);
+    console.error('[MARIAM] Service worker registration failed:', error);
   }
 }
 
@@ -30,12 +30,12 @@ function bootstrap() {
     });
   }
 
-  const umamiId = window.__RUNTIME_CONFIG__?.UMAMI_WEBSITE_ID;
-  if (umamiId && umamiId !== '__UMAMI_WEBSITE_ID__') {
+  const { UMAMI_SCRIPT_URL, UMAMI_WEBSITE_ID } = window.__RUNTIME_CONFIG__ ?? {};
+  if (UMAMI_SCRIPT_URL && UMAMI_WEBSITE_ID) {
     const script = document.createElement('script');
     script.defer = true;
-    script.src = 'https://analytics.mariam.app/script.js';
-    script.dataset.websiteId = umamiId;
+    script.src = UMAMI_SCRIPT_URL;
+    script.dataset.websiteId = UMAMI_WEBSITE_ID;
     document.head.appendChild(script);
   }
 
