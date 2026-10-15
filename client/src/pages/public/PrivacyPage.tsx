@@ -113,7 +113,7 @@ export function PrivacyPage() {
               <li>Aucune publicité, aucun profilage, aucune revente.</li>
               <li>Aucun cookie publicitaire, aucun traceur appartenant à un tiers.</li>
               <li>Aucune adresse IP conservée en clair dans notre base de données.</li>
-              <li>Aucun transfert de données hors de l’Union européenne.</li>
+              <li>Aucune donnée hébergée hors de France.</li>
             </ul>
           </Section>
 
@@ -142,7 +142,9 @@ export function PrivacyPage() {
             </p>
             <p>
               Le service, sa base de données et ses sauvegardes sont hébergés en France par
-              Scaleway, qui agit comme sous-traitant.
+              Scaleway. Les requêtes vers ces pages transitent par Cloudflare, société américaine
+              certifiée au Data Privacy Framework, que la Commission européenne reconnaît comme
+              assurant un niveau de protection adéquat. Tous deux agissent comme sous-traitants.
             </p>
           </Section>
 
@@ -170,7 +172,7 @@ export function PrivacyPage() {
         </div>
 
         <p className="mt-10 border-t border-gray-100 pt-5 text-xs text-gray-400">
-          Dernière mise à jour : 7 septembre 2026
+          Dernière mise à jour : 15 octobre 2026
         </p>
       </div>
     </PublicShell>

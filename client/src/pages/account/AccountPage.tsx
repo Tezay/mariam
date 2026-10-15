@@ -236,9 +236,11 @@ function PrivacyDialog({ tenant }: { tenant?: string | null }) {
 
           <Block title="Sous-traitants ultérieurs">
             <p>
-              Scaleway héberge l’infrastructure en France : le serveur qui exécute l’application et
-              sa base de données, et le stockage objet qui conserve les images et les sauvegardes.
-              Aucune donnée ne quitte l’Union européenne.
+              Scaleway héberge le service en France : le serveur qui exécute l’application et sa
+              base de données, le stockage des images et des sauvegardes, et l’envoi des e-mails.
+              Cloudflare achemine les connexions jusqu’au service ; société américaine, elle est
+              certifiée au Data Privacy Framework, que la Commission européenne reconnaît comme
+              assurant un niveau de protection adéquat.
             </p>
           </Block>
 
