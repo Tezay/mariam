@@ -1,7 +1,3 @@
-/**
- * Panel desktop : aperçu persistant du menu en construction, affiché à droite
- * du wizard à partir du breakpoint `sidebar:`.
- */
 import { motion } from 'framer-motion';
 import type { UseMenuEditorReturn } from '../useMenuEditor';
 import { MenuPreview } from './MenuPreview';
@@ -11,7 +7,7 @@ interface MenuPreviewPanelProps {
   groups: CatGroup[];
   editor: UseMenuEditorReturn;
   dateLabel: string;
-  /** Ref d'enregistrement de la cible de l'animation « vol vers l'aperçu ». */
+  /** Where the fly-to-preview animation lands. */
   flyTargetRef: (el: HTMLElement | null) => void;
 }
 

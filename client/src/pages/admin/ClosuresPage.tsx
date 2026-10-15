@@ -5,7 +5,8 @@ import { parisNow, parisToday } from '@/lib/date-utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { InlineError, getErrorType } from '@/components/InlineError';
+import { InlineError } from '@/components/InlineError';
+import { getErrorType } from '@/lib/api/errors';
 import {
   Dialog,
   DialogContent,
@@ -118,8 +119,6 @@ export function ClosuresPage() {
     loadClosures();
   }, [loadClosures]);
 
-  // ── Calendar helpers ──────────────────────────────────────────────────────
-
   const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
   const firstDayJS = new Date(calYear, calMonth, 1).getDay();
   const startPad = (firstDayJS + 6) % 7;
@@ -153,8 +152,6 @@ export function ClosuresPage() {
     } else setCalMonth((m) => m + 1);
   };
 
-  // ── Dialog helpers ────────────────────────────────────────────────────────
-
   const openCreate = (prefillDate?: string) => {
     setEditingClosure(null);
     setForm({ ...EMPTY_FORM, start_date: prefillDate ?? '' });
@@ -181,8 +178,6 @@ export function ClosuresPage() {
     setForm(EMPTY_FORM);
     setSaveError(null);
   };
-
-  // ── Save / delete ─────────────────────────────────────────────────────────
 
   const validateForm = (): string | null => {
     if (!form.start_date) return 'La date de début est requise.';
@@ -232,11 +227,8 @@ export function ClosuresPage() {
     }
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
   return (
     <div className="container-mariam space-y-6 py-6">
-      {/* En-tête */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <CalendarOff className="h-6 w-6 text-muted-foreground" />
@@ -266,7 +258,6 @@ export function ClosuresPage() {
 
       {!isLoading && !error && (
         <div className="flex flex-col gap-6 md:flex-row">
-          {/* ─── Calendrier ─── */}
           <div className="shrink-0 md:w-80 lg:w-96">
             <div className="space-y-4 rounded-2xl border border-border bg-card p-4">
               <div className="flex items-center justify-between">
@@ -354,7 +345,6 @@ export function ClosuresPage() {
             </div>
           </div>
 
-          {/* ─── Liste du mois ─── */}
           <div className="min-w-0 flex-1">
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               {FR_MONTHS[calMonth]} {calYear}
@@ -473,7 +463,6 @@ export function ClosuresPage() {
         </div>
       )}
 
-      {/* Dialog création / édition */}
       <Dialog
         open={isDialogOpen}
         onOpenChange={(open) => {

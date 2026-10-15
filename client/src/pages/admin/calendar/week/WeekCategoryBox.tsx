@@ -37,7 +37,6 @@ export function WeekCategoryBox({
   const headerTextColor = hasSubcategories ? '#093EAA' : color.sectionLabel;
   const headerLineColor = hasSubcategories ? '#C5D2F1' : color.sectionBorder;
 
-  // Group items by category_id for subcategory rendering
   const itemsByCatId = new Map<number, MenuItem[]>();
   for (const item of items) {
     const list = itemsByCatId.get(item.category_id) ?? [];
@@ -72,7 +71,7 @@ export function WeekCategoryBox({
 
   const showAdd = canEdit && !selectionMode;
 
-  // En mode sélection, on garde l'espace du bouton "Ajouter" (rendu invisible)
+  // Selection mode keeps the add button's space, so that nothing shifts.
   const renderAddControl = (catId: number) =>
     canEdit ? (
       <div className={cn(!showAdd && 'pointer-events-none invisible')} aria-hidden={!showAdd}>
@@ -82,7 +81,6 @@ export function WeekCategoryBox({
 
   return (
     <div className="space-y-1">
-      {/* Category header — horizontal lines + centered label */}
       <div className="flex items-center gap-2 px-1">
         <div className="h-px flex-1" style={{ backgroundColor: headerLineColor + '60' }} />
         {selectionMode ? (

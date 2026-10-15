@@ -11,7 +11,6 @@ export interface ServiceStatus {
   color: 'green' | 'amber' | 'gray';
 }
 
-/** Convertit un index JS (0=Dimanche) en index MARIAM (0=Lundi) */
 export function jsDayToMariamDay(jsDay: number): number {
   // JS: 0=Sun, 1=Mon, ..., 6=Sat
   // MARIAM: 0=Mon, ..., 4=Fri, 5=Sat, 6=Sun
@@ -23,11 +22,7 @@ function parseTime(hhmm: string): number {
   return h * 60 + m;
 }
 
-/**
- * Calcule le statut d'ouverture du restaurant.
- * @param serviceHours - Map de { "day_of_week": { open, close } } (clés = strings)
- * @param serviceDays  - Liste des jours d'ouverture (0=Lun..6=Dim)
- */
+/** `serviceHours` is keyed by weekday, as a string; weekdays count from 0 for Monday. */
 export function getServiceStatus(
   serviceHours: Record<string, ServiceHourEntry>,
   serviceDays: number[]
@@ -36,7 +31,6 @@ export function getServiceStatus(
   const mariamDay = jsDayToMariamDay(now.getDay());
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-  // Le restaurant n'est pas ouvert ce jour
   if (!serviceDays.includes(mariamDay)) {
     return { label: "Fermé aujourd'hui", isOpen: false, color: 'gray' };
   }
@@ -62,26 +56,22 @@ export function getServiceStatus(
   return { label: "Fermé aujourd'hui", isOpen: false, color: 'gray' };
 }
 
-/** Formatte un index de jour MARIAM en abréviation FR */
 export function mariamDayLabel(day: number): string {
   const labels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
   return labels[day] ?? '';
 }
 
-/** Formatte un horaire "HH:MM" en "HHhMM" (ex: "11:30" -> "11h30") */
+/** "11:30" becomes "11h30". */
 export function formatTime(hhmm: string): string {
   return hhmm.replace(':', 'h');
 }
 
 export interface GroupedHourEntry {
-  days: string; // ex: "Lun–Ven" ou "Sam"
-  hours: string; // ex: "11h30–14h00"
+  days: string; // "Lun–Ven" or "Sam"
+  hours: string; // "11h30–14h00"
 }
 
-/**
- * Regroupe les jours consécutifs ayant les mêmes horaires.
- * Ex: Lun/Mar/Mer/Jeu/Ven tous à 11:30-14:00 -> "Lun–Ven : 11h30–14h00"
- */
+/** Monday to Friday at 11:30–14:00 become "Lun–Ven : 11h30–14h00". */
 export function groupConsecutiveHours(
   serviceHours: Record<string, ServiceHourEntry>,
   serviceDays: number[]
@@ -125,14 +115,11 @@ export function groupConsecutiveHours(
 }
 
 export interface NextOpeningDate {
-  /** Abréviation + date courte : "Lun 7 avr." */
+  /** "Lun 7 avr." */
   label: string;
 }
 
-/**
- * Retourne la prochaine date d'ouverture à partir de demain.
- * Retourne null si aucun jour d'ouverture n'est défini.
- */
+/** From tomorrow on; null without any service day. */
 export function getNextOpeningDate(serviceDays: number[]): NextOpeningDate | null {
   if (serviceDays.length === 0) return null;
 

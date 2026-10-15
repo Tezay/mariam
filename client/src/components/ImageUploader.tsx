@@ -1,28 +1,15 @@
-/**
- * MARIAM - Composant d'upload d'images S3
- *
- * Upload drag-and-drop avec prévisualisation, réordonnement et suppression.
- */
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, X, ArrowLeft, ArrowRight, AlertCircle } from 'lucide-react';
 import type { EventImage } from '@/lib/api/events';
 
 interface ImageUploaderProps {
-  /** Images déjà stockées côté serveur */
   images: EventImage[];
-  /** Fichiers locaux en attente d'upload */
   pendingFiles: File[];
-  /** Nombre max d'images autorisées */
   maxImages?: number;
-  /** Callback quand des fichiers sont ajoutés localement */
   onFilesAdded: (files: File[]) => void;
-  /** Callback pour retirer un fichier local (par index) */
   onPendingRemove: (index: number) => void;
-  /** Callback pour supprimer une image serveur (par ID) */
   onServerRemove: (imageId: number) => void;
-  /** Callback pour réordonner (nouvelle liste d'IDs) */
   onReorder?: (imageIds: number[]) => void;
-  /** Désactiver les interactions */
   disabled?: boolean;
 }
 
@@ -34,7 +21,7 @@ const ACCEPTED_TYPES = [
   'image/heic',
   'image/heif',
 ];
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 export function ImageUploader({
   images,
@@ -52,10 +39,6 @@ export function ImageUploader({
 
   const totalCount = images.length + pendingFiles.length;
   const slotsLeft = maxImages - totalCount;
-
-  // ------------------------------------------------------------------
-  // Validation et ajout de fichiers
-  // ------------------------------------------------------------------
 
   const processFiles = useCallback(
     (fileList: FileList | File[]) => {
@@ -91,10 +74,6 @@ export function ImageUploader({
     [totalCount, maxImages, onFilesAdded]
   );
 
-  // ------------------------------------------------------------------
-  // Drag & drop handlers
-  // ------------------------------------------------------------------
-
   const onDragOver = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
@@ -121,19 +100,14 @@ export function ImageUploader({
       if (e.target.files?.length) {
         processFiles(e.target.files);
       }
-      // Reset input pour permettre de ré-uploader le même fichier
+      // Lets the same file be picked again.
       e.target.value = '';
     },
     [processFiles]
   );
 
-  // ------------------------------------------------------------------
-  // Rendu
-  // ------------------------------------------------------------------
-
   return (
     <div className="space-y-3">
-      {/* Erreurs */}
       {errors.length > 0 && (
         <div className="space-y-1 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
           {errors.map((err, i) => (
@@ -145,10 +119,8 @@ export function ImageUploader({
         </div>
       )}
 
-      {/* Grille de prévisualisation */}
       {(images.length > 0 || pendingFiles.length > 0) && (
         <div className="grid grid-cols-3 gap-2">
-          {/* Images serveur */}
           {images.map((img, idx) => (
             <div
               key={`server-${img.id}`}
@@ -170,7 +142,6 @@ export function ImageUploader({
                   >
                     <X className="h-3 w-3" />
                   </button>
-                  {/* Reorder buttons */}
                   {onReorder && images.length > 1 && (
                     <div className="absolute bottom-1 left-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                       {idx > 0 && (
@@ -208,7 +179,6 @@ export function ImageUploader({
             </div>
           ))}
 
-          {/* Fichiers en attente (aperçu local) */}
           {pendingFiles.map((file, index) => (
             <PendingImagePreview
               key={`pending-${file.name}-${file.size}-${file.lastModified}`}
@@ -220,7 +190,6 @@ export function ImageUploader({
         </div>
       )}
 
-      {/* Zone d'upload */}
       {slotsLeft > 0 && !disabled && (
         <div
           onDragOver={onDragOver}
@@ -250,17 +219,12 @@ export function ImageUploader({
         </div>
       )}
 
-      {/* Compteur */}
       <p className="text-right text-xs text-muted-foreground">
         {totalCount} / {maxImages} images
       </p>
     </div>
   );
 }
-
-// ========================================
-// Composant interne : aperçu fichier local
-// ========================================
 
 function PendingImagePreview({
   file,
@@ -284,7 +248,6 @@ function PendingImagePreview({
       {preview && (
         <img src={preview} alt={file.name} className="h-full w-full object-cover opacity-80" />
       )}
-      {/* Badge "en attente" */}
       <div className="absolute bottom-0 left-0 right-0 bg-primary/80 py-0.5 text-center text-[10px] text-primary-foreground">
         En attente
       </div>

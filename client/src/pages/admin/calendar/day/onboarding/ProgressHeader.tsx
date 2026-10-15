@@ -1,7 +1,3 @@
-/**
- * En-tête du wizard : retour, progression segmentée par catégorie
- * (couleurs de catégorie), fermeture.
- */
 import { ArrowLeft, X } from 'lucide-react';
 import { getCategoryColor } from '@/lib/category-colors';
 import { cn } from '@/lib/utils';

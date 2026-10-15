@@ -1,16 +1,4 @@
-/**
- * MARIAM — Utilitaires Web Push & PWA.
- *
- * Gère côté client :
- * - Détection de plateforme (iOS / Android / Desktop) et du mode PWA
- * - Enregistrement du Service Worker et souscription push (VAPID)
- * - Lecture / écriture des préférences de notification côté serveur
- */
 import { pushAxios as api } from './api/client';
-
-// ========================================
-// Types
-// ========================================
 
 export type Platform = 'ios' | 'android' | 'desktop';
 
@@ -42,10 +30,6 @@ export const DEFAULT_PREFERENCES: NotificationPreferences = {
   notify_events: true,
 };
 
-// ========================================
-// Détection de plateforme
-// ========================================
-
 export function detectPlatform(): Platform {
   const ua = navigator.userAgent || '';
   if (
@@ -60,7 +44,6 @@ export function detectPlatform(): Platform {
   return 'desktop';
 }
 
-// Vérifie si l'app est exécutée en mode PWA installée (standalone)
 export function isPwaInstalled(): boolean {
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
@@ -68,28 +51,20 @@ export function isPwaInstalled(): boolean {
   );
 }
 
-// Vérifie si le navigateur supporte les notifications push
 export function isPushSupported(): boolean {
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 }
 
-// Sur iOS : notifications push ne fonctionnent qu'en mode PWA installée
+// iOS delivers push to an installed web app only.
 export function requiresPwaForPush(): boolean {
   return detectPlatform() === 'ios' && !isPwaInstalled();
 }
 
-// ========================================
-// Service Worker - helpers internes
-// ========================================
-
 // The worker activates once its precache is downloaded: on a first visit, a slow
-// connection stretches that well past ten seconds.
 const SW_READY_TIMEOUT = 30_000;
 
-// URL du SW minimal push (servi depuis public/)
 const PUSH_SW_URL = '/sw-push.js';
 
-// Retourne le ServiceWorkerRegistration existant, s'il possède un SW actif
 async function getRegistration(): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) return null;
   try {
@@ -100,12 +75,10 @@ async function getRegistration(): Promise<ServiceWorkerRegistration | null> {
   }
 }
 
-// Observe cycle de vie d'un SW (installing -> activated) et résout à l'activation ou rejette en cas d'erreur ou de timeout
 function waitForActivation(
   reg: ServiceWorkerRegistration,
   timeoutMs: number
 ): Promise<ServiceWorkerRegistration> {
-  // Déjà actif ?
   if (reg.active) return Promise.resolve(reg);
 
   const sw = reg.installing || reg.waiting;
@@ -113,7 +86,7 @@ function waitForActivation(
     return Promise.reject(new Error("Aucun Service Worker en cours d'installation."));
   }
 
-  // Capture non-null pour les callbacks
+  // The callbacks lose the narrowing.
   const worker = sw;
 
   return new Promise<ServiceWorkerRegistration>((resolve, reject) => {
@@ -145,27 +118,22 @@ function waitForActivation(
 
     worker.addEventListener('statechange', onStateChange);
 
-    // Si le SW est `waiting`, forcer l'activation
     if (reg.waiting) {
       reg.waiting.postMessage({ type: 'SKIP_WAITING' });
     }
   });
 }
 
-// S'assure qu'un Service Worker actif est disponible et le retourne
 async function awaitReadyRegistration(
   timeoutMs = SW_READY_TIMEOUT
 ): Promise<ServiceWorkerRegistration> {
-  // 1. SW déjà actif -> résolution immédiate
   let reg = await navigator.serviceWorker.getRegistration('/');
   if (reg?.active) return reg;
 
-  // 2. SW en cours d'installation -> attendre
   if (reg && (reg.installing || reg.waiting)) {
     return waitForActivation(reg, timeoutMs);
   }
 
-  // 3. Aucun SW -> enregistrer le SW push minimal
   try {
     reg = await navigator.serviceWorker.register(PUSH_SW_URL, { scope: '/' });
   } catch (err) {
@@ -175,19 +143,14 @@ async function awaitReadyRegistration(
     );
   }
 
-  // Le register() peut résoudre avec un SW déjà actif (mise à jour)
+  // On an update, register() resolves with the active worker.
   if (reg.active) return reg;
 
   return waitForActivation(reg, timeoutMs);
 }
 
-// ========================================
-// Clé publique VAPID
-// ========================================
-
 let vapidPublicKeyCache: string | null = null;
 
-// Récupère la clé VAPID publique depuis le serveur (avec cache)
 export async function getVapidPublicKey(): Promise<string> {
   if (vapidPublicKeyCache) return vapidPublicKeyCache;
   const response = await api.get('/notifications/vapid-public-key');
@@ -195,7 +158,6 @@ export async function getVapidPublicKey(): Promise<string> {
   return vapidPublicKeyCache!;
 }
 
-// Convertit la clé VAPID Base64-URL en Uint8Array pour PushManager.subscribe()
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -207,11 +169,6 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
-// ========================================
-// Messages d'erreur pour pushManager.subscribe()
-// ========================================
-
-// Transforme les DOMException techniques de pushManager.subscribe() en messages utilisateur compréhensibles
 function humanizePushSubscribeError(err: unknown, permissionWasGranted: boolean): string {
   if (err instanceof DOMException) {
     if (err.name === 'NotAllowedError' && permissionWasGranted) {
@@ -230,11 +187,6 @@ function humanizePushSubscribeError(err: unknown, permissionWasGranted: boolean)
   return err instanceof Error ? err.message : "Erreur inconnue lors de l'enregistrement push.";
 }
 
-// ========================================
-// Souscription push
-// ========================================
-
-// Récupère la souscription push active du navigateur (ou null)
 export async function getExistingSubscription(): Promise<PushSubscription | null> {
   if (!isPushSupported()) return null;
   const reg = await getRegistration();
@@ -246,14 +198,11 @@ export async function getExistingSubscription(): Promise<PushSubscription | null
   }
 }
 
-// Souscrit aux notifications push
-// Demande la permission, crée la souscription PushManager, et l'enregistre côté serveur
 export async function subscribeToPush(
   preferences: NotificationPreferences,
   restaurantId?: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // 1. Vérifier le support
     if (!isPushSupported()) {
       return {
         success: false,
@@ -261,7 +210,6 @@ export async function subscribeToPush(
       };
     }
 
-    // 2. Demander la permission
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
       return {
@@ -271,13 +219,10 @@ export async function subscribeToPush(
       };
     }
 
-    // 3. Récupérer la clé VAPID
     const vapidKey = await getVapidPublicKey();
 
-    // 4. Attendre le Service Worker (avec timeout)
     const registration = await awaitReadyRegistration();
 
-    // 5. S'abonner au PushManager
     let subscription: PushSubscription;
     try {
       subscription = await registration.pushManager.subscribe({
@@ -289,7 +234,6 @@ export async function subscribeToPush(
       return { success: false, error: humanizePushSubscribeError(pushErr, true) };
     }
 
-    // 6. Envoyer au serveur
     const subscriptionJSON = subscription.toJSON();
     await api.post('/notifications/subscribe', {
       endpoint: subscriptionJSON.endpoint,
@@ -301,37 +245,33 @@ export async function subscribeToPush(
 
     return { success: true };
   } catch (err: unknown) {
-    console.error('Erreur lors de la souscription push :', err);
+    console.error('Push subscription failed:', err);
     const message = err instanceof Error ? err.message : 'Erreur inconnue';
     return { success: false, error: message };
   }
 }
 
-// Se désabonne des notifications push (navigateur + serveur)
 export async function unsubscribeFromPush(): Promise<{ success: boolean; error?: string }> {
   try {
     const subscription = await getExistingSubscription();
     if (!subscription) {
-      return { success: true }; // Déjà désabonné
+      return { success: true };
     }
 
-    // Supprimer côté serveur
     await api.delete('/notifications/unsubscribe', {
       data: { endpoint: subscription.endpoint },
     });
 
-    // Supprimer côté navigateur
     await subscription.unsubscribe();
 
     return { success: true };
   } catch (err: unknown) {
-    console.error('Erreur lors du désabonnement push :', err);
+    console.error('Push unsubscription failed:', err);
     const message = err instanceof Error ? err.message : 'Erreur inconnue';
     return { success: false, error: message };
   }
 }
 
-// Met à jour les préférences de notification côté serveur
 export async function updatePreferences(
   preferences: NotificationPreferences
 ): Promise<{ success: boolean; error?: string }> {
@@ -348,13 +288,12 @@ export async function updatePreferences(
 
     return { success: true };
   } catch (err: unknown) {
-    console.error('Erreur lors de la mise à jour des préférences :', err);
+    console.error('Saving the notification preferences failed:', err);
     const message = err instanceof Error ? err.message : 'Erreur inconnue';
     return { success: false, error: message };
   }
 }
 
-// Récupère les préférences de notification depuis le serveur
 export async function getServerPreferences(): Promise<ServerSubscription | null> {
   try {
     const subscription = await getExistingSubscription();
@@ -369,7 +308,6 @@ export async function getServerPreferences(): Promise<ServerSubscription | null>
   }
 }
 
-// Envoie une notification de test
 export async function sendTestNotification(): Promise<{ success: boolean; error?: string }> {
   try {
     const subscription = await getExistingSubscription();
@@ -385,7 +323,7 @@ export async function sendTestNotification(): Promise<{ success: boolean; error?
 
     return { success: true };
   } catch (err: unknown) {
-    console.error("Erreur lors de l'envoi de la notification test :", err);
+    console.error('Sending the test notification failed:', err);
     const message = err instanceof Error ? err.message : 'Erreur inconnue';
     return { success: false, error: message };
   }

@@ -7,11 +7,9 @@ interface MobileHighlightedCategoryProps {
   category: DisplayCategory;
   onItemTap: (item: MenuItemData) => void;
   subColorBaseIndex?: number;
-  /** Substitutions par category_id ; affichées si la catégorie a un item en rupture. */
   substitutions?: Record<string, CategorySubstitutionData[]>;
 }
 
-/** Cartes de substitution (plats « Nouveau ») pour une catégorie feuille dont un item est en rupture. */
 function substitutionCards(
   category: DisplayCategory,
   substitutions?: Record<string, CategorySubstitutionData[]>
@@ -41,7 +39,6 @@ export function MobileHighlightedCategory({
 
   return (
     <div className="mb-2">
-      {/* Header de la catégorie principale */}
       <div className="mb-4 flex items-center gap-3 px-4">
         <div className="h-px flex-1" style={{ backgroundColor: headerLineColor }} />
         <span
@@ -53,7 +50,6 @@ export function MobileHighlightedCategory({
         <div className="h-px flex-1" style={{ backgroundColor: headerLineColor }} />
       </div>
 
-      {/* Items directs (+ substitutions) */}
       {(directItems.length > 0 || directSubs.length > 0) && (
         <div className="mb-4 flex flex-col gap-3 px-4">
           {directItems.map((item, index) => (
@@ -80,7 +76,6 @@ export function MobileHighlightedCategory({
         </div>
       )}
 
-      {/* Sous-catégories */}
       {hasSubcategories &&
         category.subcategories!.map((sub, subIndex) => {
           const subColor = getCategoryColor(sub.color_key, subColorBaseIndex + subIndex);
@@ -126,7 +121,6 @@ export function MobileHighlightedCategory({
             );
           }
 
-          // Sous-catégorie non-highlight : grille 2 colonnes
           return (
             <div key={sub.id} className="mb-4">
               <MobileStandardCategory

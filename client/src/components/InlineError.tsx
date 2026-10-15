@@ -1,24 +1,14 @@
-/**
- * MARIAM - Inline Error Display Component
- *
- * Composant d'erreur intégrable dans les pages pour afficher
- * les erreurs de manière claire sans redirection.
- */
 import { RefreshCw, Home, WifiOff, ServerCrash, Ban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/Logo';
 import { Link } from 'react-router';
+import type { ApiErrorKind } from '@/lib/api/errors';
 
 export interface InlineErrorProps {
-  /** Type d'erreur pour adapter le message */
-  type: 'network' | 'server' | 'forbidden' | 'notfound' | 'unknown';
-  /** Message personnalisé (optionnel) */
+  type: ApiErrorKind;
   message?: string;
-  /** Callback pour réessayer */
   onRetry?: () => void;
-  /** Afficher le logo */
   showLogo?: boolean;
-  /** Mode compact (pour les cards) */
   compact?: boolean;
 }
 
@@ -49,28 +39,6 @@ const errorConfig = {
     description: "Une erreur inattendue s'est produite.",
   },
 };
-
-/**
- * Détermine le type d'erreur à partir d'une erreur Axios ou autre
- */
-export function getErrorType(error: unknown): InlineErrorProps['type'] {
-  if (!error) return 'unknown';
-
-  const axiosError = error as { response?: { status?: number }; code?: string };
-
-  // Erreur réseau (pas de réponse)
-  if (axiosError.code === 'ERR_NETWORK' || !axiosError.response) {
-    return 'network';
-  }
-
-  const status = axiosError.response?.status;
-
-  if (status === 403) return 'forbidden';
-  if (status === 404) return 'notfound';
-  if (status && status >= 500) return 'server';
-
-  return 'unknown';
-}
 
 export function InlineError({
   type,

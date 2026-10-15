@@ -1,13 +1,3 @@
-"""
-MARIAM - Configuration de sécurité (Rate Limiting + Token Blacklist)
-
-Protège l'API contre les scans automatisés et les attaques par force brute.
-Flask-Limiter s'appuie sur Redis pour un compteur partagé entre les workers
-Gunicorn ; la blacklist de tokens utilise le même Redis (préfixe
-"mariam:revoked:").
-
-Sans REDIS_URL, fallback automatique sur un stockage en mémoire (dev).
-"""
 import ipaddress
 import os
 
@@ -113,8 +103,6 @@ def get_client_ip() -> str:
     return peer
 
 
-# Redis URL depuis l'environnement (service local ou instance managée)
-# Fallback sur memory:// en développement local
 REDIS_URL = os.environ.get('REDIS_URL', 'memory://')
 
 limiter = Limiter(

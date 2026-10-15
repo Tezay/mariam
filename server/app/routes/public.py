@@ -1,19 +1,5 @@
-"""
-Slugged public API for MARIAM — resolves the tenant from the request Origin,
-falling back to the Host (subdomain = organization), and the restaurant slug in
-the path.
-
-    GET /v1/public/org                     -> organization + its sites (by Host)
-    GET /v1/public/<restaurant_slug>/today
-    GET /v1/public/<restaurant_slug>/tomorrow
-    GET /v1/public/<restaurant_slug>/week
-    GET /v1/public/<restaurant_slug>/events
-    GET /v1/public/<restaurant_slug>/closures
-    GET /v1/public/<restaurant_slug>/restaurant
-    POST /v1/public/track
-
-No authentication. Only published, active content is exposed. The legacy
-`?restaurant_id=` endpoints stay for backward compatibility during the migration.
+"""Tenant from the request's Origin, else its Host; restaurant from the slug in the
+path. Anonymous: only published, active content leaves here.
 """
 import os
 from datetime import timedelta

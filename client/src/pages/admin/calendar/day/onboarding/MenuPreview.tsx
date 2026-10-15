@@ -1,8 +1,3 @@
-/**
- * Aperçu du menu en construction : items groupés par catégorie, même langage
- * visuel que le calendrier (couleurs de catégorie, box 3D border-bottom).
- * Partagé entre le panel desktop et le drawer mobile.
- */
 import { X, UtensilsCrossed } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { MenuItem } from '@/lib/api/menus';

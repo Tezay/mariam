@@ -2,7 +2,6 @@ from marshmallow import EXCLUDE, Schema, fields, validate
 
 
 class DishCatalogSchema(Schema):
-    """Sérialisation d'une entité plat du catalogue."""
     class Meta:
         unknown = EXCLUDE
 
@@ -18,7 +17,6 @@ class DishCatalogSchema(Schema):
 
 
 class DishCatalogCreateSchema(Schema):
-    """Création d'un plat dans le catalogue."""
     class Meta:
         unknown = EXCLUDE
 
@@ -29,7 +27,6 @@ class DishCatalogCreateSchema(Schema):
 
 
 class DishCatalogUpdateSchema(Schema):
-    """Mise à jour d'un plat dans le catalogue (champs partiels)."""
     class Meta:
         unknown = EXCLUDE
 
@@ -41,7 +38,6 @@ class DishCatalogUpdateSchema(Schema):
 
 
 class CategorySubstitutionSchema(Schema):
-    """Plat de substitution par menu et par catégorie."""
     class Meta:
         unknown = EXCLUDE
 

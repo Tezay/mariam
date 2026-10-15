@@ -1,21 +1,8 @@
-"""
-Modèles Menu, MenuItem et MenuImage - Gestion des menus quotidiens.
-
-Structure :
-- Un Menu correspond à une date + un restaurant
-- Chaque Menu contient plusieurs MenuItem (entrées, plats, desserts)
-- MenuItem référence DishCatalog (entité plat réutilisable)
-- Chaque Menu peut avoir une "note du chef"
-- Statuts : brouillon (draft) ou publié (published)
-"""
-
 from ..extensions import db
 from ..utils.time import utc_now_naive
 
 
 class Menu(db.Model):
-    """Menu du jour pour un restaurant."""
-    
     __tablename__ = 'menus'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -27,10 +14,8 @@ class Menu(db.Model):
     created_at = db.Column(db.DateTime, default=utc_now_naive)
     updated_at = db.Column(db.DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 
-    # Note du chef — courte phrase / citation affichée en TV
     chef_note = db.Column(db.String(300), nullable=True)
     
-    # Relations
     items = db.relationship('MenuItem', backref='menu', lazy='dynamic',
                            cascade='all, delete-orphan', order_by='MenuItem.order')
     images = db.relationship('MenuImage', backref='menu', lazy='dynamic',
@@ -43,11 +28,9 @@ class Menu(db.Model):
     )
     published_by = db.relationship('User', backref='published_menus', foreign_keys=[published_by_id])
     
-    # Contrainte d'unicité : un seul menu par date et par restaurant
     __table_args__ = (db.UniqueConstraint('restaurant_id', 'date', name='uq_menu_restaurant_date'),)
     
     def to_dict(self, include_items=True, include_images=True):
-        """Sérialise le menu en dictionnaire JSON."""
         data = {
             'id': self.id,
             'restaurant_id': self.restaurant_id,
@@ -61,7 +44,6 @@ class Menu(db.Model):
         
         if include_items:
             data['items'] = [item.to_dict() for item in self.items.order_by(MenuItem.category_id, MenuItem.order)]
-            # Substitutions groupées par category_id
             subs: dict[str, list] = {}
             for s in self.substitutions:
                 key = str(s.category_id)
@@ -80,8 +62,6 @@ class Menu(db.Model):
 
 
 class MenuItem(db.Model):
-    """Item d'un menu — référence une entité DishCatalog réutilisable."""
-
     __tablename__ = 'menu_items'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -102,7 +82,6 @@ class MenuItem(db.Model):
     dish = db.relationship('DishCatalog', lazy='joined')
 
     def to_dict(self):
-        """Sérialise l'item en dictionnaire JSON."""
         return {
             'id': self.id,
             'menu_id': self.menu_id,
@@ -118,8 +97,6 @@ class MenuItem(db.Model):
 
 
 class MenuImage(db.Model):
-    """Image associée à un menu du jour, stockée sur S3."""
-
     __tablename__ = 'menu_images'
 
     id = db.Column(db.Integer, primary_key=True)

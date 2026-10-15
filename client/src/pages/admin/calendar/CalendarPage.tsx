@@ -8,7 +8,8 @@ import { ExceptionalClosure } from '@/lib/api/closures';
 import { Event } from '@/lib/api/events';
 import type { MenuCategory } from '@/lib/api/categories';
 import type { CalendarSettings } from '@/lib/api/admin';
-import { InlineError, getErrorType } from '@/components/InlineError';
+import { InlineError } from '@/components/InlineError';
+import { getErrorType } from '@/lib/api/errors';
 import { CalendarToolbar, DesktopView, MobileView } from './CalendarToolbar';
 import { MenuOnboardingWizard } from './day/onboarding/MenuOnboardingWizard';
 import { WeekView } from './WeekView';
@@ -28,8 +29,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getMondayOfWeek(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00');
@@ -100,25 +99,20 @@ function formatDayLabel(dateStr: string): string {
   });
 }
 
-// ─── CalendarPage ─────────────────────────────────────────────────────────────
-
 export function CalendarPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const canEdit = user?.role === 'admin' || user?.role === 'editor';
   const today = parisToday();
 
-  // ── Navigation bounds (±5 ans passé, +2 ans futur) ──
   const todayYear = new Date(today + 'T12:00:00').getFullYear();
   const navMinDate = `${todayYear - 5}-01-01`;
   const navMaxDate = `${todayYear + 2}-12-31`;
 
-  // ── Navigation state ──
   const [desktopView, setDesktopView] = useState<DesktopView>('week');
   const [mobileView, setMobileView] = useState<MobileView>('day');
   const [centerDate, setCenterDate] = useState(today);
 
-  // ── URL param ?date= (depuis GlobalSearch) ──
   const [searchParams] = useSearchParams();
   useEffect(() => {
     const dateParam = searchParams.get('date');
@@ -130,7 +124,6 @@ export function CalendarPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Catégories ──
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   useEffect(() => {
     categoriesApi
@@ -146,7 +139,6 @@ export function CalendarPage() {
       .catch(() => {});
   }, []);
 
-  // ── Dirty guard ──
   const [editorDirty, setEditorDirty] = useState(false);
   const [dirtyGuardAction, setDirtyGuardAction] = useState<{ fn: () => void } | null>(null);
 
@@ -183,7 +175,6 @@ export function CalendarPage() {
     setDirtyGuardAction(null);
   }, []);
 
-  // ── Inter-view navigation ──
   const handleNavigate = useCallback(
     (view: DesktopView | MobileView, date: string) => {
       guardedAction(() => {
@@ -196,7 +187,6 @@ export function CalendarPage() {
     [guardedAction]
   );
 
-  // ── Derived range for data hook ──
   const d = new Date(centerDate + 'T12:00:00');
   const curYear = d.getFullYear();
   const curMonth = d.getMonth();
@@ -230,7 +220,6 @@ export function CalendarPage() {
       .catch(() => {});
   }, [restaurantId]);
 
-  // ── Auto-select next service day on first load ──
   const hasAutoSelectedRef = useRef(false);
   useEffect(() => {
     if (hasAutoSelectedRef.current || serviceDays.length === 0) return;
@@ -240,7 +229,6 @@ export function CalendarPage() {
       hasAutoSelectedRef.current = true;
       return;
     }
-    // Advance to next service day (look up to 7 days ahead)
     for (let i = 1; i <= 7; i++) {
       const candidate = addDays(today, i);
       const candidateDow = (new Date(candidate + 'T12:00:00').getDay() + 6) % 7;
@@ -253,7 +241,6 @@ export function CalendarPage() {
     hasAutoSelectedRef.current = true;
   }, [serviceDays, today]);
 
-  // ── Toolbar label ──
   const toolbarLabel = useMemo(() => {
     if (desktopView === 'week') return formatWeekLabel(getMondayOfWeek(centerDate));
     if (desktopView === 'day') return formatDayLabel(centerDate);
@@ -262,7 +249,6 @@ export function CalendarPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [desktopView, centerDate]);
 
-  // ── Navigation bounds check ──
   const canGoPrev = useMemo(() => {
     if (desktopView === 'day') return centerDate > navMinDate;
     if (desktopView === 'week') return getMondayOfWeek(centerDate) > navMinDate;
@@ -279,7 +265,6 @@ export function CalendarPage() {
     return curYear < new Date(navMaxDate + 'T12:00:00').getFullYear();
   }, [desktopView, centerDate, curYear, curMonth, navMaxDate]);
 
-  // ── Navigation ──
   const handlePrev = useCallback(() => {
     if (!canGoPrev) return;
     guardedAction(() => {
@@ -338,7 +323,6 @@ export function CalendarPage() {
     [navigate]
   );
 
-  // ── Onboarding state ──
   const [onboardingDate, setOnboardingDate] = useState<string | null>(null);
   const topCategories = useMemo(() => categories.filter((c) => c.parent_id === null), [categories]);
 
@@ -355,12 +339,9 @@ export function CalendarPage() {
     setOnboardingDate(date);
   }, []);
 
-  // ── Closure editor state ──
   const [closureEditorOpen, setClosureEditorOpen] = useState(false);
   const [editingClosure, setEditingClosure] = useState<ExceptionalClosure | null>(null);
   const [closurePrefillDate, setClosurePrefillDate] = useState<string | undefined>(undefined);
-
-  // ─── Closure editor helpers ───────────────────────────────────────────────
 
   const openCreateClosure = useCallback((prefillDate?: string) => {
     setEditingClosure(null);
@@ -374,11 +355,8 @@ export function CalendarPage() {
     setClosurePrefillDate(undefined);
   }, []);
 
-  // ─── Render ───────────────────────────────────────────────────────────────
-
   return (
     <div className="flex h-[calc(100dvh-9rem)] flex-col overflow-hidden sidebar:h-[calc(100dvh-4rem)]">
-      {/* Wizard de création de menu — overlay plein écran au-dessus du calendrier */}
       {onboardingDate && (
         <MenuOnboardingWizard
           date={onboardingDate}
@@ -415,7 +393,6 @@ export function CalendarPage() {
           canGoNext={canGoNext}
         />
 
-        {/* Loading / Error */}
         {isLoading && (
           <>
             <div className="hidden flex-1 flex-col overflow-hidden md:flex">
@@ -438,10 +415,8 @@ export function CalendarPage() {
           </div>
         )}
 
-        {/* Views */}
         {!isLoading && !error && (
           <>
-            {/* ── Desktop ── */}
             <div className="hidden flex-1 flex-col overflow-hidden md:flex">
               {desktopView === 'day' && (
                 <DayView
@@ -497,7 +472,6 @@ export function CalendarPage() {
               )}
             </div>
 
-            {/* ── Mobile ── */}
             <div className="flex flex-1 flex-col overflow-hidden md:hidden">
               {mobileView === 'day' && (
                 <DayView
@@ -533,7 +507,6 @@ export function CalendarPage() {
         )}
       </>
 
-      {/* ── Closure Editor (toolbar "Nouvelle fermeture") ── */}
       <ClosureEditor
         open={closureEditorOpen}
         closure={editingClosure}
@@ -545,7 +518,6 @@ export function CalendarPage() {
         }}
       />
 
-      {/* ── Dirty guard dialog (view changes) ── */}
       <AlertDialog
         open={isGuardDialogOpen}
         onOpenChange={(open) => {

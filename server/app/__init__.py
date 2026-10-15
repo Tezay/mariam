@@ -1,9 +1,3 @@
-"""
-MARIAM - Application Factory
-
-Crée et configure l'application Flask pour la plateforme de gestion
-des menus universitaires.
-"""
 import os
 from datetime import timedelta
 from pathlib import Path
@@ -33,18 +27,12 @@ from .utils.urls import frontend_base_url
 
 
 def create_app(config_class=None):
-    """
-    Factory function qui crée et configure l'application Flask.
-    """
     app = Flask(__name__)
 
-    # Structured JSON logging + per-request id (before anything logs).
+    # Before anything logs.
     from .logging_config import configure_logging
     configure_logging(app)
 
-    # ========================================
-    # CONFIGURATION
-    # ========================================
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
         'DATABASE_URL', 
@@ -52,7 +40,6 @@ def create_app(config_class=None):
     )
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
-    # Configuration du pool de connexions
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'pool_size': int(os.environ.get('DB_POOL_SIZE', 2)),
         'max_overflow': int(os.environ.get('DB_MAX_OVERFLOW', 2)),
@@ -60,11 +47,8 @@ def create_app(config_class=None):
         'pool_recycle': int(os.environ.get('DB_POOL_RECYCLE', 1800)),
     }
     
-    # Configuration JWT
     app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'jwt-secret-key-change-in-production')
 
-    # Garde-fou production : refuse de démarrer si un secret/service requis
-    # manque (fail-closed). En dev (FLASK_DEBUG/FLASK_ENV), on laisse passer.
     _dev_defaults = {
         'dev-secret-key-change-in-production',
         'jwt-secret-key-change-in-production',
@@ -77,14 +61,14 @@ def create_app(config_class=None):
     if not _is_dev:
         missing = []
         if _dev_defaults & {app.config['SECRET_KEY'], app.config['JWT_SECRET_KEY']}:
-            missing.append('SECRET_KEY/JWT_SECRET_KEY (valeurs par défaut de dev)')
+            missing.append('SECRET_KEY/JWT_SECRET_KEY (development defaults)')
         # Signs the vote device tokens; sharing JWT_SECRET_KEY would let a leak
         # of either one forge both.
         device_secret = os.environ.get('DEVICE_ID_SECRET')
         if not device_secret or device_secret in _dev_defaults:
             missing.append('DEVICE_ID_SECRET')
         elif device_secret == app.config['JWT_SECRET_KEY']:
-            missing.append('DEVICE_ID_SECRET (doit différer de JWT_SECRET_KEY)')
+            missing.append('DEVICE_ID_SECRET (must differ from JWT_SECRET_KEY)')
         if not os.environ.get('MFA_ENCRYPTION_KEY'):
             missing.append('MFA_ENCRYPTION_KEY')
         if not os.environ.get('DATABASE_URL'):
@@ -99,7 +83,7 @@ def create_app(config_class=None):
             missing.append('S3_ENDPOINT_URL/S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY')
         if missing:
             raise RuntimeError(
-                'Variables requises en production manquantes ou par défaut : '
+                'Missing or left at their development default in production: '
                 + ', '.join(missing)
             )
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(
@@ -107,30 +91,21 @@ def create_app(config_class=None):
     )
     app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=7)
     
-    # Configuration MFA
     app.config['MFA_ISSUER_NAME'] = os.environ.get('MFA_ISSUER_NAME', 'MARIAM')
 
-    # Configuration WebAuthn / Passkeys
     app.config['WEBAUTHN_RP_ID'] = os.environ.get('WEBAUTHN_RP_ID', 'localhost')
     app.config['WEBAUTHN_RP_NAME'] = os.environ.get('WEBAUTHN_RP_NAME', 'MARIAM')
     app.config['WEBAUTHN_ORIGIN'] = os.environ.get('WEBAUTHN_ORIGIN', 'http://localhost:5173')
     
-    # ========================================
-    # CONFIGURATION S3 (MinIO en dev, Scaleway en prod)
-    # ========================================
     app.config['S3_ENDPOINT_URL'] = os.environ.get('S3_ENDPOINT_URL')
     app.config['S3_ACCESS_KEY_ID'] = os.environ.get('S3_ACCESS_KEY_ID')
     app.config['S3_SECRET_ACCESS_KEY'] = os.environ.get('S3_SECRET_ACCESS_KEY')
     app.config['S3_BUCKET_NAME'] = os.environ.get('S3_BUCKET_NAME', 'mariam-uploads')
-    app.config['S3_REGION'] = os.environ.get('S3_REGION', 'fr-par')
+    app.config['S3_REGION'] = os.environ.get('S3_REGION')
     app.config['S3_PUBLIC_URL'] = os.environ.get('S3_PUBLIC_URL', '')
     
-    # Taille maximale des uploads (32 MB pour gérer plusieurs images)
     app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
     
-    # ========================================
-    # API DOCUMENTATION (OpenAPI / Swagger UI)
-    # ========================================
     app.config['API_TITLE'] = 'MARIAM API'
     app.config['API_VERSION'] = 'v1'
     app.config['OPENAPI_VERSION'] = '3.0.3'
@@ -141,9 +116,6 @@ def create_app(config_class=None):
     # Otherwise Swagger UI sends the spec's address to swagger.io for a badge.
     app.config['OPENAPI_SWAGGER_UI_CONFIG'] = {'validatorUrl': None}
     
-    # ========================================
-    # ERROR TRACKING (Sentry) — no-op when SENTRY_DSN is unset
-    # ========================================
     sentry_dsn = os.environ.get('SENTRY_DSN')
     if sentry_dsn:
         import sentry_sdk
@@ -159,21 +131,14 @@ def create_app(config_class=None):
             max_request_body_size='never',
         )
 
-    # ========================================
-    # INITIALISATION DES EXTENSIONS
-    # ========================================
     db.init_app(app)
     jwt.init_app(app)
     migrate.init_app(app, db)
     storage.init_app(app)
     limiter.init_app(app)
     
-    # ========================================
-    # JWT ERROR HANDLERS
-    # ========================================
     @jwt.invalid_token_loader
     def invalid_token_callback(error_string):
-        """Token invalide (malformé, signature incorrecte)."""
         return jsonify({
             'error': 'Token invalide',
             'message': error_string
@@ -181,7 +146,6 @@ def create_app(config_class=None):
     
     @jwt.unauthorized_loader
     def missing_token_callback(error_string):
-        """Token absent."""
         return jsonify({
             'error': 'Token manquant',
             'message': error_string
@@ -189,7 +153,6 @@ def create_app(config_class=None):
     
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
-        """Token expiré."""
         return jsonify({
             'error': 'Token expiré',
             'message': 'Votre session a expiré, veuillez vous reconnecter'
@@ -197,15 +160,8 @@ def create_app(config_class=None):
 
     @jwt.token_in_blocklist_loader
     def check_if_token_revoked(jwt_header, jwt_payload):
-        """
-        Bloque deux catégories de tokens :
-        1. Tokens intermédiaires / à usage limité — identifiés par une claim
-           spécifique (mfa_pending, webauthn_pending, setup_phase,
-           session_transfer, totp_enrolment). Ne doivent jamais être acceptés
-           sur les endpoints @jwt_required() ordinaires.
-        2. Tokens révoqués explicitement (logout, usage unique) — vérifiés
-           en Redis via leur JTI.
-        """
+        # A token issued for one step of a flow is never a session, whatever
+        # route it is shown to.
         if (
             jwt_payload.get('mfa_pending')
             or jwt_payload.get('webauthn_pending')
@@ -239,7 +195,6 @@ def create_app(config_class=None):
 
     @jwt.revoked_token_loader
     def revoked_token_callback(jwt_header, jwt_payload):
-        """Réponse adaptée selon la raison du rejet."""
         if jwt_payload.get('mfa_pending'):
             return jsonify({
                 'error': 'Authentification incomplète',
@@ -260,21 +215,14 @@ def create_app(config_class=None):
             'message': 'Votre session a été invalidée, veuillez vous reconnecter'
         }), 401
     
-    # ========================================
-    # RATE LIMITER ERROR HANDLER
-    # ========================================
     @app.errorhandler(429)
     def ratelimit_handler(e):
-        """Réponse personnalisée quand la limite est atteinte."""
         return jsonify({
             'error': 'Trop de requêtes',
             'message': 'Vous avez dépassé la limite autorisée. Réessayez plus tard.',
             'retry_after': e.description
         }), 429
     
-    # ========================================
-    # CONFIGURATION CORS
-    # ========================================
     frontend_urls = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
     origins = [url.strip() for url in frontend_urls.split(',') if url.strip()]
     
@@ -289,9 +237,6 @@ def create_app(config_class=None):
     from .security_headers import configure_security_headers
     configure_security_headers(app)
 
-    # ========================================
-    # API v1 — Flask-Smorest (OpenAPI / Swagger)
-    # ========================================
     from flask_smorest import Api
 
     from .schemas.common import ErrorSchema
@@ -382,23 +327,18 @@ def create_app(config_class=None):
             200 if healthy else 503,
         )
 
-    # ========================================
-    # COMMANDES CLI
-    # ========================================
     import click
 
     @app.cli.command('create-activation-link')
     def create_activation_link():
-        """Crée un lien d'activation pour le premier administrateur."""
-        # Vérifier s'il existe déjà des utilisateurs admin
+        """Create the activation link of the first administrator."""
         existing_admin = User.query.filter_by(role='admin').first()
         if existing_admin:
-            click.echo("❌ An administrator already exists. Invite users from the dashboard.")
+            click.echo("An administrator already exists. Invite users from the dashboard.")
             return
         
         link = ActivationLink.create_first_admin_link(expires_hours=24)
-        # Bind the first admin to the seeded restaurant so the account is never
-        # left without a tenant (the default-restaurant fallback was removed).
+        # An account without a site would have nothing to manage.
         restaurant = Restaurant.query.first()
         if restaurant:
             link.restaurant_id = restaurant.id
@@ -410,24 +350,23 @@ def create_app(config_class=None):
         activation_url = f"{frontend_url}/activate/{link.token}"
         
         click.echo("\n" + "=" * 60)
-        click.echo("🔐 FIRST ADMINISTRATOR ACTIVATION LINK")
+        click.echo("FIRST ADMINISTRATOR ACTIVATION LINK")
         click.echo("=" * 60)
         click.echo(f"\nURL: {activation_url}")
-        click.echo("\n⚠️  This link expires in 24 hours.")
-        click.echo("⚠️  This link can only be used once.")
+        click.echo("\nThis link expires in 24 hours.")
+        click.echo("This link can only be used once.")
         click.echo("=" * 60 + "\n")
     
     @app.cli.command('init-restaurant')
     def init_restaurant():
-        """Initialise un restaurant par défaut avec ses catégories."""
+        """Create a default restaurant and its categories, unless one exists."""
         from .routes.restaurant import _create_default_categories
 
         existing = Restaurant.query.first()
         if existing:
-            click.echo(f"ℹ️  Existing restaurant: {existing.name} ({existing.code})")
+            click.echo(f"Existing restaurant: {existing.name} ({existing.code})")
             return
 
-        # Default organization (its slug is the public subdomain).
         org_slug = os.environ.get('DEFAULT_ORG_SLUG', 'demo')
         org = Organization.query.filter_by(slug=org_slug).first()
         if not org:
@@ -447,85 +386,82 @@ def create_app(config_class=None):
         _create_default_categories(restaurant.id)
         db.session.commit()
 
-        click.echo(f"✅ Restaurant created: {restaurant.name} (id {restaurant.id})")
-        click.echo("✅ Default categories created.")
+        click.echo(f"Restaurant created: {restaurant.name} (id {restaurant.id})")
+        click.echo("Default categories created.")
 
     @app.cli.command('create-org')
-    @click.option('--name', required=True, help="Nom de l'organisation")
-    @click.option('--slug', required=True, help='Slug URL (sous-domaine)')
+    @click.option('--name', required=True, help='Organization name')
+    @click.option('--slug', required=True, help='URL slug, its subdomain')
     def create_org(name, slug):
-        """Crée une organisation (client). Idempotent sur le slug."""
+        """Create an organization, unless its slug is taken."""
         from .models.organization import RESERVED_ORG_SLUGS
         from .utils.slug import is_valid_slug, normalize_slug
 
         slug = normalize_slug(slug)
         if not is_valid_slug(slug) or slug in RESERVED_ORG_SLUGS:
-            click.echo('❌ Invalid or reserved slug.')
+            click.echo('Invalid or reserved slug.')
             return
         if Organization.query.filter_by(slug=slug).first():
-            click.echo(f"ℹ️  Organization « {slug} » already exists.")
+            click.echo(f"Organization '{slug}' already exists.")
             return
         org = Organization(name=name, slug=slug)
         db.session.add(org)
         db.session.commit()
-        click.echo(f'✅ Organization created: {name} ({slug}), id={org.id}')
+        click.echo(f'Organization created: {name} ({slug}), id={org.id}')
 
     @app.cli.command('seed-categories')
     def seed_categories_cmd():
-        """Crée les catégories par défaut si le restaurant n'en a pas encore. Idempotent."""
+        """Create the default categories of the active restaurant, if it has none."""
         from .models.category import MenuCategory
         from .routes.restaurant import _create_default_categories
 
         restaurant = Restaurant.query.filter_by(is_active=True).first()
         if not restaurant:
-            click.echo("❌ No active restaurant found.")
+            click.echo("No active restaurant found.")
             return
         if MenuCategory.query.filter_by(restaurant_id=restaurant.id).count() > 0:
-            click.echo(f"ℹ️  {restaurant.name} already has categories — nothing to do.")
+            click.echo(f"{restaurant.name} already has categories, nothing to do.")
             return
         _create_default_categories(restaurant.id)
         db.session.commit()
-        click.echo(f"✅ Default categories created for {restaurant.name}")
+        click.echo(f"Default categories created for {restaurant.name}")
 
     @app.cli.command('send-digest')
-    @click.option('--to', required=True, help='Email du destinataire, qui doit avoir un compte')
-    @click.option('--dry-run', is_flag=True, help="Affiche l'email au lieu de l'envoyer")
-    @click.option('--html-out', default=None, help="Écrit le rendu HTML dans ce fichier")
+    @click.option('--to', required=True, help="The recipient's address, which must have an account")
+    @click.option('--dry-run', is_flag=True, help='Print the email instead of sending it')
+    @click.option('--html-out', default=None, help='Write the HTML rendering to this file')
     def send_digest(to, dry_run, html_out):
-        """Envoie le résumé hebdomadaire à un utilisateur, pour vérifier la configuration SMTP."""
+        """Send the weekly digest to one user, to check the SMTP settings."""
         from .services import email_service
         from .services.access import accessible_restaurant_ids
 
         user = User.query.filter_by(email=to.strip().lower()).first()
         if not user:
-            click.echo(f'❌ No account with {to}.')
+            click.echo(f'No account with {to}.')
             return
         site_ids = sorted(accessible_restaurant_ids(user))
         if not site_ids:
-            click.echo(f"❌ {to} has access to no site.")
+            click.echo(f"{to} has access to no site.")
             return
 
         start, end = email_service.last_week()
         digest = email_service.build_digest(user, site_ids, start, end)
         if html_out:
             Path(html_out).write_text(digest['html'], encoding='utf-8')
-            click.echo(f'✅ HTML output written to {html_out}.')
+            click.echo(f'HTML output written to {html_out}.')
         if dry_run:
             click.echo(digest['subject'])
             click.echo('─' * 40)
             click.echo(digest['text'])
             return
         if not email_service.is_configured():
-            click.echo('❌ SMTP not configured (SMTP_HOST, SMTP_SENDER).')
+            click.echo('SMTP not configured (SMTP_HOST, SMTP_SENDER).')
             return
         ok = email_service.send_email(
             to, digest['subject'], digest['text'], digest['html'], kind=email_service.Kind.DIGEST
         )
-        click.echo(f'✅ Digest sent to {to}.' if ok else f'❌ Sending to {to} failed.')
+        click.echo(f'Digest sent to {to}.' if ok else f'Sending to {to} failed.')
 
-    # ========================================
-    # COMMANDES CLI — seed, demo & comptes
-    # ========================================
     from .commands.demo import register_commands as register_demo
     from .commands.seed import register_commands as register_seed
     from .commands.user import register_commands as register_user
@@ -533,9 +469,6 @@ def create_app(config_class=None):
     register_demo(app)
     register_user(app)
 
-    # ========================================
-    # SCHEDULER — Notifications push planifiées
-    # ========================================
     _start_scheduler(app)
 
     return app
@@ -568,7 +501,7 @@ def _start_scheduler(app):
                 func=check_and_send_notifications,
                 trigger='cron', minute='*', args=[app],
                 id='push_notifications',
-                name='Envoi des notifications push planifiées',
+                name='Send the scheduled push notifications',
                 replace_existing=True, misfire_grace_time=60,
             )
         else:
@@ -578,28 +511,28 @@ def _start_scheduler(app):
             func=telemetry.run_flush_job,
             trigger='cron', minute='*/5', args=[app],
             id='telemetry_flush',
-            name='Flush des compteurs de vues',
+            name='Flush the view counters',
             replace_existing=True, misfire_grace_time=300,
         )
         scheduler.add_job(
             func=telemetry.run_day_close_job,
             trigger='cron', hour=0, minute=30, args=[app],
             id='telemetry_day_close',
-            name='Clôture des visiteurs uniques de la veille',
+            name="Close the previous day's unique visitors",
             replace_existing=True, misfire_grace_time=300,
         )
         scheduler.add_job(
             func=telemetry.run_purge_job,
             trigger='cron', day_of_week='sun', hour=3, args=[app],
             id='analytics_purge',
-            name='Purge des données de télémétrie expirées',
+            name='Purge expired telemetry',
             replace_existing=True, misfire_grace_time=300,
         )
         scheduler.add_job(
             func=retention.run_purge_job,
             trigger='cron', day_of_week='sun', hour=3, minute=30, args=[app],
             id='retention_purge',
-            name="Purge des journaux d'audit expirés",
+            name='Purge expired audit logs',
             replace_existing=True, misfire_grace_time=300,
         )
         # Hourly: each recipient picks the day and hour of their summary.
@@ -607,12 +540,12 @@ def _start_scheduler(app):
             func=email_service.send_weekly_digest,
             trigger='cron', minute=0, args=[app],
             id='weekly_digest',
-            name='Envoi du résumé hebdomadaire par email',
+            name='Send the weekly digest emails',
             replace_existing=True, misfire_grace_time=300,
         )
 
         scheduler.start()
-        app.logger.info('✅ Scheduler démarré (%d jobs)', len(scheduler.get_jobs()))
+        app.logger.info('Scheduler started (%d jobs)', len(scheduler.get_jobs()))
 
     except Exception as e:
-        app.logger.error(f"❌ Impossible de démarrer le scheduler : {e}")
+        app.logger.error(f"Scheduler failed to start: {e}")

@@ -1,7 +1,3 @@
-/**
- * Dernière étape : note du chef (facultative), récap, puis publication
- * ou conservation en brouillon.
- */
 import { Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { UseOnboardingStateReturn } from '../useOnboardingState';

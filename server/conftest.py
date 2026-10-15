@@ -1,10 +1,3 @@
-"""
-Test configuration for MARIAM backend.
-
-Uses a dedicated PostgreSQL test database (mariam_test_db).
-
-Run with: docker compose exec backend uv run pytest
-"""
 import os
 import pytest
 import psycopg2
@@ -41,7 +34,6 @@ def _ensure_test_db() -> None:
 
 @pytest.fixture(scope='session')
 def app():
-    """Application Flask configurée pour les tests (session entière)."""
     _ensure_test_db()
 
     original_db_url = os.environ.get('DATABASE_URL')
@@ -62,12 +54,11 @@ def app():
         with application.app_context():
             _db.create_all()
             yield application
-            # Fermer toutes les sessions avant drop_all pour éviter les locks PostgreSQL
+            # An open session would block drop_all.
             _db.session.remove()
             _db.engine.dispose()
             _db.drop_all()
     finally:
-        # Restaurer DATABASE_URL pour ne pas polluer l'environnement
         if original_db_url is not None:
             os.environ['DATABASE_URL'] = original_db_url
         else:
@@ -76,12 +67,10 @@ def app():
 
 @pytest.fixture()
 def client(app):
-    """Flask test client."""
     return app.test_client()
 
 
 def _truncate_all() -> None:
-    """Vide toutes les tables de la base de test (TRUNCATE CASCADE)."""
     _db.session.remove()
     table_names = [
         f'"{t.name}"'
@@ -160,20 +149,13 @@ def revocations(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def clean_db(app):
-    """
-    Vide toutes les tables AVANT chaque test via TRUNCATE CASCADE.
-    Ferme la session SQLAlchemy APRÈS chaque test pour libérer les connexions PostgreSQL.
-    Nettoyer avant garantit un état propre même si un run précédent a été interrompu.
+    """Truncates before each test rather than after, so that an interrupted run leaves
+    nothing behind.
     """
     _truncate_all()
     yield
-    # Fermer la session après le test pour libérer les connexions
     _db.session.remove()
 
-
-# ---------------------------------------------------------------------------
-# Helpers partagés entre les suites
-# ---------------------------------------------------------------------------
 
 class FakeRedis:
     """Enough of the Redis surface for the telemetry service.
@@ -288,9 +270,7 @@ _AUTO_RESTAURANT = object()
 
 
 def make_user(app, email='admin@mariam.app', role='admin', restaurant_id=_AUTO_RESTAURANT):
-    """
-    Crée un utilisateur en base sans MFA (pour tests directs).
-    """
+    """Written straight to the database, without a second factor."""
     from app.models import Restaurant, User
     if restaurant_id is _AUTO_RESTAURANT:
         restaurant = Restaurant.query.order_by(Restaurant.id).first()
@@ -314,7 +294,6 @@ def make_user(app, email='admin@mariam.app', role='admin', restaurant_id=_AUTO_R
 
 
 def make_restaurant(app, name='RU Test', code='RU_TEST'):
-    """Crée un restaurant en base."""
     from app.models import Restaurant
     restaurant = Restaurant(name=name, code=code, is_active=True)
     _db.session.add(restaurant)
@@ -323,7 +302,6 @@ def make_restaurant(app, name='RU Test', code='RU_TEST'):
 
 
 def make_category(app, restaurant_id, label='Plat principal', order=0):
-    """Crée une catégorie de menu en base."""
     from app.models import MenuCategory
     category = MenuCategory(restaurant_id=restaurant_id, label=label, order=order)
     _db.session.add(category)
@@ -332,7 +310,6 @@ def make_category(app, restaurant_id, label='Plat principal', order=0):
 
 
 def get_token(client, email=None, password=None):
-    """Authentifie un utilisateur et retourne son access token."""
     res = client.post('/v1/auth/login', json={
         'email': email or 'admin@mariam.app',
         'password': password or TEST_PASSWORD,
@@ -342,5 +319,4 @@ def get_token(client, email=None, password=None):
 
 
 def auth_headers(token):
-    """Renvoie les headers Authorization pour un token JWT."""
     return {'Authorization': f'Bearer {token}'}

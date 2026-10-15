@@ -1,16 +1,3 @@
-"""
-Push notification routes for MARIAM.
-
-No authentication required (Web Push from the browser).
-
-Endpoints:
-- GET    /v1/notifications/vapid-public-key  VAPID public key
-- POST   /v1/notifications/subscribe         Subscribe or update subscription
-- GET    /v1/notifications/preferences       Get notification preferences
-- PUT    /v1/notifications/preferences       Update notification preferences
-- DELETE /v1/notifications/unsubscribe       Unsubscribe
-- POST   /v1/notifications/test              Send a test notification
-"""
 from datetime import time
 
 from flask import jsonify
@@ -36,11 +23,7 @@ notifications_bp = Blueprint(
 )
 
 
-# ========================================
-# Helpers
-# ========================================
 def _parse_time(time_str: str) -> time:
-    """Parse une heure au format HH:MM en objet time."""
     try:
         parts = time_str.strip().split(':')
         return time(int(parts[0]), int(parts[1]))
@@ -54,14 +37,10 @@ def _restaurant_to_follow(restaurant_id: int | None) -> Restaurant | None:
     return Restaurant.query.filter_by(id=restaurant_id, is_active=True).first()
 
 
-# ============================================================
-# ENDPOINTS
-# ============================================================
-
 @notifications_bp.route('/vapid-public-key', methods=['GET'])
 @limiter.limit("30 per minute")
 @notifications_bp.response(200, MessageSchema)
-@notifications_bp.alt_response(503, schema=ErrorSchema, description="VAPID non configuré")
+@notifications_bp.alt_response(503, schema=ErrorSchema, description="VAPID not configured")
 def vapid_public_key():
     """Return the VAPID public key for initializing Web Push in the browser."""
     key = get_vapid_public_key()

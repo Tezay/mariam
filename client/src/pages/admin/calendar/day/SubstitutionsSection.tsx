@@ -1,8 +1,4 @@
-/**
- * Édition des plats de substitution d'une catégorie (max 3).
- * Utilisé par le popover « En cas de rupture ? » du jour (AdminCategorySection)
- * et par l'étape substitutions de l'onboarding de création de menu.
- */
+/** Three at most, as the server allows. Shared by the day view and the menu onboarding. */
 import { useState, useEffect } from 'react';
 import { X, Plus, Search } from 'lucide-react';
 import type { DishCatalogItem } from '@/lib/api/catalog';
@@ -17,8 +13,6 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import type { UseMenuEditorReturn } from './useMenuEditor';
-
-// ─── SubstituteCombobox ───────────────────────────────────────────────────────
 
 export function SubstituteCombobox({
   categoryId,
@@ -43,7 +37,6 @@ export function SubstituteCombobox({
       .finally(() => setLoading(false));
   }, [open, dishes.length]);
 
-  // Filtrer par catégorie + exclure les substituts déjà définis
   const available = dishes.filter(
     (d) => d.category_id === categoryId && !existingIds.includes(d.id)
   );
@@ -93,8 +86,6 @@ export function SubstituteCombobox({
     </Popover>
   );
 }
-
-// ─── SubstitutionsSection ─────────────────────────────────────────────────────
 
 export function SubstitutionsSection({
   categoryId,

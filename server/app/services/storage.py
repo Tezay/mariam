@@ -1,10 +1,3 @@
-"""
-MARIAM - Service de stockage S3-compatible.
-
-Abstraction pour upload/suppression de fichiers sur un stockage S3-compatible.
-Fonctionne avec MinIO (développement) et Scaleway Object Storage (production).
-Inclut la conversion automatique HEIC/HEIF → JPEG pour les photos iPhone.
-"""
 import io
 import json
 import logging
@@ -19,17 +12,13 @@ from PIL import Image, ImageOps
 
 logger = logging.getLogger(__name__)
 
-# Enregistrement du codec HEIC/HEIF dans Pillow
 pillow_heif.register_heif_opener()
 
 
 class StorageService:
-    """Service de stockage S3-compatible (MinIO en dev, Scaleway en prod)."""
-
-    # Types de fichiers autorisés pour les images
     ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'}
     HEIC_EXTENSIONS = {'heic', 'heif'}
-    MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB par image
+    MAX_FILE_SIZE = 5 * 1024 * 1024
 
     # Web-safe output formats and their MIME types (content type is derived from
     # the decoded image, never from the client-supplied header).
@@ -48,17 +37,16 @@ class StorageService:
             self.init_app(app)
 
     def init_app(self, app):
-        """Initialise le service avec la configuration Flask."""
         endpoint_url = app.config.get('S3_ENDPOINT_URL')
         access_key = app.config.get('S3_ACCESS_KEY_ID')
         secret_key = app.config.get('S3_SECRET_ACCESS_KEY')
-        region = app.config.get('S3_REGION', 'fr-par')
+        region = app.config.get('S3_REGION')
         self.bucket = app.config.get('S3_BUCKET_NAME', 'mariam-uploads')
         self.public_url = app.config.get('S3_PUBLIC_URL', '').rstrip('/')
 
         if not all([endpoint_url, access_key, secret_key]):
             app.logger.warning(
-                "⚠️  S3 storage not configured — image uploads will be disabled. "
+                "S3 storage not configured — image uploads will be disabled. "
                 "Set S3_ENDPOINT_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY to enable."
             )
             return
@@ -71,36 +59,19 @@ class StorageService:
             region_name=region,
         )
 
-        # Créer le bucket s'il n'existe pas (utile pour MinIO en dev)
+        # A fresh development store has no bucket yet.
         self._ensure_bucket()
 
-        app.logger.info(f"✅ S3 storage configured (bucket: {self.bucket})")
+        app.logger.info(f"S3 storage configured (bucket: {self.bucket})")
 
-    # ------------------------------------------------------------------
-    # Propriétés
-    # ------------------------------------------------------------------
 
     @property
     def is_configured(self) -> bool:
-        """Vérifie si le service S3 est opérationnel."""
         return self.client is not None
 
-    # ------------------------------------------------------------------
-    # Méthodes publiques
-    # ------------------------------------------------------------------
 
     def upload_file(self, file_data, filename, prefix='uploads', content_type=None):
-        """Upload un fichier vers S3.
-
-        Args:
-            file_data: Contenu binaire du fichier (bytes ou file-like object).
-            filename: Nom original du fichier (pour déduire l'extension).
-            prefix: Préfixe de clé S3 (ex: 'events', 'menus').
-            content_type: Type MIME explicite (optionnel).
-
-        Returns:
-            dict: {'key': str, 'url': str} en cas de succès, None sinon.
-        """
+        """Returns {'key', 'url'}, or None when the upload fails."""
         if not self.is_configured:
             return None
 
@@ -122,11 +93,10 @@ class StorageService:
                 'url': self.get_public_url(key),
             }
         except ClientError as e:
-            logger.error('Erreur upload S3 : %s', e)
+            logger.error('S3 upload failed: %s', e)
             return None
 
     def delete_file(self, key):
-        """Supprime un fichier de S3."""
         if not self.is_configured or not key:
             return False
 
@@ -137,7 +107,6 @@ class StorageService:
             return False
 
     def delete_files(self, keys):
-        """Supprime plusieurs fichiers de S3 en une seule requête."""
         if not self.is_configured or not keys:
             return False
 
@@ -153,24 +122,15 @@ class StorageService:
             return False
 
     def get_public_url(self, key):
-        """Retourne l'URL publique d'un fichier stocké."""
         if self.public_url:
             return f"{self.public_url}/{key}"
-        # Fallback : URL directe via l'endpoint S3
         endpoint = self.client._endpoint.host
         return f"{endpoint}/{self.bucket}/{key}"
 
-    # ------------------------------------------------------------------
-    # Validation
-    # ------------------------------------------------------------------
 
     @classmethod
     def validate_image(cls, filename, content_length=None):
-        """Valide qu'un fichier est une image autorisée.
-
-        Returns:
-            tuple: (is_valid: bool, error_message: str | None)
-        """
+        """Returns (is_valid, error_message), the message being for the user."""
         if not filename:
             return False, "Nom de fichier manquant"
 
@@ -191,19 +151,10 @@ class StorageService:
         Decoding rejects non-images (a fake ``.jpg`` that is really HTML/SVG) and
         neutralizes polyglot files; re-encoding strips EXIF and any trailing
         payload. The returned content type is derived from the decoded image, not
-        from the client-supplied ``content_type`` (kept only for signature
-        compatibility). HEIC/HEIF are converted to JPEG.
+        from the client-supplied ``content_type``, kept only for signature
+        compatibility. HEIC/HEIF are converted to JPEG.
 
-        Args:
-            file_data: Raw file bytes.
-            filename: Original filename (used for the output base name only).
-            content_type: Ignored; the real type is derived server-side.
-
-        Returns:
-            tuple: (file_data, filename, content_type) — normalized.
-
-        Raises:
-            ValueError: if the bytes cannot be decoded as an image.
+        Raises ValueError when the bytes do not decode as an image.
         """
         try:
             img = Image.open(io.BytesIO(file_data))
@@ -231,18 +182,14 @@ class StorageService:
         img.convert('RGB').save(output, format='JPEG', quality=90, optimize=True)
         return output.getvalue(), f'{base}.jpg', 'image/jpeg'
 
-    # ------------------------------------------------------------------
-    # Méthodes internes
-    # ------------------------------------------------------------------
 
     def _ensure_bucket(self):
-        """Crée le bucket s'il n'existe pas (utile pour MinIO en dev)."""
         try:
             self.client.head_bucket(Bucket=self.bucket)
         except ClientError:
             try:
                 self.client.create_bucket(Bucket=self.bucket)
-                # Politique de lecture publique pour les images
+                # The pages link to the images directly.
                 self.client.put_bucket_policy(
                     Bucket=self.bucket,
                     Policy=json.dumps({
@@ -257,15 +204,13 @@ class StorageService:
                     }),
                 )
             except ClientError as e:
-                logger.warning('Création du bucket S3 impossible : %s', e)
+                logger.warning('Could not create the S3 bucket: %s', e)
 
     def _generate_key(self, prefix, filename):
-        """Génère une clé S3 unique avec structure date/uuid."""
         ext = os.path.splitext(filename)[1].lower() if filename else '.jpg'
         unique = uuid.uuid4().hex[:12]
         date_prefix = datetime.now(UTC).strftime('%Y/%m')
         return f"{prefix}/{date_prefix}/{unique}{ext}"
 
 
-# Instance globale — initialisée via storage.init_app(app) dans create_app()
 storage = StorageService()

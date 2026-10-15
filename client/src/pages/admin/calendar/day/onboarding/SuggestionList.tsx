@@ -1,8 +1,4 @@
-/**
- * Chips de suggestions de plats (catégorie courante uniquement, dédupliqués,
- * hors plats déjà au menu). Purement présentational — le filtrage est fait
- * par l'appelant (ItemPickStep).
- */
+/** Presentational: ItemPickStep filters the dishes. */
 import type { DishCatalogItem } from '@/lib/api/catalog';
 import type { CategoryColor } from '@/lib/category-colors';
 

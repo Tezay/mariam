@@ -1,30 +1,3 @@
-"""
-Menu routes for MARIAM — Public display and editor management.
-
-Public endpoints (no authentication required):
-- GET /v1/menus/today        Today's published menu
-- GET /v1/menus/tomorrow     Tomorrow's published menu
-- GET /v1/menus/week         This week's menus (published only, or all if editor)
-
-Editor endpoints (JWT required):
-- GET  /v1/menus                                     List menus with filters
-- GET  /v1/menus/week                                All menus including drafts
-- GET  /v1/menus/<id>                                Menu details
-- GET  /v1/menus/by-date/<d>                         Menu by date
-- POST /v1/menus                                     Create or update a menu
-- PUT  /v1/menus/<id>                                Update a menu
-- POST /v1/menus/<id>/publish                        Publish
-- POST /v1/menus/<id>/unpublish                      Revert to draft
-- DELETE /v1/menus/<id>                              Delete
-- POST /v1/menus/week/publish                        Publish the entire week
-- POST /v1/menus/<id>/images                         Upload image
-- DELETE /v1/menus/<id>/images/<img_id>              Delete image
-- PUT  /v1/menus/<id>/images/reorder                 Reorder images
-- PUT  /v1/menus/<id>/chef-note                      Update chef note
-- PATCH /v1/menus/<id>/items/<item_id>/stock         Toggle item out-of-stock
-- GET  /v1/menus/<id>/substitutions                  Substitution dishes by category
-- PUT  /v1/menus/<id>/substitutions/<category_id>    Set substitutions for a category
-"""
 from datetime import UTC, datetime, timedelta
 
 from flask import jsonify, request
@@ -72,12 +45,7 @@ menus_bp = Blueprint(
 )
 
 
-# ============================================================
-# HELPERS
-# ============================================================
-
 def get_week_dates(reference_date=None):
-    """Retourne les dates du lundi au dimanche de la semaine."""
     if reference_date is None:
         reference_date = paris_today()
     monday = reference_date - timedelta(days=reference_date.weekday())
@@ -85,9 +53,6 @@ def get_week_dates(reference_date=None):
 
 
 def _get_menu_scoped(menu_id):
-    """
-    Retourne le menu seulement s'il appartient au restaurant de l'utilisateur courant.
-    """
     _, restaurant = get_user_and_restaurant()
     if not restaurant:
         return None
@@ -95,11 +60,8 @@ def _get_menu_scoped(menu_id):
 
 
 def _sync_menu_items(menu, items_data):
-    """Met à jour les items d'un menu avec une logique diff (UPDATE/INSERT/DELETE).
-
-    - Les items existants dont l'id est fourni sont mis à jour en place.
-    - Les nouveaux items (sans id ou id inconnu) sont insérés.
-    - Les items existants absents du payload sont supprimés.
+    """Items keep their ids: those given are updated in place, new ones inserted,
+    the ones left out deleted.
     """
     restaurant_id = menu.restaurant_id
     existing = {item.id: item for item in menu.items}
@@ -114,7 +76,6 @@ def _sync_menu_items(menu, items_data):
             item.category_id = category_id or item.category_id
             item.order = item_data.get('order', idx)
             item.is_out_of_stock = item_data.get('is_out_of_stock', item.is_out_of_stock)
-            # Mise à jour du plat si dish_id fourni
             new_dish_id = item_data.get('dish_id')
             if new_dish_id and new_dish_id != item.dish_id:
                 dish = DishCatalog.query.filter_by(
@@ -138,30 +99,20 @@ def _sync_menu_items(menu, items_data):
             db.session.flush()
             incoming_ids.add(item.id)
 
-    # Supprimer les items retirés du payload
     for item_id, item in existing.items():
         if item_id not in incoming_ids:
             db.session.delete(item)
 
 
 def _format_menu_for_display(menu):
-    """Formate un menu pour l'affichage public (TV, mobile).
-
-    Structure de retour :
-    - by_category : liste ordonnée de catégories principales avec leurs items
-      (et leurs sous-catégories pour Plat principal)
-    - images : photos du jour (MenuImage legacy)
-    """
     if not menu:
         return None
 
     restaurant = menu.restaurant
-    # Charger catégories du restaurant triées
     top_level_cats = MenuCategory.query.filter_by(
         restaurant_id=restaurant.id, parent_id=None
     ).order_by(MenuCategory.order).all()
 
-    # Construire un index items par category_id
     items_by_cat = {}
     for item in menu.items:
         cid = item.category_id
@@ -198,7 +149,6 @@ def _format_menu_for_display(menu):
 
     images_list = [img.to_dict() for img in menu.images] if hasattr(menu, 'images') else []
 
-    # Plats de substitution par catégorie (affichés si is_out_of_stock)
     category_ids = list({item.category_id for item in menu.items})
     subs_by_cat: dict[int, list] = {}
     if category_ids:
@@ -218,10 +168,6 @@ def _format_menu_for_display(menu):
         'substitutions': subs_by_cat,
     }
 
-
-# ============================================================
-# ROUTES PUBLIQUES — today / tomorrow / week
-# ============================================================
 
 @menus_bp.route('/today', methods=['GET'])
 @limiter.limit("30 per minute")
@@ -356,10 +302,6 @@ def get_week_menu():
             'menus': menus,
         }), 200
 
-
-# ============================================================
-# ROUTES ÉDITEUR — gestion des menus
-# ============================================================
 
 @menus_bp.route('', methods=['GET'])
 @menus_bp.response(200, MenuListSchema)
@@ -508,10 +450,6 @@ def publish_week(data):
     }), 200
 
 
-# ============================================================
-# ROUTES PARAMÉTRÉES
-# ============================================================
-
 @menus_bp.route('/by-date/<date_str>', methods=['GET'])
 @menus_bp.response(200, MenuSchema)
 @menus_bp.alt_response(400, schema=ErrorSchema)
@@ -657,7 +595,7 @@ def delete_menu(menu_id):
     for image in list(menu.images):
         storage.delete_file(image.storage_key)
 
-    db.session.delete(menu)  # CASCADE supprime items + images liées
+    db.session.delete(menu)  # Cascades to its items and image rows.
 
     AuditLog.log(
         action=AuditLog.ACTION_MENU_UPDATE,
@@ -671,10 +609,6 @@ def delete_menu(menu_id):
     db.session.commit()
     return jsonify({'message': 'Menu supprimé'}), 200
 
-
-# ============================================================
-# RUPTURE / STOCK (Mode Service)
-# ============================================================
 
 @menus_bp.route('/<int:menu_id>/items/<int:item_id>/stock', methods=['PATCH'])
 @editor_required
@@ -702,10 +636,6 @@ def update_item_stock(data, menu_id, item_id):
         'item': item.to_dict(),
     }), 200
 
-
-# ============================================================
-# IMAGES DU MENU (photos uploadées directement)
-# ============================================================
 
 @menus_bp.route('/<int:menu_id>/images', methods=['POST'])
 @menus_bp.response(201, MenuSchema)
@@ -862,14 +792,10 @@ def update_chef_note(menu_id):
     return jsonify({'message': 'Note du chef mise à jour', 'menu': menu.to_dict()}), 200
 
 
-# ============================================================
-# SUBSTITUTIONS PAR CATÉGORIE (per-menu)
-# ============================================================
-
 @menus_bp.route('/<int:menu_id>/substitutions', methods=['GET'])
 @editor_required
 def get_menu_substitutions(menu_id):
-    """Retourne les substituts de toutes les catégories pour ce menu.
+    """The substitutes of every category of this menu.
 
     Response: { "substitutions": { "<category_id>": [{"dish": {...}, "order": 0}, ...] } }
     """
@@ -890,19 +816,17 @@ def get_menu_substitutions(menu_id):
 @menus_bp.route('/<int:menu_id>/substitutions/<int:category_id>', methods=['PUT'])
 @editor_required
 def set_menu_category_substitutions(menu_id, category_id):
-    """Définit les substituts pour une catégorie dans ce menu.
+    """Replace the substitutes of one category in this menu.
 
-    Body: { "dish_ids": [1, 2, 3] }  (ordonnés par priorité, max 3)
-    Remplace la liste existante pour cette catégorie.
+    Body: { "dish_ids": [1, 2, 3] }, in order of priority, three at most.
     """
     menu = _get_menu_scoped(menu_id)
     if not menu:
         return jsonify({'error': 'Menu non trouvé'}), 404
 
     data = request.get_json(silent=True) or {}
-    dish_ids = data.get('dish_ids', [])[:3]  # max 3 substituts
+    dish_ids = data.get('dish_ids', [])[:3]
 
-    # Supprimer les substitutions existantes pour ce menu + catégorie
     CategorySubstitution.query.filter_by(menu_id=menu_id, category_id=category_id).delete()
 
     for order, dish_id in enumerate(dish_ids):
@@ -927,17 +851,13 @@ def set_menu_category_substitutions(menu_id, category_id):
     }), 200
 
 
-# ============================================================
-# JOURS FÉRIÉS (public, proxy data.gouv.fr + cache Redis)
-# ============================================================
-
 @menus_bp.route('/jours-feries/<int:year>', methods=['GET'])
 @limiter.limit('30 per minute')
 def get_jours_feries(year):
-    """Retourne les jours fériés français pour une année donnée.
+    """French public holidays of a year.
 
-    Source : https://calendrier.api.gouv.fr/jours-feries/metropole/<year>.json
-    Cache Redis 24h (voir services/holidays.py).
+    From https://calendrier.api.gouv.fr/jours-feries/metropole/<year>.json, cached
+    for 24 hours (services/holidays.py).
     Response: [ { "date": "2026-01-01", "description": "Jour de l'An" }, ... ]
     """
     if year < 2020 or year > 2040:
@@ -950,17 +870,12 @@ def get_jours_feries(year):
     return jsonify({'jours_feries': result}), 200
 
 
-# ============================================================
-# VACANCES SCOLAIRES (proxy education.gouv.fr + cache Redis)
-# ============================================================
-
 @menus_bp.route('/vacances-scolaires/<int:year>', methods=['GET'])
 @editor_required
 def get_vacances_scolaires(year):
-    """Retourne les vacances scolaires françaises pour une année donnée.
+    """French school holidays of a year, for zone A, B or C.
 
-    Source : API data.education.gouv.fr (calendrier scolaire).
-    Cache Redis 24h. Zone : A, B ou C.
+    From data.education.gouv.fr, cached for 24 hours.
     Response: { vacances: [{ start_date, end_date, description }] }
     """
     import json as _json
@@ -987,7 +902,6 @@ def get_vacances_scolaires(year):
         except Exception:
             pass
 
-    # API data.education.gouv.fr
     try:
         zones_map = {'A': 'Zone A', 'B': 'Zone B', 'C': 'Zone C'}
         zone_name = zones_map.get(zone, 'Zone A')
@@ -1008,7 +922,7 @@ def get_vacances_scolaires(year):
         resp.raise_for_status()
         records = resp.json().get('results', [])
 
-        # L'API renvoie un enregistrement par académie, on déduplique par description + dates
+        # One record per académie: the same holidays come back several times.
         def _to_paris_date(value: str) -> str:
             dt = datetime.fromisoformat(value)
             if dt.tzinfo is None:

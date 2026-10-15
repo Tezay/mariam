@@ -1,18 +1,3 @@
-/**
- * MARIAM — Page de configuration des notifications push.
- *
- * Guide l'utilisateur selon sa plateforme :
- * - iOS : instruction d'installation PWA, puis activation des notifications
- * - Android : activation directe (+ suggestion d'installation optionnelle)
- * - Desktop : activation directe
- *
- * Permet de configurer :
- * - Notification du menu du jour + horaire
- * - Notification du menu du lendemain + horaire
- * - Notification des événements
- * - Envoi d'une notification de test
- * - Désabonnement
- */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { usePwaInstall } from '@/contexts/PwaInstallContext';
@@ -45,11 +30,6 @@ import {
   type NotificationPreferences,
 } from '@/lib/push';
 
-// ========================================
-// Composants internes
-// ========================================
-
-/** Toggle switch réutilisable */
 function Toggle({
   checked,
   onChange,
@@ -86,7 +66,6 @@ function Toggle({
   );
 }
 
-/** Sélecteur d'heure simplifié (HH:MM) */
 function TimeSelector({
   value,
   onChange,
@@ -110,7 +89,6 @@ function TimeSelector({
   );
 }
 
-/** Carte d'information avec icône */
 function InfoCard({
   icon,
   title,
@@ -140,9 +118,6 @@ function InfoCard({
   );
 }
 
-// ========================================
-// Guide d'installation PWA (iOS)
-// ========================================
 function PwaInstallGuide() {
   return (
     <div className="space-y-4">
@@ -210,9 +185,6 @@ function PwaInstallGuide() {
   );
 }
 
-// ========================================
-// Suggestion d'installation PWA (Android / Desktop)
-// ========================================
 function PwaInstallSuggestion({ onInstall }: { onInstall: () => void }) {
   return (
     <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
@@ -235,9 +207,6 @@ function PwaInstallSuggestion({ onInstall }: { onInstall: () => void }) {
   );
 }
 
-// ========================================
-// Page principale
-// ========================================
 export function NotificationsPage() {
   const navigate = useNavigate();
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -248,14 +217,10 @@ export function NotificationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Préférences
   const [prefs, setPrefs] = useState<NotificationPreferences>(DEFAULT_PREFERENCES);
 
-  // PWA install prompt (Android/Desktop) — via contexte global
   const { installPrompt, isInstalled, triggerInstall: triggerPwaInstall } = usePwaInstall();
 
-  // Charger l'état de souscription + préférences
-  // Si le navigateur a une souscription mais que le serveur ne la connaît pas
   useEffect(() => {
     async function init() {
       try {
@@ -272,12 +237,12 @@ export function NotificationsPage() {
               notify_events: serverPrefs.notify_events,
             });
           } else {
-            // Souscription locale orpheline -> désabonner côté navigateur
+            // The server no longer knows it: drop it from the browser too.
             await subscription.unsubscribe();
           }
         }
       } catch {
-        // Silencieux (pas critique)
+        // The page then offers to subscribe again.
       } finally {
         setIsLoading(false);
       }
@@ -285,17 +250,12 @@ export function NotificationsPage() {
     init();
   }, []);
 
-  // Auto-hide success messages
   useEffect(() => {
     if (successMessage) {
       const t = setTimeout(() => setSuccessMessage(null), 3000);
       return () => clearTimeout(t);
     }
   }, [successMessage]);
-
-  // ========================================
-  // Actions
-  // ========================================
 
   const handleSubscribe = useCallback(async () => {
     setError(null);
@@ -363,22 +323,13 @@ export function NotificationsPage() {
     }
   }, [triggerPwaInstall]);
 
-  // ========================================
-  // Conditions de blocage
-  // ========================================
-
-  const needsPwa = requiresPwaForPush(); // iOS non-PWA -> doit installer en premier
-  const isSecure = window.isSecureContext; // HTTP non-localhost -> SW indisponible
-  const pushSupported = isPushSupported(); // Vérifié seulement si contexte sécurisé
-
-  // ========================================
-  // Rendu
-  // ========================================
+  const needsPwa = requiresPwaForPush();
+  const isSecure = window.isSecureContext; // Service workers need HTTPS, localhost aside
+  const pushSupported = isPushSupported();
 
   return (
     // Drawn light whatever the theme: the native time field must not turn dark.
     <div className="min-h-screen bg-gray-50 [color-scheme:light]">
-      {/* Header */}
       <header className="flex items-center gap-3 bg-mariam-blue p-4 text-white">
         <button
           onClick={() => navigate('/menu')}
@@ -392,7 +343,6 @@ export function NotificationsPage() {
       </header>
 
       <main className="mx-auto max-w-lg space-y-6 p-4 pb-8">
-        {/* Messages de statut */}
         {error && (
           <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -411,10 +361,8 @@ export function NotificationsPage() {
             <Loader2 className="h-8 w-8 animate-spin text-mariam-blue" />
           </div>
         ) : needsPwa ? (
-          /* iOS : nécessite l'installation PWA avant tout */
           <PwaInstallGuide />
         ) : !isSecure ? (
-          /* Contexte non sécurisé (HTTP + non-localhost) */
           <InfoCard
             icon={<AlertTriangle className="h-5 w-5" />}
             title="Connexion non sécurisée"
@@ -429,7 +377,6 @@ export function NotificationsPage() {
             </p>
           </InfoCard>
         ) : !pushSupported ? (
-          /* Navigateur non supporté */
           <InfoCard
             icon={<AlertTriangle className="h-5 w-5" />}
             title="Navigateur non compatible"
@@ -441,9 +388,7 @@ export function NotificationsPage() {
             </p>
           </InfoCard>
         ) : (
-          /* Interface de configuration des notifications */
           <div className="space-y-6">
-            {/* Activation principale */}
             {!isSubscribed ? (
               <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 text-center">
                 <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
@@ -457,7 +402,6 @@ export function NotificationsPage() {
                   </p>
                 </div>
 
-                {/* Préférences pré-activation */}
                 <div className="space-y-1 border-t border-gray-200 pt-4 text-left">
                   <Toggle
                     checked={prefs.notify_today_menu}
@@ -519,7 +463,6 @@ export function NotificationsPage() {
                 </button>
               </div>
             ) : (
-              /* Abonné - configuration des préférences */
               <>
                 <InfoCard
                   icon={<CheckCircle2 className="h-5 w-5" />}
@@ -596,7 +539,6 @@ export function NotificationsPage() {
                   </div>
                 </div>
 
-                {/* Actions */}
                 <div className="space-y-3">
                   <button
                     onClick={handleTest}
@@ -625,10 +567,8 @@ export function NotificationsPage() {
               </>
             )}
 
-            {/* Suggestion d'installation PWA (si disponible et pas déjà installé) */}
             {!isInstalled && installPrompt && <PwaInstallSuggestion onInstall={handleInstallPwa} />}
 
-            {/* Note de confidentialité */}
             <p className="px-4 text-center text-xs text-gray-400">
               Aucun compte n'est nécessaire. Vos préférences sont liées à cet appareil. Vous pouvez
               vous désabonner à tout moment.

@@ -41,7 +41,6 @@ export function SelectionToolbar({
       </span>
       <div className="flex-1" />
 
-      {/* Stock — 1 item : toggle selon son état ; plusieurs : les deux actions */}
       {single ? (
         singleOos ? (
           <Button

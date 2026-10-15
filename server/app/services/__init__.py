@@ -1,3 +1,0 @@
-"""
-MARIAM - Services métier.
-"""

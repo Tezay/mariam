@@ -123,7 +123,6 @@ export function Sidebar({ navItems, homePath = '/admin', tenant }: SidebarProps)
             transition={{ duration: 0.15 }}
             className="absolute left-3 top-1/2 h-7 w-7 -translate-y-1/2"
           />
-          {/* Déplié : grand logo centré dans toute la largeur du header */}
           <motion.div
             animate={{ opacity: isCollapsed ? 0 : 1 }}
             transition={{ duration: 0.15 }}
@@ -134,7 +133,6 @@ export function Sidebar({ navItems, homePath = '/admin', tenant }: SidebarProps)
         </NavLink>
       </div>
 
-      {/* Nav */}
       <TooltipProvider delayDuration={300}>
         {tenant && (
           <div className={cn('shrink-0 px-2 pt-2', isCollapsed && 'px-1')}>
@@ -148,7 +146,6 @@ export function Sidebar({ navItems, homePath = '/admin', tenant }: SidebarProps)
           ))}
         </nav>
 
-        {/* Footer */}
         <div className="shrink-0 border-t border-border p-2">
           <Tooltip>
             <TooltipTrigger asChild>

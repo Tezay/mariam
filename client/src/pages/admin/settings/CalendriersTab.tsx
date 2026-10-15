@@ -1,8 +1,4 @@
-/**
- * Onglet Calendriers : affichage des jours fériés et vacances scolaires
- * (sauvegardé via le bouton Enregistrer global) + création de fermetures
- * exceptionnelles en masse (action immédiate).
- */
+/** The holiday display is saved with the page; the closures it creates are saved at once. */
 import { useState } from 'react';
 import { parisYear } from '@/lib/date-utils';
 import { adminApi, CalendarSettings, VacanceScolaire } from '@/lib/api/admin';
@@ -29,19 +25,16 @@ export function CalendriersTab({ state }: { state: SettingsState }) {
   const { calendarSettings: settings, setCalendarSettings } = state;
   const currentYear = parisYear();
 
-  // Jours fériés closures
   const [feriesYear, setFeriesYear] = useState(currentYear);
   const [feries, setFeries] = useState<JourFerie[] | null>(null);
   const [isLoadingFeries, setIsLoadingFeries] = useState(false);
   const [selectedFeries, setSelectedFeries] = useState<Set<string>>(new Set());
 
-  // Vacances scolaires closures
   const [vacanceYear, setVacanceYear] = useState(currentYear);
   const [vacances, setVacances] = useState<VacanceScolaire[] | null>(null);
   const [isLoadingVacances, setIsLoadingVacances] = useState(false);
   const [selectedVacances, setSelectedVacances] = useState<Set<string>>(new Set());
 
-  // Shared confirm dialog
   const [confirmTarget, setConfirmTarget] = useState<'feries' | 'vacances' | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -129,7 +122,6 @@ export function CalendriersTab({ state }: { state: SettingsState }) {
 
   return (
     <div className="space-y-4">
-      {/* ── Jours fériés ─────────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-border bg-card">
         <div className="flex items-start gap-3 px-4 py-3.5">
           <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -226,7 +218,6 @@ export function CalendriersTab({ state }: { state: SettingsState }) {
         </div>
       </div>
 
-      {/* ── Vacances scolaires ───────────────────────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-border bg-card">
         <div className="flex items-start gap-3 px-4 py-3.5">
           <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -338,14 +329,12 @@ export function CalendriersTab({ state }: { state: SettingsState }) {
         </div>
       </div>
 
-      {/* ── Note info ────────────────────────────────────────────────── */}
       <div className="flex items-start gap-2 rounded-xl bg-muted/60 px-3 py-2.5 text-xs text-muted-foreground">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         Les fermetures créées peuvent être modifiées ou supprimées individuellement depuis le
         calendrier.
       </div>
 
-      {/* ── AlertDialog partagé ───────────────────────────────────────── */}
       <AlertDialog
         open={confirmTarget !== null}
         onOpenChange={(open) => {

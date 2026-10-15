@@ -23,17 +23,17 @@ def acquire_lock(conn, lock_id: int, timeout: int, interval: int) -> None:
             {"id": lock_id},
         ).scalar()
         if acquired:
-            print("🔒 Migration lock acquired")
+            print("Migration lock acquired")
             return
         if time.time() - start > timeout:
-            print(f"❌ Could not acquire migration lock after {timeout}s", file=sys.stderr)
+            print(f"Could not acquire migration lock after {timeout}s", file=sys.stderr)
             sys.exit(1)
         time.sleep(interval)
 
 
 def release_lock(conn, lock_id: int) -> None:
     conn.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": lock_id})
-    print("🔓 Migration lock released")
+    print("Migration lock released")
 
 
 def alembic_table_exists(conn) -> bool:
@@ -63,7 +63,7 @@ def user_table_count(conn) -> int:
 
 
 def reset_schema(conn) -> None:
-    print("⚠️  Resetting database schema (public)...")
+    print("Resetting database schema (public)...")
     conn.execute(text("DROP SCHEMA public CASCADE"))
     conn.execute(text("CREATE SCHEMA public"))
 
@@ -71,7 +71,7 @@ def reset_schema(conn) -> None:
 def main() -> None:
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        print("❌ DATABASE_URL is not set", file=sys.stderr)
+        print("DATABASE_URL is not set", file=sys.stderr)
         sys.exit(1)
 
     lock_id = int(os.environ.get("MARIAM_MIGRATION_LOCK_ID", "93458231"))
@@ -96,11 +96,11 @@ def main() -> None:
                     existing_tables = user_table_count(conn)
                     if existing_tables > 0:
                         if allow_stamp:
-                            print("ℹ️  Existing schema detected, stamping Alembic head.")
+                            print("Existing schema detected, stamping Alembic head.")
                             stamp()
                         else:
                             print(
-                                "❌ Database has tables but no Alembic revision. "
+                                "Database has tables but no Alembic revision. "
                                 "Set MARIAM_MIGRATION_AUTOSTAMP=1 to baseline "
                                 "or MARIAM_DB_RESET=1 to reset.",
                                 file=sys.stderr,

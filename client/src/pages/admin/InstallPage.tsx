@@ -1,10 +1,3 @@
-/**
- * MARIAM — Onboarding installation PWA (admin/editor)
- *
- * Affiché une seule fois après le premier login pour les utilisateurs
- * admin ou éditeur. Guide l'utilisateur pour installer l'application
- * sur son appareil, avec des instructions adaptées à chaque plateforme.
- */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,7 +30,6 @@ function markDone() {
   localStorage.setItem(INSTALL_DONE_KEY, '1');
 }
 
-// ─── Shared "skip" button ─────────────────────────────────────────────────────
 function SkipButton({ label, onClick }: { label?: string; onClick: () => void }) {
   return (
     <button
@@ -50,7 +42,6 @@ function SkipButton({ label, onClick }: { label?: string; onClick: () => void })
   );
 }
 
-// ─── Shared icon header ───────────────────────────────────────────────────────
 function IconHeader({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <div className="text-center">
@@ -63,7 +54,6 @@ function IconHeader({ title, subtitle }: { title: string; subtitle: string }) {
   );
 }
 
-// ─── iOS branch ──────────────────────────────────────────────────────────────
 function IosInstructions({ isSafari, onDone }: { isSafari: boolean; onDone: () => void }) {
   return (
     <div className="w-full max-w-2xl space-y-6 rounded-lg border border-border bg-card p-8 shadow-lg">
@@ -144,7 +134,6 @@ function IosInstructions({ isSafari, onDone }: { isSafari: boolean; onDone: () =
   );
 }
 
-// ─── Android branch ───────────────────────────────────────────────────────────
 function AndroidInstructions({ onDone }: { onDone: () => void }) {
   const { installPrompt, triggerInstall } = usePwaInstall();
   const [installing, setInstalling] = useState(false);
@@ -201,10 +190,7 @@ function AndroidInstructions({ onDone }: { onDone: () => void }) {
   );
 }
 
-// ─── Desktop branch ───────────────────────────────────────────────────────────
-
 // The phone inherits what is left of this session's confirmation: enough for
-// the code to be scanned as it expires, and a passkey registered after that.
 const HAND_OVER_HEADROOM_MS = 7 * 60 * 1000;
 
 function DesktopInstructions({ onDone }: { onDone: () => void }) {
@@ -257,7 +243,6 @@ function DesktopInstructions({ onDone }: { onDone: () => void }) {
     if (showsAtOnce) generateToken();
   }, [showsAtOnce, generateToken]);
 
-  // Countdown
   useEffect(() => {
     if (!expiresAt) return;
     const interval = setInterval(() => {
@@ -295,7 +280,6 @@ function DesktopInstructions({ onDone }: { onDone: () => void }) {
         subtitle="Scannez ce QR code avec votre téléphone pour avoir accès à Mariam de n'importe où !"
       />
 
-      {/* QR code */}
       <div className="flex flex-col items-center gap-3">
         {asksConfirmation ? (
           <div className="flex max-w-xs flex-col items-center gap-3 rounded-xl border border-border bg-muted/40 p-6 text-center">
@@ -347,7 +331,6 @@ function DesktopInstructions({ onDone }: { onDone: () => void }) {
         )}
       </div>
 
-      {/* Instructions */}
       <div className="space-y-2 rounded-lg border bg-muted/40 p-4">
         <p className="mb-1 text-xs font-medium uppercase tracking-wide text-foreground/70">
           Comment ça marche
@@ -379,7 +362,6 @@ function DesktopInstructions({ onDone }: { onDone: () => void }) {
   );
 }
 
-// ─── Step component ───────────────────────────────────────────────────────────
 function Step({ number, text }: { number: number; text: React.ReactNode }) {
   return (
     <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3">
@@ -391,7 +373,6 @@ function Step({ number, text }: { number: number; text: React.ReactNode }) {
   );
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
 export function InstallPage() {
   const navigate = useNavigate();
   const { user } = useAuth();

@@ -1,12 +1,3 @@
-"""
-Audit log routes for MARIAM.
-
-Requires admin role and MFA enabled.
-
-Endpoints:
-- GET /v1/audit-logs         Paginated list with filters
-- GET /v1/audit-logs/export  CSV export (max 10,000 rows)
-"""
 import csv
 from datetime import datetime
 from io import StringIO
@@ -33,10 +24,6 @@ audit_bp = Blueprint(
     description='Audit log — Admin action history (MFA required)'
 )
 
-
-# ============================================================
-# HELPERS
-# ============================================================
 
 # A spreadsheet runs as a formula any cell that starts with one of these.
 _FORMULA_LEADS = ('=', '+', '-', '@', '\t', '\r')
@@ -65,7 +52,6 @@ def _tenant_scope_filter():
 
 
 def _apply_audit_filters(query):
-    """Applique les filtres communs action/user_id/start_date/end_date à une requête AuditLog."""
     if action_filter := request.args.get('action'):
         query = query.filter(AuditLog.action == action_filter)
 
@@ -91,10 +77,6 @@ def _apply_audit_filters(query):
 
     return query
 
-
-# ============================================================
-# ROUTE STATIQUE — export avant la route racine paramétrée
-# ============================================================
 
 @audit_bp.route('/export', methods=['GET'])
 @audit_bp.alt_response(
@@ -150,10 +132,6 @@ def export_audit_logs():
     )
     return response
 
-
-# ============================================================
-# LISTE DES LOGS
-# ============================================================
 
 @audit_bp.route('', methods=['GET'])
 @audit_bp.alt_response(403, schema=ErrorSchema, description="MFA not enabled or access denied")

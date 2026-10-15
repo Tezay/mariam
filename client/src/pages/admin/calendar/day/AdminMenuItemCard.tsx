@@ -21,7 +21,7 @@ interface AdminMenuItemCardProps {
   category: MenuCategory;
   editor: UseMenuEditorReturn;
   canEdit: boolean;
-  /** Joue l'indice de swipe (1er item, une fois par session). */
+  /** Plays the swipe hint: the first item, once a session. */
   hint?: boolean;
 }
 
@@ -52,14 +52,12 @@ export function AdminMenuItemCard({
 
   const rowContent = (
     <div className="flex items-center gap-1">
-      {/* Image du plat — à gauche, chevauche la card */}
       {dishImage && (
         <div className="relative z-10 h-20 w-20 shrink-0 overflow-hidden rounded-2xl">
           <img src={dishImage} alt={dishName} className="h-full w-full object-cover" />
         </div>
       )}
 
-      {/* Card */}
       <div
         className="relative z-0 min-w-0 flex-1"
         style={dishImage ? { marginLeft: '-12px' } : undefined}

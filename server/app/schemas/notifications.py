@@ -26,9 +26,9 @@ class NotificationPreferencesSchema(Schema):
     class Meta:
         unknown = EXCLUDE
     notify_today_menu = fields.Bool()
-    notify_today_menu_time = fields.Str(description="Time HH:MM")
+    notify_today_menu_time = fields.Str(metadata={'description': "Time HH:MM"})
     notify_tomorrow_menu = fields.Bool()
-    notify_tomorrow_menu_time = fields.Str(description="Time HH:MM")
+    notify_tomorrow_menu_time = fields.Str(metadata={'description': "Time HH:MM"})
     notify_events = fields.Bool()
 
 
@@ -43,7 +43,7 @@ class SubscriptionEndpointSchema(Schema):
     class Meta:
         unknown = EXCLUDE
     endpoint = fields.Str(
-        required=True, validate=_push_service, description="Push subscription endpoint URL"
+        required=True, validate=_push_service, metadata={'description': "Push subscription endpoint URL"}
     )
 
 

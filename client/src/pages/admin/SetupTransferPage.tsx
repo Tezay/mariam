@@ -1,10 +1,3 @@
-/**
- * MARIAM — Réception du transfert de session (onboarding PWA cross-device)
- *
- * Ouvert sur le téléphone après scan du QR code. Valide le jeton de transfert,
- * crée une session complète, propose d'enregistrer une passkey sur ce nouvel
- * appareil, puis redirige vers l'onboarding PWA.
- */
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { authApi } from '@/lib/api/auth';
@@ -64,7 +57,6 @@ export function SetupTransferPage() {
       setState('passkey_done');
     } catch (err) {
       // This device has no second factor of its own to confirm with: only a
-      // new hand-over brings a confirmed session here.
       setPasskeyError(
         isConfirmationRequired(err)
           ? 'Le délai pour enregistrer une passkey est dépassé. Scannez de nouveau le QR code, ou ignorez cette étape.'

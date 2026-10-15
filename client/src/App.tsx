@@ -1,28 +1,16 @@
-/**
- * MARIAM - Application principale
- *
- * Routes :
- * - / : Redirection vers /menu (public) ou /admin (si connecté)
- * - /menu : Affichage public du menu (TV/Mobile)
- * - /notifications : Configuration des notifications push (public)
- * - /login : Connexion admin
- * - /activate/:token : Activation de compte
- * - /admin/* : Interface d'administration (protégée)
- */
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router';
 import { Toaster } from 'sonner';
 import { useAuth } from './contexts/AuthContext';
 import { PwaInstallProvider } from './contexts/PwaInstallContext';
 import { useTheme } from './contexts/ThemeProvider';
-// Chemin public critique (menu) — chargé en eager pour un premier rendu rapide.
+// Eager: the public menu is the first thing most visitors wait for.
 import { TenantLayout, PublicRoot, MonoMenu, SluggedMenu } from './pages/public/PublicRoutes';
 import { ErrorBoundary, PublicErrorFallback } from './components/ErrorBoundary';
 import { PageLoader } from './components/PageLoader';
 import { dashboardPathForRole } from './lib/dashboard-routes';
 
-// Tout le reste (auth, admin, org, notifications) est chargé à la demande pour
-// garder le bundle du menu public léger (les étudiants ne téléchargent pas le JS admin).
+// The rest loads on demand, so a visitor of the menu never downloads the dashboard.
 const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
 const Activate = lazy(() => import('./pages/Activate').then((m) => ({ default: m.Activate })));
 const ResetPassword = lazy(() =>
@@ -112,10 +100,8 @@ const DishDetailPage = lazy(() =>
   import('./pages/admin/catalogue/DishDetailPage').then((m) => ({ default: m.DishDetailPage }))
 );
 
-// Error pages
 import { NotFound, Forbidden } from './pages/errors';
 
-// Route protégée pour l'admin (authentification requise)
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -130,7 +116,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Route admin-only (rôle admin requis)
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
 
@@ -145,7 +130,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Tout le dashboard de site : un directeur est renvoyé vers le sien.
+// A supervisor is sent to their own dashboard.
 function SiteDashboardRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
 
@@ -160,7 +145,6 @@ function SiteDashboardRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Route éditeur (rôle admin ou editor requis)
 function EditorRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
 
@@ -175,7 +159,7 @@ function EditorRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Route publique (redirige si déjà connecté)
+// Sends a signed-in user to the dashboard.
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuth();
 
@@ -190,7 +174,6 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Route directeur d'organisation (rôle org_admin requis)
 function OrgRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
 
@@ -229,7 +212,6 @@ function App() {
       <ResponsiveToaster />
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          {/* Affichage public tenant-aware (org résolue par le Host) */}
           <Route
             element={
               <ErrorBoundary fallback={<PublicErrorFallback />}>
@@ -244,10 +226,8 @@ function App() {
 
           <Route path="/privacy" element={<PrivacyPage />} />
 
-          {/* Notifications push (public) */}
           <Route path="/notifications" element={<NotificationsPage />} />
 
-          {/* Authentification */}
           <Route
             path="/login"
             element={
@@ -257,10 +237,8 @@ function App() {
             }
           />
 
-          {/* Activation de compte */}
           <Route path="/activate/:token" element={<Activate />} />
 
-          {/* Réinitialisation de mot de passe */}
           <Route path="/reset-password/:token" element={<ResetPassword />} />
 
           <Route
@@ -280,7 +258,6 @@ function App() {
             }
           />
 
-          {/* Onboarding installation PWA (admin/editor, affiché une seule fois) */}
           <Route
             path="/admin/install"
             element={
@@ -298,10 +275,8 @@ function App() {
             }
           />
 
-          {/* Réception du transfert de session cross-device */}
           <Route path="/admin/setup" element={<SetupTransferPage />} />
 
-          {/* Interface Directeur d'organisation (org_admin) */}
           <Route
             path="/org"
             element={
@@ -324,7 +299,6 @@ function App() {
             <Route path="account" element={<AccountPage />} />
           </Route>
 
-          {/* Interface Admin */}
           <Route
             path="/admin"
             element={
@@ -335,7 +309,6 @@ function App() {
               </ProtectedRoute>
             }
           >
-            {/* Dashboard = Calendrier unifié (admin ou editor) */}
             <Route
               index
               element={
@@ -353,13 +326,11 @@ function App() {
               }
             />
 
-            {/* Anciennes routes — redirigent vers le calendrier */}
+            {/* Former addresses, kept for bookmarks */}
             <Route path="menus" element={<Navigate to="/admin/calendar" replace />} />
 
-            {/* Mon compte (tous les utilisateurs authentifiés) */}
             <Route path="account" element={<AccountPage />} />
 
-            {/* Service en cours (admin ou editor) */}
             <Route
               path="service"
               element={
@@ -369,7 +340,6 @@ function App() {
               }
             />
 
-            {/* Événements (admin ou editor) */}
             <Route
               path="events"
               element={
@@ -395,7 +365,6 @@ function App() {
               }
             />
 
-            {/* Fermetures exceptionnelles (admin ou editor) */}
             <Route
               path="closures"
               element={
@@ -405,7 +374,6 @@ function App() {
               }
             />
 
-            {/* Catalogue de plats (admin ou editor) */}
             <Route
               path="catalogue"
               element={
@@ -431,7 +399,6 @@ function App() {
               }
             />
 
-            {/* Statistiques du site (admin only) */}
             <Route
               path="stats"
               element={
@@ -441,7 +408,6 @@ function App() {
               }
             />
 
-            {/* Gestion des utilisateurs (admin only) */}
             <Route
               path="users"
               element={
@@ -451,7 +417,6 @@ function App() {
               }
             />
 
-            {/* Réglages du restaurant (admin only) */}
             <Route
               path="settings"
               element={
@@ -461,7 +426,6 @@ function App() {
               }
             />
 
-            {/* Logs d'audit (admin only) */}
             <Route
               path="audit-logs"
               element={
@@ -472,7 +436,6 @@ function App() {
             />
           </Route>
 
-          {/* 404 Catch-all - Doit être en dernier */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>

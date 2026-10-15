@@ -49,15 +49,12 @@ export function MobileHeader({ restaurant, activeClosure }: MobileHeaderProps) {
     <header className="shrink-0 bg-white" style={{ boxShadow: '0 1px 0 0 #f0f0f0' }}>
       <div className="h-1 w-full bg-mariam-blue" />
 
-      {/* Ligne principale */}
       <div
         className="flex cursor-pointer items-center gap-3 px-4 py-3"
         onClick={() => setExpanded((prev) => !prev)}
       >
-        {/* Logo Mariam (mini) */}
         <img src="/favicon.svg" alt="Mariam" className="h-8 w-8 shrink-0 object-contain" />
 
-        {/* Logo restaurant */}
         {restaurant.logo_url && (
           <img
             src={restaurant.logo_url}
@@ -66,7 +63,6 @@ export function MobileHeader({ restaurant, activeClosure }: MobileHeaderProps) {
           />
         )}
 
-        {/* Infos restaurant */}
         <div className="min-w-0 flex-1">
           <p className="truncate text-base font-bold leading-tight text-mariam-blue">
             {restaurant.name}
@@ -110,13 +106,11 @@ export function MobileHeader({ restaurant, activeClosure }: MobileHeaderProps) {
         </button>
       </div>
 
-      {/* Panel déroulable */}
       <div
         className="overflow-hidden transition-all duration-300 ease-in-out"
         style={{ maxHeight: expanded ? '600px' : '0px' }}
       >
         <div className="space-y-4 border-t border-gray-100 bg-gray-50 px-4 py-4">
-          {/* Paiements + couverts + PMR — chips */}
           {(paymentMethods.length > 0 || restaurant.pmr_access === true || restaurant.capacity) && (
             <div className="flex flex-wrap gap-2">
               {paymentMethods.map((method) => {
@@ -148,7 +142,6 @@ export function MobileHeader({ restaurant, activeClosure }: MobileHeaderProps) {
             </div>
           )}
 
-          {/* Horaires groupés */}
           {groupedHours.length > 0 && (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
@@ -165,7 +158,6 @@ export function MobileHeader({ restaurant, activeClosure }: MobileHeaderProps) {
             </div>
           )}
 
-          {/* Contact + Notifications — côte à côte si contact défini */}
           <div className="flex items-stretch gap-3">
             {(restaurant.phone || restaurant.email) && (
               <div className="flex min-w-0 flex-1 flex-col justify-center space-y-1">

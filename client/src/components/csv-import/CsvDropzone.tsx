@@ -7,7 +7,6 @@ interface CsvDropzoneProps {
   onFile: (file: File) => void;
 }
 
-/** Zone de dépôt/sélection d'un fichier pour les imports CSV/Excel. */
 export function CsvDropzone({ accept, hint, onFile }: CsvDropzoneProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   return (

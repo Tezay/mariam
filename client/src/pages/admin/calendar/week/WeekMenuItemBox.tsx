@@ -35,7 +35,7 @@ export function WeekMenuItemBox({
     disabled: !canEdit || !item.id,
   });
 
-  // Empêche le clic de sélection de se déclencher après un drag
+  // A drag ends in a click, which must not select.
   const wasDragged = useRef(false);
   useEffect(() => {
     if (isDragging) wasDragged.current = true;
@@ -76,7 +76,6 @@ export function WeekMenuItemBox({
         borderBottom: `3px solid ${color.border}`,
       }}
     >
-      {/* Name */}
       <p
         className={cn(
           'min-w-0 flex-1 truncate text-xs font-semibold transition-all',
@@ -88,7 +87,6 @@ export function WeekMenuItemBox({
         {name || <span className="italic opacity-40">Plat sans nom</span>}
       </p>
 
-      {/* OOS badge */}
       {isOos && (
         <span
           className="shrink-0 rounded-full px-1 text-[9px] font-semibold"
@@ -98,7 +96,6 @@ export function WeekMenuItemBox({
         </span>
       )}
 
-      {/* Remove button */}
       {canEdit && !selectionMode && (
         <button
           type="button"

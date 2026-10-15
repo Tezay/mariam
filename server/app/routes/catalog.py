@@ -1,19 +1,3 @@
-"""
-Catalog routes for MARIAM — CRUD pour le catalogue de plats par restaurant.
-
-Endpoints en lecture (JWT required) :
-- GET    /v1/catalog              Lister les plats (filtres: category_ids, q, sort)
-- GET    /v1/catalog/<id>         Détail d'un plat
-- GET    /v1/catalog/<id>/stats   Utilisation et satisfaction du plat
-- GET    /v1/catalog/stats?ids=   Les mêmes, pour plusieurs plats (comparaison)
-
-Endpoints en écriture (editor ou admin) :
-- POST   /v1/catalog              Créer un plat
-- PUT    /v1/catalog/<id>         Mettre à jour un plat
-- DELETE /v1/catalog/<id>         Supprimer un plat
-- POST   /v1/catalog/<id>/image   Uploader l'image du plat
-- DELETE /v1/catalog/<id>/image   Supprimer l'image du plat
-"""
 import csv
 import io
 import re
@@ -53,12 +37,7 @@ catalog_bp = Blueprint(
 )
 
 
-# ============================================================
-# HELPERS
-# ============================================================
-
 def _usage_count_subquery(dish_id: int) -> int:
-    """Calcule le nombre d'utilisations d'un plat dans les menus."""
     return db.session.query(db.func.count(MenuItem.id)).filter(
         MenuItem.dish_id == dish_id
     ).scalar() or 0
@@ -144,14 +123,9 @@ def _duplicate_response(duplicate: 'DishCatalog'):
 
 
 def _capitalize_name(name: str) -> str:
-    """Première lettre en majuscule, trim des espaces superflus."""
     cleaned = re.sub(r'\s+', ' ', name.strip())
     return cleaned[0].upper() + cleaned[1:] if cleaned else cleaned
 
-
-# ============================================================
-# ROUTES — CATALOGUE
-# ============================================================
 
 def _filtered_dishes(restaurant_id: int) -> list:
     """Dishes matching the filters of the current request, name-ordered.
@@ -193,15 +167,15 @@ def _filtered_dishes(restaurant_id: int) -> list:
 @catalog_bp.route('', methods=['GET'])
 @jwt_required()
 def list_dishes():
-    """Liste les plats du catalogue pour le restaurant de l'utilisateur.
+    """The site's catalog of dishes.
 
     Query params:
-        category_ids (csv) — filtrer par catégories (disjonctif)
-        tag_ids / certification_ids (csv) — conjonctifs
-        q (str) — recherche par nom
-        period (str) — 'all' (défaut) | '7d' | '30d' | '90d' | '12m'
-        sort (str) — 'usage' (défaut) | 'name' | 'recent' | 'score'
-        order (str) — 'desc' (défaut) | 'asc'
+        category_ids (csv): any of these categories
+        tag_ids, certification_ids (csv): every one of these labels
+        q (str): name search
+        period (str): 'all' (default), '7d', '30d', '90d' or '12m'
+        sort (str): 'usage' (default), 'name', 'recent' or 'score'
+        order (str): 'desc' (default) or 'asc'
     """
     _, restaurant = get_user_and_restaurant()
     if not restaurant:
@@ -261,7 +235,7 @@ def list_dishes():
 @catalog_bp.route('', methods=['POST'])
 @editor_required
 def create_dish():
-    """Crée un nouveau plat dans le catalogue."""
+    """Add a dish to the catalog."""
     user, restaurant = get_user_and_restaurant()
     if not restaurant:
         return jsonify({'error': 'Restaurant non trouvé'}), 404
@@ -287,13 +261,11 @@ def create_dish():
         name=name,
     )
 
-    # Attacher les tags
     tag_ids = validated.get('tag_ids', [])
     if tag_ids:
         tags = DietaryTag.query.filter(DietaryTag.id.in_(tag_ids)).all()
         dish.tags = tags
 
-    # Attacher les certifications
     cert_ids = validated.get('certification_ids', [])
     if cert_ids:
         certs = Certification.query.filter(Certification.id.in_(cert_ids)).all()
@@ -319,7 +291,7 @@ def create_dish():
 @catalog_bp.route('/<int:dish_id>', methods=['GET'])
 @jwt_required()
 def get_dish(dish_id):
-    """Retourne le détail d'un plat."""
+    """One dish of the catalog."""
     _, restaurant = get_user_and_restaurant()
     if not restaurant:
         return jsonify({'error': 'Restaurant non trouvé'}), 404
@@ -334,7 +306,7 @@ def get_dish(dish_id):
 @catalog_bp.route('/stats', methods=['GET'])
 @jwt_required()
 def get_dishes_stats():
-    """Statistiques de plusieurs plats en une requête, pour la comparaison."""
+    """The statistics of several dishes in one request, to compare them."""
     _, restaurant = get_user_and_restaurant()
     if not restaurant:
         return jsonify({'error': 'Restaurant non trouvé'}), 404
@@ -360,7 +332,7 @@ def get_dishes_stats():
 @catalog_bp.route('/<int:dish_id>/stats', methods=['GET'])
 @jwt_required()
 def get_dish_stats(dish_id):
-    """Fenêtres d'utilisation, historique hebdomadaire et satisfaction d'un plat."""
+    """A dish's usage windows, weekly history and satisfaction."""
     _, restaurant = get_user_and_restaurant()
     if not restaurant:
         return jsonify({'error': 'Restaurant non trouvé'}), 404
@@ -375,7 +347,7 @@ def get_dish_stats(dish_id):
 @catalog_bp.route('/<int:dish_id>', methods=['PUT'])
 @editor_required
 def update_dish(dish_id):
-    """Met à jour un plat du catalogue."""
+    """Update a dish of the catalog."""
     user, restaurant = get_user_and_restaurant()
     if not restaurant:
         return jsonify({'error': 'Restaurant non trouvé'}), 404
@@ -424,9 +396,9 @@ def update_dish(dish_id):
 @catalog_bp.route('/<int:dish_id>', methods=['DELETE'])
 @editor_required
 def delete_dish(dish_id):
-    """Supprime un plat du catalogue.
+    """Delete a dish of the catalog.
 
-    Refusé si le plat est utilisé dans un menu existant.
+    Refused while a menu uses it.
     """
     user, restaurant = get_user_and_restaurant()
     if not restaurant:
@@ -442,7 +414,6 @@ def delete_dish(dish_id):
             'error': f'Ce plat est utilisé dans {usage} menu(s) et ne peut pas être supprimé.'
         }), 409
 
-    # Supprimer l'image S3 si elle existe
     if dish.storage_key:
         storage.delete_file(dish.storage_key)
 
@@ -460,10 +431,6 @@ def delete_dish(dish_id):
     return jsonify({'message': 'Plat supprimé'}), 200
 
 
-# ============================================================
-# ROUTES — ACTIONS GROUPÉES
-# ============================================================
-
 def _owned_dishes(ids, restaurant_id: int) -> list:
     wanted = [value for value in ids if isinstance(value, int)]
     if not wanted:
@@ -476,7 +443,7 @@ def _owned_dishes(ids, restaurant_id: int) -> list:
 @catalog_bp.route('/bulk/delete', methods=['POST'])
 @editor_required
 def bulk_delete_dishes():
-    """Supprime les plats fournis, en conservant ceux servis dans un menu."""
+    """Delete the given dishes, keeping those a menu has served."""
     user, restaurant = get_user_and_restaurant()
     if not restaurant:
         return jsonify({'error': 'Restaurant non trouvé'}), 404
@@ -509,7 +476,7 @@ def bulk_delete_dishes():
 @catalog_bp.route('/bulk/category', methods=['POST'])
 @editor_required
 def bulk_move_dishes():
-    """Rattache les plats fournis à une même catégorie feuille."""
+    """Move the given dishes to one leaf category."""
     user, restaurant = get_user_and_restaurant()
     if not restaurant:
         return jsonify({'error': 'Restaurant non trouvé'}), 404
@@ -542,7 +509,7 @@ def bulk_move_dishes():
 @catalog_bp.route('/bulk/labels', methods=['POST'])
 @editor_required
 def bulk_label_dishes():
-    """Ajoute ou retire des labels et certifications sur les plats fournis."""
+    """Add or remove labels and certifications on the given dishes."""
     user, restaurant = get_user_and_restaurant()
     if not restaurant:
         return jsonify({'error': 'Restaurant non trouvé'}), 404
@@ -582,7 +549,7 @@ def bulk_label_dishes():
 @catalog_bp.route('/export', methods=['GET'])
 @jwt_required()
 def export_dishes():
-    """Exporte une sélection de plats, ou la vue filtrée courante, en CSV."""
+    """Export a selection of dishes, or the current filtered view, as CSV."""
     _, restaurant = get_user_and_restaurant()
     if not restaurant:
         return jsonify({'error': 'Restaurant non trouvé'}), 404
@@ -615,7 +582,7 @@ def export_dishes():
 @limiter.limit('30 per minute')
 @editor_required
 def upload_dish_image(dish_id):
-    """Upload ou remplace l'image d'un plat (multipart/form-data, champ 'file')."""
+    """Upload or replace a dish's image (multipart/form-data, field `file`)."""
     user, restaurant = get_user_and_restaurant()
     if not restaurant:
         return jsonify({'error': 'Restaurant non trouvé'}), 404
@@ -647,7 +614,6 @@ def upload_dish_image(dish_id):
     if not result:
         return jsonify({'error': "Erreur lors de l'upload"}), 500
 
-    # Supprimer l'ancienne image S3
     if dish.storage_key:
         storage.delete_file(dish.storage_key)
 
@@ -671,7 +637,7 @@ def upload_dish_image(dish_id):
 @catalog_bp.route('/<int:dish_id>/image', methods=['DELETE'])
 @editor_required
 def delete_dish_image(dish_id):
-    """Supprime l'image d'un plat."""
+    """Delete a dish's image."""
     user, restaurant = get_user_and_restaurant()
     if not restaurant:
         return jsonify({'error': 'Restaurant non trouvé'}), 404

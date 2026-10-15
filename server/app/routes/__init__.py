@@ -1,6 +1,3 @@
-"""
-Routes MARIAM - Exports centralisés.
-"""
 from .audit import audit_bp
 from .auth import auth_bp
 from .catalog import catalog_bp

@@ -1,6 +1,3 @@
-/**
- * MARIAM - ThemeProvider pour le dark mode
- */
 import { createContext, useContext, useEffect, useState } from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
@@ -42,7 +39,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     updateTheme();
 
-    // Listen for system theme changes
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = () => {
       if (theme === 'system') {

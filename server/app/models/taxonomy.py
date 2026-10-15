@@ -1,14 +1,5 @@
-"""
-Modèles de taxonomie — Tags alimentaires & Certifications.
-
-Tables de référence peuplées depuis server/app/data/taxonomy.py.
-Tables de jonction pour les relations N:N avec restaurants et menu_items.
-"""
+"""Reference tables, seeded from data/taxonomy.py by migrations."""
 from ..extensions import db
-
-# ──────────────────────────────────────────────────────────────────────
-#  TABLES DE JONCTION  (N:N)
-# ──────────────────────────────────────────────────────────────────────
 
 restaurant_dietary_tags = db.Table(
     'restaurant_dietary_tags',
@@ -23,13 +14,7 @@ restaurant_certifications = db.Table(
 )
 
 
-# ──────────────────────────────────────────────────────────────────────
-#  CATÉGORIES
-# ──────────────────────────────────────────────────────────────────────
-
 class DietaryTagCategory(db.Model):
-    """Catégorie de tags alimentaires (ex : Régime, Exclusions…)."""
-
     __tablename__ = 'dietary_tag_categories'
 
     id = db.Column(db.String(50), primary_key=True)
@@ -51,8 +36,6 @@ class DietaryTagCategory(db.Model):
 
 
 class CertificationCategory(db.Model):
-    """Catégorie de certifications (ex : Labels officiels, Labels privés)."""
-
     __tablename__ = 'certification_categories'
 
     id = db.Column(db.String(50), primary_key=True)
@@ -71,19 +54,15 @@ class CertificationCategory(db.Model):
         }
 
 
-# ──────────────────────────────────────────────────────────────────────
-#  TAGS ALIMENTAIRES
-# ──────────────────────────────────────────────────────────────────────
-
 class DietaryTag(db.Model):
-    """Tag alimentaire déclaratif (pas de certification externe nécessaire)."""
+    """Declared by the kitchen, unlike a certification."""
 
     __tablename__ = 'dietary_tags'
 
     id = db.Column(db.String(50), primary_key=True)           # ex: "vegetarian"
     label = db.Column(db.String(100), nullable=False)         # "Végétarien"
     icon = db.Column(db.String(50), nullable=False)           # lucide icon name
-    color = db.Column(db.String(30), nullable=False)          # couleur badge
+    color = db.Column(db.String(30), nullable=False)
     category_id = db.Column(db.String(50), db.ForeignKey('dietary_tag_categories.id'), nullable=False)
     sort_order = db.Column(db.Integer, default=0)
 
@@ -102,7 +81,7 @@ class DietaryTag(db.Model):
 
 
 class DietaryTagKeyword(db.Model):
-    """Mot-clé de détection automatique pour un tag (import CSV)."""
+    """Suggests the tag for a dish whose name contains it."""
 
     __tablename__ = 'dietary_tag_keywords'
 
@@ -115,12 +94,8 @@ class DietaryTagKeyword(db.Model):
     )
 
 
-# ──────────────────────────────────────────────────────────────────────
-#  CERTIFICATIONS
-# ──────────────────────────────────────────────────────────────────────
-
 class Certification(db.Model):
-    """Certification officielle avec logo SVG (preuve requise)."""
+    """A label that takes proof, unlike a tag."""
 
     __tablename__ = 'certifications'
 
@@ -154,7 +129,7 @@ class Certification(db.Model):
 
 
 class CertificationKeyword(db.Model):
-    """Mot-clé de détection automatique pour une certification (import CSV)."""
+    """Suggests the certification for a dish whose name contains it."""
 
     __tablename__ = 'certification_keywords'
 

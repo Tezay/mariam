@@ -4,24 +4,18 @@ import { generateEventPalette } from '@/lib/color-utils';
 import { isRichTextHtml } from '@/lib/rich-text';
 import type { EventData } from '../menu-types';
 
-// ─── Utilitaires ────────────────────────────────────────────────────────────
-
 // Escape raw HTML before markdown rendering, since the result is injected via
-// dangerouslySetInnerHTML — prevents stored XSS from event descriptions.
 function escapeHtml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // The editor's HTML is sanitised server side, so it renders as written; only the
-// Markdown of older descriptions still goes through the escape above, and only
-// it needs the surrounding paragraph.
 function formatEventDescription(text: string): string {
   if (isRichTextHtml(text)) return text;
   return `<p>${markdownToHtml(text)}</p>`;
 }
 
 // Plain tags: the .rich-text class styles them, the same way it styles the
-// markup the editor produces.
 function markdownToHtml(text: string): string {
   return escapeHtml(text)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -34,8 +28,6 @@ function markdownToHtml(text: string): string {
     .replace(/\n{2,}/g, '</p><p>')
     .replace(/\n/g, '<br/>');
 }
-
-// ─── Overlay détail événement ────────────────────────────────────────────────
 
 function MobileEventDetailOverlay({ event, onClose }: { event: EventData; onClose: () => void }) {
   const [imgIndex, setImgIndex] = useState(0);
@@ -142,8 +134,6 @@ function MobileEventDetailOverlay({ event, onClose }: { event: EventData; onClos
   );
 }
 
-// ─── MobileTodayEvent ────────────────────────────────────────────────────────
-
 export function MobileTodayEvent({ event }: { event: EventData }) {
   const [showDetail, setShowDetail] = useState(false);
   const palette = generateEventPalette(event.color || '#3498DB');
@@ -203,8 +193,6 @@ export function MobileTodayEvent({ event }: { event: EventData }) {
   );
 }
 
-// ─── MobileUpcomingEvent ─────────────────────────────────────────────────────
-
 function MobileUpcomingEvent({ event }: { event: EventData }) {
   const [showDetail, setShowDetail] = useState(false);
   const palette = generateEventPalette(event.color || '#3498DB');
@@ -258,8 +246,6 @@ function MobileUpcomingEvent({ event }: { event: EventData }) {
     </>
   );
 }
-
-// ─── MobileEventSection (export) ─────────────────────────────────────────────
 
 interface MobileEventSectionProps {
   upcomingEvents: EventData[];

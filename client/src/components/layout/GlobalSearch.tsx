@@ -30,7 +30,6 @@ type SearchResult =
   | { kind: 'closure'; id: number; label: string; date: string }
   | { kind: 'date'; label: string; date: string };
 
-// Pages accessibles (navigation rapide, style command-palette)
 const PAGES: { label: string; to: string; icon: ReactNode; adminOnly?: boolean }[] = [
   {
     label: 'Calendrier',
@@ -155,7 +154,6 @@ export function GlobalSearch() {
       setLoading(true);
       const next: SearchResult[] = [];
 
-      // Navigation rapide (synchrone, en tête)
       for (const p of PAGES) {
         if (p.adminOnly && !isAdmin) continue;
         if (fuzzyMatches(p.label, q)) {
@@ -218,7 +216,6 @@ export function GlobalSearch() {
     doSearch(debouncedQuery);
   }, [debouncedQuery, doSearch]);
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {

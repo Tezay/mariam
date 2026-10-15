@@ -16,8 +16,6 @@ interface AdminCategorySectionProps {
   hint?: boolean;
 }
 
-// ─── SubstitutionPopoverButton ────────────────────────────────────────────────
-
 function SubstitutionPopoverButton({
   categoryId,
   editor,
@@ -51,8 +49,6 @@ function SubstitutionPopoverButton({
   );
 }
 
-// ─── ItemList ─────────────────────────────────────────────────────────────────
-
 interface ItemListProps {
   items: MenuItem[];
   actualCategory: MenuCategory;
@@ -80,8 +76,6 @@ function ItemList({ items, actualCategory, editor, canEdit, hint }: ItemListProp
     </>
   );
 }
-
-// ─── StandardSection ──────────────────────────────────────────────────────────
 
 function StandardSection({ category, items, editor, canEdit, hint }: AdminCategorySectionProps) {
   const color = getCategoryColor(category.color_key, category.order);
@@ -115,8 +109,6 @@ function StandardSection({ category, items, editor, canEdit, hint }: AdminCatego
   );
 }
 
-// ─── HighlightedSection ───────────────────────────────────────────────────────
-
 function HighlightedSection({ category, items, editor, canEdit, hint }: AdminCategorySectionProps) {
   const hasSubcategories = (category.subcategories?.length ?? 0) > 0;
   const color = getCategoryColor(category.color_key, category.order);
@@ -130,7 +122,7 @@ function HighlightedSection({ category, items, editor, canEdit, hint }: AdminCat
     itemsByCatId.set(item.category_id, list);
   }
   const directItems = itemsByCatId.get(category.id) ?? [];
-  // Si aucun item direct, l'indice va à la 1re sous-catégorie non vide
+  // Without a direct item, the swipe hint goes to the first subcategory that has one.
   const hintSubId =
     hint && directItems.length === 0
       ? category.subcategories?.find((s) => (itemsByCatId.get(s.id) ?? []).length > 0)?.id
@@ -173,7 +165,6 @@ function HighlightedSection({ category, items, editor, canEdit, hint }: AdminCat
 
             return (
               <div key={sub.id} className="space-y-3">
-                {/* Toutes les sous-catégories : label aligné à gauche */}
                 <div className="flex items-center justify-between gap-2">
                   <p
                     className="px-1 text-xs font-semibold uppercase tracking-wider"
@@ -199,8 +190,6 @@ function HighlightedSection({ category, items, editor, canEdit, hint }: AdminCat
     </div>
   );
 }
-
-// ─── AdminCategorySection ─────────────────────────────────────────────────────
 
 export function AdminCategorySection({
   category,

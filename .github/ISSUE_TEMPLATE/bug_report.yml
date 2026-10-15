@@ -1,55 +1,55 @@
 name: Bug report
-description: Signaler un comportement inattendu
+description: Report something that does not work as expected
 labels: [bug]
 body:
   - type: input
     id: version
     attributes:
       label: Version
-      description: Version de l'application (visible dans /health ou CHANGELOG.md)
-      placeholder: "ex: v0.11.1"
+      description: As /health reports it, or the latest entry of CHANGELOG.md
+      placeholder: "e.g. v0.11.1"
     validations:
       required: true
 
   - type: input
     id: environment
     attributes:
-      label: Navigateur / appareil
-      placeholder: "ex: Chrome 124, iPhone 15 Safari, TV Samsung Tizen"
+      label: Browser and device
+      placeholder: "e.g. Chrome 124, Safari on iPhone 15, Samsung Tizen TV"
     validations:
       required: true
 
   - type: textarea
     id: expected
     attributes:
-      label: Comportement attendu
-      description: Que devrait-il se passer ?
+      label: Expected behaviour
+      description: What should happen?
     validations:
       required: true
 
   - type: textarea
     id: actual
     attributes:
-      label: Comportement observé
-      description: Que se passe-t-il à la place ?
+      label: Actual behaviour
+      description: What happens instead?
     validations:
       required: true
 
   - type: textarea
     id: steps
     attributes:
-      label: Étapes pour reproduire
+      label: Steps to reproduce
       placeholder: |
-        1. Aller sur…
-        2. Cliquer sur…
-        3. Observer…
+        1. Go to…
+        2. Click…
+        3. See…
     validations:
       required: true
 
   - type: textarea
     id: context
     attributes:
-      label: Contexte supplémentaire
-      description: Captures d'écran, logs console, informations utiles
+      label: Additional context
+      description: Screenshots, console logs, anything that helps
     validations:
       required: false

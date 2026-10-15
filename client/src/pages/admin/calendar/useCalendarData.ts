@@ -15,9 +15,6 @@ export interface DayData {
 
 export type CalendarData = Record<string, DayData>;
 
-// ─── Helpers date ────────────────────────────────────────────────────────────
-
-/** Retourne la date du lundi de la semaine contenant dateStr (ISO). */
 export function getMondayOf(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00');
   const dayOfWeek = d.getDay(); // 0=Sun
@@ -25,16 +22,13 @@ export function getMondayOf(dateStr: string): string {
   return addDays(dateStr, -daysFromMonday);
 }
 
-/** Indice Mariam (0=Lun, 6=Dim) pour une date ISO. */
+/** 0 is Monday. */
 function dateToMariamDay(dateStr: string): number {
   const d = new Date(dateStr + 'T12:00:00');
   return (d.getDay() + 6) % 7;
 }
 
-/**
- * Calcule les weekOffsets (relatifs à la semaine actuelle) couvrant [rangeStart, rangeEnd].
- * L'API menusApi.getWeek(n) retourne la semaine n relative à la semaine courante.
- */
+/** Offsets from the current week, as menusApi.getWeek takes them. */
 function computeWeekOffsets(rangeStart: string, rangeEnd: string): number[] {
   const today = parisToday();
   const todayMonday = getMondayOf(today);
@@ -64,19 +58,17 @@ interface WeekPayload {
   menus: Record<string, Menu | null>;
 }
 
-// ─── Hook ────────────────────────────────────────────────────────────────────
-
 interface UseCalendarDataResult {
   data: CalendarData;
   isLoading: boolean;
   error: unknown;
   reload: () => void;
   restaurantId: number | undefined;
-  serviceDays: number[]; // 0=Lun … 6=Dim (indice Mariam)
+  serviceDays: number[]; // 0 is Monday
   storageConfigured: boolean;
 }
 
-const STALE_TIME = 60_000; // 60 secondes — remplace les caches maison précédents
+const STALE_TIME = 60_000;
 
 export function useCalendarData(
   rangeStart: string,
@@ -91,7 +83,6 @@ export function useCalendarData(
   );
 
   // Large ranges (year view) would fire 50+ week requests; fetch only week 0 for
-  // the restaurant config and skip per-week menus.
   const skipMenus = weekOffsets.length > 8;
   const fetchedOffsets = skipMenus ? [0] : weekOffsets;
 
@@ -122,7 +113,6 @@ export function useCalendarData(
   });
 
   // Signature that changes only when the underlying query data changes, so the
-  // assembled result keeps a stable reference across unrelated re-renders.
   const weekSignature = weekResults.map((r) => r.dataUpdatedAt).join('|');
 
   const { data, restaurantId, serviceDays } = useMemo(() => {

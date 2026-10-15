@@ -1,6 +1,4 @@
-"""
-Tests de gestion des menus : création, publication, brouillon.
-"""
+"""Menus: creation, publication, drafts."""
 import datetime
 import pytest
 from app.extensions import db
@@ -48,7 +46,7 @@ class TestPublishMenu:
         return data.get('menu', {}).get('id')
 
     def _create_menu_with_item(self, app, client, token, restaurant_id):
-        """Un menu publiable doit contenir au moins un item (plat du catalogue)."""
+        """A menu needs a dish before it can be published."""
         category_id = make_category(app, restaurant_id)
         return self._create_menu(client, token, items=[
             {'category_id': category_id, 'name': 'Plat test'},
@@ -147,7 +145,7 @@ class TestGetMenus:
 
 
 class TestMenuTenantIsolation:
-    """Un éditeur ne peut accéder qu'aux menus de son propre restaurant."""
+    """An editor reaches the menus of their own site only."""
 
     def _menu_for_restaurant_a(self, app, client):
         rid_a = make_restaurant(app, name='RU A', code='RU_A')
@@ -185,7 +183,6 @@ class TestMenuTenantIsolation:
         menu_id, token_a, token_b = self._menu_for_restaurant_a(app, client)
         res = client.delete(f'/v1/menus/{menu_id}', headers=auth_headers(token_b))
         assert res.status_code == 404
-        # Le propriétaire y accède toujours
         assert client.get(f'/v1/menus/{menu_id}',
                           headers=auth_headers(token_a)).status_code == 200
 
@@ -197,8 +194,7 @@ class TestMenuTenantIsolation:
 
 
 class TestNotificationPayloads:
-    """Le corps des notifications push est construit à partir du format
-    d'items actuel (dish imbriqué, category_id)."""
+    """Push bodies read the current item shape: a nested dish and a category_id."""
 
     def _items(self):
         return [
@@ -234,8 +230,7 @@ class TestNotificationPayloads:
 
 
 class TestMenuAudit:
-    """Les saves de brouillon (auto-save onboarding) ne sont pas audités ;
-    la création et les modifications d'un menu publié le sont."""
+    """Draft saves are not audited; creating a menu and changing a published one are."""
 
     def _save(self, client, token, items):
         return client.post('/v1/menus',
@@ -246,8 +241,8 @@ class TestMenuAudit:
         make_restaurant(app)
         make_user(app)
         token = get_token(client)
-        self._save(client, token, [])   # création : menu_create
-        self._save(client, token, [])   # update brouillon : pas de log
+        self._save(client, token, [])   # creation: menu_create
+        self._save(client, token, [])   # draft update: no entry
         self._save(client, token, [])
         from app.models import AuditLog
         assert AuditLog.query.filter_by(action='menu_create').count() == 1
@@ -261,7 +256,7 @@ class TestMenuAudit:
         res = self._save(client, token, [{'category_id': category_id, 'name': 'Plat test'}])
         menu_id = res.get_json()['menu']['id']
         client.post(f'/v1/menus/{menu_id}/publish', headers=auth_headers(token))
-        # Modification d'un menu publié → menu_update
+        # a published menu changes: menu_update
         self._save(client, token, [{'category_id': category_id, 'name': 'Plat remplaçant'}])
         from app.models import AuditLog
         assert AuditLog.query.filter_by(action='menu_update').count() == 1

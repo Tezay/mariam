@@ -97,35 +97,34 @@ export function WeekView({
   const navigate = useNavigate();
   const selection = useSelection();
 
-  // Ouvre un Dialog après que le context menu Radix a fini de se fermer et de
-  // restituer le focus — évite l'aria-hidden / pointer-events bloqués.
+  // Once the Radix context menu has closed and given focus back: a dialog opened
+  // before that leaves aria-hidden and pointer-events stuck.
   const runAfterMenuClose = (fn: () => void) => requestAnimationFrame(fn);
 
   // Auto-exit selection mode when all items are deselected
   const hadSelectionRef = useRef(false);
+  const { toggleSelectionMode } = selection;
   useEffect(() => {
     if (selection.selectedItemCount > 0) hadSelectionRef.current = true;
     if (selection.selectionMode && selection.selectedItemCount === 0 && hadSelectionRef.current) {
       hadSelectionRef.current = false;
-      selection.toggleSelectionMode();
+      toggleSelectionMode();
     }
-  }, [selection.selectedItemCount, selection.selectionMode, selection.toggleSelectionMode]);
+  }, [selection.selectedItemCount, selection.selectionMode, toggleSelectionMode]);
 
-  // Dirty state: track which columns are dirty and their save/reset callbacks
   const saveCallbacksRef = useRef<Record<string, { save: () => Promise<void>; reset: () => void }>>(
     {}
   );
   const [dirtyDates, setDirtyDates] = useState<Set<string>>(new Set());
   const [isSavingAll, setIsSavingAll] = useState(false);
 
-  // Cross-day drag state
   const [activeDragItem, setActiveDragItem] = useState<{
     item: MenuItem;
     color: ReturnType<typeof getCategoryColor>;
   } | null>(null);
   const [multiDragItems, setMultiDragItems] = useState<MenuItem[]>([]);
 
-  // Alt key tracking for copy-on-drag (Alt/Option = copier au lieu de déplacer)
+  // Alt (Option) turns a move into a copy.
   const altHeldRef = useRef(false);
   const [isCopyMode, setIsCopyMode] = useState(false);
   useEffect(() => {
@@ -183,7 +182,6 @@ export function WeekView({
       if (!d) return;
       setActiveDragItem({ item: d.item, color: d.color });
 
-      // Multi-drag: if dragging a selected item, collect all selected items from that date
       const draggedId = d.item.id;
       const isInSelection = selection.selection.some(
         (e) => e.type === 'item' && e.itemId === draggedId
@@ -220,7 +218,6 @@ export function WeekView({
       const dropData = over.data.current as { date?: string } | undefined;
       if (!dragData?.dishId || !dragData.categoryId || !dragData.date || !dropData?.date) return;
 
-      // Don't drop on the same day
       if (dragData.date === dropData.date) return;
 
       const dropHandler = dropHandlersRef.current[dropData.date];
@@ -288,8 +285,6 @@ export function WeekView({
     Object.values(saveCallbacksRef.current).forEach(({ reset }) => reset());
   }, []);
 
-  // ─── Context menu ─────────────────────────────────────────────────────────
-
   type ContextTarget =
     | { type: 'day'; date: string; menuId?: number; menuStatus?: 'draft' | 'published' | null }
     | {
@@ -319,7 +314,7 @@ export function WeekView({
       setDeleteMenuTarget(null);
       onReload();
     } catch {
-      /* ignore */
+      /* The menu stays, and so does the dialog. */
     } finally {
       setIsDeletingMenu(false);
     }
@@ -361,7 +356,7 @@ export function WeekView({
         const itemId = Number(itemEl.dataset.menuItemId);
         const itemDate = itemEl.dataset.menuItemDate ?? '';
         const menuId = data[itemDate]?.menu?.id;
-        // État vivant de l'éditeur (reflète les toggles non encore rechargés dans `data`)
+        // The editor's live state, ahead of `data` until the next reload.
         const liveItems = getItemsHandlersRef.current[itemDate]?.();
         const item = (liveItems ?? data[itemDate]?.menu?.items)?.find((i) => i.id === itemId);
         setContextTarget({
@@ -398,7 +393,7 @@ export function WeekView({
       else await menusApi.publish(contextTarget.menuId);
       onReload();
     } catch {
-      /* ignore */
+      /* The menu keeps its status. */
     }
   }, [contextTarget, onReload]);
 
@@ -438,7 +433,6 @@ export function WeekView({
     [contextTarget]
   );
 
-  // Build 7 days and filter to service days only
   const allDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const serviceDaySet = new Set(serviceDays);
 
@@ -448,7 +442,6 @@ export function WeekView({
     return serviceDaySet.has(mariamDay);
   });
 
-  // Collect selected items for SelectionToolbar
   const selectedItems = selection.selection
     .filter((e) => e.type === 'item')
     .map((e) => {
@@ -458,14 +451,12 @@ export function WeekView({
     })
     .filter((i): i is NonNullable<typeof i> => i !== null);
 
-  // Clic droit sur un item faisant partie d'une multi-sélection → actions groupées
   const selectedItemCount = selection.selection.filter((e) => e.type === 'item').length;
   const isBulkContext =
     contextTarget?.type === 'item' &&
     selectedItemCount > 1 &&
     selection.selection.some((e) => e.type === 'item' && e.itemId === contextTarget.itemId);
 
-  // Item ciblé par le clic droit (état vivant), pour la duplication d'un seul plat
   const contextItem =
     contextTarget?.type === 'item'
       ? (
@@ -483,7 +474,6 @@ export function WeekView({
       onDragCancel={handleDragCancel}
     >
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Action bar — Mode sélection (gauche) + Annuler/Enregistrer (droite) */}
         {canEdit && (
           <div
             className={cn(
@@ -554,7 +544,6 @@ export function WeekView({
           </div>
         )}
 
-        {/* Week columns */}
         <ContextMenu>
           <ContextMenuTrigger asChild>
             <div
@@ -765,7 +754,6 @@ export function WeekView({
         </ContextMenu>
       </div>
 
-      {/* Ghost affiché pendant le drag cross-jours */}
       <DragOverlay dropAnimation={null}>
         {activeDragItem && (
           <div className={cn('relative', isCopyMode && 'cursor-copy')}>
@@ -785,7 +773,6 @@ export function WeekView({
         )}
       </DragOverlay>
 
-      {/* Context menu — ajouter un plat */}
       {pendingAddDish && (
         <Dialog
           open
@@ -832,7 +819,6 @@ export function WeekView({
         </Dialog>
       )}
 
-      {/* Context menu — importer depuis un autre jour (le jour courant est la cible) */}
       <MenuCopyPopover
         direction="import"
         open={contextImportDate !== null}
@@ -848,7 +834,6 @@ export function WeekView({
         }}
       />
 
-      {/* Context menu */}
       <AlertDialog
         open={deleteMenuTarget !== null}
         onOpenChange={(o) => {
@@ -875,7 +860,6 @@ export function WeekView({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Context menu — dupliquer (jour, item seul ou sélection) */}
       <MenuCopyPopover
         direction="export"
         open={contextDupeItems !== null}

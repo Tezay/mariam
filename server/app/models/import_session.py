@@ -1,8 +1,3 @@
-"""
-MARIAM - Modèle ImportSession
-
-Stocke temporairement les fichiers CSV parsés en base de données.
-"""
 import json
 from datetime import timedelta
 
@@ -11,8 +6,6 @@ from ..utils.time import utc_now_naive
 
 
 class ImportSession(db.Model):
-    """Session d'import CSV temporaire stockée en base de données."""
-    
     __tablename__ = 'import_session'
     
     id = db.Column(db.String(36), primary_key=True)  # UUID
@@ -32,22 +25,18 @@ class ImportSession(db.Model):
         self.expires_at = utc_now_naive() + timedelta(minutes=expires_minutes)
     
     def get_rows(self) -> list:
-        """Retourne les lignes comme liste de dictionnaires."""
         return json.loads(self.rows)
     
     def is_expired(self) -> bool:
-        """Vérifie si la session a expiré."""
         return utc_now_naive() > self.expires_at
     
     @classmethod
     def cleanup_expired(cls):
-        """Supprime les sessions expirées."""
         cls.query.filter(cls.expires_at < utc_now_naive()).delete()
         db.session.commit()
     
     @classmethod
     def get_valid(cls, session_id: str, user_id: int):
-        """Récupère une session valide pour un utilisateur."""
         session = cls.query.filter_by(id=session_id, user_id=user_id).first()
         if session and not session.is_expired():
             return session

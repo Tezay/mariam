@@ -1,37 +1,14 @@
-/**
- * MARIAM - Utilitaires de couleur pour les événements.
- *
- * Génère des palettes complètes à partir d'une couleur hex unique.
- */
-
-// ========================================
-// TYPES
-// ========================================
-
 export interface EventPalette {
-  /** Fond principal très clair */
   bg: string;
-  /** Fond des cartes / boîtes */
   card: string;
-  /** Couleur d'accentuation (la couleur d'origine) */
   accent: string;
-  /** Accent hover (plus foncé) */
   accentHover: string;
-  /** Texte principal foncé */
   text: string;
-  /** Texte secondaire */
   textMuted: string;
-  /** Bordure légère */
   border: string;
-  /** Fond de bouton */
   button: string;
-  /** Texte sur bouton */
   buttonText: string;
 }
-
-// ========================================
-// CONVERSIONS HEX ↔ HSL
-// ========================================
 
 function hexToRgb(hex: string): [number, number, number] {
   const clean = hex.replace('#', '');
@@ -84,10 +61,6 @@ function hslToHex(h: number, s: number, l: number): string {
   return `#${f(0)}${f(8)}${f(4)}`;
 }
 
-// ========================================
-// CONTRASTE (luminance relative WCAG)
-// ========================================
-
 function relativeLuminance(r: number, g: number, b: number): number {
   const [rs, gs, bs] = [r, g, b].map((c) => {
     c /= 255;
@@ -104,36 +77,20 @@ function contrastRatio(hex1: string, hex2: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-// ========================================
-// GÉNÉRATION DE PALETTE
-// ========================================
-
-/**
- * Génère une palette UI complète à partir d'une seule couleur hex
- * Textes lisibles : ratio de contraste >= 4.5:1
- */
+/** Text colours keep a 4.5:1 contrast with their background (WCAG AA). */
 export function generateEventPalette(hex: string): EventPalette {
   const [h, s, l] = rgbToHsl(...hexToRgb(hex));
 
-  // Fond principal : très clair, légèrement saturé
   const bg = hslToHex(h, Math.min(s, 30), 96);
-  // Fond carte : un peu plus prononcé
   const card = hslToHex(h, Math.min(s, 35), 93);
-  // Bordure
   const border = hslToHex(h, Math.min(s, 40), 85);
-  // Accent = couleur d'origine, clamped pour lisibilité
   const accent = hslToHex(h, Math.max(s, 50), Math.min(Math.max(l, 35), 50));
-  // Hover = plus foncé
   const accentHover = hslToHex(h, Math.max(s, 50), Math.min(Math.max(l, 25), 40));
-  // Bouton = accent
   const button = accent;
 
-  // Texte principal très foncé
   let text = hslToHex(h, Math.min(s, 30), 15);
-  // Texte secondaire
   let textMuted = hslToHex(h, Math.min(s, 20), 40);
 
-  // Vérifier le contraste du texte sur fond et ajuster si nécessaire
   if (contrastRatio(text, bg) < 4.5) {
     text = hslToHex(h, Math.min(s, 20), 10);
   }
@@ -141,15 +98,11 @@ export function generateEventPalette(hex: string): EventPalette {
     textMuted = hslToHex(h, Math.min(s, 15), 30);
   }
 
-  // Texte bouton : blanc ou noir selon contraste avec le bouton
   const buttonText = contrastRatio(button, '#ffffff') >= 3 ? '#ffffff' : '#1a1a1a';
 
   return { bg, card, accent, accentHover, text, textMuted, border, button, buttonText };
 }
 
-/**
- * Palette de couleurs prédéfinies pour le sélecteur de couleur.
- */
 export const EVENT_PRESET_COLORS = [
   { hex: '#E74C3C', label: 'Rouge' },
   { hex: '#E67E22', label: 'Orange' },

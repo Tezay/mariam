@@ -1,6 +1,4 @@
-"""
-Tests de l'import CSV : upload, confirmation, création des plats au catalogue.
-"""
+"""CSV import: upload, confirmation, dishes created in the catalog."""
 import datetime
 import io
 
@@ -56,7 +54,6 @@ class TestCsvImport:
         assert res.status_code == 200, res.get_json()
         assert res.get_json()['imported_count'] == 1
 
-        # Le menu importé contient les deux items, liés à des plats du catalogue
         menu = client.get(f'/v1/menus/by-date/{today}',
                           headers=auth_headers(token)).get_json()['menu']
         assert menu is not None
@@ -66,12 +63,11 @@ class TestCsvImport:
         names = {item['dish']['name'] for item in items}
         assert names == {'Poulet rôti', 'Riz pilaf'}
 
-        # Les plats existent au catalogue
         dishes = client.get('/v1/catalog', headers=auth_headers(token)).get_json()['dishes']
         assert {d['name'] for d in dishes} == {'Poulet rôti', 'Riz pilaf'}
 
     def test_reimport_reuses_catalog_dishes(self, app, client):
-        """Réimporter les mêmes plats ne crée pas de doublons au catalogue."""
+        """Importing the same dishes again adds none to the catalog."""
         restaurant_id = make_restaurant(app)
         make_user(app)
         token = get_token(client)
@@ -96,10 +92,6 @@ class TestCsvImport:
         assert len(dishes) == 2
 
 
-# ============================================================
-# Import du catalogue de plats (liste)
-# ============================================================
-
 def _upload_catalog(client, token, content, filename='plats.csv'):
     return client.post(
         '/v1/imports/catalog/upload',
@@ -110,7 +102,6 @@ def _upload_catalog(client, token, content, filename='plats.csv'):
 
 
 def _seed_vegetarian_tag(app):
-    """Crée un tag 'vegetarian' avec un mot-clé pour tester l'auto-détection."""
     from app.extensions import db
     from app.models.taxonomy import DietaryTag, DietaryTagCategory, DietaryTagKeyword
     db.session.add(DietaryTagCategory(id='regime', name='Régime'))
@@ -150,7 +141,7 @@ class TestCatalogImportPreview:
         res = client.post('/v1/imports/catalog/preview', json={
             'file_id': file_id, 'name_column': 'Nom',
         }, headers=auth_headers(token))
-        # Le champ n'est requis que hors export Mariam, d'où le refus côté route
+        # Required outside a Mariam export only: the route refuses, not the schema.
         assert res.status_code == 400
 
     def test_preview_flags_existing_duplicate(self, app, client):
@@ -158,7 +149,6 @@ class TestCatalogImportPreview:
         make_user(app)
         token = get_token(client)
         category_id = make_category(app, restaurant_id)
-        # Un plat existe déjà dans la catégorie
         client.post('/v1/catalog', json={'name': 'Poulet rôti', 'category_id': category_id},
                     headers=auth_headers(token))
         file_id = _upload_catalog(client, token, 'Nom\nPoulet rôti\nRiz pilaf\n').get_json()['file_id']
@@ -182,7 +172,7 @@ class TestCatalogImportPreview:
         res = client.post('/v1/imports/catalog/preview', json={
             'file_id': file_id, 'name_column': 'Nom', 'category_id': category_id,
         }, headers=auth_headers(token))
-        # « poulet roti » est un doublon normalisé de « Poulet rôti »
+        # A normalised duplicate of « Poulet rôti ».
         assert res.get_json()['new_count'] == 1
 
     def test_preview_auto_detects_tags_from_name(self, app, client):
@@ -240,7 +230,6 @@ class TestCatalogImportConfirm:
             'file_id': first, 'name_column': 'Nom', 'category_id': category_id,
         }, headers=auth_headers(token))
 
-        # Ré-import du même fichier → tout est doublon
         second = _upload_catalog(client, token, content).get_json()['file_id']
         res = client.post('/v1/imports/catalog/confirm', json={
             'file_id': second, 'name_column': 'Nom', 'category_id': category_id,
@@ -284,15 +273,15 @@ class TestCatalogImportTenantIsolation:
         category_a = make_category(app, rid_a)
         token_b = get_token(client, email='b@mariam.app')
         file_id = _upload_catalog(client, token_b, 'Nom\nPoulet rôti\n').get_json()['file_id']
-        # B tente d'importer dans une catégorie de A
+        # B names one of A's categories.
         res = client.post('/v1/imports/catalog/confirm', json={
             'file_id': file_id, 'name_column': 'Nom', 'category_id': category_a,
         }, headers=auth_headers(token_b))
-        assert res.status_code == 400  # catégorie introuvable pour ce restaurant
+        assert res.status_code == 400
 
 
 class TestCatalogExportRoundTrip:
-    """Exporter puis réimporter dans un catalogue vide doit tout restituer."""
+    """Exporting, then importing into an empty catalog, restores everything."""
 
     def _export(self, app, client):
         from app.extensions import db
@@ -321,7 +310,6 @@ class TestCatalogExportRoundTrip:
             '/v1/catalog/export', headers=auth_headers(token)
         ).get_data(as_text=True)
 
-        # Le site repart de zéro : c'est le cas « réimport dans un catalogue vide »
         DishCatalog.query.filter_by(restaurant_id=rid).delete()
         MenuCategory.query.filter_by(restaurant_id=rid).delete()
         db.session.commit()

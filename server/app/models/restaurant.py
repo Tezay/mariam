@@ -1,13 +1,3 @@
-"""
-Modèle Restaurant - Représente un restaurant universitaire (RU).
-
-Pensé dès le départ pour le multi-RU :
-- Chaque restaurant a son propre code identifiant
-- Les menus et événements sont liés à un restaurant
-- Les utilisateurs peuvent être associés à un restaurant spécifique
-- Configuration personnalisable (jours, catégories, tags/certifications)
-"""
-
 from ..data.taxonomy import DEFAULT_ENABLED_CERT_IDS, DEFAULT_ENABLED_TAG_IDS
 from ..extensions import db
 from ..utils.time import utc_now_naive
@@ -18,13 +8,10 @@ from .taxonomy import (
     restaurant_dietary_tags,
 )
 
-# Jours de service par défaut (0=Lundi, 4=Vendredi)
 DEFAULT_SERVICE_DAYS = [0, 1, 2, 3, 4]
 
 
 class Restaurant(db.Model):
-    """Entité Restaurant universitaire."""
-    
     __tablename__ = 'restaurants'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -34,7 +21,6 @@ class Restaurant(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=utc_now_naive)
 
-    # Multi-tenant: link to an organization
     organization_id = db.Column(
         db.Integer, db.ForeignKey('organizations.id'), nullable=True, index=True
     )
@@ -45,26 +31,24 @@ class Restaurant(db.Model):
         db.UniqueConstraint('organization_id', 'slug', name='uq_restaurant_org_slug'),
     )
 
-    # Adresse vérifiée (Base Adresse Nationale — IGN Géoplateforme)
+    # As the Base Adresse Nationale returns it.
     address_label = db.Column(db.String(300), nullable=True)
     address_lat = db.Column(db.Float, nullable=True)
     address_lon = db.Column(db.Float, nullable=True)
 
-    # Contact
     email = db.Column(db.String(150), nullable=True)
     phone = db.Column(db.String(30), nullable=True)
 
-    # Capacité d'accueil (nombre de couverts)
+    # Seats.
     capacity = db.Column(db.Integer, nullable=True)
 
-    # Méthodes de paiement acceptées — liste de clés parmi : izly, cb, cash, ticket_restaurant
+    # Among izly, cb, cash and ticket_restaurant.
     payment_methods = db.Column(db.JSON, nullable=True)
 
-    # Accessibilité PMR : None = non renseigné, True = accessible, False = non accessible
+    # None when unknown.
     pmr_access = db.Column(db.Boolean, nullable=True)
 
-    # Jours de service et personnalisation des tags
-    service_days = db.Column(db.JSON, nullable=True)  # [0,1,2,3,4] = Lun-Ven
+    service_days = db.Column(db.JSON, nullable=True)  # Weekday numbers, 0 being Monday
 
     vote_enabled = db.Column(db.Boolean, nullable=False, default=True, server_default='true')
     # Categories whose dishes a vote may be attached to. NULL keeps the default
@@ -75,7 +59,6 @@ class Restaurant(db.Model):
     )
     tags_customized = db.Column(db.Boolean, default=False, server_default='false')
     
-    # Relations N:N normalisées (tags & certifications activés pour ce restaurant)
     enabled_tags = db.relationship(
         'DietaryTag',
         secondary=restaurant_dietary_tags,
@@ -91,7 +74,6 @@ class Restaurant(db.Model):
         backref=db.backref('restaurants', lazy='select'),
     )
     
-    # Relations
     service_hours = db.relationship(
         'RestaurantServiceHours',
         backref='restaurant',
@@ -112,18 +94,14 @@ class Restaurant(db.Model):
     )
     
     def get_service_days(self):
-        """Retourne les jours de service (avec défaut)."""
         return self.service_days if self.service_days is not None else DEFAULT_SERVICE_DAYS
     
     def get_menu_categories_list(self):
-        """Retourne les catégories principales (sans sous-catégories) triées."""
         return self.menu_categories.filter_by(parent_id=None).order_by('order').all()
 
     def get_config(self):
-        """Retourne la configuration complète du restaurant.
-
-        Si aucun tag/certif n'a été explicitement configuré (tags_customized=False),
-        on renvoie les défauts définis dans taxonomy.py
+        """Until the site customises them, its tags and certifications are the defaults of
+        data/taxonomy.py.
         """
         if self.tags_customized:
             tags = list(self.enabled_tags)
@@ -157,14 +135,12 @@ class Restaurant(db.Model):
         return [category.id for category in votable_categories(self)]
 
     def get_service_hours_dict(self):
-        """Retourne les horaires de service sous forme de dict {day: {open, close}}."""
         return {
             str(h.day_of_week): {'open': h.open_time, 'close': h.close_time}
             for h in self.service_hours
         }
 
     def to_dict(self, include_config=False):
-        """Sérialise le restaurant en dictionnaire JSON."""
         data = {
             'id': self.id,
             'name': self.name,
@@ -190,8 +166,6 @@ class Restaurant(db.Model):
 
 
 class RestaurantServiceHours(db.Model):
-    """Horaires de service pour un jour donné de la semaine."""
-
     __tablename__ = 'restaurant_service_hours'
     __table_args__ = (
         db.UniqueConstraint('restaurant_id', 'day_of_week', name='uq_restaurant_service_hour_day'),
@@ -199,7 +173,7 @@ class RestaurantServiceHours(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id', ondelete='CASCADE'), nullable=False)
-    day_of_week = db.Column(db.Integer, nullable=False)  # 0=Lundi … 6=Dimanche
+    day_of_week = db.Column(db.Integer, nullable=False)  # 0 is Monday
     open_time = db.Column(db.String(5), nullable=False)  # "HH:MM"
     close_time = db.Column(db.String(5), nullable=False)  # "HH:MM"
 

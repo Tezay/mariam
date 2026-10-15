@@ -1,12 +1,3 @@
-/**
- * MARIAM - Gestionnaire TOTP
- *
- * Permet d'ajouter ou de supprimer l'authentification par code (TOTP)
- * depuis les paramètres du compte.
- *
- * Contrainte : impossible de désactiver si aucune passkey n'est enregistrée
- * (l'utilisateur doit toujours avoir au moins une méthode 2FA active).
- */
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStepUp } from '@/hooks/useStepUp';

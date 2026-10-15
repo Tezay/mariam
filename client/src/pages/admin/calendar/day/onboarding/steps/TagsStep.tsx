@@ -1,7 +1,3 @@
-/**
- * Qualification d'un nouveau plat : tags alimentaires et certifications.
- * La validation crée immédiatement le plat au catalogue (puis étape photo).
- */
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { TagIcon } from '@/components/TagIcon';
 import { Button } from '@/components/ui/button';

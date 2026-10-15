@@ -1,6 +1,3 @@
-/**
- * Onglet Accessibilité : accès PMR et méthodes de paiement.
- */
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accessibility, CreditCard } from 'lucide-react';

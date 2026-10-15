@@ -47,8 +47,6 @@ interface AdminDayDisplayProps {
 
 type Mode = 'view' | 'import-csv';
 
-// ─── PublishControl ───────────────────────────────────────────────────────────
-
 function PublishControl({ editor }: { editor: UseMenuEditorReturn }) {
   const { menuStatus, isPublishing, isDirty, publishMenu, unpublishMenu } = editor;
   if (menuStatus === null) return null;
@@ -99,8 +97,6 @@ function PublishControl({ editor }: { editor: UseMenuEditorReturn }) {
     </div>
   );
 }
-
-// ─── MenuEditToolbar ──────────────────────────────────────────────────────────
 
 interface MenuEditToolbarProps {
   editor: UseMenuEditorReturn;
@@ -203,8 +199,6 @@ function MenuEditToolbar({
   );
 }
 
-// ─── AdminDayDisplay ──────────────────────────────────────────────────────────
-
 export function AdminDayDisplay({
   date,
   menu,
@@ -241,7 +235,7 @@ export function AdminDayDisplay({
       await menusApi.delete(menu.id);
       onReload();
     } catch {
-      /* ignore */
+      /* The menu stays where it was. */
     } finally {
       setIsDeletingMenu(false);
       setDeleteMenuConfirmOpen(false);
@@ -303,12 +297,10 @@ export function AdminDayDisplay({
 
       <div className="flex-1 overflow-y-auto pb-36 sidebar:pb-4">
         <div className="mx-auto max-w-2xl space-y-4 p-4">
-          {/* Événements : toujours affichés, qu'il y ait un menu ou non */}
           {events.map((event) => (
             <EventCard key={event.id} event={event} onEdit={onEditEvent} />
           ))}
 
-          {/* État sans menu */}
           {!hasMenu &&
             mode === 'view' &&
             (canEdit ? (
@@ -376,7 +368,6 @@ export function AdminDayDisplay({
               </div>
             ) : null)}
 
-          {/* Contenu du menu */}
           {hasMenu && (
             <>
               {!canEdit && menu?.chef_note && (

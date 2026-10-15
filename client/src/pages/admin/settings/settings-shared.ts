@@ -1,6 +1,3 @@
-/**
- * Constantes et helpers partagés entre les onglets de la page Mon restaurant.
- */
 import { ServiceHours } from '@/lib/api/restaurant';
 import { parseSiteName, SITE_NAME_RULE } from '@/lib/site-name';
 
@@ -30,7 +27,6 @@ export function validatePhone(val: string): string | null {
   return null;
 }
 
-/** Champs du restaurant participant au dirty tracking (onglets Infos, Horaires, Accessibilité, Tags). */
 export interface RestaurantFormState {
   name: string;
   serviceDays: number[];

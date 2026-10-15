@@ -34,11 +34,9 @@ export function AddDishCombobox({ categoryId, editor, compact }: AddDishCombobox
       .finally(() => setLoading(false));
   }, [open, dishes.length]);
 
-  // IDs déjà présents dans cette catégorie — on ne les propose pas à nouveau
   const existingDishIds = new Set(
     editor.items.filter((i) => i.category_id === categoryId).map((i) => i.dish_id)
   );
-  // Plats filtrés : même catégorie + non déjà ajoutés
   const available = dishes.filter(
     (d) => d.category_id === categoryId && !existingDishIds.has(d.id)
   );

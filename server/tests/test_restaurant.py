@@ -1,6 +1,4 @@
-"""
-Tests de la configuration restaurant : accès refusé sans JWT, CRUD config.
-"""
+"""Site settings: refused without a session, read and written with one."""
 import pytest
 
 from app.extensions import db

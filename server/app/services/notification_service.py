@@ -1,11 +1,3 @@
-"""
-MARIAM - Service de notifications push.
-
-Gère l'envoi des notifications Web Push via VAPID :
-- Menu du jour (notification quotidienne planifiée)
-- Menu du lendemain (notification la veille au soir)
-- Événements à venir (notification à la publication)
-"""
 import json
 import logging
 import os
@@ -20,11 +12,7 @@ from .redis_client import acquire_job_lock
 logger = logging.getLogger(__name__)
 
 
-# ========================================
-# Configuration VAPID
-# ========================================
 def get_vapid_claims():
-    """Retourne les paramètres VAPID pour pywebpush."""
     return {
         'private_key': os.environ.get('VAPID_PRIVATE_KEY', ''),
         'claims': {
@@ -34,23 +22,12 @@ def get_vapid_claims():
 
 
 def get_vapid_public_key():
-    """Retourne la clé publique VAPID (exposée côté client)."""
     return os.environ.get('VAPID_PUBLIC_KEY', '')
 
 
-# ========================================
-# Envoi de notifications
-# ========================================
 def send_push_notification(subscription_info: dict, payload: dict) -> bool:
-    """
-    Envoie une notification push à un abonné.
-
-    Args:
-        subscription_info: dict avec endpoint + keys (p256dh, auth)
-        payload: dict du contenu de la notification (title, body, icon, url, etc.)
-
-    Returns:
-        True si envoyé avec succès, False sinon.
+    """False when nothing was sent. A subscription whose endpoint is not a push
+    service, or one the push service no longer knows (404, 410), is deleted.
     """
     endpoint = subscription_info['endpoint']
     # Checked again where the request leaves: a row can predate the check the
@@ -63,17 +40,14 @@ def send_push_notification(subscription_info: dict, payload: dict) -> bool:
     vapid = get_vapid_claims()
 
     if not vapid['private_key']:
-        logger.warning("VAPID_PRIVATE_KEY non configurée — notification ignorée")
+        logger.warning("VAPID_PRIVATE_KEY unset, notification skipped")
         return False
 
-    # En-têtes Web Push (RFC 8030) :
-    #   Urgency: high  → FCM/APNs livre immédiatement, même en mode Doze (Android).
-    #   Topic           → le push service remplace un message en attente de même topic
-    #                     (évite les doublons si le device est hors-ligne).
+    # Urgency and Topic: docs/ARCHITECTURE.md, "Push notifications".
     topic = payload.get('tag', '')
     push_headers: dict[str, str | int | float] = {'Urgency': 'high'}
     if topic:
-        # Topic : max 32 chars, base64url alphabet (a-z A-Z 0-9 - _)
+        # RFC 8030: at most 32 characters of the base64url alphabet.
         push_headers['Topic'] = topic[:32]
 
     try:
@@ -87,7 +61,7 @@ def send_push_notification(subscription_info: dict, payload: dict) -> bool:
             headers=push_headers,
         )
         logger.debug(
-            "Push envoyé (HTTP %s) → %s",
+            "Push sent (HTTP %s) to %s",
             resp.status_code,
             endpoint[:80],
         )
@@ -97,16 +71,16 @@ def send_push_notification(subscription_info: dict, payload: dict) -> bool:
         status_code = e.response.status_code if e.response is not None else None
 
         if status_code in (404, 410):
-            # Endpoint expiré ou révoqué — supprimer la souscription
-            logger.info(f"Endpoint expiré (HTTP {status_code}), suppression : {endpoint[:80]}...")
+            # The browser dropped this endpoint.
+            logger.info(f"Endpoint gone (HTTP {status_code}), removing it: {endpoint[:80]}...")
             _remove_subscription(endpoint)
             return False
 
-        logger.error(f"Erreur Web Push (HTTP {status_code}) : {e}")
+        logger.error(f"Web Push failed (HTTP {status_code}): {e}")
         return False
 
     except Exception as e:
-        logger.error(f"Erreur inattendue lors de l'envoi push : {e}")
+        logger.error(f"Push failed: {e}")
         return False
 
 
@@ -118,22 +92,14 @@ def _remove_subscription(endpoint: str):
     if sub:
         db.session.delete(sub)
         db.session.commit()
-        logger.info(f"Souscription {sub.id} supprimée")
+        logger.info(f"Subscription {sub.id} removed")
 
-
-# ========================================
-# Construction des payloads de notification
-# ========================================
 
 def _format_menu_body(menu_items: list[dict]) -> str | None:
-    """
-    Construit le corps de la notification à partir des items du menu.
-    Retourne None si la liste est vide (= pas de notification à envoyer).
-    """
+    """None when there is nothing to announce."""
     if not menu_items:
         return None
 
-    # Un item par catégorie, dans l'ordre d'apparition (items en rupture exclus)
     seen: dict[int | None, str] = {}
     for item in menu_items:
         if item.get('is_out_of_stock'):
@@ -148,10 +114,7 @@ def _format_menu_body(menu_items: list[dict]) -> str | None:
 
 
 def build_today_menu_payload(menu_items: list[dict]) -> dict | None:
-    """
-    Construit le payload pour la notification du menu du jour.
-    Retourne None si aucun menu n'est défini (pas de notification).
-    """
+    """None when there is no menu to announce."""
     body = _format_menu_body(menu_items)
     if body is None:
         return None
@@ -167,10 +130,7 @@ def build_today_menu_payload(menu_items: list[dict]) -> dict | None:
 
 
 def build_tomorrow_menu_payload(menu_items: list[dict]) -> dict | None:
-    """
-    Construit le payload pour la notification du menu du lendemain.
-    Retourne None si aucun menu n'est défini (pas de notification).
-    """
+    """None when there is no menu to announce."""
     body = _format_menu_body(menu_items)
     if body is None:
         return None
@@ -188,12 +148,7 @@ def build_tomorrow_menu_payload(menu_items: list[dict]) -> dict | None:
 
 
 def build_event_payload(event_title: str, event_date: str, reminder: str = '') -> dict:
-    """
-    Construit le payload pour la notification d'un événement.
-
-    Args:
-        reminder: 'tomorrow', '7days' ou '' pour choisir le préfixe du body.
-    """
+    """`reminder` is 'tomorrow', '7days' or '', and picks the opening of the body."""
     if reminder == 'tomorrow':
         body = f"Demain \u2014 {event_date}"
     elif reminder == '7days':
@@ -211,17 +166,8 @@ def build_event_payload(event_title: str, event_date: str, reminder: str = '') -
     }
 
 
-# ========================================
-# Tâche planifiée : vérification et envoi
-# ========================================
 def check_and_send_notifications(app):
-    """
-    Tâche exécutée toutes les minutes par APScheduler.
-    Vérifie les souscriptions dont l'heure correspond et envoie les notifications.
-
-    Utilise un verrou Redis (ou fallback sans verrou en dev) pour éviter
-    les envois en double si plusieurs instances du backend tournent.
-    """
+    """Run every minute. A Redis lock keeps two scheduler instances from sending twice."""
     with app.app_context():
         from ..extensions import db
         from ..models.menu import Menu
@@ -233,7 +179,6 @@ def check_and_send_notifications(app):
         today = paris_today()
         tomorrow = today + timedelta(days=1)
 
-        # Acquérir un verrou Redis pour cette minute (évite les doublons multi-instance)
         lock_key = f"mariam:notif_lock:{now.strftime('%Y%m%d%H%M')}"
         if not _acquire_lock(lock_key, ttl=55):
             return
@@ -241,14 +186,13 @@ def check_and_send_notifications(app):
         sent_count = 0
 
         try:
-            # ===== Menu du jour =====
             today_subs = PushSubscription.query.filter(
                 PushSubscription.notify_today_menu,
                 PushSubscription.notify_today_menu_time == current_time,
             ).all()
 
             if today_subs:
-                # Regrouper par restaurant pour n'exécuter qu'une requête menu par RU
+                # One menu query per site, not per subscriber.
                 by_restaurant = {}
                 for sub in today_subs:
                     by_restaurant.setdefault(sub.restaurant_id, []).append(sub)
@@ -275,7 +219,6 @@ def check_and_send_notifications(app):
 
                 db.session.commit()
 
-            # ===== Menu du lendemain =====
             tomorrow_subs = PushSubscription.query.filter(
                 PushSubscription.notify_tomorrow_menu,
                 PushSubscription.notify_tomorrow_menu_time == current_time,
@@ -308,27 +251,20 @@ def check_and_send_notifications(app):
 
                 db.session.commit()
 
-            # ===== Événements à venir (J-7 et J-1) =====
-            # Vérifié une seule fois par jour (première exécution de la journée).
             sent_count = _check_event_notifications(db, now, sent_count)
 
-            # ===== Fermetures exceptionnelles (J-7 et J-1 avant start_date) =====
             sent_count = _check_closure_notifications(db, now, sent_count)
 
         except Exception as e:
-            logger.error(f"Erreur dans check_and_send_notifications : {e}")
+            logger.error(f"check_and_send_notifications failed: {e}")
             db.session.rollback()
 
         if sent_count > 0:
-            logger.info(f"✅ {sent_count} notification(s) push envoyée(s)")
+            logger.info(f"{sent_count} push notification(s) sent")
 
 
 def _check_event_notifications(db, now, sent_count: int) -> int:
-    """
-    Vérifie les événements publiés nécessitant une notification (J-7 ou J-1).
-    Envoie aux abonnés ayant activé notify_events.
-    Retourne le nouveau sent_count.
-    """
+    """Send the week and day reminders of published events; returns the updated count."""
     from ..models.event import Event
     from ..models.push_subscription import PushSubscription
 
@@ -336,7 +272,6 @@ def _check_event_notifications(db, now, sent_count: int) -> int:
     target_7d = today + timedelta(days=7)
     target_1d = today + timedelta(days=1)
 
-    # Événements publiés à J-7 ou J-1
     events = Event.query.filter(
         Event.status == 'published',
         Event.is_active,
@@ -344,7 +279,6 @@ def _check_event_notifications(db, now, sent_count: int) -> int:
     ).all()
 
     for event in events:
-        # Déterminer quel rappel envoyer
         is_7d = (event.event_date == target_7d) and not event.notified_7d
         is_1d = (event.event_date == target_1d) and not event.notified_1d
 
@@ -369,7 +303,6 @@ def _check_event_notifications(db, now, sent_count: int) -> int:
                 sub.last_notified_at = now
                 event_sent += 1
 
-        # Marquer comme envoyé
         if is_7d:
             event.notified_7d = True
         if is_1d:
@@ -377,17 +310,14 @@ def _check_event_notifications(db, now, sent_count: int) -> int:
 
         sent_count += event_sent
         if event_sent:
-            logger.info(f"\U0001F4C5 Événement '{event.title}' ({'tomorrow' if is_1d else '7days'}) : {event_sent} notification(s)")
+            logger.info(f"Event '{event.title}' ({'tomorrow' if is_1d else '7days'}) : {event_sent} notification(s)")
 
     db.session.commit()
     return sent_count
 
 
 def _check_closure_notifications(db, now, sent_count: int) -> int:
-    """
-    Vérifie les fermetures exceptionnelles publiées nécessitant une notification (J-7 ou J-1).
-    Envoie aux abonnés ayant activé notify_events (même canal que les événements).
-    """
+    """Closures go to the subscribers of event reminders: they share notify_events."""
     from ..models.exceptional_closure import ExceptionalClosure
     from ..models.push_subscription import PushSubscription
     from ..utils.time import paris_today
@@ -408,7 +338,6 @@ def _check_closure_notifications(db, now, sent_count: int) -> int:
         if not is_7d and not is_1d:
             continue
 
-        # Formater la plage de dates
         if closure.start_date == closure.end_date:
             date_label = format_date_fr(closure.start_date, year=False)
         else:
@@ -452,9 +381,5 @@ def _check_closure_notifications(db, now, sent_count: int) -> int:
     return sent_count
 
 
-# ========================================
-# Verrou Redis (anti-doublon multi-instance)
-# ========================================
 def _acquire_lock(lock_key: str, ttl: int = 55) -> bool:
-    """Verrou Redis anti-exécutions concurrentes, partagé avec les autres jobs."""
     return acquire_job_lock(lock_key, ttl)

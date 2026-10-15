@@ -1,6 +1,3 @@
-"""
-Modèles MARIAM - Exports centralisés.
-"""
 from .activation_link import ActivationLink
 from .audit_log import AuditLog
 from .catalog import CategorySubstitution, DishCatalog, dish_certifications, dish_dietary_tags

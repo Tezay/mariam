@@ -49,14 +49,12 @@ export function DayImportCsv({
     setError(null);
   };
 
-  // Step 1: Upload
   const handleUpload = async (file: File) => {
     setIsLoading(true);
     setError(null);
     try {
       const data = await csvImportApi.upload(file);
       setUploadData(data);
-      // Build initial mapping from auto_mapping
       const cols: ColumnMapping[] = data.columns.map((col) => {
         const autoCategory = data.auto_mapping.categories?.[col];
         if (autoCategory)
@@ -72,7 +70,6 @@ export function DayImportCsv({
     }
   };
 
-  // Step 2 → 3: Preview
   const handlePreview = async () => {
     if (!uploadData) return;
     setIsLoading(true);
@@ -93,7 +90,6 @@ export function DayImportCsv({
     }
   };
 
-  // Step 3: Confirm
   const handleConfirm = async () => {
     if (!uploadData) return;
     setIsLoading(true);

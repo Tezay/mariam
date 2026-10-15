@@ -1,14 +1,10 @@
-"""
-Tests des routes publiques de menu (sans JWT).
-Vérifie que les menus publiés sont visibles et les brouillons invisibles.
-"""
+"""Public menu routes, without a session: published menus show, drafts never."""
 import datetime
 from app.extensions import db
 from conftest import make_restaurant, make_user, get_token, auth_headers
 
 
 def _make_menu(restaurant_id, date_str, published=False):
-    """Crée un menu en base pour la date donnée (doit être appelé dans un app context)."""
     from app.models import Menu
     menu = Menu(
         restaurant_id=restaurant_id,

@@ -1,6 +1,4 @@
-"""
-Tests du catalogue de plats : CRUD, contrôle des rôles, isolation multi-restaurant.
-"""
+"""The dish catalog: CRUD, roles, isolation between sites."""
 from conftest import auth_headers, get_token, make_category, make_restaurant, make_user
 
 
@@ -34,7 +32,7 @@ class TestCatalogCrud:
         res = _create_dish(client, token)
         assert res.status_code == 201
         dish = res.get_json()['dish']
-        # Le nom est normalisé : première lettre en majuscule
+        # Normalised: capital first letter.
         assert dish['name'] == 'Poulet rôti'
 
     def test_create_dish_requires_auth(self, client):
@@ -122,7 +120,7 @@ class TestCatalogCrud:
         assert res.status_code == 409
 
     def test_menu_items_reuse_existing_dish(self, app, client):
-        """Deux menus avec le même nom de plat réutilisent la même entrée du catalogue."""
+        """Two menus naming the same dish share its catalog entry."""
         import datetime
         restaurant_id = make_restaurant(app)
         make_user(app)
@@ -150,7 +148,7 @@ class TestCatalogCrud:
 
 
 class TestCatalogRoles:
-    """Les routes d'écriture du catalogue exigent le rôle editor ou admin."""
+    """Writing to the catalog takes the editor or admin role."""
 
     def test_reader_cannot_create_dish(self, app, client):
         make_restaurant(app)
@@ -178,7 +176,7 @@ class TestCatalogRoles:
 
 
 class TestCatalogTenantIsolation:
-    """Chaque restaurant ne voit et ne modifie que son propre catalogue."""
+    """Each site sees and changes its own catalog only."""
 
     def _two_restaurants(self, app, client):
         rid_a = make_restaurant(app, name='RU A', code='RU_A')

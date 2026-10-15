@@ -1,23 +1,3 @@
-"""
-Event routes for MARIAM — Public display and editor management.
-
-Public endpoints (no authentication required):
-- GET /v1/events     Upcoming published events (TV/mobile)
-
-Editor endpoints (JWT required):
-- GET    /v1/events                        List with filters (drafts included)
-- GET    /v1/events/storage-status         S3 storage status
-- GET    /v1/events/<id>                   Event details
-- POST   /v1/events                        Create an event
-- PUT    /v1/events/<id>                   Update an event
-- DELETE /v1/events/<id>                   Delete an event
-- POST   /v1/events/<id>/publish           Publish
-- POST   /v1/events/<id>/unpublish         Revert to draft
-- POST   /v1/events/<id>/duplicate         Duplicate
-- POST   /v1/events/<id>/images            Upload image
-- DELETE /v1/events/<id>/images/<img_id>   Delete image
-- PUT    /v1/events/<id>/images/reorder    Reorder images
-"""
 from datetime import datetime, timedelta
 
 from flask import jsonify, request
@@ -51,15 +31,6 @@ events_bp = Blueprint(
 )
 
 
-# ============================================================
-# HELPERS
-# ============================================================
-
-# ============================================================
-# LISTE DES ÉVÉNEMENTS — route unifiée public/éditeur
-# (définie AVANT les routes paramétrées /<int:event_id>)
-# ============================================================
-
 def _public_event(event: Event) -> dict:
     """Serialise for the menu pages, which render the description as markup.
 
@@ -87,7 +58,6 @@ def list_events():
     """
     restaurant_id = request.args.get('restaurant_id', type=int)
 
-    # Déterminer si l'appelant est un éditeur authentifié
     is_editor = False
     user = None
     try:
@@ -120,7 +90,6 @@ def list_events():
             restaurant_id = restaurant.id
 
     if is_editor:
-        # Vue gestion : tous les événements avec filtres
         upcoming_only = request.args.get('upcoming', 'true').lower() == 'true'
         include_inactive = request.args.get('include_inactive', 'false').lower() == 'true'
         status_filter = request.args.get('status')
@@ -141,7 +110,6 @@ def list_events():
         return jsonify({'events': [event.to_dict() for event in events]}), 200
 
     else:
-        # Vue publique : publiés, actifs, à partir d'aujourd'hui
         visibility = request.args.get('visibility')
         limit = request.args.get('limit', 5, type=int)
 
@@ -172,7 +140,7 @@ def list_events():
         return jsonify({
             'today_event': today_event,
             'upcoming_events': upcoming_events,
-            # Rétrocompatibilité
+            # For the clients that read the flat list.
             'events': [_public_event(event) for event in events],
         }), 200
 
@@ -241,10 +209,6 @@ def create_event(data):
     return jsonify({'message': 'Événement créé', 'event': event.to_dict()}), 201
 
 
-# ============================================================
-# ROUTE STATIQUE — doit précéder /<int:event_id>
-# ============================================================
-
 @events_bp.route('/storage-status', methods=['GET'])
 @events_bp.response(200, MessageSchema)
 @jwt_required()
@@ -252,10 +216,6 @@ def storage_status():
     """Check whether S3 storage is configured."""
     return jsonify({'configured': storage.is_configured}), 200
 
-
-# ============================================================
-# ROUTES PARAMÉTRÉES — après toutes les routes statiques
-# ============================================================
 
 @events_bp.route('/<int:event_id>', methods=['GET'])
 @events_bp.response(200, EventSchema)
@@ -452,10 +412,6 @@ def duplicate_event(event_id):
 
     return jsonify({'message': 'Événement dupliqué', 'event': new_event.to_dict()}), 201
 
-
-# ============================================================
-# IMAGES D'ÉVÉNEMENTS
-# ============================================================
 
 @events_bp.route('/<int:event_id>/images', methods=['POST'])
 @events_bp.response(201, EventSchema)

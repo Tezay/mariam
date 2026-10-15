@@ -1,64 +1,64 @@
-import { defineConfig } from 'vite'
-import { reactRouter } from '@react-router/dev/vite'
-import license from 'rollup-plugin-license'
-import path from 'path'
-import fs from 'fs'
+import { defineConfig } from 'vite';
+import { reactRouter } from '@react-router/dev/vite';
+import license from 'rollup-plugin-license';
+import path from 'path';
+import fs from 'fs';
 
 // compose.yaml points it at the backend container.
-const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://localhost:5000'
+const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://localhost:5000';
 
 // HTTPS from the mkcert certificates of scripts/generate-dev-certs.sh, when they exist.
 function getDevHttpsConfig() {
-    // /certs is the compose.yaml mount; ../certs the repository's folder, for Vite on the host.
-    const certPaths = [
-        { key: '/certs/dev-key.pem', cert: '/certs/dev.pem' },
-        { key: '../certs/dev-key.pem', cert: '../certs/dev.pem' },
-    ];
-    for (const p of certPaths) {
-        if (fs.existsSync(p.key) && fs.existsSync(p.cert)) {
-            return { key: fs.readFileSync(p.key), cert: fs.readFileSync(p.cert) };
-        }
+  // /certs is the compose.yaml mount; ../certs the repository's folder, for Vite on the host.
+  const certPaths = [
+    { key: '/certs/dev-key.pem', cert: '/certs/dev.pem' },
+    { key: '../certs/dev-key.pem', cert: '../certs/dev.pem' },
+  ];
+  for (const p of certPaths) {
+    if (fs.existsSync(p.key) && fs.existsSync(p.cert)) {
+      return { key: fs.readFileSync(p.key), cert: fs.readFileSync(p.cert) };
     }
-    return undefined;
+  }
+  return undefined;
 }
 
 export default defineConfig({
-    plugins: [
-        reactRouter(),
-        {
-            ...license({
-                thirdParty: {
-                    output: path.join(__dirname, 'build', 'client', 'licenses', 'third-party.txt'),
-                },
-            }),
-            apply: 'build',
-            // The server build would overwrite the file with its own, shorter list.
-            applyToEnvironment: (environment) => environment.name === 'client',
+  plugins: [
+    reactRouter(),
+    {
+      ...license({
+        thirdParty: {
+          output: path.join(import.meta.dirname, 'build', 'client', 'licenses', 'third-party.txt'),
         },
-    ],
-    resolve: {
-        alias: {
-            '@': path.resolve(__dirname, './src'),
-        },
+      }),
+      apply: 'build',
+      // The server build would overwrite the file with its own, shorter list.
+      applyToEnvironment: (environment) => environment.name === 'client',
     },
-    server: {
-        https: getDevHttpsConfig(),
-        host: true,
-        port: 5173,
-        proxy: {
-            '/v1': {
-                target: apiProxyTarget,
-                changeOrigin: true,
-            },
-            // Unversioned, like Nginx serves it in production.
-            '/health': {
-                target: apiProxyTarget,
-                changeOrigin: true,
-            },
-        },
-        watch: {
-            // Restarting on a change to this file crashes Vite inside Docker.
-            ignored: ['**/vite.config.ts'],
-        },
+  ],
+  resolve: {
+    alias: {
+      '@': path.resolve(import.meta.dirname, './src'),
     },
-})
+  },
+  server: {
+    https: getDevHttpsConfig(),
+    host: true,
+    port: 5173,
+    proxy: {
+      '/v1': {
+        target: apiProxyTarget,
+        changeOrigin: true,
+      },
+      // Unversioned, like Nginx serves it in production.
+      '/health': {
+        target: apiProxyTarget,
+        changeOrigin: true,
+      },
+    },
+    watch: {
+      // Restarting on a change to this file crashes Vite inside Docker.
+      ignored: ['**/vite.config.ts'],
+    },
+  },
+});

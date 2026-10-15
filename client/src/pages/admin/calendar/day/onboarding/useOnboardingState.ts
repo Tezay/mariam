@@ -1,11 +1,7 @@
 /**
- * État central de l'onboarding de création de menu.
- *
- * Enveloppe useMenuEditor (items, substitutions, auto-save) et pilote la
- * machine à états du wizard. Un nouveau plat est créé IMMÉDIATEMENT au
- * catalogue (catalogApi.create) dès la confirmation de ses tags — ce qui
- * permet l'upload photo direct et fiabilise la déduplication. Le brouillon
- * de menu est auto-sauvegardé (débouncé) après chaque modification.
+ * A new dish is created in the catalog as soon as its tags are confirmed: its photo
+ * then uploads straight to it, and duplicates are caught. The draft menu saves
+ * itself, debounced, after every change.
  */
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { catalogApi } from '@/lib/api/catalog';
@@ -39,7 +35,6 @@ export interface UseOnboardingStateOptions {
   date: string;
   restaurantId: number | undefined;
   categories: MenuCategory[];
-  /** Appelé quand le wizard doit se fermer (terminé, abandonné ou bloqué). */
   onExit: (reason: 'done' | 'discarded' | 'blocked') => void;
 }
 
@@ -54,11 +49,10 @@ export interface UseOnboardingStateReturn {
   isCreatingDish: boolean;
   isFinalizing: boolean;
   pendingDish: PendingDish | null;
-  /** Plat concerné par l'étape photo / l'écran « ajouté » courant. */
+  /** The dish of the photo step or of the « added » screen. */
   activeDish: DishCatalogItem | null;
-  /** Plats proposables pour la catégorie courante (strict, dédupliqués, hors menu). */
+  /** The current category's dishes, without duplicates or those already on the menu. */
   availableDishes: DishCatalogItem[];
-  /** Le nom tapé correspond-il à un plat déjà présent dans le menu ? */
   findInMenuByName(name: string): DishCatalogItem | null;
   selectExistingDish(dish: DishCatalogItem): void;
   startNewDish(name: string): void;
@@ -86,7 +80,6 @@ export function useOnboardingState({
   categories,
   onExit,
 }: UseOnboardingStateOptions): UseOnboardingStateReturn {
-  // ── Bootstrap : menu existant + catalogue + config tags ──────────────────
   const [initialMenu, setInitialMenu] = useState<Menu | null>(null);
   const [catalog, setCatalog] = useState<DishCatalogItem[]>([]);
   const [tagConfig, setTagConfig] = useState<TagConfig>({ dietary_tags: [], certifications: [] });
@@ -127,7 +120,6 @@ export function useOnboardingState({
 
   const editor = useMenuEditor({ date, menu: initialMenu, restaurantId });
 
-  // ── Machine à états ───────────────────────────────────────────────────────
   const groups = useMemo(() => buildCatGroups(categories), [categories]);
   const [step, setStep] = useState<OnboardingStep>({
     kind: 'category',
@@ -141,13 +133,12 @@ export function useOnboardingState({
 
   const currentGroup = step.kind === 'category' ? (groups[step.groupIdx] ?? null) : null;
 
-  // ── Auto-save débouncé + flush ────────────────────────────────────────────
   const savePromiseRef = useRef<Promise<void> | null>(null);
 
   const runSave = useCallback(() => {
     const p = editor
       .save({ silent: true })
-      .catch(() => {}) // l'erreur est déjà notifiée par le hook ; l'auto-save réessaiera
+      .catch(() => {}) // The hook reports the error; the next auto-save tries again.
       .finally(() => {
         if (savePromiseRef.current === p) savePromiseRef.current = null;
       });
@@ -161,13 +152,12 @@ export function useOnboardingState({
     return () => clearTimeout(t);
   }, [isBootstrapping, editor.isDirty, editor.isSaving, runSave]);
 
-  /** Attend le save en vol puis persiste ce qui reste de dirty. */
+  /** Waits for the save in flight, then saves what is still dirty. */
   const flushSave = useCallback(async () => {
     if (savePromiseRef.current) await savePromiseRef.current;
     if (editor.isDirty) await editor.save({ silent: true });
   }, [editor]);
 
-  // ── Sélection / création de plats ─────────────────────────────────────────
   const menuDishIds = useMemo(() => new Set(editor.items.map((it) => it.dish_id)), [editor.items]);
 
   const availableDishes = useMemo(() => {
@@ -207,7 +197,7 @@ export function useOnboardingState({
     (name: string) => {
       if (step.kind !== 'category') return;
       setPendingDish({ name: name.trim(), tags: [], certifications: [] });
-      // Sans config de tags, le TagsStep affiche directement le bouton Valider.
+      // Without tags to offer, TagsStep shows its confirm button straight away.
       setStep({ kind: 'category', groupIdx: step.groupIdx, sub: 'tags' });
     },
     [step]
@@ -265,7 +255,6 @@ export function useOnboardingState({
       const updated = await catalogApi.uploadImage(activeDish.id, file);
       setActiveDish(updated);
       setCatalog((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
-      // Rafraîchir l'objet dish de l'item pour l'aperçu
       const item = editor.items.find((it) => it.dish_id === updated.id);
       if (item?.id !== undefined) editor.updateItem(item.id, { dish: updated });
     },
@@ -286,7 +275,6 @@ export function useOnboardingState({
     [step]
   );
 
-  // ── Navigation ────────────────────────────────────────────────────────────
   const itemCountForGroup = useCallback(
     (group: CatGroup) => editor.items.filter((it) => it.category_id === group.catId).length,
     [editor.items]
@@ -319,7 +307,7 @@ export function useOnboardingState({
     }
   }, [step, currentGroup, itemCountForGroup, gotoNextGroupOrChefNote]);
 
-  /** « Passer cette catégorie » depuis pick, sans plat ajouté : saute aussi les substitutions. */
+  /** Skipping a category before any dish is added skips its substitutions too. */
   const skipCategory = useCallback(() => {
     if (step.kind !== 'category') return;
     setActiveDish(null);
@@ -368,7 +356,6 @@ export function useOnboardingState({
     }
   }, [step, groups, itemCountForGroup, lastNonEmptyGroupIdx]);
 
-  // ── Finalisation / sortie ─────────────────────────────────────────────────
   const publish = useCallback(async () => {
     if (isFinalizing) return;
     setIsFinalizing(true);
@@ -377,7 +364,7 @@ export function useOnboardingState({
       await editor.publishMenu();
       setStep({ kind: 'celebration' });
     } catch {
-      // erreurs déjà notifiées par le hook
+      // The hook has reported it.
     } finally {
       setIsFinalizing(false);
     }
@@ -390,7 +377,7 @@ export function useOnboardingState({
       await flushSave();
       onExit('done');
     } catch {
-      // save en échec : on reste dans le wizard
+      // The save failed: the wizard stays open.
     } finally {
       setIsFinalizing(false);
     }
@@ -405,7 +392,7 @@ export function useOnboardingState({
     if (isFinalizing) return;
     setIsFinalizing(true);
     try {
-      // Attendre un éventuel save en vol pour ne pas recréer le menu après le DELETE
+      // A save in flight would create the menu again after the DELETE.
       if (savePromiseRef.current) await savePromiseRef.current;
       if (menuIdRef.current) await menusApi.delete(menuIdRef.current);
       onExit('discarded');

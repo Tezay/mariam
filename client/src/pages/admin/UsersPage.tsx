@@ -1,13 +1,3 @@
-/**
- * MARIAM - Page de gestion des utilisateurs
- *
- * Permet aux admins de :
- * - Voir la liste des utilisateurs
- * - Inviter de nouveaux utilisateurs
- * - Modifier les rôles
- * - Désactiver/réactiver des comptes
- * - Réinitialiser le MFA
- */
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { adminApi, type Invitation } from '@/lib/api/admin';
 import { restaurantApi, AdminSite } from '@/lib/api/restaurant';
@@ -95,7 +85,6 @@ export function UsersPage() {
   const [resetLink, setResetLink] = useState<{ name: string; url: string } | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
-  // Charger les données
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -118,7 +107,6 @@ export function UsersPage() {
     loadData();
   }, [loadData]);
 
-  // Copier le lien d'invitation
   const copyInviteLink = (token: string) => {
     const url = `${window.location.origin}/activate/${token}`;
     navigator.clipboard.writeText(url);
@@ -405,7 +393,6 @@ export function UsersPage() {
             </a>
           </p>
 
-          {/* Invitations en attente */}
           {invitations.length > 0 && (
             <Card>
               <CardHeader>
@@ -545,7 +532,6 @@ export function UsersPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Modal d'invitation */}
       {showInviteModal && (
         <InviteModal
           isOrgScope={isOrgScope}
@@ -557,7 +543,6 @@ export function UsersPage() {
         />
       )}
 
-      {/* Modal d'édition */}
       {editingUser && (
         <EditUserModal
           user={editingUser}
@@ -572,7 +557,6 @@ export function UsersPage() {
   );
 }
 
-// Modal d'invitation
 function InviteModal({
   onClose,
   onSuccess,
@@ -773,7 +757,6 @@ function InviteModal({
   );
 }
 
-// Modal d'édition utilisateur
 function EditUserModal({
   user,
   onClose,

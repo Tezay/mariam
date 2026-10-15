@@ -1,12 +1,3 @@
-/**
- * Étape de saisie d'un plat : plats déjà ajoutés à la catégorie visibles,
- * input avec bouton de création inline, suggestions de la catégorie courante
- * (dédupliquées, hors plats déjà au menu).
- *
- * Mobile : carrousel auto-défilant multi-rangées au repos, liste statique
- * dès qu'on tape ou que le clavier est ouvert (autofocus desktop seulement).
- * Desktop : liste en wrap, pas de défilement automatique.
- */
 import { useState, useMemo, useRef, useEffect } from 'react';
 import Fuse from 'fuse.js';
 import { Search, ChevronRight, SkipForward, Plus } from 'lucide-react';
@@ -19,7 +10,7 @@ import { SuggestionList } from '../SuggestionList';
 import { SuggestionCarousel } from '../SuggestionCarousel';
 
 const FUZZY_MATCH_THRESHOLD = 0.15;
-// Aligné sur le breakpoint Tailwind custom `sidebar`
+// The custom `sidebar` Tailwind breakpoint.
 const DESKTOP_MEDIA_QUERY = '(min-width: 1024px)';
 
 interface ItemPickStepProps {
@@ -38,15 +29,13 @@ export function ItemPickStep({ state, keyboardOpen, onSelectWithFly }: ItemPickS
   const color = getCategoryColor(currentGroup?.category.color_key, groupIdx);
   const categoryItems = editor.items.filter((it) => it.category_id === currentGroup?.catId);
 
-  // Autofocus desktop uniquement — sur mobile, laisser le carrousel visible
-  // sans ouvrir le clavier d'emblée
+  // Desktop only: on a phone, the keyboard would cover the carousel.
   useEffect(() => {
     if (!window.matchMedia(DESKTOP_MEDIA_QUERY).matches) return;
     const t = setTimeout(() => inputRef.current?.focus(), 120);
     return () => clearTimeout(t);
   }, []);
 
-  // Feedback « déjà au menu » éphémère
   useEffect(() => {
     if (!alreadyInMenu) return;
     const t = setTimeout(() => setAlreadyInMenu(null), 2500);
@@ -58,7 +47,6 @@ export function ItemPickStep({ state, keyboardOpen, onSelectWithFly }: ItemPickS
     [availableDishes]
   );
 
-  // Plats de la catégorie déjà au menu (pour détecter une re-saisie)
   const menuDishesOfCategory = useMemo(
     () => categoryItems.filter((it) => it.dish).map((it) => it.dish!),
     [categoryItems]
@@ -77,7 +65,6 @@ export function ItemPickStep({ state, keyboardOpen, onSelectWithFly }: ItemPickS
   const handleSubmit = () => {
     const q = query.trim();
     if (!q) return;
-    // Déjà au menu ? (exact normalisé ou fuzzy proche)
     const inMenuFuzzy = menuFuse.search(q)[0];
     if (
       state.findInMenuByName(q) ||
@@ -86,7 +73,6 @@ export function ItemPickStep({ state, keyboardOpen, onSelectWithFly }: ItemPickS
       setAlreadyInMenu(q);
       return;
     }
-    // Correspondance forte avec un plat du catalogue → on le sélectionne
     const best = fuse.search(q)[0];
     if (best && (best.score ?? 1) < FUZZY_MATCH_THRESHOLD) {
       setQuery('');
@@ -116,7 +102,6 @@ export function ItemPickStep({ state, keyboardOpen, onSelectWithFly }: ItemPickS
           {categoryItems.length === 0 ? 'Quel plat au menu ?' : 'Un autre plat ?'}
         </h2>
 
-        {/* Plats déjà ajoutés à cette catégorie */}
         {categoryItems.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {categoryItems.map((item) => (
@@ -136,7 +121,6 @@ export function ItemPickStep({ state, keyboardOpen, onSelectWithFly }: ItemPickS
         )}
       </div>
 
-      {/* Input au-dessus des suggestions, bouton de création inline */}
       <div className="shrink-0 px-4 pb-2">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -180,7 +164,6 @@ export function ItemPickStep({ state, keyboardOpen, onSelectWithFly }: ItemPickS
         </div>
       </div>
 
-      {/* Suggestions */}
       <div
         className={cn(
           'min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-2',
@@ -189,19 +172,16 @@ export function ItemPickStep({ state, keyboardOpen, onSelectWithFly }: ItemPickS
       >
         {filteredDishes.length > 0 ? (
           <>
-            {/* Mobile au repos : carrousel auto-défilant */}
             {!isSearching && !keyboardOpen && (
               <div className="py-1 sidebar:hidden">
                 <SuggestionCarousel dishes={filteredDishes} color={color} onSelect={handleSelect} />
               </div>
             )}
-            {/* Mobile en recherche / clavier ouvert : liste statique */}
             {(isSearching || keyboardOpen) && (
               <div className="px-4 sidebar:hidden">
                 <SuggestionList dishes={filteredDishes} color={color} onSelect={handleSelect} />
               </div>
             )}
-            {/* Desktop : liste en wrap, pas de défilement automatique */}
             <div className="hidden px-4 sidebar:block">
               <SuggestionList dishes={filteredDishes} color={color} onSelect={handleSelect} />
             </div>
@@ -220,7 +200,6 @@ export function ItemPickStep({ state, keyboardOpen, onSelectWithFly }: ItemPickS
         )}
       </div>
 
-      {/* Actions */}
       {!(keyboardOpen && isSearching) && (
         <div className="flex shrink-0 items-center gap-2 border-t border-border bg-background px-4 py-3 pb-[max(env(safe-area-inset-bottom),0.75rem)]">
           <div className="flex-1" />

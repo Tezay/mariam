@@ -6,7 +6,6 @@ interface CsvStepIndicatorProps<T extends string> {
   current: T;
 }
 
-/** Bandeau d'étapes numérotées pour les wizards d'import CSV (menu, catalogue). */
 export function CsvStepIndicator<T extends string>({ steps, current }: CsvStepIndicatorProps<T>) {
   const currentIndex = steps.findIndex((s) => s.id === current);
   return (

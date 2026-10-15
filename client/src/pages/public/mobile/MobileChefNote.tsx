@@ -5,7 +5,6 @@ interface MobileChefNoteProps {
   note: string;
 }
 
-/** Bandeau note du chef */
 export function MobileChefNote({ note }: MobileChefNoteProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const animFrameRef = useRef<number>(0);
@@ -35,7 +34,6 @@ export function MobileChefNote({ note }: MobileChefNoteProps) {
       animFrameRef.current = requestAnimationFrame(tick);
     }
 
-    // Démarrer uniquement si le contenu déborde
     const timer = setTimeout(() => {
       const el = scrollRef.current;
       if (el && el.scrollWidth > el.clientWidth) {

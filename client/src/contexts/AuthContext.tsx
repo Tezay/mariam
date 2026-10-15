@@ -1,8 +1,3 @@
-/**
- * MARIAM - Contexte d'authentification
- *
- * Gère l'état d'authentification global (support MFA).
- */
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authApi, User } from '@/lib/api/auth';
 
@@ -35,7 +30,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Vérifier l'authentification au chargement
   useEffect(() => {
     const initAuth = async () => {
       if (authApi.isAuthenticated()) {
@@ -61,7 +55,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUser(result.user);
     // Returned as well as stored: the caller redirects on role before the
-    // context state has propagated.
     return { mfaRequired: false, user: result.user };
   };
 

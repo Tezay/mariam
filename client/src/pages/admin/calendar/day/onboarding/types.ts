@@ -1,8 +1,7 @@
 import type { MenuCategory } from '@/lib/api/categories';
 import type { DietaryTag, CertificationItem } from '@/lib/api/taxonomy';
 
-/** Catégorie "aplatie" parcourue par le wizard : seules les feuilles portent
- *  des plats, donc une catégorie à sous-catégories cède sa place aux siennes. */
+/** Only leaves carry dishes, so a category with subcategories gives its place to them. */
 export interface CatGroup {
   category: MenuCategory;
   parentLabel?: string;
@@ -16,14 +15,13 @@ export type OnboardingStep =
   | { kind: 'chef-note' }
   | { kind: 'celebration' };
 
-/** Nouveau plat en cours de qualification (avant création au catalogue). */
+/** A dish not yet created in the catalog. */
 export interface PendingDish {
   name: string;
   tags: DietaryTag[];
   certifications: CertificationItem[];
 }
 
-/** Tags et certifications configurés pour le restaurant. */
 export interface TagConfig {
   dietary_tags: DietaryTag[];
   certifications: CertificationItem[];

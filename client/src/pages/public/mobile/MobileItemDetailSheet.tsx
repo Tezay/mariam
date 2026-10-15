@@ -109,7 +109,6 @@ export function MobileItemDetailSheet({ item, open, onClose }: MobileItemDetailS
             </DrawerHeader>
 
             <div className="flex-1 space-y-5 overflow-y-auto px-5 pb-8">
-              {/* Image du plat */}
               {dishImage && (
                 <div className="overflow-hidden rounded-2xl bg-gray-100">
                   <div className="aspect-[4/3] w-full">
@@ -118,7 +117,6 @@ export function MobileItemDetailSheet({ item, open, onClose }: MobileItemDetailS
                 </div>
               )}
 
-              {/* Tags alimentaires groupés */}
               {Object.entries(tagsByCategory).length > 0 && (
                 <div className="space-y-3">
                   {Object.entries(tagsByCategory).map(([categoryId, groupTags]) => (
@@ -138,7 +136,6 @@ export function MobileItemDetailSheet({ item, open, onClose }: MobileItemDetailS
                 </div>
               )}
 
-              {/* Certifications */}
               {certs.length > 0 && (
                 <div>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">

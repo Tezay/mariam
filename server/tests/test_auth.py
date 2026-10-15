@@ -1,6 +1,4 @@
-"""
-Tests d'authentification : login, refresh, logout, rate limiting, TOTP.
-"""
+"""Sign-in, refresh, sign-out, rate limits and TOTP."""
 import pytest
 from app.extensions import db
 from conftest import make_user, make_restaurant, get_token, auth_headers, TEST_PASSWORD
@@ -54,7 +52,7 @@ class TestLogin:
         assert res.status_code == 403
 
     def test_login_mfa_required(self, app, client):
-        """Un utilisateur avec MFA activé reçoit un mfa_token au lieu du token final."""
+        """An account with a second factor gets an mfa_token, not a session."""
         import pyotp
         from app.models import User
         make_restaurant(app)

@@ -1,13 +1,3 @@
-/**
- * MARIAM - Page de gestion des événements (Admin)
- *
- * Vue liste avec :
- * - Filtres : à venir / passés / tous
- * - Grille de cartes d'événements avec couleur d'accent
- * - Statuts : Brouillon / Publié (comme les menus)
- * - Actions : modifier, dupliquer, publier/dépublier, supprimer
- * - Création via dialog EventEditor
- */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { eventsApi, Event } from '@/lib/api/events';
@@ -18,7 +8,8 @@ import { generateEventPalette } from '@/lib/color-utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { InlineError, getErrorType } from '@/components/InlineError';
+import { InlineError } from '@/components/InlineError';
+import { getErrorType } from '@/lib/api/errors';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,12 +44,7 @@ export function EventsPage() {
   const [error, setError] = useState<unknown>(null);
   const [filter, setFilter] = useState<FilterMode>('upcoming');
 
-  // Confirm delete
   const [deletingId, setDeletingId] = useState<number | null>(null);
-
-  // ------------------------------------------------------------------
-  // Chargement
-  // ------------------------------------------------------------------
 
   const loadEvents = useCallback(async () => {
     setIsLoading(true);
@@ -66,7 +52,7 @@ export function EventsPage() {
     try {
       const data = await eventsApi.list(filter === 'upcoming', undefined, true);
 
-      // Pour le filtre "passés", on charge tout et filtre côté client
+      // The API has no past filter: everything loads and the past is kept here.
       if (filter === 'past') {
         const allData = await eventsApi.list(false, undefined, true);
         const today = parisToday();
@@ -78,7 +64,7 @@ export function EventsPage() {
         setEvents(data);
       }
     } catch (err) {
-      console.error('Erreur chargement événements:', err);
+      console.error('Loading the events failed:', err);
       setError(err);
     } finally {
       setIsLoading(false);
@@ -88,10 +74,6 @@ export function EventsPage() {
   useEffect(() => {
     loadEvents();
   }, [loadEvents]);
-
-  // ------------------------------------------------------------------
-  // Actions
-  // ------------------------------------------------------------------
 
   const handleDelete = async (id: number) => {
     try {
@@ -131,10 +113,6 @@ export function EventsPage() {
     }
   };
 
-  // ------------------------------------------------------------------
-  // Stats
-  // ------------------------------------------------------------------
-
   const stats = events.reduce(
     (acc, e) => {
       if (e.status === 'published') acc.published++;
@@ -143,10 +121,6 @@ export function EventsPage() {
     },
     { published: 0, draft: 0 }
   );
-
-  // ------------------------------------------------------------------
-  // Formatage
-  // ------------------------------------------------------------------
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr + 'T00:00:00');
@@ -166,10 +140,6 @@ export function EventsPage() {
     return dateStr < parisToday();
   };
 
-  // ------------------------------------------------------------------
-  // Rendu badge statut
-  // ------------------------------------------------------------------
-
   const renderStatusBadge = (event: Event) => {
     if (event.status === 'published') {
       return (
@@ -188,10 +158,6 @@ export function EventsPage() {
     );
   };
 
-  // ------------------------------------------------------------------
-  // Carte d'événement
-  // ------------------------------------------------------------------
-
   const renderEventCard = (event: Event) => {
     const palette = generateEventPalette(event.color || '#3498DB');
     const today = isToday(event.event_date);
@@ -203,11 +169,9 @@ export function EventsPage() {
         className={`overflow-hidden transition-all hover:shadow-lg ${canEdit ? 'cursor-pointer' : ''} ${today ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''} ${past ? 'opacity-60' : ''} `}
         onClick={() => canEdit && navigate(`/admin/events/${event.id}/edit`)}
       >
-        {/* Bande de couleur en haut */}
         <div className="h-2" style={{ backgroundColor: event.color || '#3498DB' }} />
 
         <CardContent className="space-y-3 p-4">
-          {/* Header : date + statut */}
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -280,7 +244,6 @@ export function EventsPage() {
             </div>
           </div>
 
-          {/* Contenu événement */}
           <div
             className="rounded-lg p-3"
             style={{
@@ -299,7 +262,6 @@ export function EventsPage() {
             )}
           </div>
 
-          {/* Images miniatures */}
           {event.images && event.images.length > 0 && (
             <div className="flex gap-1.5">
               {event.images.slice(0, 4).map((img) => (
@@ -318,7 +280,6 @@ export function EventsPage() {
             </div>
           )}
 
-          {/* Indicateurs */}
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             {event.images && event.images.length > 0 && (
               <span className="flex items-center gap-1">
@@ -332,10 +293,6 @@ export function EventsPage() {
     );
   };
 
-  // ------------------------------------------------------------------
-  // Erreur
-  // ------------------------------------------------------------------
-
   if (error && !isLoading) {
     return (
       <div className="container-mariam py-6">
@@ -344,13 +301,8 @@ export function EventsPage() {
     );
   }
 
-  // ------------------------------------------------------------------
-  // Rendu principal
-  // ------------------------------------------------------------------
-
   return (
     <div className="container-mariam py-6">
-      {/* Header */}
       <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Événements</h1>
@@ -360,7 +312,6 @@ export function EventsPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Stats */}
           <div className="flex items-center gap-2 text-sm">
             <Badge
               variant="outline"
@@ -376,7 +327,6 @@ export function EventsPage() {
             </Badge>
           </div>
 
-          {/* Bouton créer */}
           {canEdit && (
             <Button onClick={() => navigate('/admin/events/new')} className="gap-2">
               <Plus className="h-4 w-4" />
@@ -387,7 +337,6 @@ export function EventsPage() {
         </div>
       </div>
 
-      {/* Filtres */}
       <div className="mb-6 flex gap-2">
         {[
           { key: 'upcoming' as const, label: 'À venir' },
@@ -408,7 +357,6 @@ export function EventsPage() {
         ))}
       </div>
 
-      {/* Contenu */}
       {isLoading ? (
         <div className="flex justify-center py-12">
           <Spinner className="size-8 text-primary" />
@@ -440,7 +388,6 @@ export function EventsPage() {
         </div>
       )}
 
-      {/* Dialog de confirmation de suppression */}
       {deletingId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-xl">

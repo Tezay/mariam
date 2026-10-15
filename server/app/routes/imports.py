@@ -1,16 +1,3 @@
-"""
-CSV/Excel import routes for MARIAM menus.
-
-3-step workflow:
-1. Upload  - parse the file, returns columns and preview
-2. Preview - apply column mapping, returns menus to be created
-3. Confirm - execute the import into the database
-
-Endpoints (editor role required):
-- POST /v1/imports/menus/upload
-- POST /v1/imports/menus/preview
-- POST /v1/imports/menus/confirm
-"""
 import re
 import uuid
 from datetime import UTC, date, datetime, timedelta
@@ -62,10 +49,6 @@ imports_bp = Blueprint(
 )
 
 
-# ============================================================
-# HELPERS
-# ============================================================
-
 def detect_date_format(date_str: str) -> str | None:
     formats = [
         ('%Y-%m-%d', 'YYYY-MM-DD'), ('%d/%m/%Y', 'DD/MM/YYYY'),
@@ -100,16 +83,14 @@ def parse_date(date_str: str, date_format: str | None = None) -> date | None:
 
 
 def suggest_column_mapping(columns: list[str], restaurant_id: int | None = None) -> dict:
-    """Auto-mappe les colonnes CSV aux catégories DB par label (insensible à la casse/accents)."""
+    """Match the file's columns to the site's categories by label, ignoring case and accents."""
     mapping: dict[str, Any] = {}
     date_patterns = ['date', 'jour', 'day', 'fecha']
 
-    # Charger toutes les catégories du restaurant (principales + sous-catégories)
     categories: list[MenuCategory] = []
     if restaurant_id:
         categories = MenuCategory.query.filter_by(restaurant_id=restaurant_id).all()
 
-    # Index label normalisé → category id (int)
     cat_label_index: dict[str, int] = {
         normalize_label(c.label): c.id for c in categories
     }
@@ -177,7 +158,7 @@ def build_menus_from_rows(rows, column_mapping, date_config, restaurant_id):
                 if not item_name:
                     continue
                 item = {
-                    'category_id': category_id,  # integer FK
+                    'category_id': category_id,
                     'name': clean_item_name(item_name),
                     'order': order,
                     'tags': [],
@@ -200,10 +181,6 @@ def build_menus_from_rows(rows, column_mapping, date_config, restaurant_id):
 
     return menus
 
-
-# ============================================================
-# ENDPOINTS
-# ============================================================
 
 @imports_bp.route('/menus/upload', methods=['POST'])
 @imports_bp.response(200, ImportUploadSchema)
@@ -273,7 +250,7 @@ def upload_file():
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        current_app.logger.error(f"Erreur upload CSV: {e}")
+        current_app.logger.error(f"CSV upload failed: {e}")
         return jsonify({'error': f'Erreur lors du traitement du fichier: {e}'}), 500
 
 
@@ -329,7 +306,7 @@ def preview_import(data):
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        current_app.logger.error(f"Erreur preview import: {e}")
+        current_app.logger.error(f"Import preview failed: {e}")
         return jsonify({'error': f'Erreur lors de la prévisualisation: {e}'}), 500
 
 
@@ -449,19 +426,15 @@ def confirm_import(data):
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Erreur import CSV: {e}")
+        current_app.logger.error(f"CSV import failed: {e}")
         return jsonify({'error': f"Erreur lors de l'import: {e}"}), 500
 
-
-# ============================================================
-# IMPORT CATALOGUE — liste de plats (1 ligne = 1 plat)
-# ============================================================
 
 _NAME_COLUMN_HINTS = ['nom', 'plat', 'name', 'intitule', 'dish', 'libelle', 'produit']
 
 
 def suggest_name_column(columns: list[str]) -> str | None:
-    """Devine la colonne contenant le nom du plat (sinon la première colonne)."""
+    """The column most likely to hold the dish name, else the first one."""
     for col in columns:
         col_norm = normalize_label(col)
         if any(hint in col_norm for hint in _NAME_COLUMN_HINTS):
@@ -470,7 +443,6 @@ def suggest_name_column(columns: list[str]) -> str | None:
 
 
 def existing_dish_norms(restaurant_id: int, category_id: int) -> set[str]:
-    """Noms normalisés des plats déjà présents dans une catégorie (pour la dédup)."""
     dishes = DishCatalog.query.filter_by(
         restaurant_id=restaurant_id, category_id=category_id
     ).all()
@@ -478,11 +450,8 @@ def existing_dish_norms(restaurant_id: int, category_id: int) -> set[str]:
 
 
 def build_catalog_dishes(session, name_column, tag_columns, auto_detect_tags, existing_norms):
-    """Construit la liste des plats à importer depuis les lignes de la session.
-
-    Chaque plat : {name, tags, certifications, is_duplicate}. Un plat est doublon
-    si son nom normalisé existe déjà dans la catégorie (existing_norms) ou est
-    répété plus haut dans le fichier.
+    """A dish is a duplicate when its normalised name is already in the category, or
+    earlier in the file.
     """
     dishes = []
     seen: set[str] = set()
@@ -495,7 +464,7 @@ def build_catalog_dishes(session, name_column, tag_columns, auto_detect_tags, ex
             continue
         norm = normalize_label(name)
 
-        # Texte scanné pour la taxonomie : colonnes tags + (optionnel) le nom
+        # Labels are looked for in the tag columns, and in the name when asked.
         parts = [(row.get(c) or '') for c in tag_columns]
         if auto_detect_tags:
             parts.append(raw)
@@ -627,10 +596,10 @@ def build_export_dishes(session, restaurant_id: int, mapping: dict, create: bool
 @imports_bp.alt_response(500, schema=ErrorSchema, description="Processing error")
 @editor_required
 def catalog_upload():
-    """Upload et parse un fichier CSV/Excel de plats.
+    """Upload and parse a CSV or Excel file of dishes.
 
-    Renvoie les colonnes, un aperçu des premières lignes, et une suggestion
-    de la colonne contenant le nom du plat.
+    Returns the columns, a preview of the first rows and the column likely to hold
+    the dish name.
     """
     if 'file' not in request.files:
         return jsonify({'error': 'Aucun fichier fourni'}), 400
@@ -676,7 +645,7 @@ def catalog_upload():
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        current_app.logger.error(f"Erreur upload catalogue: {e}")
+        current_app.logger.error(f"Catalog upload failed: {e}")
         return jsonify({'error': f'Erreur lors du traitement du fichier: {e}'}), 500
 
 
@@ -687,7 +656,7 @@ def catalog_upload():
 @imports_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
 @imports_bp.alt_response(404, schema=ErrorSchema, description="Session expired")
 def catalog_preview(data):
-    """Prévisualise l'import : liste des plats, tags détectés et doublons."""
+    """Preview the import: the dishes, the labels detected and the duplicates."""
     user, restaurant = get_user_and_restaurant()
     if not restaurant:
         return jsonify({'error': 'Aucun restaurant configuré'}), 400
@@ -733,7 +702,7 @@ def catalog_preview(data):
 @imports_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
 @imports_bp.alt_response(404, schema=ErrorSchema, description="Session expired")
 def catalog_confirm(data):
-    """Crée les plats du catalogue (doublons ignorés)."""
+    """Create the dishes in the catalog, skipping the duplicates."""
     user, restaurant = get_user_and_restaurant()
     if not restaurant:
         return jsonify({'error': 'Aucun restaurant configuré'}), 400
@@ -770,7 +739,6 @@ def catalog_confirm(data):
     for d in dishes:
         if d['is_duplicate'] or not d.get('category_id'):
             continue
-        # get_or_create_dish gère la normalisation, la dédup et l'attache des tags
         get_or_create_dish(restaurant.id, {
             'name': d['name'],
             'category_id': d['category_id'],

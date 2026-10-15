@@ -1,8 +1,3 @@
-/**
- * Drawer mobile : aperçu du menu en construction ouvert à la demande via une
- * poignée flottante sur le bord droit (badge compteur). Masqué au breakpoint
- * `sidebar:` (le panel persistant prend le relais) et quand le clavier est ouvert.
- */
 import { useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -32,7 +27,6 @@ export function MenuPreviewDrawer({
 
   return (
     <div className="sidebar:hidden">
-      {/* Poignée flottante — discrète, sous le header pour ne pas masquer le contenu */}
       <button
         type="button"
         ref={flyTargetRef}

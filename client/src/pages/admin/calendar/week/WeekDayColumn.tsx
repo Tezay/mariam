@@ -106,7 +106,7 @@ export function WeekDayColumn({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onRegisterUpdateItem]);
 
-  // Accesseur d'items vivants : lit toujours l'état courant de l'éditeur (ref).
+  // The editor's current items, not those of the last render.
   const itemsRef = useRef(editor.items);
   itemsRef.current = editor.items;
   useEffect(() => {
@@ -143,7 +143,6 @@ export function WeekDayColumn({
       data-day-date={date}
       data-day-menu-id={menu?.id}
     >
-      {/* Header */}
       <div
         className={cn(
           'sticky top-0 z-20 flex min-h-[40px] items-center justify-center border-b border-border px-2',
@@ -151,7 +150,6 @@ export function WeekDayColumn({
           isToday && !closure && 'bg-primary/5 backdrop-blur-sm'
         )}
       >
-        {/* Checkbox sélection du jour */}
         {selection.selectionMode && editor.items.length > 0 && (
           <div className="absolute left-2 top-1/2 -translate-y-1/2">
             <SelectionCheckbox
@@ -162,14 +160,12 @@ export function WeekDayColumn({
           </div>
         )}
 
-        {/* Note du chef (même emplacement que la checkbox, hors mode sélection) */}
         {!selection.selectionMode && canEdit && !closure && editor.items.length > 0 && (
           <div className="absolute left-1.5 top-1/2 -translate-y-1/2">
             <ChefNotePopover editor={editor} compact side="bottom" align="start" />
           </div>
         )}
 
-        {/* Titre du jour */}
         <p
           className={cn(
             'truncate px-8 text-center text-xs font-bold',
@@ -183,7 +179,6 @@ export function WeekDayColumn({
           {getDayOfWeekLabel(date).toUpperCase()} {dayNum}
         </p>
 
-        {/* Contrôle publier/retirer (hors mode sélection) */}
         {canEdit &&
           !closure &&
           !selection.selectionMode &&
@@ -228,7 +223,6 @@ export function WeekDayColumn({
           })()}
       </div>
 
-      {/* Body */}
       {closure ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-card/50 p-4 text-center">
           <CalendarOff className="h-8 w-8 text-muted-foreground/60" />

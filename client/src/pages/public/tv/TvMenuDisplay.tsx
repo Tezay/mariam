@@ -1,15 +1,11 @@
-/**
- * MARIAM - Affichage public du menu — Mode TV (>= 1920px)
- *
- * Optimisé pour grands écrans (salles à manger, cafétérias).
- */
 import { useState, useEffect } from 'react';
 import { trackPageView } from '@/lib/telemetry';
 import { ExceptionalClosure } from '@/lib/api/closures';
 import { CertificationItem } from '@/lib/api/taxonomy';
 import { generateEventPalette } from '@/lib/color-utils';
 import { TagIcon } from '@/components/TagIcon';
-import { InlineError, getErrorType } from '@/components/InlineError';
+import { InlineError } from '@/components/InlineError';
+import { getErrorType } from '@/lib/api/errors';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
   RefreshCw,
@@ -30,8 +26,6 @@ import type {
 } from '../menu-types';
 import { usePublicMenu } from '../use-public-menu';
 
-// ─── Constantes badges ──────────────────────────────────────────────────────
-
 const TAG_CATEGORY_NAMES: Record<string, string> = {
   regime: 'Régime alimentaire',
   allergenes: 'Allergènes',
@@ -49,8 +43,6 @@ const SCHEME_LABELS: Record<string, string> = {
   public: 'Label officiel',
   private: 'Label privé',
 };
-
-// ─── CertBadge (TV) ────────────────────────────────────────────────────────
 
 function CertBadge({ cert, size = 'sm' }: { cert: CertificationItem; size?: 'sm' | 'lg' }) {
   const sizeClass = size === 'lg' ? 'h-7 w-7' : 'h-5 w-5';
@@ -93,8 +85,6 @@ function CertBadge({ cert, size = 'sm' }: { cert: CertificationItem; size?: 'sm'
   );
 }
 
-// ─── Composants TV Images ───────────────────────────────────────────────────
-
 function TvImageCarousel({
   images,
   interval = 4000,
@@ -129,8 +119,6 @@ function TvImageCarousel({
     </div>
   );
 }
-
-// ─── Composants Événements TV ───────────────────────────────────────────────
 
 function TvTodayEventBanner({ event }: { event: EventData }) {
   const palette = generateEventPalette(event.color || '#3498DB');
@@ -256,8 +244,6 @@ function TvChefNoteFooter({ note }: { note: string }) {
   );
 }
 
-// ─── TvCategoryCard ─────────────────────────────────────────────────────────
-
 function TvCategoryCard({
   category,
   items,
@@ -270,7 +256,6 @@ function TvCategoryCard({
   substitutions?: CategorySubstitutionData[];
 }) {
   const isHighlighted = category.is_highlighted;
-  // Plats de substitution : affichés uniquement si un item de la catégorie est en rupture
   const oosPresent = items.some((i) => i.is_out_of_stock);
   const subItems: MenuItemData[] = oosPresent
     ? (substitutions ?? []).map((s) => ({
@@ -331,8 +316,6 @@ function TvCategoryCard({
   );
 }
 
-// ─── TvClosureDisplay ───────────────────────────────────────────────────────
-
 function TvClosureDisplay({ closure }: { closure: ExceptionalClosure }) {
   const fmt = (d: string) =>
     new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', {
@@ -365,8 +348,6 @@ function TvClosureDisplay({ closure }: { closure: ExceptionalClosure }) {
   );
 }
 
-// ─── TvMenuDisplay ──────────────────────────────────────────────────────────
-
 export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
   useEffect(() => {
     trackPageView('tv', restaurantSlug);
@@ -385,7 +366,6 @@ export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
   const upcomingEvents = data?.upcomingEvents ?? [];
   const activeClosure = data?.activeClosure ?? null;
 
-  // Rotation écran
   useEffect(() => {
     const root = document.documentElement;
     if (isRotated) {
@@ -422,7 +402,6 @@ export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
     };
   }, [isRotated]);
 
-  // Auto-cache contrôles
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout>;
     const onMouseMove = () => {
@@ -438,7 +417,6 @@ export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
     };
   }, []);
 
-  // Footer rotatif
   const footerSlots: ('event' | 'tomorrow' | 'chefnote')[] = [];
   if (upcomingEvents.length > 0) footerSlots.push('event');
   if (tomorrowData?.menu) footerSlots.push('tomorrow');
@@ -506,7 +484,6 @@ export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
 
   return (
     <div className="tv-mode relative flex min-h-screen flex-col overflow-hidden bg-gray-50 transition-all duration-500">
-      {/* Contrôles Zoom + Rotation */}
       <div
         className={`fixed bottom-6 right-6 z-50 flex flex-col gap-4 transition-opacity duration-500 ${showControls ? 'opacity-100' : 'opacity-0'}`}
       >
@@ -535,12 +512,10 @@ export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
         </button>
       </div>
 
-      {/* Contenu avec Zoom */}
       <div
         style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top center' }}
         className="flex h-full w-full flex-col"
       >
-        {/* Header TV */}
         <header className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-10 py-8 shadow-sm">
           <div className="flex items-center gap-8">
             {todayData?.restaurant?.logo_url && (
@@ -571,10 +546,8 @@ export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
           )}
         </header>
 
-        {/* Bannière événement du jour */}
         {!activeClosure && todayEvent && <TvTodayEventBanner event={todayEvent} />}
 
-        {/* Contenu principal */}
         <main className="flex-1 overflow-hidden bg-gray-50/50 p-10">
           {isPending ? (
             <div className="flex h-full items-center justify-center">
@@ -624,7 +597,6 @@ export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
         </main>
       </div>
 
-      {/* Footer rotatif */}
       {footerCount > 0 && (
         <footer className="fixed bottom-0 left-0 z-40 w-full overflow-hidden shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
           <div

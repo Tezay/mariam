@@ -1,12 +1,3 @@
-/**
- * MARIAM - Page de réinitialisation de mot de passe
- *
- * Permet à un utilisateur de définir un nouveau mot de passe via un lien à usage
- * unique (72h). La confirmation d'identité s'adapte au profil de sécurité :
- * - Passkey uniquement  → vérification biométrique
- * - TOTP uniquement     → code à 6 chiffres
- * - Les deux            → sélecteur, même UX que la page Mon Compte
- */
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { authApi } from '@/lib/api/auth';
@@ -56,7 +47,6 @@ export function ResetPassword() {
           setEmail(data.email || '');
           setMfaEnabled(!!data.mfa_enabled);
           setHasPasskeys(!!data.has_passkeys);
-          // Méthode par défaut selon ce qui est disponible
           const defaultMethod: VerificationMethod = data.mfa_enabled ? 'totp' : 'passkey';
           setVerificationMethod(defaultMethod);
           setStep('form');
@@ -220,13 +210,11 @@ export function ResetPassword() {
         </div>
 
         <div className="space-y-6 rounded-lg border border-border bg-card p-8 shadow-lg">
-          {/* Email (lecture seule) */}
           <div>
             <Label htmlFor="email">Adresse email</Label>
             <Input id="email" type="email" value={email} disabled className="mt-1 bg-muted" />
           </div>
 
-          {/* Nouveau mot de passe */}
           <div>
             <Label htmlFor="password">Nouveau mot de passe</Label>
             <Input
@@ -251,7 +239,6 @@ export function ResetPassword() {
             )}
           </div>
 
-          {/* Confirmation */}
           <div>
             <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
             <Input
@@ -269,7 +256,6 @@ export function ResetPassword() {
             )}
           </div>
 
-          {/* Sélecteur de méthode (si les deux sont disponibles) */}
           {canUseBoth && (
             <div className="flex overflow-hidden rounded-lg border border-border text-sm">
               <button
@@ -297,7 +283,6 @@ export function ResetPassword() {
             </div>
           )}
 
-          {/* Vérification TOTP */}
           {mfaEnabled && (!canUseBoth || verificationMethod === 'totp') && (
             <form onSubmit={handleSubmitTotp} className="space-y-4">
               <div>
@@ -336,7 +321,6 @@ export function ResetPassword() {
             </form>
           )}
 
-          {/* Vérification passkey */}
           {hasPasskeys && passkeySupported && (!mfaEnabled || verificationMethod === 'passkey') && (
             <form onSubmit={handleSubmitPasskey} className="space-y-4">
               <p className="flex items-center gap-2 text-sm text-muted-foreground">

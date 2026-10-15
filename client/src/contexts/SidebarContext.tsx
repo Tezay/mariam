@@ -5,7 +5,7 @@ interface SidebarContextType {
   toggle: () => void;
   isMobileOpen: boolean;
   setMobileOpen: (open: boolean) => void;
-  /** Mode immersif : masque la bottom navbar mobile (onboarding plein écran). */
+  /** Hides the mobile bottom bar, for the full-screen onboarding. */
   immersive: boolean;
   setImmersive: (immersive: boolean) => void;
 }
@@ -38,7 +38,6 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components -- contexte + hook co-localisés volontairement
 export function useSidebar() {
   const ctx = useContext(SidebarContext);
   if (!ctx) throw new Error('useSidebar must be used inside SidebarProvider');

@@ -1,20 +1,6 @@
-/**
- * MARIAM - Logo SVG Component
- *
- * Logo monochrome avec variantes de couleur :
- * - default: primary en light, foreground en dark
- * - light: blanc (pour fonds colorés)
- * - dark: foreground (texte)
- */
-
 interface LogoProps {
   className?: string;
-  /**
-   * Variante de couleur :
-   * - 'default' : primary en light, foreground en dark
-   * - 'light' : toujours blanc (pour les fonds colorés)
-   * - 'dark' : toujours foreground
-   */
+  /** 'default' is the primary colour in light mode and the foreground in dark; 'light' is always white, for coloured backgrounds; 'dark' is always the foreground. */
   variant?: 'default' | 'light' | 'dark';
 }
 

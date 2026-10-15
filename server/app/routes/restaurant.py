@@ -1,19 +1,4 @@
-"""
-Restaurant and settings routes for MARIAM.
-
-Public endpoints:
-- GET /v1/restaurant         Active restaurant info (with config)
-
-Editor endpoints (JWT required):
-- GET /v1/settings           Active restaurant settings
-- PUT /v1/settings           Update settings (admin only)
-
-Admin endpoints:
-- GET  /v1/restaurants       List the caller's restaurants
-
-Creating, renaming or deactivating a site is a billing event: it is handled by
-the Mariam team through the CLI, never through the API.
-"""
+"""Sites are created, renamed and deactivated from the CLI, never through the API."""
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_smorest import Blueprint
@@ -46,10 +31,6 @@ def _settings_payload(restaurant) -> dict:
     return payload
 
 
-# ============================================================
-# ROUTE PUBLIQUE — info restaurant
-# ============================================================
-
 @restaurant_bp.route('/restaurant', methods=['GET'])
 @limiter.limit("30 per minute")
 @restaurant_bp.response(200, RestaurantSchema)
@@ -73,10 +54,6 @@ def get_restaurant_info():
 
     return jsonify({'restaurant': restaurant.to_dict(include_config=True)}), 200
 
-
-# ============================================================
-# PARAMÈTRES — GET accessible à tout le staff, PUT admin only
-# ============================================================
 
 @restaurant_bp.route('/settings', methods=['GET'])
 @restaurant_bp.response(200, RestaurantSchema)
@@ -119,7 +96,6 @@ def update_settings(data):
     if 'name' in data:
         restaurant.name = data['name']
 
-    # Address (BAN-verified)
     if 'address_label' in data:
         restaurant.address_label = data['address_label']
     if 'address_lat' in data:
@@ -127,7 +103,6 @@ def update_settings(data):
     if 'address_lon' in data:
         restaurant.address_lon = data['address_lon']
 
-    # Contact
     if 'email' in data:
         restaurant.email = data['email']
     if 'phone' in data:
@@ -135,13 +110,11 @@ def update_settings(data):
     if 'capacity' in data:
         restaurant.capacity = data['capacity']
 
-    # Payment methods & accessibility
     if 'payment_methods' in data:
         restaurant.payment_methods = data['payment_methods']
     if 'pmr_access' in data:
         restaurant.pmr_access = data['pmr_access']
 
-    # Service hours — upsert one row per day
     if 'service_hours' in data and isinstance(data['service_hours'], dict):
         incoming = data['service_hours']  # {"0": {"open": "11:30", "close": "14:00"}, ...}
         existing = {str(h.day_of_week): h for h in restaurant.service_hours}
@@ -160,7 +133,6 @@ def update_settings(data):
                     open_time=times['open'],
                     close_time=times['close'],
                 ))
-        # Remove rows for days no longer present
         for day_str, row in existing.items():
             if day_str not in incoming:
                 db.session.delete(row)
@@ -225,10 +197,6 @@ def update_settings(data):
     }), 200
 
 
-# ============================================================
-# HELPERS
-# ============================================================
-
 def _create_default_categories(restaurant_id: int) -> None:
     """Create the standard set of categories for a new restaurant."""
     plat = MenuCategory(
@@ -254,10 +222,6 @@ def _create_default_categories(restaurant_id: int) -> None:
         db.session.add(cat)
 
 
-# ============================================================
-# GESTION ADMIN DES RESTAURANTS (CRUD)
-# ============================================================
-
 @restaurant_bp.route('/restaurants', methods=['GET'])
 @restaurant_bp.response(200, RestaurantSchema(many=True))
 @admin_required
@@ -270,15 +234,11 @@ def list_restaurants():
     return paginated_response(query, 'restaurants', lambda r: r.to_dict())
 
 
-# ============================================================
-# CALENDAR SETTINGS
-# ============================================================
-
 @restaurant_bp.route('/restaurant/calendar-settings', methods=['GET'])
 @jwt_required()
 @restaurant_bp.response(200, RestaurantSchema)
 def get_calendar_settings():
-    """Retourne les paramètres calendrier du restaurant actif."""
+    """Calendar settings of the active restaurant."""
     user = db.session.get(User, int(get_jwt_identity()))
 
     active = get_active_restaurant(user)
@@ -302,7 +262,7 @@ def get_calendar_settings():
 @restaurant_bp.response(200, RestaurantSchema)
 @admin_required
 def update_calendar_settings():
-    """Met à jour les paramètres calendrier du restaurant actif (admin only)."""
+    """Update the calendar settings of the active restaurant (admin only)."""
     data = request.get_json(silent=True) or {}
     user = db.session.get(User, int(get_jwt_identity()))
 
