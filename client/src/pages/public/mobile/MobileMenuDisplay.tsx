@@ -3,10 +3,9 @@ import { Link } from 'react-router';
 import { trackPageView } from '@/lib/telemetry';
 import { Zap, CalendarOff } from 'lucide-react';
 import { ExceptionalClosure } from '@/lib/api/closures';
-import { InlineError } from '@/components/InlineError';
-import { getErrorType } from '@/lib/api/errors';
 import { jsDayToMariamDay, getNextOpeningDate } from '@/lib/service-utils';
 import { parisToday, addDays, parisDayOfWeek } from '@/lib/date-utils';
+import { useNow } from '@/lib/use-now';
 import { usePublicMenu } from '../use-public-menu';
 import { MobileHeader } from './MobileHeader';
 import { MobileChefNote } from './MobileChefNote';
@@ -15,10 +14,9 @@ import { MobileCategorySection } from './MobileCategorySection';
 import { MobileItemDetailSheet } from './MobileItemDetailSheet';
 import { MobileEventSection, MobileTodayEvent } from './MobileEventSection';
 import { MobileClosureSection } from './MobileClosureSection';
-import { MobileMenuSkeleton } from './MobileMenuSkeleton';
 import { MobileVoteCard } from './MobileVoteCard';
 import { PublicShell } from '../PublicShell';
-import type { MenuItemData } from '../menu-types';
+import type { MenuItemData, PublicMenuData } from '../menu-types';
 
 function ActiveClosureMessage({ closure }: { closure: ExceptionalClosure }) {
   const formatRange = (start: string, end: string) => {
@@ -51,12 +49,21 @@ const CLOSURE_WINDOW_DAYS = 14;
 const CLOSURE_MAX_COUNT = 5;
 
 /** The list arrives sorted by start_date. */
-function filterUpcomingClosures(closures: ExceptionalClosure[]): ExceptionalClosure[] {
-  const cutoff = addDays(parisToday(), CLOSURE_WINDOW_DAYS);
+function filterUpcomingClosures(closures: ExceptionalClosure[], now: Date): ExceptionalClosure[] {
+  const cutoff = addDays(parisToday(now), CLOSURE_WINDOW_DAYS);
   return closures.filter((c) => c.start_date <= cutoff).slice(0, CLOSURE_MAX_COUNT);
 }
 
-export function MobileMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
+export function MobileMenuDisplay({
+  restaurantSlug,
+  initial,
+  serverNow,
+}: {
+  restaurantSlug: string;
+  initial: PublicMenuData;
+  serverNow: number;
+}) {
+  const now = useNow(serverNow);
   const [selectedDay, setSelectedDay] = useState<'today' | 'tomorrow'>('today');
 
   useEffect(() => {
@@ -64,7 +71,7 @@ export function MobileMenuDisplay({ restaurantSlug }: { restaurantSlug: string }
   }, [selectedDay, restaurantSlug]);
   const [selectedItem, setSelectedItem] = useState<MenuItemData | null>(null);
 
-  const { data, isPending, isError, error, refetch } = usePublicMenu(restaurantSlug, 'mobile');
+  const { data } = usePublicMenu(restaurantSlug, 'mobile', { data: initial, fetchedAt: serverNow });
 
   const todayData = data?.today ?? null;
   const tomorrowData = data?.tomorrow ?? null;
@@ -75,71 +82,58 @@ export function MobileMenuDisplay({ restaurantSlug }: { restaurantSlug: string }
 
   const currentData = selectedDay === 'today' ? todayData : tomorrowData;
   const visibleClosures = useMemo(
-    () => filterUpcomingClosures(data?.upcomingClosures ?? []),
-    [data?.upcomingClosures]
+    () => filterUpcomingClosures(data?.upcomingClosures ?? [], now),
+    [data?.upcomingClosures, now]
   );
 
-  // Show the error screen only when there is no data at all to display.
-  if (isError && !data) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <InlineError type={getErrorType(error)} onRetry={() => refetch()} showLogo={true} />
-      </div>
-    );
-  }
-
   const serviceDays = restaurant?.config?.service_days ?? [];
-  const mariamToday = jsDayToMariamDay(parisDayOfWeek());
+  const mariamToday = jsDayToMariamDay(parisDayOfWeek(now));
   const mariamTomorrow = (mariamToday + 1) % 7;
   const selectedMariamDay = selectedDay === 'today' ? mariamToday : mariamTomorrow;
   const isClosedDay = serviceDays.length > 0 && !serviceDays.includes(selectedMariamDay);
 
   return (
     <PublicShell>
-      {restaurant && <MobileHeader restaurant={restaurant} activeClosure={activeClosure} />}
+      {restaurant && (
+        <MobileHeader restaurant={restaurant} activeClosure={activeClosure} now={now} />
+      )}
 
       {currentData?.menu?.chef_note && <MobileChefNote note={currentData.menu.chef_note} />}
 
       <MobileDayToggle selected={selectedDay} onChange={setSelectedDay} />
 
       <div className="flex-1 overflow-y-auto">
-        {isPending ? (
-          <MobileMenuSkeleton />
-        ) : (
-          <>
-            {todayEvent && selectedDay === 'today' && (
-              <div className="px-4 pt-4">
-                <MobileTodayEvent event={todayEvent} />
-              </div>
-            )}
-
-            {currentData?.menu ? (
-              <MobileCategorySection
-                categories={currentData.menu.by_category || []}
-                onItemTap={setSelectedItem}
-                substitutions={currentData.menu.substitutions}
-              />
-            ) : activeClosure && selectedDay === 'today' ? (
-              <ActiveClosureMessage closure={activeClosure} />
-            ) : isClosedDay ? (
-              <ClosedDayMessage selectedDay={selectedDay} serviceDays={serviceDays} />
-            ) : (
-              <div className="px-6 py-16 text-center">
-                <p className="text-base text-gray-400">
-                  Aucun menu disponible pour {selectedDay === 'today' ? "aujourd'hui" : 'demain'}.
-                </p>
-              </div>
-            )}
-
-            {selectedDay === 'today' && currentData?.menu && (
-              <MobileVoteCard siteSlug={restaurantSlug} />
-            )}
-
-            <MobileEventSection upcomingEvents={upcomingEvents} />
-
-            {visibleClosures.length > 0 && <MobileClosureSection closures={visibleClosures} />}
-          </>
+        {todayEvent && selectedDay === 'today' && (
+          <div className="px-4 pt-4">
+            <MobileTodayEvent event={todayEvent} />
+          </div>
         )}
+
+        {currentData?.menu ? (
+          <MobileCategorySection
+            categories={currentData.menu.by_category || []}
+            onItemTap={setSelectedItem}
+            substitutions={currentData.menu.substitutions}
+          />
+        ) : activeClosure && selectedDay === 'today' ? (
+          <ActiveClosureMessage closure={activeClosure} />
+        ) : isClosedDay ? (
+          <ClosedDayMessage selectedDay={selectedDay} serviceDays={serviceDays} now={now} />
+        ) : (
+          <div className="px-6 py-16 text-center">
+            <p className="text-base text-gray-400">
+              Aucun menu disponible pour {selectedDay === 'today' ? "aujourd'hui" : 'demain'}.
+            </p>
+          </div>
+        )}
+
+        {selectedDay === 'today' && currentData?.menu && (
+          <MobileVoteCard siteSlug={restaurantSlug} />
+        )}
+
+        <MobileEventSection upcomingEvents={upcomingEvents} />
+
+        {visibleClosures.length > 0 && <MobileClosureSection closures={visibleClosures} />}
 
         <footer className="flex flex-col items-center gap-2 py-6 text-center">
           <a
@@ -172,11 +166,13 @@ export function MobileMenuDisplay({ restaurantSlug }: { restaurantSlug: string }
 function ClosedDayMessage({
   selectedDay,
   serviceDays,
+  now,
 }: {
   selectedDay: 'today' | 'tomorrow';
   serviceDays: number[];
+  now: Date;
 }) {
-  const nextOpening = getNextOpeningDate(serviceDays);
+  const nextOpening = getNextOpeningDate(serviceDays, now);
   const dayLabel = selectedDay === 'today' ? "aujourd'hui" : 'demain';
 
   return (

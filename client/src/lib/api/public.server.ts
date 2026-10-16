@@ -1,4 +1,11 @@
+import type { ExceptionalClosure } from './closures';
 import type { PublicOrg } from './public';
+import type {
+  EventData,
+  MenuData,
+  PublicMenuData,
+  RestaurantPublic,
+} from '@/pages/public/menu-types';
 
 type Env = Record<string, string | undefined>;
 
@@ -26,12 +33,42 @@ export function forwardedHeaders(request: Request): Record<string, string> {
   return headers;
 }
 
-export async function fetchPublicOrg(request: Request): Promise<PublicOrg | null> {
-  const response = await fetch(`${apiBaseUrl(request)}/public/org`, {
+async function getJson<T>(request: Request, path: string): Promise<T | null> {
+  const response = await fetch(`${apiBaseUrl(request)}${path}`, {
     headers: forwardedHeaders(request),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (response.status === 404) return null;
-  if (!response.ok) throw new Error(`GET /public/org answered ${response.status}`);
-  return (await response.json()) as PublicOrg;
+  if (!response.ok) throw new Error(`GET ${path} answered ${response.status}`);
+  return (await response.json()) as T;
+}
+
+export function fetchPublicOrg(request: Request): Promise<PublicOrg | null> {
+  return getJson<PublicOrg>(request, '/public/org');
+}
+
+export async function fetchPublicMenu(request: Request, slug: string): Promise<PublicMenuData> {
+  const site = `/public/${encodeURIComponent(slug)}`;
+  const [today, tomorrow, events, closures, restaurant] = await Promise.all([
+    getJson<MenuData>(request, `${site}/today`),
+    getJson<MenuData>(request, `${site}/tomorrow`),
+    getJson<{ today_event: EventData | null; upcoming_events: EventData[] }>(
+      request,
+      `${site}/events?visibility=mobile`
+    ),
+    getJson<{
+      current_closure: ExceptionalClosure | null;
+      upcoming_closures: ExceptionalClosure[];
+    }>(request, `${site}/closures`),
+    getJson<{ restaurant: RestaurantPublic }>(request, `${site}/restaurant`),
+  ]);
+  return {
+    today,
+    tomorrow,
+    todayEvent: events?.today_event ?? null,
+    upcomingEvents: events?.upcoming_events ?? [],
+    activeClosure: closures?.current_closure ?? null,
+    upcomingClosures: closures?.upcoming_closures ?? [],
+    restaurant: restaurant?.restaurant ?? null,
+  };
 }

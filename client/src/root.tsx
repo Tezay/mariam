@@ -1,7 +1,18 @@
 import type { ReactNode } from 'react';
 import { Links, Meta, Outlet, Scripts } from 'react-router';
+import { AppErrorFallback } from '@/components/ErrorBoundary';
+import type { Route } from './+types/root';
 import '@fontsource-variable/inter';
 import './index.css';
+
+export const meta: Route.MetaFunction = () => [
+  { title: 'Mariam - Menu du Jour' },
+  {
+    name: 'description',
+    content:
+      'Consultez le menu du restaurant universitaire. Plateforme de gestion des menus Mariam.',
+  },
+];
 
 export function Layout({ children }: { children: ReactNode }) {
   return (
@@ -33,11 +44,6 @@ export function Layout({ children }: { children: ReactNode }) {
         <meta name="apple-mobile-web-app-title" content="Mariam" />
         <meta name="msapplication-TileColor" content="#093EAA" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
-        <title>Mariam - Menu du Jour</title>
-        <meta
-          name="description"
-          content="Consultez le menu du restaurant universitaire. Plateforme de gestion des menus Mariam."
-        />
         <meta name="theme-color" content="#093EAA" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
         <Meta />
@@ -55,4 +61,8 @@ export function Layout({ children }: { children: ReactNode }) {
 
 export default function Root() {
   return <Outlet />;
+}
+
+export function ErrorBoundary() {
+  return <AppErrorFallback />;
 }

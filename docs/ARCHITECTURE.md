@@ -86,10 +86,21 @@ answers itself.
 | `/sitemap.xml` | The organization's active sites, asked from the API |
 | `/healthz` | Liveness, for the container healthcheck |
 
-Pages are rendered in the browser: the server answers the document with a loading indicator, and
-the application takes over. To reach the API the server uses `API_INTERNAL_URL` when the
-deployment sets one and `API_URL` otherwise, and forwards the visitor's address so the API's rate
-limit keeps counting visitors.
+The public pages are rendered by the server, then hydrated in the browser:
+
+| Path | Page |
+|---|---|
+| `/` | The organization's sites; a single-site organization goes to `/menu` |
+| `/menu`, `/<site>/menu` | A site's menu: `/menu` for a single site, `/<site>/menu` otherwise |
+| `/tv`, `/<site>/tv` | The display screen, rendered in the browser only and not indexed |
+| `/privacy` | The privacy notice for visitors |
+
+The other paths (the dashboard, sign-in, `/notifications`) answer a loading indicator, and the
+application renders them in the browser.
+
+To reach the API the server uses `API_INTERNAL_URL` when the deployment sets one and `API_URL`
+otherwise. It passes on the visitor's address in `X-Real-IP`, and only when that header came from
+the proxy: from any other peer it drops it.
 
 ## Configuration
 
@@ -114,9 +125,9 @@ of the proxy. `server_name _` accepts every subdomain and forwards the host.
 
 ### Indexing
 
-Pages are rendered in the browser, and the server answers the same document for every tenant: a
-crawler or link preview that does not run JavaScript reads the generic title and description,
-not a restaurant's.
+Each public page carries its own title, description, canonical address and Open Graph preview. A
+menu also carries a Schema.org `Restaurant` in JSON-LD, with the dishes of the day. All of it is in
+the HTML the server sends, so a crawler or a link preview reads it without running JavaScript.
 
 `robots.txt` allows public pages and blocks `/admin`, `/org` and the API. `sitemap.xml` lists the
 organization's active sites. The frontend server answers both for the requested host.

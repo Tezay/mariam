@@ -2,3 +2,5 @@ build
 dist
 coverage
 .react-router
+playwright-report
+test-results

@@ -8,13 +8,13 @@
  */
 const PARIS_TZ = 'Europe/Paris';
 
-export function parisToday(): string {
-  return new Intl.DateTimeFormat('sv', { timeZone: PARIS_TZ }).format(new Date());
+export function parisToday(at: Date = new Date()): string {
+  return new Intl.DateTimeFormat('sv', { timeZone: PARIS_TZ }).format(at);
 }
 
 /** 0 is Sunday, as with Date.getDay(). */
-export function parisDayOfWeek(): number {
-  return new Date(`${parisToday()}T12:00:00`).getDay();
+export function parisDayOfWeek(at?: Date): number {
+  return new Date(`${parisToday(at)}T12:00:00`).getDay();
 }
 
 export function addDays(dateStr: string, days: number): string {
@@ -29,7 +29,7 @@ export function addDays(dateStr: string, days: number): string {
  * Use it for hour, weekday and year comparisons. The instant it represents is
  * shifted, so never send it to the API — send the formatted date instead.
  */
-export function parisNow(): Date {
+export function parisNow(at: Date = new Date()): Date {
   const parts = new Intl.DateTimeFormat('sv', {
     timeZone: PARIS_TZ,
     year: 'numeric',
@@ -39,7 +39,7 @@ export function parisNow(): Date {
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
-  }).format(new Date());
+  }).format(at);
   return new Date(parts.replace(' ', 'T'));
 }
 

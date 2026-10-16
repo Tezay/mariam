@@ -122,12 +122,10 @@ def register_commands(app):
         restaurant = restaurants[0]
 
         frontend_url = app.config.get('FRONTEND_URL', 'http://localhost:5173')
-        # A single-site organization serves its menu at the root; a multi-site
-        # one lists its sites there instead.
         site_count = Restaurant.query.filter_by(
             organization_id=restaurant.organization_id, is_active=True
         ).count()
-        menu_path = '/menu' if site_count == 1 else f'/{restaurant.slug}/menu'
+        site_path = '' if site_count == 1 else f'/{restaurant.slug}'
         click.echo('\n' + '=' * 55)
         click.echo('  DEMO — Presentation dataset ready')
         click.echo('=' * 55)
@@ -143,8 +141,8 @@ def register_commands(app):
         click.echo(f'  Service      : {_DEMO_OPEN_TIME}–{_DEMO_CLOSE_TIME}, '
                    f'voting opens at {_DEMO_OPEN_TIME} (Paris time)')
         click.echo(f'  Admin URL    : {frontend_url}/admin/')
-        click.echo(f'  TV view      : {frontend_url}{menu_path}?mode=tv')
-        click.echo(f'  Mobile view  : {frontend_url}{menu_path}')
+        click.echo(f'  TV view      : {frontend_url}{site_path}/tv')
+        click.echo(f'  Mobile view  : {frontend_url}{site_path}/menu')
         click.echo('=' * 55)
         click.echo('  Ready for the demo.\n')
 

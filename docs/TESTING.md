@@ -140,6 +140,31 @@ Pure functions first: dates, colours, validation, matching. Components get smoke
 accessibility cases that matter. Mock API calls on the module the code imports, such as
 `vi.mock('@/lib/api/admin')`.
 
+### The built server
+
+`bun run test:server` starts the built server against a stub API and checks what it answers:
+security headers and policy, the public pages rendered with their title, dishes and JSON-LD,
+redirections, 404 and 503. Run it after `bun run build`.
+
+## End-to-end
+
+Playwright drives Chromium against the built server and a real API, seeded with the demo
+organization. The scenarios, in `client/e2e/`, read the public pages with and without JavaScript,
+check that they hydrate without an error, and open the display screen and the dashboard.
+
+```bash
+cd server && uv run flask db upgrade
+uv run flask seed-demo
+uv run flask run --port 5000
+
+cd client && bun run build
+API_INTERNAL_URL=http://localhost:5000/v1 node server.js
+bunx playwright install chromium   # once
+bunx playwright test
+```
+
+`E2E_PORT`, `E2E_SCHEME` and `E2E_API` point the tests at another server or API.
+
 ## CI
 
 Two workflows guard `main`. Each ends with a job that sums up the others, and that job is the
@@ -147,7 +172,7 @@ check a pull request needs to merge.
 
 | Workflow | Required check | What it runs |
 |---|---|---|
-| [`quality.yml`](../.github/workflows/quality.yml) | `CI result` | ruff, mypy and pytest for `server/`; ESLint, Prettier, Vitest and the build for `client/`; the production images, built without being published; ShellCheck, then the backup and proxy images against throwaway services |
+| [`quality.yml`](../.github/workflows/quality.yml) | `CI result` | ruff, mypy and pytest for `server/`; ESLint, Prettier, Vitest, the build and Playwright for `client/`; the production images, built without being published; ShellCheck, then the backup and proxy images against throwaway services |
 | [`security.yml`](../.github/workflows/security.yml) | `Security result` | `uv audit` and `bun audit` |
 
 What runs depends on the event and on the paths a change touches:
@@ -162,6 +187,7 @@ What runs depends on the event and on the paths a change touches:
 
 - **Backend jobs** follow `server/`.
 - **Frontend jobs** follow `client/` and `.editorconfig`, which Prettier reads.
+- **The end-to-end job** follows `server/` and `client/`.
 - **Image builds** follow the packaging files: `Dockerfile.prod`, the backend's entrypoint, the frontend's `server.js`, `.dockerignore`, the manifest and the lockfile.
 - **Backup and proxy jobs** follow `deploy/backup/` with `deploy/scripts/restore.sh`, and `deploy/nginx/`.
 - A change to a workflow runs everything that workflow holds.

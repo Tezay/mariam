@@ -1,15 +1,22 @@
 import { randomBytes } from 'node:crypto';
 import { PassThrough } from 'node:stream';
 
-import type { EntryContext } from 'react-router';
+import type { EntryContext, HandleErrorFunction } from 'react-router';
 import { createReadableStreamFromReadable } from '@react-router/node';
-import { ServerRouter } from 'react-router';
+import { isRouteErrorResponse, ServerRouter } from 'react-router';
 import { isbot } from 'isbot';
 import type { RenderToPipeableStreamOptions } from 'react-dom/server';
 import { renderToPipeableStream } from 'react-dom/server';
 import { contentSecurityPolicy } from './lib/runtime-config.server';
 
 export const streamTimeout = 5_000;
+
+export const handleError: HandleErrorFunction = (error, { request }) => {
+  // Neither a visitor who leaves mid-render nor a request the router turns away
+  // (a POST to a page answers 405) is a server error.
+  if (request.signal.aborted || isRouteErrorResponse(error)) return;
+  console.error(`${request.method} ${new URL(request.url).pathname}`, error);
+};
 
 export default function handleRequest(
   request: Request,

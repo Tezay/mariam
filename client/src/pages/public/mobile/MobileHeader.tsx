@@ -25,16 +25,17 @@ function ServiceStatusDot({ color }: { color: 'green' | 'amber' | 'gray' | 'red'
 interface MobileHeaderProps {
   restaurant: RestaurantPublic;
   activeClosure?: ExceptionalClosure | null;
+  now: Date;
 }
 
-export function MobileHeader({ restaurant, activeClosure }: MobileHeaderProps) {
+export function MobileHeader({ restaurant, activeClosure, now }: MobileHeaderProps) {
   const [expanded, setExpanded] = useState(false);
 
   const navigate = useNavigate();
 
   const serviceDays = restaurant.config?.service_days ?? [];
   const serviceHours = restaurant.service_hours ?? {};
-  const normalStatus = getServiceStatus(serviceHours, serviceDays);
+  const normalStatus = getServiceStatus(serviceHours, serviceDays, now);
   const status = activeClosure
     ? {
         label: `Fermé — ${activeClosure.reason ?? 'Fermeture exceptionnelle'}`,

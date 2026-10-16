@@ -4,20 +4,13 @@ import { Toaster } from 'sonner';
 import { useAuth } from './contexts/AuthContext';
 import { PwaInstallProvider } from './contexts/PwaInstallContext';
 import { useTheme } from './contexts/ThemeProvider';
-// Eager: the public menu is the first thing most visitors wait for.
-import { TenantLayout, PublicRoot, MonoMenu, SluggedMenu } from './pages/public/PublicRoutes';
-import { ErrorBoundary, PublicErrorFallback } from './components/ErrorBoundary';
 import { PageLoader } from './components/PageLoader';
 import { dashboardPathForRole } from './lib/dashboard-routes';
 
-// The rest loads on demand, so a visitor of the menu never downloads the dashboard.
 const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
 const Activate = lazy(() => import('./pages/Activate').then((m) => ({ default: m.Activate })));
 const ResetPassword = lazy(() =>
   import('./pages/ResetPassword').then((m) => ({ default: m.ResetPassword }))
-);
-const PrivacyPage = lazy(() =>
-  import('./pages/public/PrivacyPage').then((m) => ({ default: m.PrivacyPage }))
 );
 const NotificationsPage = lazy(() =>
   import('./pages/public/NotificationsPage').then((m) => ({ default: m.NotificationsPage }))
@@ -212,20 +205,6 @@ function App() {
       <ResponsiveToaster />
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          <Route
-            element={
-              <ErrorBoundary fallback={<PublicErrorFallback />}>
-                <TenantLayout />
-              </ErrorBoundary>
-            }
-          >
-            <Route path="/" element={<PublicRoot />} />
-            <Route path="/menu" element={<MonoMenu />} />
-            <Route path="/:restaurantSlug/menu" element={<SluggedMenu />} />
-          </Route>
-
-          <Route path="/privacy" element={<PrivacyPage />} />
-
           <Route path="/notifications" element={<NotificationsPage />} />
 
           <Route

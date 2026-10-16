@@ -3,14 +3,14 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
-import { after, before, test } from 'node:test';
+import { after, before, beforeEach, test } from 'node:test';
 import vm from 'node:vm';
 
 const HOST = 'demo.example.test';
 const ORIGIN = `https://${HOST}`;
 
 let api;
-let apiAnswer;
+let orgAnswer;
 let apiRequests = [];
 let server;
 let port;
@@ -59,11 +59,61 @@ function organization(...slugs) {
   };
 }
 
+const HOSTILE_DISH = '</script><script>alert(1)</script>';
+
+function today() {
+  const dish = (id, name) => ({
+    id,
+    dish_id: id,
+    dish: { id, name, tags: [], certifications: [] },
+  });
+  return {
+    date: '2026-10-15',
+    day_name: 'Jeudi',
+    menu: {
+      date: '2026-10-15',
+      items: [],
+      by_category: [
+        {
+          id: 1,
+          label: 'Plats',
+          icon: 'utensils',
+          is_highlighted: false,
+          is_protected: true,
+          order: 0,
+          items: [dish(1, 'Curry de pois chiches'), dish(2, HOSTILE_DISH)],
+          subcategories: [],
+        },
+      ],
+    },
+  };
+}
+
+const SITE_ANSWERS = {
+  today: () => today(),
+  tomorrow: () => ({ date: '2026-10-16', day_name: 'Vendredi', menu: null }),
+  events: () => ({ today_event: null, upcoming_events: [] }),
+  closures: () => ({ current_closure: null, upcoming_closures: [], closures: [] }),
+  restaurant: (slug) => ({
+    restaurant: { id: 1, name: slug, service_hours: {}, config: { service_days: [0, 1, 2, 3, 4] } },
+  }),
+};
+
+function answer(url) {
+  const { pathname } = new URL(url, 'http://api');
+  if (pathname === '/v1/public/org') return orgAnswer;
+  const [, slug, resource] = /^\/v1\/public\/([^/]+)\/([^/]+)$/.exec(pathname) ?? [];
+  const known = orgAnswer.body?.sites?.some((site) => site.slug === slug);
+  if (!known || !SITE_ANSWERS[resource]) return { status: 404 };
+  return { status: 200, body: SITE_ANSWERS[resource](slug) };
+}
+
 before(async () => {
   api = http.createServer((incoming, outgoing) => {
     apiRequests.push({ url: incoming.url, headers: incoming.headers });
-    outgoing.writeHead(apiAnswer.status, { 'Content-Type': 'application/json' });
-    outgoing.end(JSON.stringify(apiAnswer.body ?? {}));
+    const { status, body } = answer(incoming.url);
+    outgoing.writeHead(status, { 'Content-Type': 'application/json' });
+    outgoing.end(JSON.stringify(body ?? {}));
   });
   const apiPort = await listen(api);
   port = await freePort();
@@ -92,6 +142,11 @@ before(async () => {
 after(() => {
   server?.kill();
   api?.close();
+});
+
+beforeEach(() => {
+  orgAnswer = organization('alpha', 'beta');
+  apiRequests = [];
 });
 
 test('a page is the loading shell, with the security headers', async () => {
@@ -171,8 +226,6 @@ test('/robots.txt points at the sitemap of the requested host', async () => {
 });
 
 test('/sitemap.xml lists the sites, asking the API as the visitor', async () => {
-  apiAnswer = organization('alpha', 'beta');
-  apiRequests = [];
   const sitemap = await request('/sitemap.xml', {
     headers: { 'X-Real-IP': '203.0.113.7' },
   });
@@ -189,19 +242,19 @@ test('/sitemap.xml lists the sites, asking the API as the visitor', async () => 
 });
 
 test('/sitemap.xml of a single site is its menu at the root', async () => {
-  apiAnswer = organization('solo');
+  orgAnswer = organization('solo');
   const sitemap = await request('/sitemap.xml');
   assert.ok(sitemap.body.includes(`<loc>${ORIGIN}/menu</loc>`));
   assert.ok(!sitemap.body.includes('/solo/'));
 });
 
 test('/sitemap.xml is empty for an unknown host and unavailable when the API fails', async () => {
-  apiAnswer = { status: 404 };
+  orgAnswer = { status: 404 };
   const unknown = await request('/sitemap.xml');
   assert.equal(unknown.status, 200);
   assert.ok(!unknown.body.includes('<loc>'));
 
-  apiAnswer = { status: 500 };
+  orgAnswer = { status: 500 };
   const failing = await request('/sitemap.xml');
   assert.equal(failing.status, 503);
   assert.equal(failing.headers['retry-after'], '60');
@@ -215,4 +268,50 @@ test('static files are cached by how they are named', async () => {
   assert.match((await request(hashed)).headers['cache-control'], /immutable/);
   assert.equal((await request('/sw-push.js')).headers['cache-control'], 'no-cache');
   assert.match((await request('/favicon.svg')).headers['cache-control'], /immutable/);
+});
+
+test('a menu is rendered by the server, with its title, its dishes and its JSON-LD', async () => {
+  const page = await request('/alpha/menu');
+  assert.equal(page.status, 200);
+  assert.match(page.body, /<title>Menu alpha — Demo<\/title>/);
+  assert.ok(page.body.includes(`<link rel="canonical" href="${ORIGIN}/alpha/menu"/>`));
+  assert.ok(page.body.includes('Curry de pois chiches'));
+  const jsonld = /<script type="application\/ld\+json">(.*?)<\/script>/.exec(page.body)?.[1];
+  assert.ok(jsonld, 'no JSON-LD block');
+  assert.equal(JSON.parse(jsonld).hasMenu.hasMenuSection[0].hasMenuItem[1].name, HOSTILE_DISH);
+  // Written as data, never as markup: the name cannot close the script it sits in.
+  assert.ok(!page.body.includes(HOSTILE_DISH));
+});
+
+test('a page asks the API as the visitor the proxy named', async () => {
+  await request('/alpha/menu', { headers: { 'X-Real-IP': '203.0.113.7' } });
+  assert.ok(apiRequests.length >= 6);
+  for (const { headers } of apiRequests) {
+    assert.equal(headers.origin, ORIGIN);
+    assert.equal(headers['x-real-ip'], '203.0.113.7');
+  }
+});
+
+test('an unknown site answers 404, an unreachable API 503', async () => {
+  const unknown = await request('/nope/menu');
+  assert.equal(unknown.status, 404);
+  assert.ok(unknown.body.includes('Restaurant introuvable.'));
+  orgAnswer = { status: 404 };
+  assert.equal((await request('/')).status, 404);
+  orgAnswer = { status: 500 };
+  assert.equal((await request('/')).status, 503);
+});
+
+test('a single site is served at /menu, and the TV mode has its own address', async () => {
+  const tv = await request('/alpha/menu?mode=tv');
+  assert.equal(tv.status, 301);
+  assert.equal(tv.headers.location, '/alpha/tv');
+
+  orgAnswer = organization('solo');
+  for (const path of ['/', '/solo/menu']) {
+    const moved = await request(path);
+    assert.equal(moved.status, 302, path);
+    assert.equal(moved.headers.location, '/menu', path);
+  }
+  assert.equal((await request('/menu')).status, 200);
 });
