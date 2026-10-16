@@ -412,7 +412,7 @@ class TestDeletionNeedsStepUp:
         enable_totp(boss)
         res = client.delete(f'/v1/users/{victim}', headers=session_headers(boss))
         assert res.status_code == 403
-        assert res.get_json()['step_up_required'] is True
+        assert res.get_json()['code'] == 'step_up_required'
         assert db.session.get(User, victim) is not None
 
     def test_wrong_password_confirms_nothing(self, app, client):

@@ -1,18 +1,20 @@
 import { isAxiosError } from 'axios';
+import type { components } from './schema.gen';
+
+// Routes not yet moved to problem details still answer { error, message? }.
+type ErrorBody = Partial<components['schemas']['Problem']> & { error?: string; message?: string };
+
+function errorBody(error: unknown): ErrorBody | undefined {
+  return isAxiosError(error) ? (error.response?.data as ErrorBody | undefined) : undefined;
+}
 
 export function isConfirmationRequired(error: unknown): boolean {
-  return (
-    isAxiosError(error) &&
-    (error.response?.data as { step_up_required?: boolean } | undefined)?.step_up_required === true
-  );
+  return errorBody(error)?.code === 'step_up_required';
 }
 
 export function getApiErrorMessage(error: unknown, fallback: string): string {
-  if (isAxiosError(error)) {
-    const message = (error.response?.data as { error?: string } | undefined)?.error;
-    if (message) return message;
-  }
-  return fallback;
+  const body = errorBody(error);
+  return body?.detail || body?.message || body?.error || fallback;
 }
 
 export type ApiErrorKind = 'network' | 'server' | 'forbidden' | 'notfound' | 'unknown';

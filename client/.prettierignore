@@ -4,3 +4,4 @@ coverage
 .react-router
 playwright-report
 test-results
+src/lib/api/schema.gen.ts

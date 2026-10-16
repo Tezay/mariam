@@ -20,8 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`mariam-backup verify`** restores a backup into a scratch database, from any machine with Docker.
 - **The public pages are rendered by the server**, each with its title, description, link preview and, for a menu, its JSON-LD.
 - **`/tv` and `/<site>/tv`**, the address of the display screen.
+- **The API's conventions** in `docs/API.md`, and its specification kept in the repository, checked by CI.
 
 ### Changed
+
+- **API errors follow RFC 9457** (`application/problem+json`), with a stable `code` beside the French `detail`.
+- **uv runs Python 3.11** (`server/.python-version`), the version of the images; CI tests on it too.
 
 - **React Router 7** replaces `react-router-dom` 6; the current page stays visible while the next one loads.
 - **The frontend is built by React Router's framework mode**; the build needs Node 22 alongside Bun.

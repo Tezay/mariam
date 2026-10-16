@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { RoleBadge } from '@/components/dashboard/RoleBadge';
 import { APP_ENVIRONMENT, APP_VERSION } from '@/lib/runtime-config';
 import { authApi } from '@/lib/api/auth';
+import { getApiErrorMessage } from '@/lib/api/errors';
 import { inboxApi, type NotifPreferences } from '@/lib/api/inbox';
 import { publicApi } from '@/lib/api/public';
 import {
@@ -450,14 +451,7 @@ export function AccountPage() {
         setMessage(null);
       }, 2000);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string; message?: string } } };
-      setMessage({
-        type: 'error',
-        text:
-          error.response?.data?.message ||
-          error.response?.data?.error ||
-          'Erreur lors du changement',
-      });
+      setMessage({ type: 'error', text: getApiErrorMessage(err, 'Erreur lors du changement') });
     } finally {
       setIsSubmitting(false);
     }
@@ -490,20 +484,10 @@ export function AccountPage() {
         setMessage(null);
       }, 2000);
     } catch (err: unknown) {
-      const error = err as {
-        name?: string;
-        response?: { data?: { error?: string; message?: string } };
-      };
-      if (error.name === 'NotAllowedError') {
+      if ((err as { name?: string }).name === 'NotAllowedError') {
         setMessage({ type: 'error', text: 'Authentification annulée. Réessayez.' });
       } else {
-        setMessage({
-          type: 'error',
-          text:
-            error.response?.data?.message ||
-            error.response?.data?.error ||
-            'Erreur lors du changement',
-        });
+        setMessage({ type: 'error', text: getApiErrorMessage(err, 'Erreur lors du changement') });
       }
     } finally {
       setIsSubmitting(false);

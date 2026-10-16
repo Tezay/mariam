@@ -60,7 +60,7 @@ class TestInviteUser:
         )
 
         assert res.status_code == 403
-        assert res.get_json()['step_up_required'] is True
+        assert res.get_json()['code'] == 'step_up_required'
         assert ActivationLink.query.count() == 0
 
     def test_invite_requires_admin(self, app, client):
@@ -325,7 +325,7 @@ class TestSecondFactorReset:
         res = self._reset(client, target, session_headers(admin))
 
         assert res.status_code == 403
-        assert res.get_json()['step_up_required'] is True
+        assert res.get_json()['code'] == 'step_up_required'
         assert db.session.get(User, target).mfa_enabled is True
 
     def test_an_admin_cannot_reset_its_own(self, app, client, revocations):
@@ -411,7 +411,7 @@ class TestPasswordResetLink:
         res = self._send(client, target, session_headers(admin))
 
         assert res.status_code == 403
-        assert res.get_json()['step_up_required'] is True
+        assert res.get_json()['code'] == 'step_up_required'
         assert ActivationLink.query.count() == 0
 
     def test_an_admin_changes_its_own_password_elsewhere(self, app, client):

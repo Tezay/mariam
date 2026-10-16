@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { dashboardPathForRole } from '@/lib/dashboard-routes';
 import { authApi } from '@/lib/api/auth';
+import { getApiErrorMessage } from '@/lib/api/errors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -44,17 +45,14 @@ export function Login() {
       window.umami?.track('login-success', { method: 'passkey' });
       navigate(dashboardPathForRole(loggedUser?.role));
     } catch (err: unknown) {
-      const error = err as {
-        name?: string;
-        response?: { status?: number; data?: { error?: string } };
-      };
+      const error = err as { name?: string; response?: { status?: number } };
       window.umami?.track('login-failure', { method: 'passkey' });
       if (error.name === 'NotAllowedError') {
         setError('Authentification annulée ou expirée. Réessayez.');
       } else if (error.response?.status === 404) {
         setError('Aucune passkey trouvée. Connectez-vous avec votre mot de passe.');
       } else {
-        setError(error.response?.data?.error || "Échec de l'authentification.");
+        setError(getApiErrorMessage(err, "Échec de l'authentification."));
       }
     } finally {
       setIsLoading(false);
@@ -77,9 +75,7 @@ export function Login() {
         navigate(dashboardPathForRole(result.user?.role));
       }
     } catch (err: unknown) {
-      const error = err as {
-        response?: { data?: { error?: string; passkey_only?: boolean } };
-      };
+      const error = err as { response?: { data?: { passkey_only?: boolean } } };
       window.umami?.track('login-failure', { method: 'password' });
       if (error.response?.data?.passkey_only) {
         setError(
@@ -87,7 +83,7 @@ export function Login() {
             'Veuillez utiliser un appareil compatible (empreinte digitale, Face ID…).'
         );
       } else {
-        setError(error.response?.data?.error || 'Email ou mot de passe incorrect.');
+        setError(getApiErrorMessage(err, 'Email ou mot de passe incorrect.'));
       }
     } finally {
       setIsLoading(false);
@@ -104,9 +100,8 @@ export function Login() {
       window.umami?.track('login-success', { method: 'password+mfa' });
       navigate(dashboardPathForRole(loggedUser?.role));
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } };
       window.umami?.track('login-failure', { method: 'mfa' });
-      setError(error.response?.data?.error || 'Code invalide. Réessayez.');
+      setError(getApiErrorMessage(err, 'Code invalide. Réessayez.'));
     } finally {
       setIsLoading(false);
     }

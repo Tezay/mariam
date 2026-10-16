@@ -44,7 +44,7 @@ class TestConfirmation:
         )
 
         assert res.status_code == 403
-        assert res.get_json()['step_up_required'] is True
+        assert res.get_json()['code'] == 'step_up_required'
         assert db.session.get(User, uid).username == 'admin'
 
     def test_a_new_address_closes_the_confirmation(self, app, client):
