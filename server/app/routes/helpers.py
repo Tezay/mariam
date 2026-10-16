@@ -8,6 +8,7 @@ from flask_jwt_extended.exceptions import FreshTokenRequired
 from ..extensions import db
 from ..models import DishCatalog, Restaurant, User
 from ..models.taxonomy import Certification, DietaryTag
+from ..problems import Problem
 from ..services.access import accessible_restaurant_ids
 
 
@@ -24,11 +25,11 @@ def editor_required(f):
         current_user_id = int(get_jwt_identity())
         user = db.session.get(User, current_user_id)
         if not user.is_editor():
-            return jsonify({'error': 'Accès réservé aux éditeurs'}), 403
+            raise Problem(403, 'editor_required', 'Accès réservé aux éditeurs.')
         if user.is_org_admin() and request.method != 'GET':
-            return jsonify(
-                {'error': "Un superviseur ne peut pas modifier le contenu d'un site"}
-            ), 403
+            raise Problem(
+                403, 'supervisor_read_only', "Un superviseur ne peut pas modifier le contenu d'un site."
+            )
         return f(*args, **kwargs)
     return decorated_function
 
@@ -41,7 +42,7 @@ def admin_required(f):
         current_user_id = int(get_jwt_identity())
         user = db.session.get(User, current_user_id)
         if not user.is_admin():
-            return jsonify({'error': 'Accès réservé aux administrateurs'}), 403
+            raise Problem(403, 'admin_required', 'Accès réservé aux administrateurs.')
         return f(*args, **kwargs)
     return decorated_function
 
@@ -54,17 +55,17 @@ def org_admin_required(f):
         current_user_id = int(get_jwt_identity())
         user = db.session.get(User, current_user_id)
         if not user.is_org_admin() or not user.organization_id:
-            return jsonify({'error': 'Réservé aux superviseurs'}), 403
+            raise Problem(403, 'supervisor_required', 'Réservé aux superviseurs.')
         return f(*args, **kwargs)
     return decorated_function
 
 
-def _confirmation_required():
+def _confirmation_required() -> Problem:
     # 403, not 401: the client takes a 401 for an expired session and refreshes it.
-    return jsonify({
-        'error': 'Confirmation d’identité requise',
-        'step_up_required': True,
-    }), 403
+    # The boolean serves the clients that predate `code`.
+    return Problem(
+        403, 'step_up_required', 'Confirmation d’identité requise.', step_up_required=True
+    )
 
 
 def _identity_confirmed() -> bool:
@@ -86,7 +87,7 @@ def step_up_required(f):
     def decorated_function(*args, **kwargs):
         user = get_current_user()
         if not (user.has_second_factor() and _identity_confirmed()):
-            return _confirmation_required()
+            raise _confirmation_required()
         return f(*args, **kwargs)
     return decorated_function
 
@@ -102,7 +103,7 @@ def step_up_once_enrolled(f):
     def decorated_function(*args, **kwargs):
         user = get_current_user()
         if user.has_second_factor() and not _identity_confirmed():
-            return _confirmation_required()
+            raise _confirmation_required()
         return f(*args, **kwargs)
     return decorated_function
 

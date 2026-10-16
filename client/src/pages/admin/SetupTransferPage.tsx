@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { authApi } from '@/lib/api/auth';
-import { isConfirmationRequired } from '@/lib/api/errors';
+import { getApiErrorMessage, isConfirmationRequired } from '@/lib/api/errors';
 import { passkeyRegistrationError } from '@/lib/passkey-errors';
 import { useAuth } from '@/contexts/AuthContext';
 import { Logo } from '@/components/Logo';
@@ -38,8 +38,7 @@ export function SetupTransferPage() {
         setState('success');
       })
       .catch((err) => {
-        const msg = err?.response?.data?.error ?? 'Le lien a expiré ou est invalide.';
-        setErrorMsg(msg);
+        setErrorMsg(getApiErrorMessage(err, 'Le lien a expiré ou est invalide.'));
         setState('error');
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps

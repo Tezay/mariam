@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { authApi } from '@/lib/api/auth';
+import { getApiErrorMessage } from '@/lib/api/errors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -89,10 +90,7 @@ export function ResetPassword() {
       await authApi.resetPassword(token!, password, mfaCode);
       setStep('success');
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string; message?: string } } };
-      setError(
-        e.response?.data?.message || e.response?.data?.error || 'Erreur lors de la réinitialisation'
-      );
+      setError(getApiErrorMessage(err, 'Erreur lors de la réinitialisation'));
     } finally {
       setIsLoading(false);
     }
@@ -114,18 +112,10 @@ export function ResetPassword() {
       await authApi.passkeyResetPasswordComplete(password, challenge_token, credential, token!);
       setStep('success');
     } catch (err: unknown) {
-      const e = err as {
-        name?: string;
-        response?: { data?: { error?: string; message?: string } };
-      };
-      if (e.name === 'NotAllowedError') {
+      if ((err as { name?: string }).name === 'NotAllowedError') {
         setError('Authentification annulée. Réessayez.');
       } else {
-        setError(
-          e.response?.data?.message ||
-            e.response?.data?.error ||
-            'Erreur lors de la réinitialisation'
-        );
+        setError(getApiErrorMessage(err, 'Erreur lors de la réinitialisation'));
       }
     } finally {
       setIsLoading(false);

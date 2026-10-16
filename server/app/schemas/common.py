@@ -12,6 +12,28 @@ class ErrorSchema(Schema):
     message = fields.Str(metadata={'description': "Detailed error description"})
 
 
+class ValidationIssueSchema(Schema):
+    pointer = fields.Str(metadata={'description': "JSON Pointer (RFC 6901) to the field in the body"})
+    parameter = fields.Str(metadata={'description': "Query, path or header parameter"})
+    detail = fields.Str(required=True)
+
+
+class ProblemSchema(Schema):
+    """RFC 9457 problem details; `type` is left out and reads as about:blank."""
+    class Meta:
+        unknown = EXCLUDE
+    title = fields.Str(required=True, metadata={'description': "HTTP status phrase"})
+    status = fields.Int(required=True)
+    detail = fields.Str(
+        required=True, metadata={'description': "What happened, in French, for the person"}
+    )
+    code = fields.Str(required=True, metadata={'description': "Stable identifier, for programs"})
+    errors = fields.List(
+        fields.Nested(ValidationIssueSchema),
+        metadata={'description': "One entry per invalid field, on a 422"},
+    )
+
+
 class MessageSchema(Schema):
     class Meta:
         unknown = EXCLUDE

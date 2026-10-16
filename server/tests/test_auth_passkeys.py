@@ -88,7 +88,7 @@ class TestRegistration:
         res = self._begin(client, uid)
 
         assert res.status_code == 403
-        assert res.get_json()['step_up_required'] is True
+        assert res.get_json()['code'] == 'step_up_required'
 
     def test_a_confirmed_session_adds_a_factor_to_an_account_that_has_one(self, app, client):
         uid = make_user(app)
@@ -110,7 +110,7 @@ class TestRegistration:
         res = self._complete(client, uid, begin, new_authenticator().register(begin['options']))
 
         assert res.status_code == 403
-        assert res.get_json()['step_up_required'] is True
+        assert res.get_json()['code'] == 'step_up_required'
         assert Passkey.query.count() == 0
 
     def test_a_challenge_registers_one_passkey(self, app, client, revocations):

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router';
 import { useEditor, useEditorState, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
+import { getApiErrorMessage } from '@/lib/api/errors';
 import { eventsApi, Event, EventImage } from '@/lib/api/events';
 import { EVENT_PRESET_COLORS, generateEventPalette } from '@/lib/color-utils';
 import { notify } from '@/lib/toast';
@@ -306,8 +307,7 @@ export function EventEditPage() {
           navigate(`/admin/events/${savedEvent.id}/edit`, { replace: true });
         }
       } catch (err: unknown) {
-        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
-        notify.error(msg ?? "Erreur lors de l'enregistrement");
+        notify.error(getApiErrorMessage(err, "Erreur lors de l'enregistrement"));
       } finally {
         setIsSaving(false);
         setIsUploading(false);

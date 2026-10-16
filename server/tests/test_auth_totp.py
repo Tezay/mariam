@@ -87,7 +87,7 @@ class TestReplacement:
         res = _setup(client, session_headers(uid))
 
         assert res.status_code == 403
-        assert res.get_json()['step_up_required'] is True
+        assert res.get_json()['code'] == 'step_up_required'
 
     def test_the_secret_in_use_survives_until_the_new_one_is_confirmed(self, app, client):
         uid = make_user(app)
@@ -146,7 +146,7 @@ class TestReplacement:
         res = _confirm(client, uid, enrolment)
 
         assert res.status_code == 403
-        assert res.get_json()['step_up_required'] is True
+        assert res.get_json()['code'] == 'step_up_required'
         assert not db.session.get(User, uid).mfa_enabled
 
 

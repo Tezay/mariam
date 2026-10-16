@@ -20,7 +20,7 @@ const handDrawnSpinner = {
 };
 
 export default defineConfig(
-  { ignores: ['build', '.react-router'] },
+  { ignores: ['build', '.react-router', 'src/lib/api/schema.gen.ts'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],

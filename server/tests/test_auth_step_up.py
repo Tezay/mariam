@@ -118,7 +118,7 @@ class TestConfirmedSession:
         res = _delete(client, target, session_headers(admin))
 
         assert res.status_code == 403
-        assert res.get_json()['step_up_required'] is True
+        assert res.get_json()['code'] == 'step_up_required'
         assert db.session.get(User, target) is not None
 
     def test_one_confirmation_covers_several_actions(self, app, client):

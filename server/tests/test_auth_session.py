@@ -148,7 +148,7 @@ class TestSessionTransfer:
         refused = self._generate(client, session_headers(uid))
 
         assert refused.status_code == 403
-        assert refused.get_json()['step_up_required'] is True
+        assert refused.get_json()['code'] == 'step_up_required'
         assert self._generate(client, session_headers(uid, confirmed=True)).status_code == 200
 
     def test_the_other_device_inherits_the_confirmation(self, app, client, revocations):

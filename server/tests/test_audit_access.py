@@ -82,7 +82,7 @@ class TestExport:
         response = client.get('/v1/audit-logs/export', headers=auth_headers(_token(app, user.id)))
 
         assert response.status_code == 403
-        assert response.get_json()['step_up_required'] is True
+        assert response.get_json()['code'] == 'step_up_required'
 
     def test_a_confirmed_session_exports(self, app, client):
         user = _reader(app, 'export@mariam.app')

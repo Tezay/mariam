@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { authApi, type ActivationLinkInfo } from '@/lib/api/auth';
+import { getApiErrorMessage } from '@/lib/api/errors';
 import { DISPLAY_NAME_RULE, parseDisplayName } from '@/lib/display-name';
 import { EMAIL_RULE, canonicalEmail } from '@/lib/email-address';
 import { roleLabel } from '@/lib/roles';
@@ -111,12 +112,7 @@ export function Activate() {
         setStep('second-factor');
       }
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string; message?: string } } };
-      setError(
-        error.response?.data?.message ||
-          error.response?.data?.error ||
-          "Erreur lors de l'activation"
-      );
+      setError(getApiErrorMessage(err, "Erreur lors de l'activation"));
     } finally {
       setIsLoading(false);
     }

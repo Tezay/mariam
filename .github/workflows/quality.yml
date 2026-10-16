@@ -132,8 +132,9 @@ jobs:
             echo "|---|---|---|"
             row "Backend lint and tests" "$BACKEND" "\`server/\`"
             row "Frontend lint, tests and build" "$FRONTEND" "\`client/\`, \`.editorconfig\`"
-            if [ "$BACKEND" = true ] || [ "$FRONTEND" = true ]; then E2E=true; else E2E=false; fi
-            row "End-to-end tests" "$E2E" "\`server/\` or \`client/\`"
+            if [ "$BACKEND" = true ] || [ "$FRONTEND" = true ]; then EITHER=true; else EITHER=false; fi
+            row "End-to-end tests" "$EITHER" "\`server/\` or \`client/\`"
+            row "API contract" "$EITHER" "\`server/\` or \`client/\`"
             row "Backend image build" "$IMAGE_BACKEND" "packaging files in \`server/\`"
             row "Frontend image build" "$IMAGE_FRONTEND" "packaging files in \`client/\`"
             row "Backup image, ShellCheck and round trip" "$BACKUP" "\`deploy/backup/\`, \`deploy/scripts/restore.sh\`"
@@ -477,6 +478,54 @@ jobs:
             client/playwright-report/
           retention-days: 7
 
+  api-contract:
+    name: API contract (OpenAPI + client types)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      FLASK_APP: run.py
+      FLASK_ENV: development
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install the backend
+        working-directory: server
+        run: uv sync --no-dev --no-install-project --frozen
+
+      - name: Write the specification
+        working-directory: server
+        run: uv run flask openapi write openapi.json
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Cache Bun packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('client/bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      - name: Install the frontend
+        working-directory: client
+        run: bun install --frozen-lockfile
+
+      - name: Generate the client types
+        working-directory: client
+        run: bun run api:types
+
+      - name: Compare with the committed files
+        run: |
+          if ! git diff --exit-code -- server/openapi.json client/src/lib/api/schema.gen.ts; then
+            echo "::error::The API changed: run 'flask openapi write openapi.json' in server/, then 'bun run api:types' in client/, and commit both files."
+            exit 1
+          fi
+
   result:
     name: CI result
     needs:
@@ -491,6 +540,7 @@ jobs:
       - backup
       - proxy
       - e2e
+      - api-contract
     # always(), not !cancelled(): a required check that is skipped counts as passed.
     if: always()
     runs-on: ubuntu-latest

@@ -2,7 +2,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
-from flask import Flask, jsonify
+from flask import Flask
 from flask_cors import CORS
 
 from .extensions import db, jwt, migrate
@@ -21,6 +21,7 @@ from .models import (
     Restaurant,
     User,
 )
+from .problems import Api, Problem, answer_problem, problem_response
 from .security import SESSION_CLAIM, is_token_blacklisted, limiter
 from .services.storage import storage
 from .utils.urls import frontend_base_url
@@ -139,24 +140,19 @@ def create_app(config_class=None):
     
     @jwt.invalid_token_loader
     def invalid_token_callback(error_string):
-        return jsonify({
-            'error': 'Token invalide',
-            'message': error_string
-        }), 401
-    
+        return problem_response(
+            401, 'token_invalid', 'Session invalide, veuillez vous reconnecter.'
+        )
+
     @jwt.unauthorized_loader
     def missing_token_callback(error_string):
-        return jsonify({
-            'error': 'Token manquant',
-            'message': error_string
-        }), 401
-    
+        return problem_response(401, 'token_missing', 'Connexion requise.')
+
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
-        return jsonify({
-            'error': 'Token expiré',
-            'message': 'Votre session a expiré, veuillez vous reconnecter'
-        }), 401
+        return problem_response(
+            401, 'token_expired', 'Votre session a expiré, veuillez vous reconnecter.'
+        )
 
     @jwt.token_in_blocklist_loader
     def check_if_token_revoked(jwt_header, jwt_payload):
@@ -196,33 +192,21 @@ def create_app(config_class=None):
     @jwt.revoked_token_loader
     def revoked_token_callback(jwt_header, jwt_payload):
         if jwt_payload.get('mfa_pending'):
-            return jsonify({
-                'error': 'Authentification incomplète',
-                'message': 'Veuillez compléter la vérification MFA'
-            }), 401
+            return problem_response(
+                401, 'authentication_incomplete', 'Veuillez compléter la vérification MFA.'
+            )
         if jwt_payload.get('webauthn_pending') or jwt_payload.get('setup_phase'):
-            return jsonify({
-                'error': 'Token à usage limité',
-                'message': 'Ce token ne peut pas être utilisé sur cet endpoint'
-            }), 401
+            return problem_response(
+                401, 'token_restricted', 'Ce jeton ne peut pas être utilisé sur cette route.'
+            )
         if jwt_payload.get('session_transfer'):
-            return jsonify({
-                'error': 'Token de transfert invalide',
-                'message': 'Ce token ne peut pas être utilisé comme token d\'accès'
-            }), 401
-        return jsonify({
-            'error': 'Token révoqué',
-            'message': 'Votre session a été invalidée, veuillez vous reconnecter'
-        }), 401
-    
-    @app.errorhandler(429)
-    def ratelimit_handler(e):
-        return jsonify({
-            'error': 'Trop de requêtes',
-            'message': 'Vous avez dépassé la limite autorisée. Réessayez plus tard.',
-            'retry_after': e.description
-        }), 429
-    
+            return problem_response(
+                401, 'token_restricted', "Ce jeton ne peut pas être utilisé comme jeton d'accès."
+            )
+        return problem_response(
+            401, 'token_revoked', 'Votre session a été invalidée, veuillez vous reconnecter.'
+        )
+
     frontend_urls = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
     origins = [url.strip() for url in frontend_urls.split(',') if url.strip()]
     
@@ -237,13 +221,8 @@ def create_app(config_class=None):
     from .security_headers import configure_security_headers
     configure_security_headers(app)
 
-    from flask_smorest import Api
-
-    from .schemas.common import ErrorSchema
     api = Api(app)
-    # flask-smorest documents its own error body as "Error"; ours has another shape
-    # and needs its own name, or apispec renames it "Error1".
-    api.spec.components.schema('ApiError', schema=ErrorSchema)
+    app.register_error_handler(Problem, answer_problem)
 
     from .routes.analytics import analytics_bp
     from .routes.audit import audit_bp

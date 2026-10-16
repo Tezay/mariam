@@ -1,28 +1,84 @@
 # API Reference
 
-The Mariam API follows REST conventions. All endpoints are prefixed with `/v1`. Responses are JSON.
+One API serves the Mariam frontend and any other client. A published menu reads without an
+account; a session adds what its account may see and do, on the same routes. Every route is
+under `/v1`.
 
-**Interactive documentation (Swagger UI):** `/v1/docs` on the API, with the spec at `/v1/openapi.json`
+**Specification:** `/v1/openapi.json`, browsable at `/v1/docs`. The repository keeps a copy in
+`server/openapi.json`, from which the frontend's types are generated; CI fails when either one
+drifts from the code.
+
+## Conventions
+
+Routes being reworked follow these rules. Until its domain moves, a section below describes a
+route as it is today.
+
+- **Resources.** Plural English nouns in kebab-case, under the organization and the site they
+  belong to: `/v1/orgs/{org}/sites/{site}/menus/2026-10-16`. Organizations and sites are named
+  by slug, a menu by its date (one per site and day), anything else by an integer id.
+- **Visibility.** Without a session, a route shows the published content of an active
+  organization and site; a session adds drafts and private fields. What the caller may not
+  reach answers `404`, as if it did not exist.
+- **Methods.** `GET` reads, `POST` creates, `PUT` replaces, `PATCH` changes some fields,
+  `DELETE` removes. An action with side effects is a `POST` to a sub-path:
+  `…/menus/2026-10-16/publish`.
+- **Dates.** RFC 3339: `2026-10-16`, `2026-10-16T11:30:00+02:00`. A range is
+  `?from=…&to=…`, both ends included.
+- **Lists.** An object with the entries under `items`. A paginated list takes `page` and
+  `per_page`, and links the other pages in the `Link` header (RFC 8288).
+- **JSON.** snake_case; an empty field is `null`, never left out.
+- **Versions.** `/v1` changes in place until Mariam 1.0.0, then only in compatible ways. A route
+  on its way out answers `Deprecation` and `Sunset` (RFC 9745, RFC 8594) for a release first.
+- **Rate limits.** A limited route answers `X-RateLimit-Limit`, `X-RateLimit-Remaining` and
+  `X-RateLimit-Reset`; a `429` adds `Retry-After`.
 
 ## Errors
 
-A refused request answers with a 4xx status and a JSON body whose `error` is a French message
-meant for display. Some add a `message` with details, and a few carry a flag the client acts on,
-such as `passkey_only` on `POST /v1/auth/login`.
+An error answers `application/problem+json` (RFC 9457):
 
 ```json
-{ "error": "Lien de réinitialisation expiré ou déjà utilisé" }
+{
+  "title": "Forbidden",
+  "status": 403,
+  "detail": "Confirmation d’identité requise.",
+  "code": "step_up_required"
+}
 ```
 
-A route that declares a request schema refuses a body that does not match it before running,
-with `422` and the flask-smorest format, which names each faulty field:
+- `detail` is a French sentence meant for display.
+- `code` is what a program branches on; it never changes once published.
+- `type` is left out, which reads as `about:blank`: `code` names the kind of problem.
+
+A body or parameter that fails the route's schema answers `422`, with one entry per faulty
+field: `pointer`, an RFC 6901 JSON Pointer into the body, or `parameter` for the query, the
+path or a header.
 
 ```json
-{ "code": 422, "status": "Unprocessable Entity",
-  "errors": { "json": { "credential": ["Missing data for required field."] } } }
+{
+  "title": "Unprocessable Entity",
+  "status": 422,
+  "detail": "Certaines valeurs envoyées sont invalides.",
+  "code": "validation_failed",
+  "errors": [{ "pointer": "/email", "detail": "Adresse e-mail invalide" }]
+}
 ```
 
-The Swagger UI lists, for each route, the statuses it answers and the body of each.
+Any route may answer these:
+
+| Status | `code` | When |
+|---|---|---|
+| 401 | `token_missing`, `token_invalid`, `token_expired`, `token_revoked` | No session, or one that no longer holds |
+| 401 | `token_restricted`, `authentication_incomplete` | A token issued for one step of a flow, shown as a session |
+| 403 | `admin_required`, `editor_required`, `supervisor_required`, `supervisor_read_only` | The account's role does not allow it |
+| 403 | `step_up_required` | The route needs a confirmed session |
+| 404 | `not_found` | No such route or resource |
+| 405 | `method_not_allowed` | The route exists; `Allow` lists its methods |
+| 422 | `validation_failed` | The body or a parameter fails the route's schema |
+| 429 | `rate_limited` | Too many requests; `Retry-After` gives the seconds to wait |
+| 500 | `internal_error` | An unexpected failure, never with its details |
+
+A route whose domain has not moved yet answers its own refusals as `{"error": "…"}`, sometimes
+with a `message`, or a flag such as `passkey_only` on `POST /v1/auth/login`.
 
 ## Authentication
 
@@ -145,7 +201,7 @@ it.
 
 The confirmation travels in the access token, whose `fresh` claim holds the Unix time it runs
 until, or `false`. The routes below return an `access_token` that replaces the caller's; the
-refresh token stays. From an unconfirmed session, a guarded route answers `403` with
+refresh token stays. From an unconfirmed session, a guarded route answers `403` with the code
 `step_up_required`.
 
 On a route the session authenticates, `401` speaks of the session alone, and is the one

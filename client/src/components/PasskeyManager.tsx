@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIdentityConfirmed, useStepUp } from '@/hooks/useStepUp';
 import { authApi, type PasskeyInfo } from '@/lib/api/auth';
+import { getApiErrorMessage } from '@/lib/api/errors';
 import { passkeyRegistrationError } from '@/lib/passkey-errors';
 import { Button } from '@/components/ui/button';
 import {
@@ -132,8 +133,7 @@ export function PasskeyManager() {
       setEditingName('');
       setRenameError(null);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } };
-      setRenameError(error.response?.data?.error || 'Erreur lors du renommage');
+      setRenameError(getApiErrorMessage(err, 'Erreur lors du renommage'));
     }
   };
 
@@ -163,8 +163,7 @@ export function PasskeyManager() {
       setPasskeys((prev) => prev.filter((p) => p.id !== passkey.id));
       await refreshUser();
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } };
-      setDeleteError(error.response?.data?.error || 'Erreur lors de la suppression');
+      setDeleteError(getApiErrorMessage(err, 'Erreur lors de la suppression'));
     }
   };
 

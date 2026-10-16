@@ -165,6 +165,18 @@ bunx playwright test
 
 `E2E_PORT`, `E2E_SCHEME` and `E2E_API` point the tests at another server or API.
 
+## API contract
+
+`server/openapi.json` is the API's specification, and `client/src/lib/api/schema.gen.ts` the
+types generated from it. After changing a route or a schema, write both again and commit them:
+
+```bash
+cd server && uv run flask openapi write openapi.json
+cd client && bun run api:types
+```
+
+`tests/test_api_contract.py` fails on an operation that does not document what it answers.
+
 ## CI
 
 Two workflows guard `main`. Each ends with a job that sums up the others, and that job is the
@@ -172,7 +184,7 @@ check a pull request needs to merge.
 
 | Workflow | Required check | What it runs |
 |---|---|---|
-| [`quality.yml`](../.github/workflows/quality.yml) | `CI result` | ruff, mypy and pytest for `server/`; ESLint, Prettier, Vitest, the build and Playwright for `client/`; the production images, built without being published; ShellCheck, then the backup and proxy images against throwaway services |
+| [`quality.yml`](../.github/workflows/quality.yml) | `CI result` | ruff, mypy and pytest for `server/`; ESLint, Prettier, Vitest, the build and Playwright for `client/`; the API contract; the production images, built without being published; ShellCheck, then the backup and proxy images against throwaway services |
 | [`security.yml`](../.github/workflows/security.yml) | `Security result` | `uv audit` and `bun audit` |
 
 What runs depends on the event and on the paths a change touches:
@@ -187,7 +199,7 @@ What runs depends on the event and on the paths a change touches:
 
 - **Backend jobs** follow `server/`.
 - **Frontend jobs** follow `client/` and `.editorconfig`, which Prettier reads.
-- **The end-to-end job** follows `server/` and `client/`.
+- **The end-to-end and API contract jobs** follow `server/` and `client/`.
 - **Image builds** follow the packaging files: `Dockerfile.prod`, the backend's entrypoint, the frontend's `server.js`, `.dockerignore`, the manifest and the lockfile.
 - **Backup and proxy jobs** follow `deploy/backup/` with `deploy/scripts/restore.sh`, and `deploy/nginx/`.
 - A change to a workflow runs everything that workflow holds.
