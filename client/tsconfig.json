@@ -26,5 +26,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", ".react-router/types/**/*"]
+  "include": ["src", "e2e", "playwright.config.ts", ".react-router/types/**/*"]
 }

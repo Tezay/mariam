@@ -132,6 +132,8 @@ jobs:
             echo "|---|---|---|"
             row "Backend lint and tests" "$BACKEND" "\`server/\`"
             row "Frontend lint, tests and build" "$FRONTEND" "\`client/\`, \`.editorconfig\`"
+            if [ "$BACKEND" = true ] || [ "$FRONTEND" = true ]; then E2E=true; else E2E=false; fi
+            row "End-to-end tests" "$E2E" "\`server/\` or \`client/\`"
             row "Backend image build" "$IMAGE_BACKEND" "packaging files in \`server/\`"
             row "Frontend image build" "$IMAGE_FRONTEND" "packaging files in \`client/\`"
             row "Backup image, ShellCheck and round trip" "$BACKUP" "\`deploy/backup/\`, \`deploy/scripts/restore.sh\`"
@@ -372,6 +374,109 @@ jobs:
       - name: Routing and client address
         run: ./deploy/nginx/test.sh
 
+  e2e:
+    name: End-to-end (Playwright)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: mariam
+          POSTGRES_PASSWORD: mariam_secret
+          POSTGRES_DB: mariam_db
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 25
+      redis:
+        image: redis:8-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 25
+    env:
+      DATABASE_URL: postgresql://mariam:mariam_secret@localhost:5432/mariam_db
+      REDIS_URL: redis://localhost:6379/0
+      SECRET_KEY: ci-secret-key
+      JWT_SECRET_KEY: ci-jwt-secret-key
+      FLASK_APP: run.py
+      FLASK_ENV: development
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install the backend
+        working-directory: server
+        run: uv sync --no-dev --no-install-project --frozen
+
+      - name: Seed the demo organization
+        working-directory: server
+        run: |
+          uv run flask db upgrade
+          uv run flask seed-demo
+
+      - name: Start the backend
+        working-directory: server
+        run: nohup uv run flask run --port 5000 > ../backend.log 2>&1 &
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Cache Bun packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('client/bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      - name: Install the frontend
+        working-directory: client
+        run: bun install --frozen-lockfile
+
+      - name: Build the frontend
+        working-directory: client
+        run: bun run build
+
+      - name: Install Chromium
+        working-directory: client
+        run: bunx playwright install --with-deps chromium
+
+      - name: Start the frontend server
+        working-directory: client
+        env:
+          API_INTERNAL_URL: http://localhost:5000/v1
+        run: |
+          nohup node server.js > ../frontend.log 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -fs http://localhost:3000/healthz >/dev/null && curl -fs http://localhost:5000/health >/dev/null && exit 0
+            sleep 1
+          done
+          exit 1
+
+      - name: Run the tests
+        working-directory: client
+        run: bunx playwright test
+
+      - name: Keep the logs and the report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-report
+          path: |
+            backend.log
+            frontend.log
+            client/playwright-report/
+          retention-days: 7
+
   result:
     name: CI result
     needs:
@@ -385,6 +490,7 @@ jobs:
       - image-frontend
       - backup
       - proxy
+      - e2e
     # always(), not !cancelled(): a required check that is skipped counts as passed.
     if: always()
     runs-on: ubuntu-latest

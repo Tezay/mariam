@@ -15,20 +15,6 @@ export interface PublicOrg {
 }
 
 export const publicApi = {
-  // Tenant bootstrap: the organization (resolved from the Host) and its sites.
-  getOrg: async (): Promise<PublicOrg> => {
-    const response = await publicAxios.get('/public/org', { timeout: PUBLIC_API_TIMEOUT_MS });
-    return response.data as PublicOrg;
-  },
-
-  getWeekMenu: async (restaurantSlug: string, weekOffset = 0) => {
-    const response = await publicAxios.get(`/public/${restaurantSlug}/week`, {
-      params: { week_offset: weekOffset },
-      timeout: PUBLIC_API_TIMEOUT_MS,
-    });
-    return response.data;
-  },
-
   getRestaurant: async (restaurantSlug: string) => {
     const response = await publicAxios.get(`/public/${restaurantSlug}/restaurant`, {
       timeout: PUBLIC_API_TIMEOUT_MS,

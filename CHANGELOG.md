@@ -12,11 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The API sets its own security headers**, whatever proxy stands in front: HSTS, `no-store`, a CSP that loads nothing.
 - **Backups are encrypted** before they leave the server, which holds no key able to read or delete them.
 - **The visitor's address comes from configured proxies only** (`TRUSTED_PROXIES`, `REAL_IP_HEADER`); a client cannot choose it.
+- **The frontend server passes on the visitor's address only when the proxy set it.**
 
 ### Added
 
 - **`BACKUP_HEARTBEAT_URL`**, fetched after each successful backup, so a missing day can raise an alert.
 - **`mariam-backup verify`** restores a backup into a scratch database, from any machine with Docker.
+- **The public pages are rendered by the server**, each with its title, description, link preview and, for a menu, its JSON-LD.
+- **`/tv` and `/<site>/tv`**, the address of the display screen.
 
 ### Changed
 
@@ -39,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **"Vos données"** says that backups are encrypted and kept 30 days.
 - **"Vos données" and the public privacy notice list every processor**, the network in front of the service included; the data is hosted in France.
 - **Logs and command output** reworded, without emoji; the scheduled jobs carry new names.
+- **`?mode=tv` redirects to `/tv`**, and a wide screen no longer switches to the display on its own.
+- **An unknown site answers 404**, and a page the API cannot serve 503.
 
 ### Removed
 

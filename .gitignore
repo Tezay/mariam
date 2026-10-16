@@ -46,6 +46,8 @@ server/.coverage*
 server/htmlcov/
 server/test_out.txt
 client/coverage/
+client/playwright-report/
+client/test-results/
 
 # ========================================
 # DOCKER

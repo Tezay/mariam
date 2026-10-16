@@ -1,32 +1,21 @@
 /**
- * Shared data hook for the public menu (mobile + TV).
- *
- * A single React Query fetches the day's menus, events and closures (plus the
- * restaurant on mobile). Query caching and cancellation replace the previous
- * hand-rolled request-id/timer logic. `refetchInterval` keeps unattended TV
- * signage up to date; `retry` provides resilience on flaky networks without
- * flashing an error, and cached data stays on screen during a failed refresh.
+ * Refreshed every five minutes, for the screens nobody reloads; the data stays on
+ * screen through a failed refresh.
  */
 import { useQuery } from '@tanstack/react-query';
 import { menusApi } from '@/lib/api/menus';
 import { eventsApi } from '@/lib/api/events';
-import { closuresApi, type ExceptionalClosure } from '@/lib/api/closures';
+import { closuresApi } from '@/lib/api/closures';
 import { publicApi } from '@/lib/api/public';
-import type { MenuData, EventData, RestaurantPublic } from './menu-types';
+import type { PublicMenuData } from './menu-types';
 
 const REFETCH_INTERVAL_MS = 5 * 60 * 1000;
 
-export interface PublicMenuData {
-  today: MenuData | null;
-  tomorrow: MenuData | null;
-  todayEvent: EventData | null;
-  upcomingEvents: EventData[];
-  activeClosure: ExceptionalClosure | null;
-  upcomingClosures: ExceptionalClosure[];
-  restaurant: RestaurantPublic | null;
-}
-
-export function usePublicMenu(restaurantSlug: string, mode: 'mobile' | 'tv') {
+export function usePublicMenu(
+  restaurantSlug: string,
+  mode: 'mobile' | 'tv',
+  initial?: { data: PublicMenuData; fetchedAt: number }
+) {
   return useQuery<PublicMenuData>({
     queryKey: ['public-menu', restaurantSlug, mode],
     queryFn: async () => {
@@ -47,6 +36,8 @@ export function usePublicMenu(restaurantSlug: string, mode: 'mobile' | 'tv') {
         restaurant: restaurant ?? null,
       };
     },
+    initialData: initial?.data,
+    initialDataUpdatedAt: initial?.fetchedAt,
     refetchInterval: REFETCH_INTERVAL_MS,
     refetchIntervalInBackground: true,
     staleTime: REFETCH_INTERVAL_MS,

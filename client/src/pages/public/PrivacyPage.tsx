@@ -1,6 +1,5 @@
 import { Link } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
-import { useDocumentMeta } from '@/lib/use-document-meta';
 import { PublicShell } from './PublicShell';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -17,8 +16,6 @@ function Basis({ children }: { children: React.ReactNode }) {
 }
 
 export function PrivacyPage() {
-  useDocumentMeta({ title: 'Confidentialité — Mariam' });
-
   return (
     <PublicShell size="narrow">
       <div className="px-5 py-10">

@@ -25,9 +25,10 @@ function parseTime(hhmm: string): number {
 /** `serviceHours` is keyed by weekday, as a string; weekdays count from 0 for Monday. */
 export function getServiceStatus(
   serviceHours: Record<string, ServiceHourEntry>,
-  serviceDays: number[]
+  serviceDays: number[],
+  at?: Date
 ): ServiceStatus {
-  const now = parisNow();
+  const now = parisNow(at);
   const mariamDay = jsDayToMariamDay(now.getDay());
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
@@ -120,11 +121,11 @@ export interface NextOpeningDate {
 }
 
 /** From tomorrow on; null without any service day. */
-export function getNextOpeningDate(serviceDays: number[]): NextOpeningDate | null {
+export function getNextOpeningDate(serviceDays: number[], at?: Date): NextOpeningDate | null {
   if (serviceDays.length === 0) return null;
 
   for (let offset = 1; offset <= 7; offset++) {
-    const d = parisNow();
+    const d = parisNow(at);
     d.setDate(d.getDate() + offset);
     const mariamDay = jsDayToMariamDay(d.getDay());
     if (serviceDays.includes(mariamDay)) {

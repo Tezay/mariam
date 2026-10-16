@@ -43,6 +43,7 @@ export default defineConfig(
             'meta',
             'links',
             'headers',
+            'middleware',
           ],
         },
       ],

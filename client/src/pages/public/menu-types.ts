@@ -1,5 +1,6 @@
 import type { DietaryTag, CertificationItem } from '@/lib/api/taxonomy';
 import type { DishCatalogItem } from '@/lib/api/catalog';
+import type { ExceptionalClosure } from '@/lib/api/closures';
 
 export type { DietaryTag, CertificationItem, DishCatalogItem };
 
@@ -77,4 +78,14 @@ export interface RestaurantPublic {
     dietary_tags: DietaryTag[];
     certifications: CertificationItem[];
   };
+}
+
+export interface PublicMenuData {
+  today: MenuData | null;
+  tomorrow: MenuData | null;
+  todayEvent: EventData | null;
+  upcomingEvents: EventData[];
+  activeClosure: ExceptionalClosure | null;
+  upcomingClosures: ExceptionalClosure[];
+  restaurant: RestaurantPublic | null;
 }
