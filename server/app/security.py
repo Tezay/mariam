@@ -113,6 +113,16 @@ limiter = Limiter(
     strategy="fixed-window",
 )
 
+def public_limit() -> str:
+    """Rate limit shared by the anonymous pages.
+
+    A campus reaches us through a single NAT address, so this budget covers a
+    whole school at lunchtime rather than one visitor. Raise it for a very large
+    site; lowering it below a few hundred starts refusing menus to students.
+    """
+    return os.environ.get('PUBLIC_RATE_LIMIT', '600 per minute')
+
+
 # Its own counters rather than the limiter's: the tests swap them for
 # in-memory ones without reaching into Flask-Limiter.
 _budgets = FixedWindowRateLimiter(storage_from_string(REDIS_URL))

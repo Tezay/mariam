@@ -30,6 +30,7 @@ _DUMMY_PASSWORD_HASH = generate_password_hash('mariam-timing-equalizer')
 
 
 @auth_bp.route('/login', methods=['POST'])
+@auth_bp.doc(security=[])
 @limiter.limit('5 per minute')
 @auth_bp.arguments(LoginSchema)
 @auth_bp.response(200, LoginResponseSchema)
@@ -83,6 +84,7 @@ def login(data):
 
 
 @auth_bp.route('/mfa/verify', methods=['POST'])
+@auth_bp.doc(security=[])
 @limiter.limit('5 per minute')
 @auth_bp.arguments(MFAVerifySchema)
 @auth_bp.response(200, SessionSchema)
@@ -144,6 +146,7 @@ def verify_mfa(data):
 
 
 @auth_bp.route('/passkey/login/begin', methods=['POST'])
+@auth_bp.doc(security=[])
 @limiter.limit('10 per minute')
 @auth_bp.response(200, WebAuthnOptionsSchema)
 def passkey_login_begin():
@@ -157,6 +160,7 @@ def passkey_login_begin():
 
 
 @auth_bp.route('/passkey/login/complete', methods=['POST'])
+@auth_bp.doc(security=[])
 @limiter.limit('10 per minute')
 @auth_bp.arguments(PasskeyAssertionSchema)
 @auth_bp.response(200, SessionSchema)

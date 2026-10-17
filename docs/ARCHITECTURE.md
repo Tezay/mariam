@@ -114,9 +114,11 @@ the proxy: from any other peer it drops it.
 Organization is the subdomain, restaurant is the path: `crous-example.mariam.app/site-a/menu`.
 A single-site organization serves its menu at the root, `site-a.mariam.app/menu`.
 
-The backend resolves the organization from the `Host` header (`org_slug_from_host`), then the
-restaurant from the path slug. An unresolved host falls back to `DEFAULT_ORG_SLUG`, or 404 when
-that is empty.
+The API names the organization and the site in the path: `/v1/orgs/{org}/sites/{site}/…`.
+Which organization a host serves is the API's answer too, `GET /v1/domains/{host}`
+(`services/tenancy.py`): the subdomain of `BASE_DOMAIN`, or `DEFAULT_ORG_SLUG` for any other host,
+or 404 when that is empty. The frontend server asks it for every page, and keeps the answer as long
+as the response allows.
 
 ### DNS
 

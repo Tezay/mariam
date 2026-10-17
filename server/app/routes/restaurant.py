@@ -9,7 +9,7 @@ from ..models.category import MenuCategory
 from ..models.restaurant_calendar import RestaurantCalendarSettings
 from ..schemas.common import ErrorSchema
 from ..schemas.restaurant import RestaurantSchema, RestaurantUpdateSchema
-from ..security import get_client_ip, limiter
+from ..security import get_client_ip
 from .helpers import (
     accessible_restaurant_ids,
     admin_required,
@@ -29,30 +29,6 @@ def _settings_payload(restaurant) -> dict:
     payload = restaurant.to_dict(include_config=True)
     payload['config']['vote_category_ids'] = restaurant.get_votable_category_ids()
     return payload
-
-
-@restaurant_bp.route('/restaurant', methods=['GET'])
-@limiter.limit("30 per minute")
-@restaurant_bp.response(200, RestaurantSchema)
-def get_restaurant_info():
-    """Active restaurant info (no authentication required).
-
-    Returns the name, address, logo and public configuration
-    (service days, menu categories, active tags, etc.).
-
-    Query param: `restaurant_id` (int, optional)
-    """
-    restaurant_id = request.args.get('restaurant_id', type=int)
-
-    if restaurant_id:
-        restaurant = db.session.get(Restaurant, restaurant_id)
-    else:
-        restaurant = Restaurant.query.filter_by(is_active=True).first()
-
-    if not restaurant:
-        return jsonify({'error': 'Restaurant non trouvé', 'restaurant': None}), 200
-
-    return jsonify({'restaurant': restaurant.to_dict(include_config=True)}), 200
 
 
 @restaurant_bp.route('/settings', methods=['GET'])

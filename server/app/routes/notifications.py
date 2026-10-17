@@ -38,6 +38,7 @@ def _restaurant_to_follow(restaurant_id: int | None) -> Restaurant | None:
 
 
 @notifications_bp.route('/vapid-public-key', methods=['GET'])
+@notifications_bp.doc(security=[])
 @limiter.limit("30 per minute")
 @notifications_bp.response(200, MessageSchema)
 @notifications_bp.alt_response(503, schema=ErrorSchema, description="VAPID not configured")
@@ -50,6 +51,7 @@ def vapid_public_key():
 
 
 @notifications_bp.route('/subscribe', methods=['POST'])
+@notifications_bp.doc(security=[])
 @limiter.limit("10 per minute")
 @notifications_bp.arguments(SubscribeSchema)
 @notifications_bp.response(201, MessageSchema)
@@ -114,6 +116,7 @@ def subscribe(data):
 
 
 @notifications_bp.route('/preferences', methods=['GET'])
+@notifications_bp.doc(security=[])
 @limiter.limit("30 per minute")
 @notifications_bp.arguments(SubscriptionEndpointSchema, location='query')
 @notifications_bp.response(200, MessageSchema)
@@ -128,6 +131,7 @@ def get_preferences(query):
 
 
 @notifications_bp.route('/preferences', methods=['PUT'])
+@notifications_bp.doc(security=[])
 @limiter.limit("20 per minute")
 @notifications_bp.arguments(PreferencesUpdateSchema)
 @notifications_bp.response(200, MessageSchema)
@@ -157,6 +161,7 @@ def update_preferences(data):
 
 
 @notifications_bp.route('/unsubscribe', methods=['DELETE'])
+@notifications_bp.doc(security=[])
 @limiter.limit("10 per minute")
 @notifications_bp.arguments(SubscriptionEndpointSchema)
 @notifications_bp.response(200, MessageSchema)
@@ -174,6 +179,7 @@ def unsubscribe(data):
 
 
 @notifications_bp.route('/test', methods=['POST'])
+@notifications_bp.doc(security=[])
 @limiter.limit("5 per minute")
 @notifications_bp.arguments(BrowserSubscriptionSchema)
 @notifications_bp.response(200, MessageSchema)

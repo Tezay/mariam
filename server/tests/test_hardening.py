@@ -107,10 +107,10 @@ class TestAuthenticationComesFirst:
         'notifications.unsubscribe',
         'notifications.update_preferences',
         'notifications.send_test',
-        'public.cast_vote',
-        'public.mint_device',
-        'public.track_page_view',
         'public.unsubscribe',
+        'sites.put_vote',
+        'devices.create_device',
+        'orgs.record_view',
     }
 
     def test_a_guarded_route_answers_401_before_it_reads_the_body(self, app, client):

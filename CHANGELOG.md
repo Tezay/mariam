@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Backups are encrypted** before they leave the server, which holds no key able to read or delete them.
 - **The visitor's address comes from configured proxies only** (`TRUSTED_PROXIES`, `REAL_IP_HEADER`); a client cannot choose it.
 - **The frontend server passes on the visitor's address only when the proxy set it.**
+- **Public responses carry no internal field**: no site id or code, event status or closure reminder flags.
+- **The vote's device token travels in the `Device-Id` header**, out of the addresses that access logs keep.
 
 ### Added
 
@@ -21,11 +23,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The public pages are rendered by the server**, each with its title, description, link preview and, for a menu, its JSON-LD.
 - **`/tv` and `/<site>/tv`**, the address of the display screen.
 - **The API's conventions** in `docs/API.md`, and its specification kept in the repository, checked by CI.
+- **`/v1/orgs/{org}/sites/{site}`**, with its menus by date, events, closures and vote: read with no account, from any origin.
+- **`GET /v1/domains/{host}`**, the organization a host serves.
+- **Each route documents whether it needs a session**; `/v1/docs` takes a token (*Authorize*) for those that do.
 
 ### Changed
 
 - **API errors follow RFC 9457** (`application/problem+json`), with a stable `code` beside the French `detail`.
 - **uv runs Python 3.11** (`server/.python-version`), the version of the images; CI tests on it too.
+- **The public pages and the display read the API under `/v1/orgs`**; the frontend server no longer sends `Origin`.
+- **Anonymous callers see menus 30 days back and 7 ahead**; public reads answer `304` to a known `ETag`.
 
 - **React Router 7** replaces `react-router-dom` 6; the current page stays visible while the next one loads.
 - **The frontend is built by React Router's framework mode**; the build needs Node 22 alongside Bun.
@@ -56,6 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`BACKUP_INTERVAL_SECONDS` and `BACKUP_RETENTION_DAYS`**: retention belongs to the bucket's lifecycle rules.
 - **`deploy/scripts/install.sh`, `init.sh` and `run.sh`**, and `PORT`: `docs/INSTALL.md` gives the compose commands.
 - **The proxy's own rate limits**: the API's are the only ones.
+- **The `/v1/public/` routes**, replaced by `/v1/orgs`; `<site>/week` served any published week, without bound. The unsubscribe link stays.
+- **`GET /v1/menus/today`, `/v1/menus/tomorrow` and `/v1/restaurant`**, read anonymously by `restaurant_id` and unused.
 
 ### Fixed
 

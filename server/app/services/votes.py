@@ -39,11 +39,10 @@ _FINGERPRINT_TTL = 48 * 3600
 
 
 class VoteError(Exception):
-    """Carries the HTTP status the route should answer with."""
-
-    def __init__(self, status: int, message: str):
+    def __init__(self, status: int, code: str, message: str):
         super().__init__(message)
         self.status = status
+        self.code = code
         self.message = message
 
 
@@ -278,7 +277,7 @@ def _resolve_dishes(restaurant, menu: Menu, dish_ids: list[int]) -> list[DishCat
     for dish_id in dish_ids:
         category_id = allowed.get(dish_id)
         if category_id is None or category_id in seen_categories:
-            raise VoteError(400, 'Plat invalide pour le menu du jour.')
+            raise VoteError(422, 'dish_invalid', 'Plat invalide pour le menu du jour.')
         seen_categories.add(category_id)
 
     return DishCatalog.query.filter(DishCatalog.id.in_(dish_ids)).all()
@@ -289,17 +288,17 @@ def validate_and_record_vote(restaurant, token: str | None, rating: int,
     """Run the guard chain and store the vote. Raises VoteError on refusal."""
     device = device_body(token)
     if device is None:
-        raise VoteError(403, "Jeton d'appareil invalide.")
+        raise VoteError(403, 'device_invalid', "Jeton d'appareil invalide.")
     if not RATING_MIN <= rating <= RATING_MAX:
-        raise VoteError(400, 'Note invalide.')
+        raise VoteError(422, 'rating_invalid', 'Note invalide.')
     # Uniqueness is scoped to the organization, so a site outside one has no
     # scope to be unique in and cannot take a vote at all.
     if not restaurant.vote_enabled or restaurant.organization_id is None:
-        raise VoteError(409, "Le vote n'est pas proposé sur ce site.")
+        raise VoteError(409, 'voting_disabled', "Le vote n'est pas proposé sur ce site.")
 
     menu = published_menu_today(restaurant.id)
     if menu is None or not voting_open(restaurant):
-        raise VoteError(409, "Le vote n'est pas encore ouvert pour aujourd'hui.")
+        raise VoteError(409, 'voting_not_open', "Le vote n'est pas encore ouvert pour aujourd'hui.")
 
     day = paris_today()
     org_id = restaurant.organization_id
@@ -310,9 +309,11 @@ def validate_and_record_vote(restaurant, token: str | None, rating: int,
     # everyone else on the same network.
     if existing is None:
         if not _address_budget_ok(org_id, day, ip):
-            raise VoteError(429, 'Trop de votes envoyés depuis ce réseau aujourd’hui.')
+            raise VoteError(
+                429, 'vote_limit_reached', 'Trop de votes envoyés depuis ce réseau aujourd’hui.'
+            )
         if fingerprint and not _fingerprint_free(org_id, day, fingerprint, device):
-            raise VoteError(409, 'Vote déjà enregistré.')
+            raise VoteError(409, 'vote_already_recorded', 'Vote déjà enregistré.')
 
     dishes = _resolve_dishes(restaurant, menu, dish_ids)
     return _store(restaurant, menu, day, device, rating, dishes, existing)

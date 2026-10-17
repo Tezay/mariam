@@ -109,15 +109,6 @@ class MenuItemStockSchema(Schema):
     is_out_of_stock = fields.Bool(required=True)
 
 
-class PublicDayMenuSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-    date = fields.Str()
-    day_name = fields.Str()
-    restaurant = fields.Dict(allow_none=True)
-    menu = fields.Dict(allow_none=True, metadata={'description': "Formatted menu for display, or null if not available"})
-
-
 class WeekMenuSchema(Schema):
     class Meta:
         unknown = EXCLUDE
@@ -125,13 +116,3 @@ class WeekMenuSchema(Schema):
     week_end = fields.Str()
     restaurant = fields.Dict(allow_none=True)
     menus = fields.Dict(metadata={'description': "Map of date -> menu data"})
-
-
-class PublicMenuSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-    menus = fields.Dict(metadata={'description': "Map of date -> {day_name, menu}"})
-    week_start = fields.Str()
-    week_end = fields.Str()
-    restaurant_id = fields.Int()
-    service_days = fields.List(fields.Int())

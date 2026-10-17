@@ -1,51 +1,10 @@
 {
+  "security": [
+    {
+      "bearer": []
+    }
+  ],
   "paths": {
-    "/v1/menus/today": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "No restaurant configured",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Today's published menu. No authentication required.",
-        "tags": [
-          "menus"
-        ]
-      }
-    },
-    "/v1/menus/tomorrow": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicDayMenu"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Tomorrow's published menu. No authentication required.",
-        "tags": [
-          "menus"
-        ]
-      }
-    },
     "/v1/menus/week": {
       "get": {
         "responses": {
@@ -67,7 +26,8 @@
         "description": "- Without authentication: published only, display format.\n- With editor authentication: all menus (drafts included), management format.\n\nQuery params: `restaurant_id` (int, optional), `week_offset` (int, default 0)",
         "tags": [
           "menus"
-        ]
+        ],
+        "security": []
       }
     },
     "/v1/menus": {
@@ -811,7 +771,8 @@
         "description": "From https://calendrier.api.gouv.fr/jours-feries/metropole/<year>.json, cached\nfor 24 hours (services/holidays.py).\nResponse: [ { \"date\": \"2026-01-01\", \"description\": \"Jour de l'An\" }, ... ]",
         "tags": [
           "menus"
-        ]
+        ],
+        "security": []
       },
       "parameters": [
         {
@@ -1109,7 +1070,8 @@
         "description": "`email` is the address the inviter suggested, if any: the form pre-fills it and the\ninvitee may change it.",
         "tags": [
           "auth"
-        ]
+        ],
+        "security": []
       },
       "parameters": [
         {
@@ -1187,7 +1149,8 @@
         "description": "The invitee chooses the address and the display name; the role and the tenant come\nfrom the link. The account starts without a second factor. `mfa_setup` carries what\nthe next step needs, both valid fifteen minutes: a TOTP secret and its QR code for\n`/mfa/verify-setup`, and a setup token that `/passkey/setup/*` accepts as well.",
         "tags": [
           "auth"
-        ]
+        ],
+        "security": []
       }
     },
     "/v1/auth/mfa/verify-setup": {
@@ -1254,7 +1217,8 @@
         "description": "A first code confirms the secret returned by `/activate`.",
         "tags": [
           "auth"
-        ]
+        ],
+        "security": []
       }
     },
     "/v1/auth/passkey/setup/begin": {
@@ -1320,7 +1284,8 @@
         "summary": "Start registering a passkey at activation",
         "tags": [
           "auth"
-        ]
+        ],
+        "security": []
       }
     },
     "/v1/auth/passkey/setup/complete": {
@@ -1396,7 +1361,8 @@
         "summary": "Register the activation passkey, and sign in",
         "tags": [
           "auth"
-        ]
+        ],
+        "security": []
       }
     },
     "/v1/auth/login": {
@@ -1453,7 +1419,8 @@
         "description": "Opens the session when the account has no second factor. With TOTP enabled, returns\nan `mfa_token` instead, to finish with `/mfa/verify`. An account protected by a\npasskey only is refused with `passkey_only` set: it signs in with `/passkey/login/*`.",
         "tags": [
           "auth"
-        ]
+        ],
+        "security": []
       }
     },
     "/v1/auth/mfa/verify": {
@@ -1520,7 +1487,8 @@
         "description": "The `mfa_token` from `/login` works once, within ten minutes.",
         "tags": [
           "auth"
-        ]
+        ],
+        "security": []
       }
     },
     "/v1/auth/passkey/login/begin": {
@@ -1544,7 +1512,8 @@
         "description": "The options allow any passkey registered for this site: the one the user picks\nidentifies the account.",
         "tags": [
           "auth"
-        ]
+        ],
+        "security": []
       }
     },
     "/v1/auth/passkey/login/complete": {
@@ -1610,7 +1579,8 @@
         "summary": "Finish a passwordless sign-in",
         "tags": [
           "auth"
-        ]
+        ],
+        "security": []
       }
     },
     "/v1/auth/passkey/register/begin": {
@@ -2148,7 +2118,8 @@
         "description": "Tells which second factor the reset will ask for.",
         "tags": [
           "auth"
-        ]
+        ],
+        "security": []
       },
       "parameters": [
         {
@@ -2236,7 +2207,8 @@
         "description": "Consumes the link and ends every session.",
         "tags": [
           "auth"
-        ]
+        ],
+        "security": []
       }
     },
     "/v1/auth/passkey/reset-password/begin": {
@@ -2302,7 +2274,8 @@
         "summary": "Start a password reset confirmed by passkey",
         "tags": [
           "auth"
-        ]
+        ],
+        "security": []
       }
     },
     "/v1/auth/passkey/reset-password/complete": {
@@ -2379,7 +2352,8 @@
         "description": "Consumes the link and ends every session.",
         "tags": [
           "auth"
-        ]
+        ],
+        "security": []
       }
     },
     "/v1/auth/me": {
@@ -2666,7 +2640,8 @@
         "description": "The session inherits what is left of the confirmation of the one that handed it\nover: the receiving device has no second factor of its own to confirm with yet.",
         "tags": [
           "auth"
-        ]
+        ],
+        "security": []
       }
     },
     "/v1/auth/step-up/password": {
@@ -3042,7 +3017,8 @@
         "description": "- **Without authentication**: returns published, active events from today onward,\n  in display format (TV/mobile). Separates today's event from upcoming events.\n- **With editor authentication**: returns all events (drafts included) with advanced filters.\n\nPublic query params: `restaurant_id`, `visibility` (tv|mobile|all), `limit`\n\nEditor query params (ignored without auth):\n`upcoming` (bool), `include_inactive` (bool), `status`",
         "tags": [
           "events"
-        ]
+        ],
+        "security": []
       },
       "post": {
         "responses": {
@@ -3743,30 +3719,6 @@
         ]
       }
     },
-    "/v1/restaurant": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Restaurant"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Active restaurant info (no authentication required).",
-        "description": "Returns the name, address, logo and public configuration\n(service days, menu categories, active tags, etc.).\n\nQuery param: `restaurant_id` (int, optional)",
-        "tags": [
-          "restaurant"
-        ]
-      }
-    },
     "/v1/settings": {
       "get": {
         "responses": {
@@ -3947,7 +3899,8 @@
         "description": "No authentication required. Returns all tag categories (with their tags)\nand certification categories (with SVG logos), sorted by `sort_order`.\n\nUsed by the frontend to:\n- Display labels, icons and colors\n- Render SVG logos for certifications\n- Populate selectors in the admin interface",
         "tags": [
           "taxonomy"
-        ]
+        ],
+        "security": []
       }
     },
     "/v1/users/invite": {
@@ -4869,7 +4822,8 @@
         "summary": "Return the VAPID public key for initializing Web Push in the browser.",
         "tags": [
           "notifications"
-        ]
+        ],
+        "security": []
       }
     },
     "/v1/notifications/subscribe": {
@@ -4926,7 +4880,8 @@
         "description": "Expected body:\n```json\n{\n  \"endpoint\": \"https://fcm.googleapis.com/...\",\n  \"keys\": { \"p256dh\": \"...\", \"auth\": \"...\" },\n  \"preferences\": {\n    \"notify_today_menu\": true,\n    \"notify_today_menu_time\": \"11:00\",\n    \"notify_tomorrow_menu\": false,\n    \"notify_tomorrow_menu_time\": \"19:00\",\n    \"notify_events\": true\n  },\n  \"platform\": \"android\",\n  \"restaurant_id\": 1\n}\n```",
         "tags": [
           "notifications"
-        ]
+        ],
+        "security": []
       }
     },
     "/v1/notifications/preferences": {
@@ -4973,7 +4928,8 @@
         "summary": "Get the notification preferences for a subscription by endpoint.",
         "tags": [
           "notifications"
-        ]
+        ],
+        "security": []
       },
       "put": {
         "responses": {
@@ -5017,7 +4973,8 @@
         "summary": "Update the notification preferences for an existing subscription.",
         "tags": [
           "notifications"
-        ]
+        ],
+        "security": []
       }
     },
     "/v1/notifications/unsubscribe": {
@@ -5063,7 +5020,8 @@
         "summary": "Remove a push subscription.",
         "tags": [
           "notifications"
-        ]
+        ],
+        "security": []
       }
     },
     "/v1/notifications/test": {
@@ -5109,7 +5067,8 @@
         "summary": "Send a test push notification to the subscriber.",
         "tags": [
           "notifications"
-        ]
+        ],
+        "security": []
       }
     },
     "/v1/inbox/live-alerts": {
@@ -5245,7 +5204,8 @@
         "description": "- **Without authentication**: returns active closures from today onward,\n  split into current_closure (active today) and upcoming_closures.\n- **With editor authentication**: returns all closures with filters.\n\nPublic query params: `restaurant_id`\nEditor query params: `upcoming` (bool), `include_inactive` (bool)",
         "tags": [
           "closures"
-        ]
+        ],
+        "security": []
       },
       "post": {
         "responses": {
@@ -5390,219 +5350,6 @@
         ]
       }
     },
-    "/v1/public/org": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Organization resolved from the Host, with its active restaurants (sites).",
-        "tags": [
-          "public"
-        ]
-      }
-    },
-    "/v1/public/{restaurant_slug}/today": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "tags": [
-          "public"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "restaurant_slug",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      ]
-    },
-    "/v1/public/{restaurant_slug}/tomorrow": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "tags": [
-          "public"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "restaurant_slug",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      ]
-    },
-    "/v1/public/{restaurant_slug}/week": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "tags": [
-          "public"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "restaurant_slug",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      ]
-    },
-    "/v1/public/{restaurant_slug}/events": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "tags": [
-          "public"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "restaurant_slug",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      ]
-    },
-    "/v1/public/{restaurant_slug}/closures": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "tags": [
-          "public"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "restaurant_slug",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      ]
-    },
-    "/v1/public/{restaurant_slug}/restaurant": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "tags": [
-          "public"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "restaurant_slug",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      ]
-    },
-    "/v1/public/track": {
-      "post": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Count one view of a public page.",
-        "description": "Always answers 204, including when telemetry is off or Redis is down: a\nvisitor must never see a menu page degraded by a counter.\n\nBody: `page_kind`, plus `site` for a site-scoped page. Parsed regardless of\nthe content type, which `navigator.sendBeacon` sets to text/plain to avoid a\nCORS preflight.",
-        "tags": [
-          "public"
-        ]
-      }
-    },
-    "/v1/public/device": {
-      "post": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Issue a signed device token for the vote widget.",
-        "description": "The signature is what stops a client from minting its own identities; the\nhourly throttle bounds how many one address can collect.",
-        "tags": [
-          "public"
-        ]
-      }
-    },
-    "/v1/public/{restaurant_slug}/vote": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "State of the widget: the caller's own vote, never anyone else's.",
-        "tags": [
-          "public"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "restaurant_slug",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      ],
-      "post": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "tags": [
-          "public"
-        ]
-      }
-    },
     "/v1/public/unsubscribe/{token}": {
       "get": {
         "responses": {
@@ -5614,7 +5361,8 @@
         "description": "POST answers the one-click of mail clients (RFC 8058); GET renders a page\nfor the footer link, so neither needs a session.",
         "tags": [
           "public"
-        ]
+        ],
+        "security": []
       },
       "post": {
         "responses": {
@@ -5626,7 +5374,8 @@
         "description": "POST answers the one-click of mail clients (RFC 8058); GET renders a page\nfor the footer link, so neither needs a session.",
         "tags": [
           "public"
-        ]
+        ],
+        "security": []
       },
       "parameters": [
         {
@@ -5731,6 +5480,576 @@
           "analytics"
         ]
       }
+    },
+    "/v1/domains/{host}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Domain"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The organization a host serves.",
+        "description": "For a frontend that renders an organization's pages: it names the\norganization to read under `/v1/orgs/{org}`. The answer may be cached\nfive minutes.",
+        "tags": [
+          "domains"
+        ],
+        "security": []
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "host",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicOrg"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "An active organization.",
+        "tags": [
+          "orgs"
+        ],
+        "security": []
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSiteList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The organization's active sites, by name.",
+        "tags": [
+          "orgs"
+        ],
+        "security": []
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/page-views": {
+      "post": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Count one view of a public page.",
+        "description": "Body: `page_kind` (`today`, `tomorrow`, `tv` or `sites`), plus `site`, the\nslug of the site a page belongs to. Read whatever the content type, which\n`navigator.sendBeacon` sets to text/plain to avoid a CORS preflight.\n\nAlways answers 204, even when telemetry is off or the body is wrong: a\nvisitor must never see a page degraded by a counter.",
+        "tags": [
+          "orgs"
+        ],
+        "security": []
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSite"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "An active site, with what a visitor needs to read its menus.",
+        "tags": [
+          "sites"
+        ],
+        "security": []
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/menus": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "description": "First day; today by default",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "description": "Last day, included; the window's end by default",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicMenuList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Published menus between two dates, both included.",
+        "description": "Only the dates of the site's `menu_window` are visible: a range reaching\npast it lists what falls inside.",
+        "tags": [
+          "sites"
+        ],
+        "security": []
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/menus/{date}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicMenu"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The published menu of one day, within the site's `menu_window`.",
+        "tags": [
+          "sites"
+        ],
+        "security": []
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "date",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/events": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "visibility",
+            "description": "Only the events shown on that screen",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "tv",
+                "mobile"
+              ]
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 5,
+              "minimum": 1,
+              "maximum": 20
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicEventList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Published events from today on, soonest first.",
+        "tags": [
+          "sites"
+        ],
+        "security": []
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/closures": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicClosureList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Exceptional closures under way or to come, soonest first.",
+        "tags": [
+          "sites"
+        ],
+        "security": []
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/menus/{date}/vote": {
+      "get": {
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Device-Id",
+            "description": "The token from POST /v1/devices",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoteState"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "What the caller's device may rate today, and its own vote if any.",
+        "description": "Never anyone else's vote.",
+        "tags": [
+          "sites"
+        ],
+        "security": []
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "date",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      ],
+      "put": {
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Device-Id",
+            "description": "The token from POST /v1/devices",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "201": {
+            "description": "The device\u2019s first vote of the day",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Vote"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "The vote replaced the device\u2019s previous one",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Vote"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoteInput"
+              }
+            }
+          }
+        },
+        "summary": "Rate today's meal: one vote per device, organization and day.",
+        "tags": [
+          "sites"
+        ],
+        "security": []
+      }
+    },
+    "/v1/devices": {
+      "post": {
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Device"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "A signed device token, sent back as `Device-Id` when voting.",
+        "description": "The signature stops a client from minting its own identities; an hourly\nallowance bounds how many one address can collect.",
+        "tags": [
+          "devices"
+        ],
+        "security": []
+      }
     }
   },
   "info": {
@@ -5792,7 +6111,7 @@
     },
     {
       "name": "public",
-      "description": "Public tenant-scoped display API"
+      "description": "Links sent by email"
     },
     {
       "name": "org",
@@ -5801,6 +6120,22 @@
     {
       "name": "analytics",
       "description": "Dashboard analytics"
+    },
+    {
+      "name": "domains",
+      "description": "Domains: which organization serves a host"
+    },
+    {
+      "name": "orgs",
+      "description": "Organizations and their sites"
+    },
+    {
+      "name": "sites",
+      "description": "A site, its menus, events and closures"
+    },
+    {
+      "name": "devices",
+      "description": "Devices: the token a vote is cast with"
     }
   ],
   "openapi": "3.0.3",
@@ -5885,41 +6220,6 @@
           }
         },
         "additionalProperties": false
-      },
-      "Error": {
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "string",
-            "description": "Error message"
-          },
-          "message": {
-            "type": "string",
-            "description": "Detailed error description"
-          }
-        }
-      },
-      "PublicDayMenu": {
-        "type": "object",
-        "properties": {
-          "date": {
-            "type": "string"
-          },
-          "day_name": {
-            "type": "string"
-          },
-          "restaurant": {
-            "type": "object",
-            "additionalProperties": {},
-            "nullable": true
-          },
-          "menu": {
-            "type": "object",
-            "description": "Formatted menu for display, or null if not available",
-            "additionalProperties": {},
-            "nullable": true
-          }
-        }
       },
       "WeekMenu": {
         "type": "object",
@@ -6114,6 +6414,19 @@
         "required": [
           "date"
         ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message"
+          },
+          "message": {
+            "type": "string",
+            "description": "Detailed error description"
+          }
+        }
       },
       "WeekPublish": {
         "type": "object",
@@ -7534,7 +7847,15 @@
           "sort_order": {
             "type": "integer"
           }
-        }
+        },
+        "required": [
+          "category_id",
+          "color",
+          "icon",
+          "id",
+          "label",
+          "sort_order"
+        ]
       },
       "DietaryTagCategory": {
         "type": "object",
@@ -7575,13 +7896,23 @@
             "type": "string"
           },
           "scheme_type": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "public",
+              "private"
+            ]
           },
           "jurisdiction": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "france",
+              "eu",
+              "international"
+            ]
           },
           "guarantee": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "logo_filename": {
             "type": "string"
@@ -7592,7 +7923,19 @@
           "sort_order": {
             "type": "integer"
           }
-        }
+        },
+        "required": [
+          "category_id",
+          "guarantee",
+          "id",
+          "issuer",
+          "jurisdiction",
+          "logo_filename",
+          "name",
+          "official_name",
+          "scheme_type",
+          "sort_order"
+        ]
       },
       "CertificationCategory": {
         "type": "object",
@@ -8414,6 +8757,625 @@
             "type": "boolean"
           }
         }
+      },
+      "PublicOrg": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug"
+        ],
+        "additionalProperties": false
+      },
+      "Domain": {
+        "type": "object",
+        "properties": {
+          "host": {
+            "type": "string"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/PublicOrg"
+          }
+        },
+        "required": [
+          "host",
+          "organization"
+        ],
+        "additionalProperties": false
+      },
+      "PublicSiteSummary": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "logo_url": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "name",
+          "slug"
+        ],
+        "additionalProperties": false
+      },
+      "PublicSiteList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicSiteSummary"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "MenuWindow": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ],
+        "additionalProperties": false
+      },
+      "PublicSite": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "logo_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "address_label": {
+            "type": "string",
+            "nullable": true
+          },
+          "address_lat": {
+            "type": "number",
+            "nullable": true
+          },
+          "address_lon": {
+            "type": "number",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "capacity": {
+            "type": "integer",
+            "description": "Seats",
+            "nullable": true
+          },
+          "payment_methods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "pmr_access": {
+            "type": "boolean",
+            "description": "None when unknown",
+            "nullable": true
+          },
+          "service_days": {
+            "type": "array",
+            "description": "0 is Monday",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "service_hours": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ServiceHoursDay"
+            }
+          },
+          "vote_enabled": {
+            "type": "boolean"
+          },
+          "vote_icon_preset": {
+            "type": "string"
+          },
+          "dietary_tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DietaryTag"
+            }
+          },
+          "certifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Certification"
+            }
+          },
+          "menu_window": {
+            "description": "The dates whose published menus can be read",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MenuWindow"
+              }
+            ]
+          }
+        },
+        "required": [
+          "certifications",
+          "dietary_tags",
+          "menu_window",
+          "name",
+          "service_days",
+          "service_hours",
+          "slug",
+          "vote_enabled",
+          "vote_icon_preset"
+        ],
+        "additionalProperties": false
+      },
+      "PublicDish": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DietaryTag"
+            }
+          },
+          "certifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Certification"
+            }
+          }
+        },
+        "required": [
+          "certifications",
+          "id",
+          "name",
+          "tags"
+        ],
+        "additionalProperties": false
+      },
+      "PublicMenuItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "category_id": {
+            "type": "integer"
+          },
+          "dish": {
+            "$ref": "#/components/schemas/PublicDish"
+          },
+          "order": {
+            "type": "integer"
+          },
+          "is_out_of_stock": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "category_id",
+          "dish",
+          "id",
+          "is_out_of_stock",
+          "order"
+        ],
+        "additionalProperties": false
+      },
+      "PublicCategory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          },
+          "is_highlighted": {
+            "type": "boolean"
+          },
+          "order": {
+            "type": "integer"
+          },
+          "color_key": {
+            "type": "string",
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicMenuItem"
+            }
+          },
+          "subcategories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicCategory"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "is_highlighted",
+          "label",
+          "order"
+        ],
+        "additionalProperties": false
+      },
+      "PublicImage": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "order": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "order",
+          "url"
+        ],
+        "additionalProperties": false
+      },
+      "PublicSubstitution": {
+        "type": "object",
+        "properties": {
+          "dish": {
+            "$ref": "#/components/schemas/PublicDish"
+          },
+          "order": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "dish",
+          "order"
+        ],
+        "additionalProperties": false
+      },
+      "PublicMenu": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "chef_note": {
+            "type": "string",
+            "nullable": true
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicCategory"
+            }
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicImage"
+            }
+          },
+          "substitutions": {
+            "type": "object",
+            "description": "Dishes that may replace another, by category id",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/PublicSubstitution"
+              }
+            }
+          }
+        },
+        "required": [
+          "categories",
+          "date",
+          "images",
+          "substitutions"
+        ],
+        "additionalProperties": false
+      },
+      "PublicMenuList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicMenu"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "PublicEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicImage"
+            }
+          }
+        },
+        "required": [
+          "date",
+          "id",
+          "images",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "PublicEventList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicEvent"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "PublicClosure": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "end_date",
+          "id",
+          "start_date"
+        ],
+        "additionalProperties": false
+      },
+      "PublicClosureList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicClosure"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "Vote": {
+        "type": "object",
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3
+            ]
+          },
+          "dish_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "dish_ids",
+          "rating"
+        ],
+        "additionalProperties": false
+      },
+      "DishChoice": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "DishGroup": {
+        "type": "object",
+        "properties": {
+          "category_id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          },
+          "dishes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DishChoice"
+            }
+          }
+        },
+        "required": [
+          "category_id",
+          "dishes",
+          "label"
+        ],
+        "additionalProperties": false
+      },
+      "VoteState": {
+        "type": "object",
+        "properties": {
+          "vote": {
+            "anyOf": [
+              {
+                "type": "object",
+                "nullable": true
+              },
+              {
+                "$ref": "#/components/schemas/Vote"
+              }
+            ]
+          },
+          "dish_groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DishGroup"
+            }
+          },
+          "voting_open": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "dish_groups",
+          "vote",
+          "voting_open"
+        ],
+        "additionalProperties": false
+      },
+      "VoteInput": {
+        "type": "object",
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3
+          },
+          "dish_ids": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "integer"
+            }
+          },
+          "fingerprint": {
+            "type": "string",
+            "default": null,
+            "maxLength": 128,
+            "nullable": true
+          }
+        },
+        "required": [
+          "rating"
+        ]
+      },
+      "Device": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_id"
+        ],
+        "additionalProperties": false
       }
     },
     "responses": {
@@ -8436,6 +9398,13 @@
             }
           }
         }
+      }
+    },
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
       }
     }
   }

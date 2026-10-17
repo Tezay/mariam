@@ -23,7 +23,6 @@ from ..schemas.menus import (
     MenuListSchema,
     MenuSchema,
     MenuUpdateSchema,
-    PublicDayMenuSchema,
     WeekMenuSchema,
     WeekPublishSchema,
 )
@@ -169,66 +168,8 @@ def _format_menu_for_display(menu):
     }
 
 
-@menus_bp.route('/today', methods=['GET'])
-@limiter.limit("30 per minute")
-@menus_bp.response(200, PublicDayMenuSchema)
-@menus_bp.alt_response(200, schema=ErrorSchema, description="No restaurant configured")
-def get_today_menu():
-    """Today's published menu. No authentication required."""
-    restaurant_id = request.args.get('restaurant_id', type=int)
-    if not restaurant_id:
-        restaurant = get_default_restaurant()
-        if restaurant:
-            restaurant_id = restaurant.id
-        else:
-            return jsonify({'error': 'Aucun restaurant configuré', 'menu': None}), 200
-
-    today = paris_today()
-    menu = Menu.query.filter_by(
-        restaurant_id=restaurant_id, date=today, status='published'
-    ).first()
-
-    restaurant = db.session.get(Restaurant, restaurant_id)
-    day_names = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
-
-    return jsonify({
-        'date': today.isoformat(),
-        'day_name': day_names[today.weekday()],
-        'restaurant': restaurant.to_dict(include_config=True) if restaurant else None,
-        'menu': _format_menu_for_display(menu),
-    }), 200
-
-
-@menus_bp.route('/tomorrow', methods=['GET'])
-@limiter.limit("30 per minute")
-@menus_bp.response(200, PublicDayMenuSchema)
-def get_tomorrow_menu():
-    """Tomorrow's published menu. No authentication required."""
-    restaurant_id = request.args.get('restaurant_id', type=int)
-    if not restaurant_id:
-        restaurant = get_default_restaurant()
-        if restaurant:
-            restaurant_id = restaurant.id
-        else:
-            return jsonify({'error': 'Aucun restaurant configuré', 'menu': None}), 200
-
-    tomorrow = paris_today() + timedelta(days=1)
-    menu = Menu.query.filter_by(
-        restaurant_id=restaurant_id, date=tomorrow, status='published'
-    ).first()
-
-    restaurant = db.session.get(Restaurant, restaurant_id)
-    day_names = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
-
-    return jsonify({
-        'date': tomorrow.isoformat(),
-        'day_name': day_names[tomorrow.weekday()],
-        'restaurant': restaurant.to_dict(include_config=True) if restaurant else None,
-        'menu': _format_menu_for_display(menu),
-    }), 200
-
-
 @menus_bp.route('/week', methods=['GET'])
+@menus_bp.doc(security=[])
 @limiter.limit("30 per minute")
 @menus_bp.response(200, WeekMenuSchema)
 def get_week_menu():
@@ -852,6 +793,7 @@ def set_menu_category_substitutions(menu_id, category_id):
 
 
 @menus_bp.route('/jours-feries/<int:year>', methods=['GET'])
+@menus_bp.doc(security=[])
 @limiter.limit('30 per minute')
 def get_jours_feries(year):
     """French public holidays of a year.

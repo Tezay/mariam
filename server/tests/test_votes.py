@@ -32,8 +32,7 @@ def _dish(restaurant_id: int, category_id: int, name: str) -> DishCatalog:
     return dish
 
 
-def _site_with_menu(monkeypatch, slug='vote-org', code='VOTE', dishes=('Bœuf bourguignon',),
-                    published=True):
+def _site_with_menu(slug='vote-org', code='VOTE', dishes=('Bœuf bourguignon',), published=True):
     """An organization, one site, and today's menu in a highlighted category."""
     org = Organization(name=slug, slug=slug)
     db.session.add(org)
@@ -74,28 +73,36 @@ def _site_with_menu(monkeypatch, slug='vote-org', code='VOTE', dishes=('Bœuf bo
         close_time='23:59',
     ))
     db.session.commit()
-
-    monkeypatch.setenv('DEFAULT_ORG_SLUG', slug)
     return org.id, rid, menu, dish_ids
 
 
+def _site_url(slug: str) -> str:
+    site = Restaurant.query.filter_by(slug=slug).one()
+    return f'/v1/orgs/{site.organization.slug}/sites/{slug}'
+
+
+def _vote_url(slug: str) -> str:
+    return f'{_site_url(slug)}/menus/{paris_today().isoformat()}/vote'
+
+
 def _token(client) -> str:
-    return client.post('/v1/public/device').get_json()['device_id']
+    return client.post('/v1/devices').get_json()['device_id']
 
 
 def _cast(client, slug, token, rating=3, **extra):
-    body = {'device_id': token, 'rating': rating, **extra}
-    return client.post(f'/v1/public/{slug}/vote', json=body)
+    return client.put(
+        _vote_url(slug), json={'rating': rating, **extra}, headers={'Device-Id': token}
+    )
 
 
 def _state(client, slug, token):
-    return client.get(f'/v1/public/{slug}/vote?device_id={token}').get_json()
+    return client.get(_vote_url(slug), headers={'Device-Id': token}).get_json()
 
 
 class TestDeviceToken:
     def test_a_forged_token_is_refused(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _site_with_menu(monkeypatch)
+        _site_with_menu()
 
         res = _cast(client, 'vote', 'did1.' + 'a' * 64 + '.deadbeefdeadbeef')
 
@@ -104,7 +111,7 @@ class TestDeviceToken:
 
     def test_a_minted_token_round_trips(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _site_with_menu(monkeypatch, 'vote-org-2', 'VOTE2')
+        _site_with_menu('vote-org-2', 'VOTE2')
 
         token = _token(client)
 
@@ -114,20 +121,20 @@ class TestDeviceToken:
 class TestCasting:
     def test_a_vote_is_recorded_then_edited_by_the_same_device(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _, rid, _, _ = _site_with_menu(monkeypatch, 'vote-org-3', 'VOTE3')
+        _, rid, _, _ = _site_with_menu('vote-org-3', 'VOTE3')
         token = _token(client)
 
         created = _cast(client, 'vote3', token, rating=3)
         updated = _cast(client, 'vote3', token, rating=1)
 
-        assert created.get_json()['status'] == 'created'
-        assert updated.get_json()['status'] == 'updated'
+        assert created.status_code == 201
+        assert updated.status_code == 200
         assert MenuVote.query.filter_by(restaurant_id=rid).count() == 1
         assert MenuVote.query.filter_by(restaurant_id=rid).one().rating == 1
 
     def test_a_dish_outside_the_highlighted_category_is_refused(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _, rid, _, _ = _site_with_menu(monkeypatch, 'vote-org-4', 'VOTE4')
+        _, rid, _, _ = _site_with_menu('vote-org-4', 'VOTE4')
         other = MenuCategory(restaurant_id=rid, label='Dessert', order=1)
         db.session.add(other)
         db.session.commit()
@@ -136,12 +143,13 @@ class TestCasting:
 
         res = _cast(client, 'vote4', token, dish_ids=[stray.id])
 
-        assert res.status_code == 400
+        assert res.status_code == 422
+        assert res.get_json()['code'] == 'dish_invalid'
         assert MenuVote.query.count() == 0
 
     def test_a_draft_menu_cannot_be_rated(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _site_with_menu(monkeypatch, 'vote-org-5', 'VOTE5', published=False)
+        _site_with_menu('vote-org-5', 'VOTE5', published=False)
         token = _token(client)
 
         assert _cast(client, 'vote5', token).status_code == 409
@@ -149,7 +157,7 @@ class TestCasting:
     def test_the_window_opens_with_the_service(self, app, client, monkeypatch):
         """A meal is rated once served, never before."""
         _use_fake_redis(monkeypatch)
-        _, rid, _, _ = _site_with_menu(monkeypatch, 'vote-org-6', 'VOTE6')
+        _, rid, _, _ = _site_with_menu('vote-org-6', 'VOTE6')
         token = _token(client)
         hours = RestaurantServiceHours.query.filter_by(restaurant_id=rid).one()
         hours.open_time = '23:59'
@@ -160,7 +168,7 @@ class TestCasting:
 
     def test_a_day_without_service_hours_cannot_be_rated(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _, rid, _, _ = _site_with_menu(monkeypatch, 'vote-org-6b', 'VOTE6B')
+        _, rid, _, _ = _site_with_menu('vote-org-6b', 'VOTE6B')
         token = _token(client)
         RestaurantServiceHours.query.filter_by(restaurant_id=rid).delete()
         db.session.commit()
@@ -172,7 +180,7 @@ class TestOneVotePerOrganization:
     def test_voting_on_another_site_moves_the_vote(self, app, client, monkeypatch):
         """A student eats once, wherever they eat."""
         _use_fake_redis(monkeypatch)
-        org_id, first_rid, _, _ = _site_with_menu(monkeypatch, 'vote-org-7', 'VOTE7')
+        org_id, first_rid, _, _ = _site_with_menu('vote-org-7', 'VOTE7')
 
         second_rid = make_restaurant(None, name='VOTE7B', code='VOTE7B')
         second = db.session.get(Restaurant, second_rid)
@@ -198,7 +206,7 @@ class TestOneVotePerOrganization:
         _cast(client, 'vote7', token, rating=3)
         moved = _cast(client, 'vote7b', token, rating=1)
 
-        assert moved.get_json()['status'] == 'updated'
+        assert moved.status_code == 200
         assert MenuVote.query.count() == 1
         vote = MenuVote.query.one()
         assert vote.restaurant_id == second_rid
@@ -208,11 +216,11 @@ class TestOneVotePerOrganization:
 class TestAbuseGuards:
     def test_a_fingerprint_cannot_be_reused_by_another_device(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _site_with_menu(monkeypatch, 'vote-org-8', 'VOTE8')
+        _site_with_menu('vote-org-8', 'VOTE8')
         first = _token(client)
         second = _token(client)
 
-        assert _cast(client, 'vote8', first, fingerprint='abc123').status_code == 200
+        assert _cast(client, 'vote8', first, fingerprint='abc123').status_code == 201
         blocked = _cast(client, 'vote8', second, fingerprint='abc123')
 
         assert blocked.status_code == 409
@@ -220,7 +228,7 @@ class TestAbuseGuards:
 
     def test_the_same_device_may_edit_with_its_own_fingerprint(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _site_with_menu(monkeypatch, 'vote-org-9', 'VOTE9')
+        _site_with_menu('vote-org-9', 'VOTE9')
         token = _token(client)
 
         _cast(client, 'vote9', token, rating=3, fingerprint='abc123')
@@ -231,20 +239,20 @@ class TestAbuseGuards:
 
     def test_one_address_is_capped_for_the_day(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _site_with_menu(monkeypatch, 'vote-org-10', 'VOTE10')
+        _site_with_menu('vote-org-10', 'VOTE10')
         monkeypatch.setenv('VOTE_IP_DAILY_CAP', '1')
 
-        assert _cast(client, 'vote10', _token(client)).status_code == 200
+        assert _cast(client, 'vote10', _token(client)).status_code == 201
         assert _cast(client, 'vote10', _token(client)).status_code == 429
 
     def test_editing_never_spends_the_shared_budget(self, app, client, monkeypatch):
         """One student's changes of mind must not lock the rest of the campus out."""
         _use_fake_redis(monkeypatch)
-        _site_with_menu(monkeypatch, 'vote-org-25', 'VOTE25')
+        _site_with_menu('vote-org-25', 'VOTE25')
         monkeypatch.setenv('VOTE_IP_DAILY_CAP', '1')
         mine = _token(client)
 
-        assert _cast(client, 'vote25', mine, rating=3).status_code == 200
+        assert _cast(client, 'vote25', mine, rating=3).status_code == 201
         for rating in (1, 2, 3, 1):
             assert _cast(client, 'vote25', mine, rating=rating).status_code == 200
 
@@ -255,7 +263,7 @@ class TestAbuseGuards:
 
     def test_a_drifting_fingerprint_never_blocks_its_own_edit(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _site_with_menu(monkeypatch, 'vote-org-26', 'VOTE26')
+        _site_with_menu('vote-org-26', 'VOTE26')
         token = _token(client)
         other = _token(client)
 
@@ -268,27 +276,27 @@ class TestAbuseGuards:
 
     def test_minting_is_throttled_per_address(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _site_with_menu(monkeypatch, 'vote-org-11', 'VOTE11')
+        _site_with_menu('vote-org-11', 'VOTE11')
         monkeypatch.setenv('VOTE_DEVICE_MINT_PER_HOUR', '1')
 
-        assert client.post('/v1/public/device').status_code == 200
-        assert client.post('/v1/public/device').status_code == 429
+        assert client.post('/v1/devices').status_code == 201
+        assert client.post('/v1/devices').status_code == 429
 
     def test_votes_survive_a_redis_outage(self, app, client, monkeypatch):
         """Availability wins: the unique constraint is the last guard."""
         monkeypatch.setattr(votes_service, 'get_redis', lambda: None)
-        _site_with_menu(monkeypatch, 'vote-org-12', 'VOTE12')
+        _site_with_menu('vote-org-12', 'VOTE12')
 
         res = _cast(client, 'vote12', votes_service.mint_device_id(), fingerprint='abc123')
 
-        assert res.status_code == 200
+        assert res.status_code == 201
         assert MenuVote.query.count() == 1
 
 
 class TestState:
     def test_the_widget_sees_only_its_own_vote(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _site_with_menu(monkeypatch, 'vote-org-13', 'VOTE13', dishes=('Bœuf', 'Poisson'))
+        _site_with_menu('vote-org-13', 'VOTE13', dishes=('Bœuf', 'Poisson'))
         mine = _token(client)
         other = _token(client)
         _cast(client, 'vote13', other, rating=1)
@@ -302,14 +310,14 @@ class TestState:
 
     def test_no_aggregate_is_exposed(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _site_with_menu(monkeypatch, 'vote-org-14', 'VOTE14')
+        _site_with_menu('vote-org-14', 'VOTE14')
         token = _token(client)
         _cast(client, 'vote14', token)
 
         payload = _state(client, 'vote14', token)
 
-        assert set(payload) == {'vote', 'dish_groups', 'voting_open', 'icon_preset'}
-        assert set(payload['vote']) == {'rating', 'dish_ids', 'restaurant_id', 'updated_at'}
+        assert set(payload) == {'vote', 'dish_groups', 'voting_open'}
+        assert set(payload['vote']) == {'rating', 'dish_ids', 'updated_at'}
 
 
 class TestVotableCategories:
@@ -317,7 +325,7 @@ class TestVotableCategories:
         self, app, client, monkeypatch
     ):
         _use_fake_redis(monkeypatch)
-        _, rid, menu, _ = _site_with_menu(monkeypatch, 'vote-org-16', 'VOTE16')
+        _, rid, menu, _ = _site_with_menu('vote-org-16', 'VOTE16')
         highlighted = MenuCategory.query.filter_by(restaurant_id=rid, is_highlighted=True).one()
         child = MenuCategory(
             restaurant_id=rid, parent_id=highlighted.id, label='Viandes', order=0
@@ -342,7 +350,7 @@ class TestVotableCategories:
         self, app, client, monkeypatch
     ):
         _use_fake_redis(monkeypatch)
-        _, rid, _, _ = _site_with_menu(monkeypatch, 'vote-org-20', 'VOTE20')
+        _, rid, _, _ = _site_with_menu('vote-org-20', 'VOTE20')
         highlighted = MenuCategory.query.filter_by(restaurant_id=rid, is_highlighted=True).one()
         first = MenuCategory(restaurant_id=rid, parent_id=highlighted.id, label='Viandes', order=0)
         db.session.add_all([
@@ -359,20 +367,20 @@ class TestVotableCategories:
     def test_a_dish_dropped_from_the_settings_is_refused(self, app, client, monkeypatch):
         """The widget filters its own stale ids; the server never takes them on trust."""
         _use_fake_redis(monkeypatch)
-        _, rid, _, dish_ids = _site_with_menu(monkeypatch, 'vote-org-21', 'VOTE21')
+        _, rid, _, dish_ids = _site_with_menu('vote-org-21', 'VOTE21')
         token = _token(client)
-        assert _cast(client, 'vote21', token, dish_ids=dish_ids[:1]).status_code == 200
+        assert _cast(client, 'vote21', token, dish_ids=dish_ids[:1]).status_code == 201
 
         db.session.get(Restaurant, rid).vote_category_ids = []
         db.session.commit()
 
         assert _state(client, 'vote21', token)['dish_groups'] == []
-        assert _cast(client, 'vote21', token, dish_ids=dish_ids[:1]).status_code == 400
+        assert _cast(client, 'vote21', token, dish_ids=dish_ids[:1]).status_code == 422
         assert _cast(client, 'vote21', token, rating=1).status_code == 200
 
     def test_several_categories_offer_one_dish_each(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _, rid, menu, _ = _site_with_menu(monkeypatch, 'vote-org-17', 'VOTE17')
+        _, rid, menu, _ = _site_with_menu('vote-org-17', 'VOTE17')
         dessert = MenuCategory(restaurant_id=rid, label='Dessert', order=5)
         db.session.add(dessert)
         db.session.commit()
@@ -390,23 +398,21 @@ class TestVotableCategories:
         res = _cast(client, 'vote17', token, dish_ids=[main_dish, tart.id])
 
         assert len(payload['dish_groups']) == 2
-        assert res.status_code == 200
+        assert res.status_code == 201
         assert sorted(MenuVote.query.one().to_dict()['dish_ids']) == sorted([main_dish, tart.id])
 
     def test_two_dishes_from_one_category_are_refused(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _, rid, _, dish_ids = _site_with_menu(
-            monkeypatch, 'vote-org-18', 'VOTE18', dishes=('Bœuf', 'Poisson')
-        )
+        _, rid, _, dish_ids = _site_with_menu('vote-org-18', 'VOTE18', dishes=('Bœuf', 'Poisson'))
 
         res = _cast(client, 'vote18', _token(client), dish_ids=dish_ids)
 
-        assert res.status_code == 400
+        assert res.status_code == 422
         assert MenuVote.query.count() == 0
 
     def test_a_site_can_turn_the_vote_off(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _, rid, _, _ = _site_with_menu(monkeypatch, 'vote-org-19', 'VOTE19')
+        _, rid, _, _ = _site_with_menu('vote-org-19', 'VOTE19')
         db.session.get(Restaurant, rid).vote_enabled = False
         db.session.commit()
         token = _token(client)
@@ -421,7 +427,7 @@ class TestVotableCategories:
         site by its organization, so it never reaches one without.
         """
         _use_fake_redis(monkeypatch)
-        _, rid, _, _ = _site_with_menu(monkeypatch, 'vote-org-22', 'VOTE22')
+        _, rid, _, _ = _site_with_menu('vote-org-22', 'VOTE22')
         site = db.session.get(Restaurant, rid)
         site.organization_id = None
         db.session.commit()
@@ -437,19 +443,19 @@ class TestIconPreset:
     def test_the_vote_records_the_preset_its_author_saw(self, app, client, monkeypatch):
         """Comparing two presets must not mean comparing two weeks of menus."""
         _use_fake_redis(monkeypatch)
-        _, rid, _, _ = _site_with_menu(monkeypatch, 'vote-org-22', 'VOTE22')
+        _, rid, _, _ = _site_with_menu('vote-org-22', 'VOTE22')
         db.session.get(Restaurant, rid).vote_icon_preset = 'faces'
         db.session.commit()
         token = _token(client)
 
-        assert _state(client, 'vote22', token)['icon_preset'] == 'faces'
+        assert client.get(_site_url('vote22')).get_json()['vote_icon_preset'] == 'faces'
         _cast(client, 'vote22', token)
 
         assert MenuVote.query.one().icon_preset == 'faces'
 
     def test_switching_the_preset_restamps_an_edited_vote(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _, rid, _, _ = _site_with_menu(monkeypatch, 'vote-org-23', 'VOTE23')
+        _, rid, _, _ = _site_with_menu('vote-org-23', 'VOTE23')
         token = _token(client)
         _cast(client, 'vote23', token, rating=3)
 
@@ -461,7 +467,7 @@ class TestIconPreset:
 
     def test_an_unknown_preset_is_ignored_by_the_settings(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _, rid, _, _ = _site_with_menu(monkeypatch, 'vote-org-24', 'VOTE24')
+        _, rid, _, _ = _site_with_menu('vote-org-24', 'VOTE24')
         site = db.session.get(Restaurant, rid)
         site.vote_icon_preset = 'faces'
         db.session.commit()
@@ -477,7 +483,7 @@ class TestDeviceTokenLifetime:
         from app.services.votes import forget_device_ids
 
         _use_fake_redis(monkeypatch)
-        _, rid, menu, _ = _site_with_menu(monkeypatch, 'vote-org-27', 'VOTE27')
+        _, rid, menu, _ = _site_with_menu('vote-org-27', 'VOTE27')
         token = _token(client)
         _cast(client, 'vote27', token)
         db.session.add(MenuVote(
@@ -503,7 +509,7 @@ class TestDeviceTokenLifetime:
         from app.services.votes import forget_device_ids
 
         _use_fake_redis(monkeypatch)
-        _, rid, menu, _ = _site_with_menu(monkeypatch, 'vote-org-28', 'VOTE28')
+        _, rid, menu, _ = _site_with_menu('vote-org-28', 'VOTE28')
         org_id = db.session.get(Restaurant, rid).organization_id
         yesterday = paris_today() - timedelta(days=2)
         for index in range(3):
@@ -526,7 +532,7 @@ class TestRetention:
         from app.services import telemetry
 
         _use_fake_redis(monkeypatch)
-        _, rid, menu, _ = _site_with_menu(monkeypatch, 'vote-org-15', 'VOTE15')
+        _, rid, menu, _ = _site_with_menu('vote-org-15', 'VOTE15')
         db.session.add(MenuVote(
             organization_id=db.session.get(Restaurant, rid).organization_id,
             restaurant_id=rid,

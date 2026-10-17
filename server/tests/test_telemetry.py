@@ -8,20 +8,17 @@ from app.utils.time import paris_today
 from conftest import FakeRedis, auth_headers, get_token, make_restaurant, make_user
 
 
-def _track(client, page_kind, site=None, ip='198.51.100.4', user_agent='Mozilla/5.0'):
-    """Post a beacon the way a browser does, Origin header included."""
+def _track(client, page_kind, site=None, ip='198.51.100.4', user_agent='Mozilla/5.0',
+           origin='http://localhost:5173'):
+    """Post a beacon the way a browser does, to the test's one organization."""
     payload = {'page_kind': page_kind}
     if site:
         payload['site'] = site
-    return client.post(
-        '/v1/public/track',
-        json=payload,
-        headers={
-            'Origin': 'http://localhost:5173',
-            'X-Real-IP': ip,
-            'User-Agent': user_agent,
-        },
-    )
+    headers = {'X-Real-IP': ip, 'User-Agent': user_agent}
+    if origin:
+        headers['Origin'] = origin
+    org = Organization.query.one().slug
+    return client.post(f'/v1/orgs/{org}/page-views', json=payload, headers=headers)
 
 
 def _use_fake_redis(monkeypatch) -> FakeRedis:
@@ -30,12 +27,7 @@ def _use_fake_redis(monkeypatch) -> FakeRedis:
     return fake
 
 
-def _org_with_site(monkeypatch, slug='tel-org', code='TEL'):
-    """Create an organization and one site, and make the test Host resolve to it.
-
-    The public endpoints derive the tenant from the Host; the test client sends
-    `localhost`, which falls back to DEFAULT_ORG_SLUG.
-    """
+def _org_with_site(slug='tel-org', code='TEL'):
     org = Organization(name=slug, slug=slug)
     db.session.add(org)
     db.session.commit()
@@ -44,14 +36,13 @@ def _org_with_site(monkeypatch, slug='tel-org', code='TEL'):
     site.organization_id = org.id
     site.slug = code.lower()
     db.session.commit()
-    monkeypatch.setenv('DEFAULT_ORG_SLUG', slug)
     return org.id, rid
 
 
 class TestCollection:
     def test_site_view_counts_and_feeds_uniques(self, app, client, monkeypatch):
         fake = _use_fake_redis(monkeypatch)
-        _, rid = _org_with_site(monkeypatch)
+        _, rid = _org_with_site()
 
         res = _track(client, 'today', 'tel')
         assert res.status_code == 204
@@ -64,7 +55,7 @@ class TestCollection:
 
     def test_screen_views_are_counted_but_never_as_visitors(self, app, client, monkeypatch):
         fake = _use_fake_redis(monkeypatch)
-        _, rid = _org_with_site(monkeypatch, 'tel-org-2', 'TEL2')
+        _, rid = _org_with_site('tel-org-2', 'TEL2')
 
         _track(client, 'tv', 'tel2')
 
@@ -74,7 +65,7 @@ class TestCollection:
 
     def test_site_list_is_counted_on_the_organization(self, app, client, monkeypatch):
         fake = _use_fake_redis(monkeypatch)
-        org_id, _ = _org_with_site(monkeypatch, 'demo', 'TEL3')
+        org_id, _ = _org_with_site('demo', 'TEL3')
 
         _track(client, 'sites')
 
@@ -83,14 +74,14 @@ class TestCollection:
 
     def test_unknown_kind_is_ignored(self, app, client, monkeypatch):
         fake = _use_fake_redis(monkeypatch)
-        _org_with_site(monkeypatch, 'tel-org-4', 'TEL4')
+        _org_with_site('tel-org-4', 'TEL4')
 
         assert _track(client, 'bogus').status_code == 204
         assert fake.hashes == {}
 
     def test_unknown_site_is_ignored(self, app, client, monkeypatch):
         fake = _use_fake_redis(monkeypatch)
-        _org_with_site(monkeypatch, 'tel-org-5', 'TEL5')
+        _org_with_site('tel-org-5', 'TEL5')
 
         res = _track(client, 'today', 'nope')
         assert res.status_code == 204
@@ -101,29 +92,25 @@ class TestAbuseResistance:
     def test_a_beacon_without_an_origin_is_still_counted(self, app, client, monkeypatch):
         """Same-origin beacons do not carry an Origin on every engine."""
         fake = _use_fake_redis(monkeypatch)
-        _, rid = _org_with_site(monkeypatch, 'abuse-org', 'ABU')
+        _, rid = _org_with_site('abuse-org', 'ABU')
 
-        res = client.post('/v1/public/track', json={'page_kind': 'today', 'site': 'abu'})
+        res = _track(client, 'today', 'abu', origin=None)
 
         assert res.status_code == 204
         assert fake.hashes[f'mariam:pv:r{rid}:{paris_today().isoformat()}']
 
     def test_a_foreign_origin_is_ignored(self, app, client, monkeypatch):
         fake = _use_fake_redis(monkeypatch)
-        _org_with_site(monkeypatch, 'abuse-org-2', 'ABU2')
+        _org_with_site('abuse-org-2', 'ABU2')
 
-        res = client.post(
-            '/v1/public/track',
-            json={'page_kind': 'today', 'site': 'abu2'},
-            headers={'Origin': 'https://evil.example'},
-        )
+        res = _track(client, 'today', 'abu2', origin='https://evil.example')
 
         assert res.status_code == 204
         assert fake.hashes == {}
 
     def test_one_visitor_cannot_run_the_counter_up(self, app, client, monkeypatch):
         fake = _use_fake_redis(monkeypatch)
-        _, rid = _org_with_site(monkeypatch, 'abuse-org-3', 'ABU3')
+        _, rid = _org_with_site('abuse-org-3', 'ABU3')
         monkeypatch.setenv('TELEMETRY_VISITOR_DAILY_CAP', '3')
 
         for _ in range(20):
@@ -135,7 +122,7 @@ class TestAbuseResistance:
     def test_a_shared_address_never_clips_a_campus(self, app, client, monkeypatch):
         """A whole school behind one NAT address must be counted in full."""
         fake = _use_fake_redis(monkeypatch)
-        _, rid = _org_with_site(monkeypatch, 'abuse-org-4', 'ABU4')
+        _, rid = _org_with_site('abuse-org-4', 'ABU4')
 
         for index in range(200):
             _track(client, 'today', 'abu4', ip='203.0.113.9', user_agent=f'device-{index}')
@@ -148,7 +135,7 @@ class TestAbuseResistance:
         self, app, client, monkeypatch
     ):
         fake = _use_fake_redis(monkeypatch)
-        _, rid = _org_with_site(monkeypatch, 'abuse-org-5', 'ABU5')
+        _, rid = _org_with_site('abuse-org-5', 'ABU5')
         monkeypatch.setenv('TELEMETRY_IP_UNIQUE_CAP', '5')
 
         for index in range(50):
@@ -159,7 +146,7 @@ class TestAbuseResistance:
 
     def test_no_address_is_stored_in_the_clear(self, app, client, monkeypatch):
         fake = _use_fake_redis(monkeypatch)
-        _org_with_site(monkeypatch, 'abuse-org-6', 'ABU6')
+        _org_with_site('abuse-org-6', 'ABU6')
 
         _track(client, 'today', 'abu6', ip='203.0.113.11', user_agent='Mozilla/5.0 (probe)')
 
@@ -173,7 +160,7 @@ class TestAbuseResistance:
 class TestFlush:
     def test_counters_reach_postgres(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _, rid = _org_with_site(monkeypatch, 'flush-org', 'FLU')
+        _, rid = _org_with_site('flush-org', 'FLU')
 
         for _ in range(3):
             _track(client, 'today', 'flu')
@@ -185,7 +172,7 @@ class TestFlush:
 
     def test_replaying_a_flush_does_not_double_count(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _, rid = _org_with_site(monkeypatch, 'flush-org-2', 'FLU2')
+        _, rid = _org_with_site('flush-org-2', 'FLU2')
 
         _track(client, 'today', 'flu2')
         telemetry.flush_view_counters(app)
@@ -197,7 +184,7 @@ class TestFlush:
 
     def test_a_redis_reset_never_walks_postgres_backwards(self, app, client, monkeypatch):
         fake = _use_fake_redis(monkeypatch)
-        _, rid = _org_with_site(monkeypatch, 'flush-org-3', 'FLU3')
+        _, rid = _org_with_site('flush-org-3', 'FLU3')
 
         for _ in range(5):
             _track(client, 'today', 'flu3')
@@ -249,7 +236,7 @@ class TestSchedulerProbe:
 class TestDayCloseAndPurge:
     def test_day_close_freezes_the_visitor_estimate(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _, rid = _org_with_site(monkeypatch, 'close-org', 'CLO')
+        _, rid = _org_with_site('close-org', 'CLO')
 
         _track(client, 'today', 'clo')
         telemetry.close_day_uniques(app, paris_today())
@@ -258,7 +245,7 @@ class TestDayCloseAndPurge:
 
     def test_the_flush_writes_the_day_in_progress(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        _, rid = _org_with_site(monkeypatch, 'live-org', 'LIV')
+        _, rid = _org_with_site('live-org', 'LIV')
 
         _track(client, 'today', 'liv')
         telemetry.run_flush_job(app)
@@ -267,7 +254,7 @@ class TestDayCloseAndPurge:
         assert (row.date, row.unique_visitors) == (paris_today(), 1)
 
     def test_purge_drops_rows_past_retention(self, app, monkeypatch):
-        _, rid = _org_with_site(monkeypatch, 'purge-org', 'PUR')
+        _, rid = _org_with_site('purge-org', 'PUR')
         old = paris_today() - datetime.timedelta(days=500)
         db.session.add(PageViewRollup(
             restaurant_id=rid, date=old, hour=12, page_kind='today', views=1
@@ -291,7 +278,7 @@ class TestTrafficEndpoint:
 
     def test_traffic_excludes_screens_from_the_totals(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        org_id, rid = _org_with_site(monkeypatch, 'traffic-org', 'TRA')
+        org_id, rid = _org_with_site('traffic-org', 'TRA')
         self._supervisor(org_id, rid)
 
         _track(client, 'today', 'tra')
@@ -309,7 +296,7 @@ class TestTrafficEndpoint:
 
     def test_todays_visitors_are_not_counted_twice(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        org_id, rid = _org_with_site(monkeypatch, 'traffic-org-2', 'TRA2')
+        org_id, rid = _org_with_site('traffic-org-2', 'TRA2')
         self._supervisor(org_id, rid)
 
         _track(client, 'today', 'tra2')
@@ -324,7 +311,7 @@ class TestTrafficEndpoint:
         self, app, client, monkeypatch
     ):
         _use_fake_redis(monkeypatch)
-        org_id, rid = _org_with_site(monkeypatch, 'traffic-org-4', 'TRA4')
+        org_id, rid = _org_with_site('traffic-org-4', 'TRA4')
         self._supervisor(org_id, rid)
 
         today = paris_today()
@@ -352,7 +339,7 @@ class TestTrafficEndpoint:
 
     def test_site_list_views_stay_out_of_site_totals(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
-        org_id, rid = _org_with_site(monkeypatch, 'demo', 'TRA3')
+        org_id, rid = _org_with_site('demo', 'TRA3')
         self._supervisor(org_id, rid)
 
         _track(client, 'sites')

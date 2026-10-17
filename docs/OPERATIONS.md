@@ -141,7 +141,7 @@ shares one. Every IP-indexed ceiling therefore budgets a whole site, not a visit
 | `TELEMETRY_IP_DAILY_CAP` | `50000` | Views counted for one address, per site |
 | `TELEMETRY_IP_UNIQUE_CAP` | `5000` | Distinct visitors attributable to one address, per site |
 
-A ceiling set too low shows up as 429s on `/v1/public/…` during service hours, or a traffic curve
+A ceiling set too low shows up as 429s on `/v1/orgs/…` during service hours, or a traffic curve
 that flattens at a fixed time. Raising them is functionally safe; lowering them skews the
 measurement.
 

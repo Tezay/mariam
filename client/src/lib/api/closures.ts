@@ -1,4 +1,4 @@
-import { api, publicAxios, PUBLIC_API_TIMEOUT_MS } from './client';
+import { api } from './client';
 
 export interface ExceptionalClosure {
   id: number;
@@ -38,16 +38,5 @@ export const closuresApi = {
 
   delete: async (id: number) => {
     await api.delete(`/closures/${id}`);
-  },
-
-  getPublic: async (restaurantSlug: string) => {
-    const response = await publicAxios.get(`/public/${restaurantSlug}/closures`, {
-      timeout: PUBLIC_API_TIMEOUT_MS,
-    });
-    return response.data as {
-      current_closure: ExceptionalClosure | null;
-      upcoming_closures: ExceptionalClosure[];
-      closures: ExceptionalClosure[];
-    };
   },
 };

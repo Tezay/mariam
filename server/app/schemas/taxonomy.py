@@ -1,15 +1,15 @@
-from marshmallow import EXCLUDE, Schema, fields
+from marshmallow import EXCLUDE, Schema, fields, validate
 
 
 class DietaryTagSchema(Schema):
     class Meta:
         unknown = EXCLUDE
-    id = fields.Str()
-    label = fields.Str()
-    icon = fields.Str()
-    color = fields.Str()
-    category_id = fields.Str()
-    sort_order = fields.Int()
+    id = fields.Str(required=True)
+    label = fields.Str(required=True)
+    icon = fields.Str(required=True)
+    color = fields.Str(required=True)
+    category_id = fields.Str(required=True)
+    sort_order = fields.Int(required=True)
 
 
 class DietaryTagCategorySchema(Schema):
@@ -25,16 +25,18 @@ class DietaryTagCategorySchema(Schema):
 class CertificationSchema(Schema):
     class Meta:
         unknown = EXCLUDE
-    id = fields.Str()
-    name = fields.Str()
-    official_name = fields.Str()
-    issuer = fields.Str()
-    scheme_type = fields.Str()
-    jurisdiction = fields.Str()
-    guarantee = fields.Str()
-    logo_filename = fields.Str()
-    category_id = fields.Str()
-    sort_order = fields.Int()
+    id = fields.Str(required=True)
+    name = fields.Str(required=True)
+    official_name = fields.Str(required=True)
+    issuer = fields.Str(required=True)
+    scheme_type = fields.Str(required=True, validate=validate.OneOf(['public', 'private']))
+    jurisdiction = fields.Str(
+        required=True, validate=validate.OneOf(['france', 'eu', 'international'])
+    )
+    guarantee = fields.Str(required=True, allow_none=True)
+    logo_filename = fields.Str(required=True)
+    category_id = fields.Str(required=True)
+    sort_order = fields.Int(required=True)
 
 
 class CertificationCategorySchema(Schema):

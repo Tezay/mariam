@@ -5,6 +5,7 @@ from pathlib import Path
 from flask import Flask
 from flask_cors import CORS
 
+from .converters import IsoDateConverter
 from .extensions import db, jwt, migrate
 from .models import (
     ActivationLink,
@@ -115,7 +116,9 @@ def create_app(config_class=None):
     app.config['OPENAPI_SWAGGER_UI_PATH'] = '/docs'
     app.config['OPENAPI_SWAGGER_UI_URL'] = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.33.2/'
     # Otherwise Swagger UI sends the spec's address to swagger.io for a badge.
-    app.config['OPENAPI_SWAGGER_UI_CONFIG'] = {'validatorUrl': None}
+    app.config['OPENAPI_SWAGGER_UI_CONFIG'] = {'validatorUrl': None, 'persistAuthorization': True}
+    # A session by default; a route open to anyone says `security=[]`.
+    app.config['API_SPEC_OPTIONS'] = {'security': [{'bearer': []}]}
     
     sentry_dsn = os.environ.get('SENTRY_DSN')
     if sentry_dsn:
@@ -223,6 +226,11 @@ def create_app(config_class=None):
 
     api = Api(app)
     app.register_error_handler(Problem, answer_problem)
+    api.spec.components.security_scheme(
+        'bearer', {'type': 'http', 'scheme': 'bearer', 'bearerFormat': 'JWT'}
+    )
+    app.url_map.converters['date'] = IsoDateConverter
+    api.register_converter(IsoDateConverter, lambda _: {'type': 'string', 'format': 'date'})
 
     from .routes.analytics import analytics_bp
     from .routes.audit import audit_bp
@@ -230,14 +238,18 @@ def create_app(config_class=None):
     from .routes.catalog import catalog_bp
     from .routes.categories import categories_bp
     from .routes.closures import closures_bp
+    from .routes.devices import devices_bp
+    from .routes.domains import domains_bp
     from .routes.events import events_bp
     from .routes.imports import imports_bp
     from .routes.inbox import inbox_bp
     from .routes.menus import menus_bp
     from .routes.notifications import notifications_bp
     from .routes.org import org_bp
+    from .routes.orgs import orgs_bp
     from .routes.public import public_bp
     from .routes.restaurant import restaurant_bp
+    from .routes.sites import sites_bp
     from .routes.taxonomy import taxonomy_bp
     from .routes.users import users_bp
 
@@ -257,6 +269,10 @@ def create_app(config_class=None):
     api.register_blueprint(public_bp,        url_prefix='/v1/public')
     api.register_blueprint(org_bp,           url_prefix='/v1/org')
     api.register_blueprint(analytics_bp,     url_prefix='/v1/analytics')
+    api.register_blueprint(domains_bp,       url_prefix='/v1/domains')
+    api.register_blueprint(orgs_bp,          url_prefix='/v1/orgs')
+    api.register_blueprint(sites_bp,         url_prefix='/v1/orgs/<org>/sites')
+    api.register_blueprint(devices_bp,       url_prefix='/v1/devices')
 
     @app.route('/health')
     @limiter.exempt

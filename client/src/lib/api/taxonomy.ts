@@ -22,7 +22,7 @@ export interface CertificationItem {
   issuer: string;
   scheme_type: 'public' | 'private';
   jurisdiction: 'france' | 'eu' | 'international';
-  guarantee: string;
+  guarantee: string | null;
   logo_filename: string;
   category_id: string;
   sort_order: number;

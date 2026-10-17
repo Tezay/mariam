@@ -125,6 +125,7 @@ def session_transfer_generate():
 
 
 @auth_bp.route('/session-transfer/validate', methods=['POST'])
+@auth_bp.doc(security=[])
 @limiter.limit('10 per minute')
 @auth_bp.arguments(SessionTransferValidateSchema)
 @auth_bp.response(200, SessionSchema)

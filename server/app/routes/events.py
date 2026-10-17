@@ -43,6 +43,7 @@ def _public_event(event: Event) -> dict:
 
 
 @events_bp.route('', methods=['GET'])
+@events_bp.doc(security=[])
 @events_bp.response(200, PublicEventsResponseSchema)
 def list_events():
     """List events.
