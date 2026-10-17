@@ -31,8 +31,6 @@ from .menus import (
     MenuListSchema,
     MenuSchema,
     MenuUpdateSchema,
-    PublicDayMenuSchema,
-    PublicMenuSchema,
     WeekMenuSchema,
     WeekPublishSchema,
 )
@@ -49,7 +47,7 @@ __all__ = [
     'TokenRefreshSchema', 'UserSchema',
     'MenuSchema', 'MenuItemSchema', 'MenuListSchema',
     'MenuCreateSchema', 'MenuUpdateSchema', 'WeekPublishSchema',
-    'WeekMenuSchema', 'PublicMenuSchema', 'PublicDayMenuSchema',
+    'WeekMenuSchema',
     'EventSchema', 'EventCreateSchema', 'EventUpdateSchema', 'EventListSchema',
     'DishCatalogSchema', 'CategorySubstitutionSchema',
     'UserAdminSchema', 'InviteSchema', 'InvitationSchema',

@@ -1,11 +1,12 @@
-import type { ExceptionalClosure } from './closures';
-import type { PublicOrg } from './public';
+import type { SitePage } from '@/pages/public/menu-types';
 import type {
-  EventData,
-  MenuData,
-  PublicMenuData,
-  RestaurantPublic,
-} from '@/pages/public/menu-types';
+  PublicClosure,
+  PublicEvent,
+  PublicMenu,
+  PublicOrg,
+  PublicSite,
+  PublicSiteSummary,
+} from './sites';
 
 type Env = Record<string, string | undefined>;
 
@@ -22,53 +23,79 @@ export function apiBaseUrl(request: Request, env: Env = process.env): string {
 }
 
 export function forwardedHeaders(request: Request): Record<string, string> {
-  // The API resolves the tenant from Origin when it answers on a host of its own.
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-    Origin: publicOrigin(request),
-  };
+  const headers: Record<string, string> = { Accept: 'application/json' };
   // Without it the API would rate-limit every visitor as this one server.
   const visitor = request.headers.get('x-real-ip');
   if (visitor) headers['X-Real-IP'] = visitor;
   return headers;
 }
 
-async function getJson<T>(request: Request, path: string): Promise<T | null> {
+async function getResponse(request: Request, path: string): Promise<Response | null> {
   const response = await fetch(`${apiBaseUrl(request)}${path}`, {
     headers: forwardedHeaders(request),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`GET ${path} answered ${response.status}`);
-  return (await response.json()) as T;
+  return response;
 }
 
-export function fetchPublicOrg(request: Request): Promise<PublicOrg | null> {
-  return getJson<PublicOrg>(request, '/public/org');
+async function getJson<T>(request: Request, path: string): Promise<T | null> {
+  const response = await getResponse(request, path);
+  return response ? ((await response.json()) as T) : null;
 }
 
-export async function fetchPublicMenu(request: Request, slug: string): Promise<PublicMenuData> {
-  const site = `/public/${encodeURIComponent(slug)}`;
-  const [today, tomorrow, events, closures, restaurant] = await Promise.all([
-    getJson<MenuData>(request, `${site}/today`),
-    getJson<MenuData>(request, `${site}/tomorrow`),
-    getJson<{ today_event: EventData | null; upcoming_events: EventData[] }>(
-      request,
-      `${site}/events?visibility=mobile`
-    ),
-    getJson<{
-      current_closure: ExceptionalClosure | null;
-      upcoming_closures: ExceptionalClosure[];
-    }>(request, `${site}/closures`),
-    getJson<{ restaurant: RestaurantPublic }>(request, `${site}/restaurant`),
+const domains = new Map<string, { organization: PublicOrg; until: number }>();
+const DOMAINS_KEPT = 500;
+
+// Cached as long as the API allows: the answer changes rarely and every page needs it.
+export async function fetchDomain(request: Request): Promise<PublicOrg | null> {
+  const host = new URL(request.url).hostname;
+  const cached = domains.get(host);
+  if (cached && cached.until > Date.now()) return cached.organization;
+
+  const response = await getResponse(request, `/domains/${encodeURIComponent(host)}`);
+  if (!response) return null;
+  const { organization } = (await response.json()) as { organization: PublicOrg };
+  const maxAge = Number(/max-age=(\d+)/.exec(response.headers.get('cache-control') ?? '')?.[1]);
+  if (maxAge > 0) {
+    const oldest = domains.keys().next();
+    if (domains.size >= DOMAINS_KEPT && !oldest.done) domains.delete(oldest.value);
+    domains.set(host, { organization, until: Date.now() + maxAge * 1000 });
+  }
+  return organization;
+}
+
+export async function fetchSites(
+  request: Request,
+  org: string
+): Promise<PublicSiteSummary[] | null> {
+  const list = await getJson<{ items: PublicSiteSummary[] }>(
+    request,
+    `/orgs/${encodeURIComponent(org)}/sites`
+  );
+  return list?.items ?? null;
+}
+
+export async function fetchSitePage(
+  request: Request,
+  org: string,
+  slug: string,
+  from: string,
+  to: string
+): Promise<SitePage | null> {
+  const path = `/orgs/${encodeURIComponent(org)}/sites/${encodeURIComponent(slug)}`;
+  const [site, menus, events, closures] = await Promise.all([
+    getJson<PublicSite>(request, path),
+    getJson<{ items: PublicMenu[] }>(request, `${path}/menus?from=${from}&to=${to}`),
+    getJson<{ items: PublicEvent[] }>(request, `${path}/events?visibility=mobile`),
+    getJson<{ items: PublicClosure[] }>(request, `${path}/closures`),
   ]);
+  if (!site) return null;
   return {
-    today,
-    tomorrow,
-    todayEvent: events?.today_event ?? null,
-    upcomingEvents: events?.upcoming_events ?? [],
-    activeClosure: closures?.current_closure ?? null,
-    upcomingClosures: closures?.upcoming_closures ?? [],
-    restaurant: restaurant?.restaurant ?? null,
+    site,
+    menus: menus?.items ?? [],
+    events: events?.items ?? [],
+    closures: closures?.items ?? [],
   };
 }

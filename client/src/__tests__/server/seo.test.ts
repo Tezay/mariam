@@ -1,37 +1,32 @@
 import { describe, it, expect } from 'vitest';
 import { menuDescription, restaurantJsonLd } from '@/pages/public/seo/jsonld';
 import { pageMeta } from '@/pages/public/seo/meta';
-import type { DisplayCategory, MenuData, RestaurantPublic } from '@/pages/public/menu-types';
+import type { DisplayCategory } from '@/pages/public/menu-types';
 
-function category(label: string, dishes: string[], subcategories: DisplayCategory[] = []) {
+function category(
+  label: string,
+  dishes: string[],
+  subcategories: DisplayCategory[] = []
+): DisplayCategory {
   return {
     id: label.length,
     label,
-    icon: 'utensils',
     is_highlighted: false,
-    is_protected: false,
     order: 0,
-    items: dishes.map((name, id) => ({ id, dish: { id, name } })),
+    items: dishes.map((name, id) => ({ id, dish: { id, name, tags: [], certifications: [] } })),
     subcategories,
-  } as DisplayCategory;
-}
-
-function day(categories: DisplayCategory[]): MenuData {
-  return {
-    date: '2026-10-15',
-    day_name: 'Jeudi',
-    menu: { date: '2026-10-15', items: [], by_category: categories },
   };
 }
 
+function day(categories: DisplayCategory[]) {
+  return { date: '2026-10-15', menu: { date: '2026-10-15', by_category: categories } };
+}
+
 const restaurant = {
-  id: 1,
-  name: 'Alpha',
   logo_url: 'https://cdn.example.test/alpha.png',
   address_label: '1 rue de la Paix, 75001 Paris',
   phone: '01 23 45 67 89',
-  service_hours: {},
-} as RestaurantPublic;
+};
 
 describe('pageMeta', () => {
   const base = { title: 'T', description: 'D', url: 'https://x.test/menu', siteName: 'S' };

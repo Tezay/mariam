@@ -1,6 +1,8 @@
 import { data, redirect } from 'react-router';
-import { fetchPublicMenu } from '@/lib/api/public.server';
+import { fetchSitePage } from '@/lib/api/public.server';
+import { addDays, parisToday } from '@/lib/date-utils';
 import { MobileMenuDisplay } from './mobile/MobileMenuDisplay';
+import { publicMenuData } from './public-menu-data';
 import { menuDescription, restaurantJsonLd } from './seo/jsonld';
 import { pageMeta } from './seo/meta';
 import { tenantOf } from './tenant';
@@ -14,17 +16,22 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     throw redirect(multiSite ? `/${site.slug}/tv` : '/tv', 301);
   }
 
-  let menu;
+  const now = Date.now();
+  const today = parisToday(new Date(now));
+  const org = tenant.organization.slug;
+  let page;
   try {
-    menu = await fetchPublicMenu(request, site.slug);
+    page = await fetchSitePage(request, org, site.slug, today, addDays(today, 1));
   } catch (error) {
     console.error(error);
     throw data('unavailable', { status: 503 });
   }
+  if (!page) throw data('site', { status: 404 });
   return {
+    org,
     site,
-    menu,
-    now: Date.now(),
+    menu: publicMenuData(page, new Date(now)),
+    now,
     url: multiSite ? `${tenant.origin}/${site.slug}/menu` : `${tenant.origin}/menu`,
   };
 }
@@ -47,8 +54,14 @@ export const meta: Route.MetaFunction = ({ loaderData, matches }) => {
 };
 
 export default function MenuRoute({ loaderData }: Route.ComponentProps) {
-  const { site, menu, now } = loaderData;
+  const { org, site, menu, now } = loaderData;
   return (
-    <MobileMenuDisplay key={site.slug} restaurantSlug={site.slug} initial={menu} serverNow={now} />
+    <MobileMenuDisplay
+      key={site.slug}
+      org={org}
+      restaurantSlug={site.slug}
+      initial={menu}
+      serverNow={now}
+    />
   );
 }

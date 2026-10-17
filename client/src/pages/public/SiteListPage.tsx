@@ -8,14 +8,14 @@ export function SiteListPage() {
   const { organization, sites } = useTenant();
 
   useEffect(() => {
-    trackPageView('sites');
-  }, []);
+    trackPageView('sites', organization.slug);
+  }, [organization.slug]);
 
   return (
     <div className="flex min-h-screen flex-col items-center bg-slate-50 px-4 py-10 font-sans">
       <div className="w-full max-w-2xl">
         <header className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-slate-900">{organization?.name}</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{organization.name}</h1>
           <p className="mt-1 text-slate-500">Choisissez un restaurant</p>
         </header>
 

@@ -21,6 +21,7 @@ taxonomy_bp = Blueprint(
 
 
 @taxonomy_bp.route('', methods=['GET'])
+@taxonomy_bp.doc(security=[])
 @limiter.limit("30 per minute")
 @taxonomy_bp.response(200, TaxonomySchema)
 def get_taxonomy():

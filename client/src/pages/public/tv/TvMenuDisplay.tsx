@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { trackPageView } from '@/lib/telemetry';
-import { ExceptionalClosure } from '@/lib/api/closures';
+import type { PublicClosure } from '@/lib/api/sites';
 import { CertificationItem } from '@/lib/api/taxonomy';
 import { generateEventPalette } from '@/lib/color-utils';
 import { TagIcon } from '@/components/TagIcon';
@@ -89,7 +89,7 @@ function TvImageCarousel({
   images,
   interval = 4000,
 }: {
-  images: { id: number; url: string; order: number }[];
+  images: { url: string; order: number }[];
   interval?: number;
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -108,7 +108,7 @@ function TvImageCarousel({
     <div className="relative h-full w-full overflow-hidden">
       {images.map((img, i) => (
         <img
-          key={img.id}
+          key={img.url}
           src={img.url}
           alt=""
           className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
@@ -316,7 +316,7 @@ function TvCategoryCard({
   );
 }
 
-function TvClosureDisplay({ closure }: { closure: ExceptionalClosure }) {
+function TvClosureDisplay({ closure }: { closure: PublicClosure }) {
   const fmt = (d: string) =>
     new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', {
       day: 'numeric',
@@ -348,17 +348,17 @@ function TvClosureDisplay({ closure }: { closure: ExceptionalClosure }) {
   );
 }
 
-export function TvMenuDisplay({ restaurantSlug }: { restaurantSlug: string }) {
+export function TvMenuDisplay({ org, restaurantSlug }: { org: string; restaurantSlug: string }) {
   useEffect(() => {
-    trackPageView('tv', restaurantSlug);
-  }, [restaurantSlug]);
+    trackPageView('tv', org, restaurantSlug);
+  }, [org, restaurantSlug]);
 
   const [footerSlot, setFooterSlot] = useState(0);
   const [isRotated, setIsRotated] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [showControls, setShowControls] = useState(false);
 
-  const { data, isPending, isError, error, refetch } = usePublicMenu(restaurantSlug, 'tv');
+  const { data, isPending, isError, error, refetch } = usePublicMenu(org, restaurantSlug, 'tv');
 
   const todayData = data?.today ?? null;
   const tomorrowData = data?.tomorrow ?? null;

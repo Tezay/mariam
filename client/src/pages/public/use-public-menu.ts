@@ -3,38 +3,31 @@
  * screen through a failed refresh.
  */
 import { useQuery } from '@tanstack/react-query';
-import { menusApi } from '@/lib/api/menus';
-import { eventsApi } from '@/lib/api/events';
-import { closuresApi } from '@/lib/api/closures';
-import { publicApi } from '@/lib/api/public';
+import { sitesApi } from '@/lib/api/sites';
+import { addDays, nowInstant, parisToday } from '@/lib/date-utils';
+import { publicMenuData } from './public-menu-data';
 import type { PublicMenuData } from './menu-types';
 
 const REFETCH_INTERVAL_MS = 5 * 60 * 1000;
 
 export function usePublicMenu(
-  restaurantSlug: string,
+  org: string,
+  site: string,
   mode: 'mobile' | 'tv',
   initial?: { data: PublicMenuData; fetchedAt: number }
 ) {
   return useQuery<PublicMenuData>({
-    queryKey: ['public-menu', restaurantSlug, mode],
+    queryKey: ['public-menu', org, site, mode],
     queryFn: async () => {
-      const [today, tomorrow, eventsData, closuresData, restaurant] = await Promise.all([
-        menusApi.getToday(restaurantSlug),
-        menusApi.getTomorrow(restaurantSlug),
-        eventsApi.getPublic(restaurantSlug, mode),
-        closuresApi.getPublic(restaurantSlug),
-        mode === 'mobile' ? publicApi.getRestaurant(restaurantSlug) : Promise.resolve(null),
+      const now = nowInstant();
+      const today = parisToday(now);
+      const [details, menus, events, closures] = await Promise.all([
+        sitesApi.get(org, site),
+        sitesApi.menus(org, site, today, addDays(today, 1)),
+        sitesApi.events(org, site, mode),
+        sitesApi.closures(org, site),
       ]);
-      return {
-        today,
-        tomorrow,
-        todayEvent: eventsData?.today_event ?? null,
-        upcomingEvents: eventsData?.upcoming_events ?? [],
-        activeClosure: closuresData?.current_closure ?? null,
-        upcomingClosures: closuresData?.upcoming_closures ?? [],
-        restaurant: restaurant ?? null,
-      };
+      return publicMenuData({ site: details, menus, events, closures }, now);
     },
     initialData: initial?.data,
     initialDataUpdatedAt: initial?.fetchedAt,

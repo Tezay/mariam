@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CalendarOff, ChevronRight } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
-import type { ExceptionalClosure } from '@/lib/api/closures';
+import type { PublicClosure } from '@/lib/api/sites';
 
 function formatClosureDateRange(start: string, end: string): string {
   const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long' };
@@ -10,11 +10,11 @@ function formatClosureDateRange(start: string, end: string): string {
 }
 
 interface MobileClosureSectionProps {
-  closures: ExceptionalClosure[];
+  closures: PublicClosure[];
 }
 
 export function MobileClosureSection({ closures }: MobileClosureSectionProps) {
-  const [selected, setSelected] = useState<ExceptionalClosure | null>(null);
+  const [selected, setSelected] = useState<PublicClosure | null>(null);
 
   if (closures.length === 0) return null;
 

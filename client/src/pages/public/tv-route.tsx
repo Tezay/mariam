@@ -6,8 +6,9 @@ import { siteFor, tenantContext } from './tenant.server';
 import type { Route } from './+types/tv-route';
 
 export function loader({ request, params, context }: Route.LoaderArgs) {
-  const { site } = siteFor(context.get(tenantContext), request, params.restaurantSlug, 'tv');
-  return { site };
+  const tenant = context.get(tenantContext);
+  const { site } = siteFor(tenant, request, params.restaurantSlug, 'tv');
+  return { org: tenant.organization.slug, site };
 }
 
 export const meta: Route.MetaFunction = ({ loaderData, matches }) => {
@@ -27,5 +28,5 @@ export default function TvRoute({ loaderData }: Route.ComponentProps) {
     () => false
   );
   if (!hydrated) return <PageLoader />;
-  return <TvMenuDisplay restaurantSlug={loaderData.site.slug} />;
+  return <TvMenuDisplay org={loaderData.org} restaurantSlug={loaderData.site.slug} />;
 }

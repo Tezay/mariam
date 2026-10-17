@@ -1,8 +1,12 @@
 """The published specification, and the client types generated from it, are only
-as true as each operation's declared responses.
+as true as each operation's declared responses and security.
 """
+import re
 
 METHODS = ('get', 'post', 'put', 'patch', 'delete')
+
+_ARGUMENT = re.compile(r'<(?:(\w+)(?:\([^)]*\))?:)?(\w+)>')
+_SAMPLE = {'int': '1', 'date': '2026-01-05'}
 
 # Operations that predate the rule; each leaves this list as its domain is
 # reworked, and the list goes with the last of them.
@@ -26,24 +30,13 @@ PENDING = frozenset({
     'GET /v1/org/catalog',
     'GET /v1/org/catalog/group',
     'GET /v1/org/sites',
-    'GET /v1/public/org',
     'GET /v1/public/unsubscribe/{token}',
-    'GET /v1/public/{restaurant_slug}/closures',
-    'GET /v1/public/{restaurant_slug}/events',
-    'GET /v1/public/{restaurant_slug}/restaurant',
-    'GET /v1/public/{restaurant_slug}/today',
-    'GET /v1/public/{restaurant_slug}/tomorrow',
-    'GET /v1/public/{restaurant_slug}/vote',
-    'GET /v1/public/{restaurant_slug}/week',
     'POST /v1/catalog',
     'POST /v1/catalog/bulk/category',
     'POST /v1/catalog/bulk/delete',
     'POST /v1/catalog/bulk/labels',
     'POST /v1/catalog/{dish_id}/image',
-    'POST /v1/public/device',
-    'POST /v1/public/track',
     'POST /v1/public/unsubscribe/{token}',
-    'POST /v1/public/{restaurant_slug}/vote',
     'PUT /v1/catalog/{dish_id}',
     'PUT /v1/menus/{menu_id}/substitutions/{category_id}',
 })
@@ -68,3 +61,21 @@ def test_every_operation_documents_what_it_answers(client):
 
     assert undocumented - PENDING == set(), 'declare a response schema for these'
     assert PENDING - undocumented == set(), 'documented or gone: take these off PENDING'
+
+
+def test_the_documented_security_is_the_one_applied(app, client):
+    """A route documented as public answers without a session, any other one 401."""
+    spec = client.get('/v1/openapi.json').get_json()
+    default = spec.get('security', [])
+    wrong = []
+    for rule in app.url_map.iter_rules():
+        operations = spec['paths'].get(_ARGUMENT.sub(r'{\2}', rule.rule))
+        if operations is None:
+            continue
+        probe = _ARGUMENT.sub(lambda match: _SAMPLE.get(match.group(1), 'x'), rule.rule)
+        for method in sorted(rule.methods & {'GET', 'POST', 'PUT', 'PATCH', 'DELETE'}):
+            documented = operations[method.lower()].get('security', default) != []
+            if documented != (client.open(probe, method=method).status_code == 401):
+                wrong.append(f"{method} {rule.rule} ({'session' if documented else 'public'})")
+
+    assert not wrong, 'documented security differs from the route:\n' + '\n'.join(wrong)

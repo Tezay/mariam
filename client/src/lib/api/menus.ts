@@ -131,18 +131,4 @@ export const menusApi = {
     });
     return response.data.jours_feries as JourFerie[];
   },
-
-  getToday: async (restaurantSlug: string) => {
-    const response = await publicAxios.get(`/public/${restaurantSlug}/today`, {
-      timeout: PUBLIC_API_TIMEOUT_MS,
-    });
-    return response.data;
-  },
-
-  getTomorrow: async (restaurantSlug: string) => {
-    const response = await publicAxios.get(`/public/${restaurantSlug}/tomorrow`, {
-      timeout: PUBLIC_API_TIMEOUT_MS,
-    });
-    return response.data;
-  },
 };

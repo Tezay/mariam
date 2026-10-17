@@ -10,7 +10,7 @@ const HOST = 'demo.example.test';
 const ORIGIN = `https://${HOST}`;
 
 let api;
-let orgAnswer;
+let tenant;
 let apiRequests = [];
 let server;
 let port;
@@ -49,70 +49,77 @@ function request(path, { method = 'GET', headers = {} } = {}) {
   });
 }
 
-function organization(...slugs) {
-  return {
-    status: 200,
-    body: {
-      organization: { name: 'Demo', slug: 'demo' },
-      sites: slugs.map((slug) => ({ slug, name: slug, logo_url: null })),
-    },
-  };
+function organization(...sites) {
+  return { status: 200, sites };
 }
 
 const HOSTILE_DISH = '</script><script>alert(1)</script>';
 
-function today() {
-  const dish = (id, name) => ({
+function menu(date) {
+  const item = (id, name) => ({
     id,
-    dish_id: id,
+    category_id: 1,
+    order: id,
+    is_out_of_stock: false,
     dish: { id, name, tags: [], certifications: [] },
   });
   return {
-    date: '2026-10-15',
-    day_name: 'Jeudi',
-    menu: {
-      date: '2026-10-15',
-      items: [],
-      by_category: [
-        {
-          id: 1,
-          label: 'Plats',
-          icon: 'utensils',
-          is_highlighted: false,
-          is_protected: true,
-          order: 0,
-          items: [dish(1, 'Curry de pois chiches'), dish(2, HOSTILE_DISH)],
-          subcategories: [],
-        },
-      ],
-    },
+    date,
+    chef_note: null,
+    images: [],
+    substitutions: {},
+    categories: [
+      {
+        id: 1,
+        label: 'Plats',
+        is_highlighted: false,
+        order: 0,
+        items: [item(1, 'Curry de pois chiches'), item(2, HOSTILE_DISH)],
+      },
+    ],
   };
 }
 
 const SITE_ANSWERS = {
-  today: () => today(),
-  tomorrow: () => ({ date: '2026-10-16', day_name: 'Vendredi', menu: null }),
-  events: () => ({ today_event: null, upcoming_events: [] }),
-  closures: () => ({ current_closure: null, upcoming_closures: [], closures: [] }),
-  restaurant: (slug) => ({
-    restaurant: { id: 1, name: slug, service_hours: {}, config: { service_days: [0, 1, 2, 3, 4] } },
+  '': (slug) => ({
+    slug,
+    name: slug,
+    logo_url: null,
+    service_days: [0, 1, 2, 3, 4],
+    service_hours: {},
+    vote_enabled: false,
+    vote_icon_preset: 'thumbs',
+    dietary_tags: [],
+    certifications: [],
+    menu_window: { from: '2026-01-01', to: '2026-12-31' },
   }),
+  // The page shows the menu dated as the day it asks for.
+  menus: (slug, query) => ({ items: [menu(query.get('from'))] }),
+  events: () => ({ items: [] }),
+  closures: () => ({ items: [] }),
 };
 
 function answer(url) {
-  const { pathname } = new URL(url, 'http://api');
-  if (pathname === '/v1/public/org') return orgAnswer;
-  const [, slug, resource] = /^\/v1\/public\/([^/]+)\/([^/]+)$/.exec(pathname) ?? [];
-  const known = orgAnswer.body?.sites?.some((site) => site.slug === slug);
-  if (!known || !SITE_ANSWERS[resource]) return { status: 404 };
-  return { status: 200, body: SITE_ANSWERS[resource](slug) };
+  const { pathname, searchParams } = new URL(url, 'http://api');
+  if (pathname.startsWith('/v1/domains/')) {
+    if (tenant.status !== 200) return { status: tenant.status };
+    const headers = tenant.maxAge ? { 'Cache-Control': `public, max-age=${tenant.maxAge}` } : {};
+    return { status: 200, headers, body: { organization: { name: 'Demo', slug: 'demo' } } };
+  }
+  if (pathname === '/v1/orgs/demo/sites') {
+    return { status: 200, body: { items: tenant.sites.map((slug) => SITE_ANSWERS[''](slug)) } };
+  }
+  const [, slug, resource = ''] =
+    /^\/v1\/orgs\/demo\/sites\/([^/]+)(?:\/([^/]+))?$/.exec(pathname) ?? [];
+  if (!tenant.sites?.includes(slug) || !(resource in SITE_ANSWERS)) return { status: 404 };
+  return { status: 200, body: SITE_ANSWERS[resource](slug, searchParams) };
 }
 
 before(async () => {
   api = http.createServer((incoming, outgoing) => {
     apiRequests.push({ url: incoming.url, headers: incoming.headers });
-    const { status, body } = answer(incoming.url);
-    outgoing.writeHead(status, { 'Content-Type': 'application/json' });
+    const { status, headers, body } = answer(incoming.url);
+    outgoing.writeHead(status, { 'Content-Type': 'application/json', ...headers });
     outgoing.end(JSON.stringify(body ?? {}));
   });
   const apiPort = await listen(api);
@@ -145,7 +152,7 @@ after(() => {
 });
 
 beforeEach(() => {
-  orgAnswer = organization('alpha', 'beta');
+  tenant = organization('alpha', 'beta');
   apiRequests = [];
 });
 
@@ -235,26 +242,27 @@ test('/sitemap.xml lists the sites, asking the API as the visitor', async () => 
   assert.ok(sitemap.body.includes(`<loc>${ORIGIN}/alpha/menu</loc>`));
   assert.ok(sitemap.body.includes(`<loc>${ORIGIN}/beta/menu</loc>`));
 
-  assert.equal(apiRequests.length, 1);
-  assert.equal(apiRequests[0].url, '/v1/public/org');
-  assert.equal(apiRequests[0].headers.origin, ORIGIN);
-  assert.equal(apiRequests[0].headers['x-real-ip'], '203.0.113.7');
+  assert.deepEqual(
+    apiRequests.map((asked) => asked.url),
+    [`/v1/domains/${HOST}`, '/v1/orgs/demo/sites']
+  );
+  for (const asked of apiRequests) assert.equal(asked.headers['x-real-ip'], '203.0.113.7');
 });
 
 test('/sitemap.xml of a single site is its menu at the root', async () => {
-  orgAnswer = organization('solo');
+  tenant = organization('solo');
   const sitemap = await request('/sitemap.xml');
   assert.ok(sitemap.body.includes(`<loc>${ORIGIN}/menu</loc>`));
   assert.ok(!sitemap.body.includes('/solo/'));
 });
 
 test('/sitemap.xml is empty for an unknown host and unavailable when the API fails', async () => {
-  orgAnswer = { status: 404 };
+  tenant = { status: 404 };
   const unknown = await request('/sitemap.xml');
   assert.equal(unknown.status, 200);
   assert.ok(!unknown.body.includes('<loc>'));
 
-  orgAnswer = { status: 500 };
+  tenant = { status: 500 };
   const failing = await request('/sitemap.xml');
   assert.equal(failing.status, 503);
   assert.equal(failing.headers['retry-after'], '60');
@@ -285,20 +293,25 @@ test('a menu is rendered by the server, with its title, its dishes and its JSON-
 
 test('a page asks the API as the visitor the proxy named', async () => {
   await request('/alpha/menu', { headers: { 'X-Real-IP': '203.0.113.7' } });
-  assert.ok(apiRequests.length >= 6);
-  for (const { headers } of apiRequests) {
-    assert.equal(headers.origin, ORIGIN);
-    assert.equal(headers['x-real-ip'], '203.0.113.7');
-  }
+  assert.equal(apiRequests.length, 6);
+  for (const { headers } of apiRequests) assert.equal(headers['x-real-ip'], '203.0.113.7');
+});
+
+test('the organization of a host is asked once while the API lets it be kept', async () => {
+  tenant = { ...organization('alpha', 'beta'), maxAge: 300 };
+  const headers = { Host: 'kept.example.test' };
+  await request('/', { headers });
+  await request('/', { headers });
+  assert.equal(apiRequests.filter((asked) => asked.url.startsWith('/v1/domains/')).length, 1);
 });
 
 test('an unknown site answers 404, an unreachable API 503', async () => {
   const unknown = await request('/nope/menu');
   assert.equal(unknown.status, 404);
   assert.ok(unknown.body.includes('Restaurant introuvable.'));
-  orgAnswer = { status: 404 };
+  tenant = { status: 404 };
   assert.equal((await request('/')).status, 404);
-  orgAnswer = { status: 500 };
+  tenant = { status: 500 };
   assert.equal((await request('/')).status, 503);
 });
 
@@ -307,7 +320,7 @@ test('a single site is served at /menu, and the TV mode has its own address', as
   assert.equal(tv.status, 301);
   assert.equal(tv.headers.location, '/alpha/tv');
 
-  orgAnswer = organization('solo');
+  tenant = organization('solo');
   for (const path of ['/', '/solo/menu']) {
     const moved = await request(path);
     assert.equal(moved.status, 302, path);

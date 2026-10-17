@@ -28,6 +28,7 @@ closures_bp = Blueprint(
 
 
 @closures_bp.route('', methods=['GET'])
+@closures_bp.doc(security=[])
 @closures_bp.response(200, PublicClosuresResponseSchema)
 def list_closures():
     """List exceptional closures.

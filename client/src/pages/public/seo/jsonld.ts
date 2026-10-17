@@ -1,4 +1,7 @@
-import type { DisplayCategory, MenuData, RestaurantPublic } from '../menu-types';
+import type { PublicSite } from '@/lib/api/sites';
+import type { DisplayCategory, MenuData } from '../menu-types';
+
+type Day = Pick<MenuData, 'date' | 'menu'>;
 
 interface MenuSection {
   name: string;
@@ -18,7 +21,7 @@ function frenchDate(isoDate: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export function menuDescription(siteName: string, orgName: string, today: MenuData | null) {
+export function menuDescription(siteName: string, orgName: string, today: Day | null) {
   const dishes = sections(today?.menu?.by_category ?? [])
     .flatMap((section) => section.dishes)
     .slice(0, 4);
@@ -31,8 +34,8 @@ export function menuDescription(siteName: string, orgName: string, today: MenuDa
 export function restaurantJsonLd(
   siteName: string,
   url: string,
-  restaurant: RestaurantPublic | null,
-  today: MenuData | null
+  restaurant: Pick<PublicSite, 'logo_url' | 'address_label' | 'phone'> | null,
+  today: Day | null
 ): Record<string, unknown> {
   const data: Record<string, unknown> = {
     '@context': 'https://schema.org',

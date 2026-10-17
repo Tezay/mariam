@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PartyPopper, Pencil } from 'lucide-react';
-import { voteApi, type VoteDishGroup, type VoteState } from '@/lib/api/votes';
+import { getApiErrorMessage } from '@/lib/api/errors';
+import { sitesApi, type VoteDishGroup, type VoteState } from '@/lib/api/sites';
+import { parisToday } from '@/lib/date-utils';
 import { getDeviceId } from '@/lib/device-id';
 import { deviceFingerprint } from '@/lib/device-fingerprint';
 import {
@@ -19,7 +21,15 @@ import { cn } from '@/lib/utils';
  * came to read the menu, and a broken counter must never get in the way. A
  * refusal is different — it is the guard working, and it is explained.
  */
-export function MobileVoteCard({ siteSlug }: { siteSlug: string }) {
+export function MobileVoteCard({
+  org,
+  siteSlug,
+  iconPreset,
+}: {
+  org: string;
+  siteSlug: string;
+  iconPreset: string;
+}) {
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [state, setState] = useState<VoteState | null>(null);
   const [pending, setPending] = useState(false);
@@ -35,7 +45,7 @@ export function MobileVoteCard({ siteSlug }: { siteSlug: string }) {
       try {
         const token = await getDeviceId();
         if (!token) throw new Error('no device token');
-        const next = await voteApi.getState(siteSlug, token);
+        const next = await sitesApi.getVote(org, siteSlug, parisToday(), token);
         if (cancelled) return;
         setDeviceId(token);
         setState(next);
@@ -47,7 +57,7 @@ export function MobileVoteCard({ siteSlug }: { siteSlug: string }) {
     return () => {
       cancelled = true;
     };
-  }, [siteSlug]);
+  }, [org, siteSlug]);
 
   const submit = useCallback(
     async (rating: RatingValue, dishIds: number[]) => {
@@ -55,23 +65,21 @@ export function MobileVoteCard({ siteSlug }: { siteSlug: string }) {
       setPending(true);
       try {
         const fingerprint = await deviceFingerprint();
-        const result = await voteApi.cast(siteSlug, {
-          device_id: deviceId,
+        const vote = await sitesApi.putVote(org, siteSlug, parisToday(), deviceId, {
           rating,
           dish_ids: dishIds,
           fingerprint,
         });
-        setState((previous) => (previous ? { ...previous, vote: result.vote } : previous));
+        setState((previous) => (previous ? { ...previous, vote } : previous));
         setEditing(false);
         if (!celebrated.current) {
           celebrated.current = true;
           celebrate();
         }
       } catch (error) {
-        const response = (error as { response?: { status: number; data?: { error?: string } } })
-          .response;
-        if (response && response.status !== 500) {
-          setRefusal(response.data?.error ?? 'Votre avis n’a pas pu être enregistré.');
+        const status = (error as { response?: { status: number } }).response?.status;
+        if (status && status !== 500) {
+          setRefusal(getApiErrorMessage(error, 'Votre avis n’a pas pu être enregistré.'));
         } else {
           setFailed(true);
         }
@@ -79,7 +87,7 @@ export function MobileVoteCard({ siteSlug }: { siteSlug: string }) {
         setPending(false);
       }
     },
-    [deviceId, siteSlug]
+    [deviceId, org, siteSlug]
   );
 
   if (failed || !state?.voting_open) return null;
@@ -99,7 +107,7 @@ export function MobileVoteCard({ siteSlug }: { siteSlug: string }) {
   const offered = new Set(groups.flatMap((group) => group.dishes.map((dish) => dish.id)));
   const chosen = (vote?.dish_ids ?? []).filter((id) => offered.has(id));
   const showLevels = vote === null || editing;
-  const preset = ratingPreset(state.icon_preset);
+  const preset = ratingPreset(iconPreset);
 
   return (
     <section className="mx-4 mb-6 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">

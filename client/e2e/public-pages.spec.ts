@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { parisToday } from '../src/lib/date-utils';
 
 const SCHEME = process.env.E2E_SCHEME ?? 'http';
 const PORT = process.env.E2E_PORT ?? '3000';
@@ -12,31 +13,34 @@ interface Site {
 }
 
 async function sitesOf(request: APIRequestContext, org: string): Promise<Site[]> {
-  const response = await request.get(`${API}/v1/public/org`, { headers: { Origin: at(org) } });
+  const response = await request.get(`${API}/v1/orgs/${org}/sites`);
   expect(response.ok()).toBe(true);
-  return ((await response.json()) as { sites: Site[] }).sites;
+  return ((await response.json()) as { items: Site[] }).items;
 }
 
-async function dishesOfToday(request: APIRequestContext, slug: string): Promise<string[]> {
-  const response = await request.get(`${API}/v1/public/${slug}/today`, {
-    headers: { Origin: at('demo') },
-  });
-  const { menu } = (await response.json()) as {
-    menu: { items: { dish?: { name: string } }[] } | null;
-  };
-  return (menu?.items ?? []).flatMap((item) => (item.dish ? [item.dish.name] : []));
+interface Category {
+  items?: { dish: { name: string } }[];
+  subcategories?: Category[];
 }
 
-// In a deployment the proxy sends /v1 to the API, keeping the Host the API reads
-// the organization from. Here each call is replayed from the test with the page's
-// origin, which the browser itself would not let an intercepted GET carry.
+function dishNames(categories: Category[]): string[] {
+  return categories.flatMap((category) => [
+    ...(category.items ?? []).map((item) => item.dish.name),
+    ...dishNames(category.subcategories ?? []),
+  ]);
+}
+
+async function dishesOfToday(request: APIRequestContext, org: string, slug: string) {
+  const response = await request.get(`${API}/v1/orgs/${org}/sites/${slug}/menus/${parisToday()}`);
+  if (response.status() === 404) return [];
+  return dishNames(((await response.json()) as { categories: Category[] }).categories);
+}
+
+// In a deployment the proxy sends /v1 to the API; here the test replays each call.
 async function proxyApi(page: Page) {
   await page.route(/\/v1\//, async (route) => {
     const url = new URL(route.request().url());
-    const response = await route.fetch({
-      url: `${API}${url.pathname}${url.search}`,
-      headers: { ...route.request().headers(), origin: url.origin },
-    });
+    const response = await route.fetch({ url: `${API}${url.pathname}${url.search}` });
     await route.fulfill({ response });
   });
 }
@@ -65,7 +69,7 @@ test.describe('without JavaScript', () => {
 
   test('a menu shows the dishes of the day the API returns', async ({ page, request }) => {
     const [site] = await sitesOf(request, 'demo');
-    const dishes = await dishesOfToday(request, site.slug);
+    const dishes = await dishesOfToday(request, 'demo', site.slug);
     await page.goto(at('demo', `/${site.slug}/menu`));
 
     await expect(page.getByText(site.name, { exact: true }).first()).toBeVisible();

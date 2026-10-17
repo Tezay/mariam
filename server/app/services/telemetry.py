@@ -9,6 +9,7 @@ by the same salted digest.
 import logging
 import os
 from datetime import date, timedelta
+from urllib.parse import urlparse
 
 from sqlalchemy.dialects.postgresql import insert
 
@@ -63,6 +64,27 @@ def _uniques_key(restaurant_id: int, day: date) -> str:
 
 def _budget_key(scope: str, owner: str, day: date, source: str) -> str:
     return f'mariam:cap:{scope}:{owner}:{day.isoformat()}:{source[:32]}'
+
+
+def beacon_origin_allowed(origin: str | None) -> bool:
+    """Reject a beacon claiming an origin this deployment does not serve.
+
+    A missing Origin is accepted: same-origin beacons do not carry one on every
+    engine, and refusing those would silently drop a whole browser family. What
+    bounds a forged beacon is the per-visitor budget, not this check.
+    """
+    if not origin:
+        return True
+    host = (urlparse(origin).hostname or '').lower()
+    if host in ('localhost', '127.0.0.1'):
+        return True
+    allowed = {
+        urlparse(url.strip()).hostname
+        for url in os.environ.get('FRONTEND_URL', '').split(',')
+        if url.strip()
+    }
+    base = os.environ.get('BASE_DOMAIN', 'mariam.app').lower()
+    return host in allowed or host == base or host.endswith(f'.{base}')
 
 
 def record_page_view(

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router';
 import { trackPageView } from '@/lib/telemetry';
 import { Zap, CalendarOff } from 'lucide-react';
-import { ExceptionalClosure } from '@/lib/api/closures';
+import type { PublicClosure } from '@/lib/api/sites';
 import { jsDayToMariamDay, getNextOpeningDate } from '@/lib/service-utils';
 import { parisToday, addDays, parisDayOfWeek } from '@/lib/date-utils';
 import { useNow } from '@/lib/use-now';
@@ -18,7 +18,7 @@ import { MobileVoteCard } from './MobileVoteCard';
 import { PublicShell } from '../PublicShell';
 import type { MenuItemData, PublicMenuData } from '../menu-types';
 
-function ActiveClosureMessage({ closure }: { closure: ExceptionalClosure }) {
+function ActiveClosureMessage({ closure }: { closure: PublicClosure }) {
   const formatRange = (start: string, end: string) => {
     const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long' };
     const fmt = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', opts);
@@ -49,16 +49,18 @@ const CLOSURE_WINDOW_DAYS = 14;
 const CLOSURE_MAX_COUNT = 5;
 
 /** The list arrives sorted by start_date. */
-function filterUpcomingClosures(closures: ExceptionalClosure[], now: Date): ExceptionalClosure[] {
+function filterUpcomingClosures(closures: PublicClosure[], now: Date): PublicClosure[] {
   const cutoff = addDays(parisToday(now), CLOSURE_WINDOW_DAYS);
   return closures.filter((c) => c.start_date <= cutoff).slice(0, CLOSURE_MAX_COUNT);
 }
 
 export function MobileMenuDisplay({
+  org,
   restaurantSlug,
   initial,
   serverNow,
 }: {
+  org: string;
   restaurantSlug: string;
   initial: PublicMenuData;
   serverNow: number;
@@ -67,11 +69,14 @@ export function MobileMenuDisplay({
   const [selectedDay, setSelectedDay] = useState<'today' | 'tomorrow'>('today');
 
   useEffect(() => {
-    trackPageView(selectedDay, restaurantSlug);
-  }, [selectedDay, restaurantSlug]);
+    trackPageView(selectedDay, org, restaurantSlug);
+  }, [selectedDay, org, restaurantSlug]);
   const [selectedItem, setSelectedItem] = useState<MenuItemData | null>(null);
 
-  const { data } = usePublicMenu(restaurantSlug, 'mobile', { data: initial, fetchedAt: serverNow });
+  const { data } = usePublicMenu(org, restaurantSlug, 'mobile', {
+    data: initial,
+    fetchedAt: serverNow,
+  });
 
   const todayData = data?.today ?? null;
   const tomorrowData = data?.tomorrow ?? null;
@@ -127,8 +132,12 @@ export function MobileMenuDisplay({
           </div>
         )}
 
-        {selectedDay === 'today' && currentData?.menu && (
-          <MobileVoteCard siteSlug={restaurantSlug} />
+        {selectedDay === 'today' && currentData?.menu && restaurant && (
+          <MobileVoteCard
+            org={org}
+            siteSlug={restaurantSlug}
+            iconPreset={restaurant.vote_icon_preset}
+          />
         )}
 
         <MobileEventSection upcomingEvents={upcomingEvents} />

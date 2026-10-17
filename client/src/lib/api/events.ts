@@ -1,4 +1,4 @@
-import { api, publicAxios, PUBLIC_API_TIMEOUT_MS } from './client';
+import { api } from './client';
 
 export interface EventImage {
   id: number;
@@ -95,19 +95,5 @@ export const eventsApi = {
       image_ids: imageIds,
     });
     return response.data.images as EventImage[];
-  },
-
-  getPublic: async (restaurantSlug: string, visibility?: 'tv' | 'mobile') => {
-    const params: Record<string, string> = {};
-    if (visibility) params.visibility = visibility;
-    const response = await publicAxios.get(`/public/${restaurantSlug}/events`, {
-      params,
-      timeout: PUBLIC_API_TIMEOUT_MS,
-    });
-    return response.data as {
-      today_event: Event | null;
-      upcoming_events: Event[];
-      events: Event[];
-    };
   },
 };

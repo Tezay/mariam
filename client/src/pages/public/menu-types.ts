@@ -1,29 +1,31 @@
-import type { DietaryTag, CertificationItem } from '@/lib/api/taxonomy';
-import type { DishCatalogItem } from '@/lib/api/catalog';
-import type { ExceptionalClosure } from '@/lib/api/closures';
+/**
+ * The shapes the public menu and the display screen were written against, built
+ * from the API's resources by publicMenuData(). An item may be a substitute the
+ * view assembles itself, hence its optional fields.
+ */
+import type { PublicClosure, PublicEvent, PublicMenu, PublicSite } from '@/lib/api/sites';
+import type { components } from '@/lib/api/schema.gen';
 
-export type { DietaryTag, CertificationItem, DishCatalogItem };
+type Schemas = components['schemas'];
+type PublicDish = Schemas['PublicDish'];
 
 export interface MenuItemData {
   id?: number;
   category_id?: number;
-  dish_id?: number;
-  dish?: DishCatalogItem;
+  dish?: PublicDish;
   is_out_of_stock?: boolean;
   order?: number;
 }
 
 export interface CategorySubstitutionData {
-  dish: DishCatalogItem;
+  dish: PublicDish;
   order: number;
 }
 
 export interface DisplayCategory {
   id: number;
   label: string;
-  icon: string;
   is_highlighted: boolean;
-  is_protected: boolean;
   order: number;
   color_key?: string | null;
   items?: MenuItemData[];
@@ -32,60 +34,40 @@ export interface DisplayCategory {
 
 export interface MenuResponse {
   date: string;
-  items: MenuItemData[];
   by_category: DisplayCategory[];
-  chef_note?: string;
+  chef_note?: string | null;
   substitutions?: Record<string, CategorySubstitutionData[]>;
 }
+
+export type RestaurantPublic = PublicSite & {
+  config: Pick<PublicSite, 'service_days' | 'dietary_tags' | 'certifications'>;
+};
 
 export interface MenuData {
   date: string;
   day_name: string;
   menu: MenuResponse | null;
-  restaurant?: {
-    name: string;
-    logo_url?: string;
-    config?: {
-      dietary_tags: DietaryTag[];
-      certifications: CertificationItem[];
-    };
-  };
+  restaurant: RestaurantPublic;
 }
 
-export interface EventData {
-  id: number;
-  title: string;
-  subtitle?: string;
-  description?: string;
-  color?: string;
+export type EventData = Omit<PublicEvent, 'date' | 'images'> & {
   event_date: string;
-  images?: { id: number; url: string; filename?: string; order: number }[];
-}
-
-export interface RestaurantPublic {
-  id: number;
-  name: string;
-  logo_url?: string;
-  address_label?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  capacity?: number | null;
-  payment_methods?: string[] | null;
-  pmr_access?: boolean | null;
-  service_hours: Record<string, { open: string; close: string }>;
-  config?: {
-    service_days: number[];
-    dietary_tags: DietaryTag[];
-    certifications: CertificationItem[];
-  };
-}
+  images?: Schemas['PublicImage'][];
+};
 
 export interface PublicMenuData {
   today: MenuData | null;
   tomorrow: MenuData | null;
   todayEvent: EventData | null;
   upcomingEvents: EventData[];
-  activeClosure: ExceptionalClosure | null;
-  upcomingClosures: ExceptionalClosure[];
+  activeClosure: PublicClosure | null;
+  upcomingClosures: PublicClosure[];
   restaurant: RestaurantPublic | null;
+}
+
+export interface SitePage {
+  site: PublicSite;
+  menus: PublicMenu[];
+  events: PublicEvent[];
+  closures: PublicClosure[];
 }

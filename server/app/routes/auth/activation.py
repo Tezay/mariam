@@ -75,6 +75,7 @@ def _already_enrolled():
 
 
 @auth_bp.route('/check-activation/<token>', methods=['GET'])
+@auth_bp.doc(security=[])
 @auth_bp.response(200, ActivationLinkSchema)
 @auth_bp.alt_response(
     400, schema=InvalidLinkSchema, description='Link expired, revoked or already used.'
@@ -109,6 +110,7 @@ def check_activation_link(token):
 
 
 @auth_bp.route('/activate', methods=['POST'])
+@auth_bp.doc(security=[])
 @limiter.limit('3 per minute')
 @auth_bp.arguments(ActivateAccountSchema)
 @auth_bp.response(201, ActivationSchema)
@@ -196,6 +198,7 @@ def activate_account(data):
 
 
 @auth_bp.route('/mfa/verify-setup', methods=['POST'])
+@auth_bp.doc(security=[])
 @limiter.limit('5 per minute')
 @auth_bp.arguments(MFAVerifySetupSchema)
 @auth_bp.response(200, SessionSchema)
@@ -232,6 +235,7 @@ def verify_mfa_setup(data):
 
 
 @auth_bp.route('/passkey/setup/begin', methods=['POST'])
+@auth_bp.doc(security=[])
 @limiter.limit('10 per minute')
 @auth_bp.arguments(PasskeySetupBeginSchema)
 @auth_bp.response(200, WebAuthnOptionsSchema)
@@ -254,6 +258,7 @@ def passkey_setup_begin(data):
 
 
 @auth_bp.route('/passkey/setup/complete', methods=['POST'])
+@auth_bp.doc(security=[])
 @limiter.limit('10 per minute')
 @auth_bp.arguments(PasskeySetupCompleteSchema)
 @auth_bp.response(200, SessionSchema)

@@ -1,11 +1,12 @@
 import type { LoaderFunctionArgs } from 'react-router';
-import { fetchPublicOrg, publicOrigin } from '@/lib/api/public.server';
+import { fetchDomain, fetchSites, publicOrigin } from '@/lib/api/public.server';
 import { sitemapUrls, sitemapXml } from '@/pages/public/seo/sitemap';
 
 export async function loader({ request }: LoaderFunctionArgs) {
   let sites;
   try {
-    sites = (await fetchPublicOrg(request))?.sites ?? [];
+    const organization = await fetchDomain(request);
+    sites = organization ? ((await fetchSites(request, organization.slug)) ?? []) : [];
   } catch (error) {
     console.error(error);
     // An empty sitemap would tell a crawler that the pages are gone.

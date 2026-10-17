@@ -8,6 +8,14 @@ under `/v1`.
 `server/openapi.json`, from which the frontend's types are generated; CI fails when either one
 drifts from the code.
 
+**Authentication:** a route needs a session unless the specification says otherwise
+(`security: []`, no padlock in `/v1/docs`). The session is the `access_token` of a sign-in, sent
+as `Authorization: Bearer <token>`.
+
+**Trying it:** in `/v1/docs`, *Try it out* calls the API it is served by. *Authorize* takes the
+`access_token` of `POST /v1/auth/login` (then `POST /v1/auth/mfa/verify` for an account with an
+authenticator app) and sends it to every route with a padlock.
+
 ## Conventions
 
 Routes being reworked follow these rules. Until its domain moves, a section below describes a
@@ -27,8 +35,8 @@ route as it is today.
 - **Lists.** An object with the entries under `items`. A paginated list takes `page` and
   `per_page`, and links the other pages in the `Link` header (RFC 8288).
 - **JSON.** snake_case; an empty field is `null`, never left out.
-- **Versions.** `/v1` changes in place until Mariam 1.0.0, then only in compatible ways. A route
-  on its way out answers `Deprecation` and `Sunset` (RFC 9745, RFC 8594) for a release first.
+- **Versions.** `/v1` changes in place until Mariam 1.0.0, then only in compatible ways: a route
+  retired after it answers `Deprecation` and `Sunset` (RFC 9745, RFC 8594) for a release first.
 - **Rate limits.** A limited route answers `X-RateLimit-Limit`, `X-RateLimit-Remaining` and
   `X-RateLimit-Reset`; a `429` adds `Retry-After`.
 
@@ -241,46 +249,38 @@ with neither cannot confirm (`403` with `second_factor_required`).
 
 ---
 
-## Public Endpoints
+## Organizations and sites
 
-No authentication required.
+What anyone may read of an organization and its sites, with no account: published
+content of an active organization and site, nothing else. The routes share one rate
+limit (`PUBLIC_RATE_LIMIT`, 600 requests per minute by default), sized for a whole
+campus behind a single address rather than for one visitor.
 
-| Method | Route | Description |
-|--------|-------|-------------|
-| `GET` | `/health` | Liveness — the process is up |
-| `GET` | `/health/ready` | Readiness — checks DB, Redis and a scheduler flush in the last 15 minutes; returns 503 otherwise |
-| `GET` | `/v1/restaurant` | Active restaurant info |
-| `GET` | `/v1/taxonomy` | Dietary tags and certifications catalog |
-| `GET` | `/v1/menus/today` | Today's published menu |
-| `GET` | `/v1/menus/tomorrow` | Tomorrow's published menu |
-| `GET` | `/v1/menus/week` | This week's published menus |
-| `GET` | `/v1/events` | Upcoming published events (TV/mobile display) |
-| `GET` | `/v1/notifications/vapid-public-key` | VAPID public key for push subscriptions |
-
-### Tenant-aware public API
-
-The tenant comes from the request host (subdomain = organization) and the
-restaurant slug, so these endpoints need no identifier in the query string.
-They share one rate limit (`PUBLIC_RATE_LIMIT`, 600 requests per minute by
-default), sized for a whole campus behind a single address rather than for one
-visitor.
+- **Any origin** may call the `GET` routes from a browser (`Access-Control-Allow-Origin: *`,
+  no credentials). Writes accept the deployment's own origins only.
+- **Conditional requests.** A read carries an `ETag` and `Cache-Control: no-cache`; sent
+  back in `If-None-Match`, it answers `304` while nothing changed.
+- **Menu window.** An anonymous caller sees the menus of the dates in the site's
+  `menu_window`: 30 days back and 7 ahead.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `/v1/public/org` | Organization behind the host and its sites (bootstrap for the public pages) |
-| `GET` | `/v1/public/<site>/today` | Today's published menu |
-| `GET` | `/v1/public/<site>/tomorrow` | Tomorrow's published menu |
-| `GET` | `/v1/public/<site>/week` | Published menus for a week (`week_offset`) |
-| `GET` | `/v1/public/<site>/events` | Published events (`visibility`, `limit`) |
-| `GET` | `/v1/public/<site>/closures` | Current and upcoming exceptional closures |
-| `GET` | `/v1/public/<site>/restaurant` | Site info and public configuration |
-| `POST` | `/v1/public/track` | Count one page view (`page_kind`, plus `site` for a site-scoped page); always 204 |
-| `POST` | `/v1/public/device` | Issue a signed device token for the vote widget |
-| `GET`/`POST` | `/v1/public/unsubscribe/<token>` | Turn the weekly digest off from the email; POST answers the one-click of mail clients, GET renders a confirmation page |
-| `GET` | `/v1/public/<site>/vote` | The caller's own vote (`device_id`), the dishes it may name grouped by category, the icon set to draw, and whether voting is open |
-| `POST` | `/v1/public/<site>/vote` | Rate today's published menu (`device_id`, `rating` 1-3, optional `dish_ids` and `fingerprint`) |
+| `GET` | `/v1/domains/{host}` | The organization a host serves; may be cached five minutes |
+| `GET` | `/v1/orgs/{org}` | An organization |
+| `GET` | `/v1/orgs/{org}/sites` | Its active sites |
+| `GET` | `/v1/orgs/{org}/sites/{site}` | A site: address, contact, hours, vote settings, the labels in use, `menu_window` |
+| `GET` | `/v1/orgs/{org}/sites/{site}/menus` | Published menus from `from` to `to`, both included (today to the window's end by default; 62 days at most) |
+| `GET` | `/v1/orgs/{org}/sites/{site}/menus/{date}` | The published menu of a day |
+| `GET` | `/v1/orgs/{org}/sites/{site}/events` | Published events from today on (`visibility` = `tv` or `mobile`, `limit` up to 20) |
+| `GET` | `/v1/orgs/{org}/sites/{site}/closures` | Exceptional closures under way or to come |
+| `GET` | `/v1/orgs/{org}/sites/{site}/menus/{date}/vote` | What the device in `Device-Id` may rate today, and its own vote |
+| `PUT` | `/v1/orgs/{org}/sites/{site}/menus/{date}/vote` | Rate today's meal: `rating` 1-3, optional `dish_ids` and `fingerprint`; `201` for the first vote, `200` for a change |
+| `POST` | `/v1/devices` | A signed device token, for `Device-Id` |
+| `POST` | `/v1/orgs/{org}/page-views` | Count one view of a public page (`page_kind`, and `site` for a site's page); always `204` |
 
-The legacy `?restaurant_id=` endpoints above are kept for compatibility.
+```bash
+curl https://crous-example.mariam.app/v1/orgs/crous-example/sites/sciences/menus/2026-10-16
+```
 
 The vote is anonymous and capped at one per device, organization and day — a
 student eats once, wherever they eat; rating another site of the same
@@ -290,40 +290,30 @@ most one dish per votable category, chosen by the site in its settings
 highlighted category applies. Aggregates are never returned publicly: a caller
 only ever sees its own vote. The window opens with the day's
 service hours and closes at midnight: a meal is rated once served, and a day
-without service hours cannot be rated. Refusals are `403` (forged token), `409`
-(no published menu, outside the window, or a fingerprint already bound to
-another device) and `429` (address cap reached). The address cap counts new votes only:
-changing an existing one cannot move the score, so it is never charged. The
-device token is dropped from the stored vote the day after it was cast, once
-the vote can no longer be edited.
+without service hours cannot be rated. Refusals are `403 device_invalid`, `409`
+(`voting_disabled`, `voting_not_open`, `vote_already_recorded` for a fingerprint
+bound to another device), `422 dish_invalid` and `429 vote_limit_reached`. The
+address cap counts new votes only: changing an existing one cannot move the score,
+so it is never charged. The device token is dropped from the stored vote the day
+after it was cast, once the vote can no longer be edited.
 
-`POST /v1/public/track` answers 204 in every case, including when it declines to
-count: telemetry must never degrade a menu page. A beacon claiming an origin this
-deployment does not serve is refused, and per-visitor and per-address daily
-budgets cap how far one source can move the figures. IP addresses are used
+`POST /v1/orgs/{org}/page-views` answers 204 in every case, including when it
+declines to count: telemetry must never degrade a menu page. A beacon claiming an
+origin this deployment does not serve is refused, and per-visitor and per-address
+daily budgets cap how far one source can move the figures. IP addresses are used
 for those budgets only, hashed with a salt that rotates daily and is never
 persisted; no address, user agent or per-visitor row reaches PostgreSQL.
 
-**Example — `GET /v1/menus/today`**
+### Other public endpoints
 
-```json
-{
-  "success": true,
-  "data": {
-    "date": "2026-03-20",
-    "published": true,
-    "items": [
-      {
-        "name": "Salade niçoise",
-        "category": "starter",
-        "dietary_tags": ["gluten-free"],
-        "certifications": []
-      }
-    ],
-    "chef_note": "Bon appétit !"
-  }
-}
-```
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/health` | Liveness — the process is up |
+| `GET` | `/health/ready` | Readiness — checks DB, Redis and a scheduler flush in the last 15 minutes; returns 503 otherwise |
+| `GET` | `/v1/taxonomy` | Dietary tags and certifications catalog |
+| `GET` | `/v1/notifications/vapid-public-key` | VAPID public key for push subscriptions |
+| `GET`/`POST` | `/v1/public/unsubscribe/<token>` | Turn the weekly digest off from the email; POST answers the one-click of mail clients |
+| `GET` | `/v1/menus/week`, `/v1/events`, `/v1/closures` | Read anonymously by `?restaurant_id=`, until their domain moves under `/v1/orgs` |
 
 ---
 

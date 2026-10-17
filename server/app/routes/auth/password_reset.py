@@ -42,6 +42,7 @@ def _audit(user: User, details: dict) -> None:
 
 
 @auth_bp.route('/check-reset/<token>', methods=['GET'])
+@auth_bp.doc(security=[])
 @auth_bp.response(200, ResetLinkSchema)
 @auth_bp.alt_response(400, schema=InvalidLinkSchema, description='Link expired or already used.')
 @auth_bp.alt_response(404, schema=InvalidLinkSchema, description='Unknown link.')
@@ -69,6 +70,7 @@ def check_reset_link(token):
 
 
 @auth_bp.route('/reset-password', methods=['POST'])
+@auth_bp.doc(security=[])
 @limiter.limit('3 per hour')
 @auth_bp.arguments(ResetPasswordSchema)
 @auth_bp.response(200, MessageSchema)
@@ -124,6 +126,7 @@ def reset_password(data):
 
 
 @auth_bp.route('/passkey/reset-password/begin', methods=['POST'])
+@auth_bp.doc(security=[])
 @limiter.limit('5 per minute')
 @auth_bp.arguments(ResetTokenSchema)
 @auth_bp.response(200, WebAuthnOptionsSchema)
@@ -154,6 +157,7 @@ def passkey_reset_password_begin(data):
 
 
 @auth_bp.route('/passkey/reset-password/complete', methods=['POST'])
+@auth_bp.doc(security=[])
 @limiter.limit('5 per minute')
 @auth_bp.arguments(PasskeyPasswordResetSchema)
 @auth_bp.response(200, MessageSchema)

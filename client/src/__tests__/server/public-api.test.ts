@@ -25,10 +25,6 @@ describe('apiBaseUrl', () => {
 });
 
 describe('forwardedHeaders', () => {
-  it('names the tenant by the origin the visitor asked for', () => {
-    expect(forwardedHeaders(page()).Origin).toBe('https://demo.example.test');
-  });
-
   it('passes on the visitor address the proxy established', () => {
     const headers = { 'X-Real-IP': '203.0.113.7' };
     expect(forwardedHeaders(page(headers))['X-Real-IP']).toBe('203.0.113.7');

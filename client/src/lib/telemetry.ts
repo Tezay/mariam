@@ -6,26 +6,25 @@
  */
 import { API_URL } from './runtime-config';
 
-const TRACK_URL = `${API_URL}/public/track`;
-
 export type PageKind = 'today' | 'tomorrow' | 'tv' | 'sites';
 
 // One count per rendered page: a refresh is a new visit, switching to "demain"
 // within the same page is not.
 const sent = new Set<string>();
 
-export function trackPageView(pageKind: PageKind, site?: string): void {
-  const key = `${pageKind}:${site ?? ''}`;
+export function trackPageView(pageKind: PageKind, org: string, site?: string): void {
+  const key = `${pageKind}:${org}:${site ?? ''}`;
   if (sent.has(key)) return;
   sent.add(key);
 
+  const url = `${API_URL}/orgs/${encodeURIComponent(org)}/page-views`;
   const payload = JSON.stringify({ page_kind: pageKind, site });
   try {
     // sendBeacon survives the page being closed and skips the CORS preflight.
-    if (navigator.sendBeacon?.(TRACK_URL, new Blob([payload], { type: 'text/plain' }))) {
+    if (navigator.sendBeacon?.(url, new Blob([payload], { type: 'text/plain' }))) {
       return;
     }
-    void fetch(TRACK_URL, {
+    void fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: payload,

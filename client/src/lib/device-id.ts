@@ -6,7 +6,7 @@
  * because clearing one of them is the cheapest way to vote twice; any surviving
  * copy restores the others.
  */
-import { voteApi } from './api/votes';
+import { devicesApi } from './api/devices';
 
 const KEY = 'mariam-device-id';
 const DB_NAME = 'mariam';
@@ -89,8 +89,7 @@ export async function getDeviceId(): Promise<string | null> {
   }
 
   try {
-    const token = await voteApi.mint();
-    if (!token) return null;
+    const token = await devicesApi.create();
     await persist(token);
     return token;
   } catch {

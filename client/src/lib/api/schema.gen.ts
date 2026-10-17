@@ -4,80 +4,6 @@
  */
 
 export interface paths {
-    "/v1/menus/today": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Today's published menu. No authentication required. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description No restaurant configured */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/menus/tomorrow": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Tomorrow's published menu. No authentication required. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PublicDayMenu"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/menus/week": {
         parameters: {
             query?: never;
@@ -4330,49 +4256,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/restaurant": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Active restaurant info (no authentication required).
-         * @description Returns the name, address, logo and public configuration
-         *     (service days, menu categories, active tags, etc.).
-         *
-         *     Query param: `restaurant_id` (int, optional)
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Restaurant"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/settings": {
         parameters: {
             query?: never;
@@ -6286,333 +6169,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/public/org": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Organization resolved from the Host, with its active restaurants (sites). */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/public/{restaurant_slug}/today": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                restaurant_slug: string;
-            };
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    restaurant_slug: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/public/{restaurant_slug}/tomorrow": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                restaurant_slug: string;
-            };
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    restaurant_slug: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/public/{restaurant_slug}/week": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                restaurant_slug: string;
-            };
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    restaurant_slug: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/public/{restaurant_slug}/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                restaurant_slug: string;
-            };
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    restaurant_slug: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/public/{restaurant_slug}/closures": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                restaurant_slug: string;
-            };
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    restaurant_slug: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/public/{restaurant_slug}/restaurant": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                restaurant_slug: string;
-            };
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    restaurant_slug: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/public/track": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Count one view of a public page.
-         * @description Always answers 204, including when telemetry is off or Redis is down: a
-         *     visitor must never see a menu page degraded by a counter.
-         *
-         *     Body: `page_kind`, plus `site` for a site-scoped page. Parsed regardless of
-         *     the content type, which `navigator.sendBeacon` sets to text/plain to avoid a
-         *     CORS preflight.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/public/device": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Issue a signed device token for the vote widget.
-         * @description The signature is what stops a client from minting its own identities; the
-         *     hourly throttle bounds how many one address can collect.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/public/{restaurant_slug}/vote": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                restaurant_slug: string;
-            };
-            cookie?: never;
-        };
-        /** State of the widget: the caller's own vote, never anyone else's. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    restaurant_slug: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    restaurant_slug: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/public/unsubscribe/{token}": {
         parameters: {
             query?: never;
@@ -6866,6 +6422,548 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/domains/{host}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                host: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * The organization a host serves.
+         * @description For a frontend that renders an organization's pages: it names the
+         *     organization to read under `/v1/orgs/{org}`. The answer may be cached
+         *     five minutes.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    host: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Domain"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        /** An active organization. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublicOrg"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        /** The organization's active sites, by name. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublicSiteList"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/page-views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Count one view of a public page.
+         * @description Body: `page_kind` (`today`, `tomorrow`, `tv` or `sites`), plus `site`, the
+         *     slug of the site a page belongs to. Read whatever the content type, which
+         *     `navigator.sendBeacon` sets to text/plain to avoid a CORS preflight.
+         *
+         *     Always answers 204, even when telemetry is off or the body is wrong: a
+         *     visitor must never see a page degraded by a counter.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /** An active site, with what a visitor needs to read its menus. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublicSite"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/menus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Published menus between two dates, both included.
+         * @description Only the dates of the site's `menu_window` are visible: a range reaching
+         *     past it lists what falls inside.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description First day; today by default */
+                    from?: string;
+                    /** @description Last day, included; the window's end by default */
+                    to?: string;
+                };
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublicMenuList"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/menus/{date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                date: string;
+            };
+            cookie?: never;
+        };
+        /** The published menu of one day, within the site's `menu_window`. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublicMenu"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /** Published events from today on, soonest first. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Only the events shown on that screen */
+                    visibility?: "tv" | "mobile";
+                    limit?: number;
+                };
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublicEventList"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/closures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /** Exceptional closures under way or to come, soonest first. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublicClosureList"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/menus/{date}/vote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                date: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * What the caller's device may rate today, and its own vote if any.
+         * @description Never anyone else's vote.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: {
+                    /** @description The token from POST /v1/devices */
+                    "Device-Id"?: string;
+                };
+                path: {
+                    org: string;
+                    site: string;
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["VoteState"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        /** Rate today's meal: one vote per device, organization and day. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: {
+                    /** @description The token from POST /v1/devices */
+                    "Device-Id"?: string;
+                };
+                path: {
+                    org: string;
+                    site: string;
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["VoteInput"];
+                };
+            };
+            responses: {
+                /** @description The vote replaced the device’s previous one */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Vote"];
+                    };
+                };
+                /** @description The device’s first vote of the day */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Vote"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A signed device token, sent back as `Device-Id` when voting.
+         * @description The signature stops a client from minting its own identities; an hourly
+         *     allowance bounds how many one address can collect.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Device"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -6896,23 +6994,6 @@ export interface components {
             page?: number;
             previous_page?: number;
             next_page?: number;
-        };
-        Error: {
-            /** @description Error message */
-            error?: string;
-            /** @description Detailed error description */
-            message?: string;
-        };
-        PublicDayMenu: {
-            date?: string;
-            day_name?: string;
-            restaurant?: {
-                [key: string]: unknown;
-            } | null;
-            /** @description Formatted menu for display, or null if not available */
-            menu?: {
-                [key: string]: unknown;
-            } | null;
         };
         WeekMenu: {
             week_start?: string;
@@ -6982,6 +7063,12 @@ export interface components {
             }[];
             /** @description Chef's note (max 300 chars) */
             chef_note?: string | null;
+        };
+        Error: {
+            /** @description Error message */
+            error?: string;
+            /** @description Detailed error description */
+            message?: string;
         };
         WeekPublish: {
             /**
@@ -7457,12 +7544,12 @@ export interface components {
             certifications?: unknown[];
         };
         DietaryTag: {
-            id?: string;
-            label?: string;
-            icon?: string;
-            color?: string;
-            category_id?: string;
-            sort_order?: number;
+            id: string;
+            label: string;
+            icon: string;
+            color: string;
+            category_id: string;
+            sort_order: number;
         };
         DietaryTagCategory: {
             id?: string;
@@ -7472,16 +7559,18 @@ export interface components {
             tags?: components["schemas"]["DietaryTag"][];
         };
         Certification: {
-            id?: string;
-            name?: string;
-            official_name?: string;
-            issuer?: string;
-            scheme_type?: string;
-            jurisdiction?: string;
-            guarantee?: string;
-            logo_filename?: string;
-            category_id?: string;
-            sort_order?: number;
+            id: string;
+            name: string;
+            official_name: string;
+            issuer: string;
+            /** @enum {string} */
+            scheme_type: "public" | "private";
+            /** @enum {string} */
+            jurisdiction: "france" | "eu" | "international";
+            guarantee: string | null;
+            logo_filename: string;
+            category_id: string;
+            sort_order: number;
         };
         CertificationCategory: {
             id?: string;
@@ -7767,6 +7856,154 @@ export interface components {
             reason?: string | null;
             description?: string | null;
             is_active?: boolean;
+        };
+        PublicOrg: {
+            slug: string;
+            name: string;
+        };
+        Domain: {
+            host: string;
+            organization: components["schemas"]["PublicOrg"];
+        };
+        PublicSiteSummary: {
+            slug: string;
+            name: string;
+            logo_url?: string | null;
+        };
+        PublicSiteList: {
+            items: components["schemas"]["PublicSiteSummary"][];
+        };
+        MenuWindow: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+        };
+        PublicSite: {
+            slug: string;
+            name: string;
+            logo_url?: string | null;
+            address_label?: string | null;
+            address_lat?: number | null;
+            address_lon?: number | null;
+            email?: string | null;
+            phone?: string | null;
+            /** @description Seats */
+            capacity?: number | null;
+            payment_methods?: string[] | null;
+            /** @description None when unknown */
+            pmr_access?: boolean | null;
+            /** @description 0 is Monday */
+            service_days: number[];
+            service_hours: {
+                [key: string]: components["schemas"]["ServiceHoursDay"];
+            };
+            vote_enabled: boolean;
+            vote_icon_preset: string;
+            dietary_tags: components["schemas"]["DietaryTag"][];
+            certifications: components["schemas"]["Certification"][];
+            /** @description The dates whose published menus can be read */
+            menu_window: components["schemas"]["MenuWindow"];
+        };
+        PublicDish: {
+            id: number;
+            name: string;
+            image_url?: string | null;
+            tags: components["schemas"]["DietaryTag"][];
+            certifications: components["schemas"]["Certification"][];
+        };
+        PublicMenuItem: {
+            id: number;
+            category_id: number;
+            dish: components["schemas"]["PublicDish"];
+            order: number;
+            is_out_of_stock: boolean;
+        };
+        PublicCategory: {
+            id: number;
+            label: string;
+            is_highlighted: boolean;
+            order: number;
+            color_key?: string | null;
+            items?: components["schemas"]["PublicMenuItem"][];
+            subcategories?: components["schemas"]["PublicCategory"][];
+        };
+        PublicImage: {
+            url: string;
+            order: number;
+        };
+        PublicSubstitution: {
+            dish: components["schemas"]["PublicDish"];
+            order: number;
+        };
+        PublicMenu: {
+            /** Format: date */
+            date: string;
+            chef_note?: string | null;
+            categories: components["schemas"]["PublicCategory"][];
+            images: components["schemas"]["PublicImage"][];
+            /** @description Dishes that may replace another, by category id */
+            substitutions: {
+                [key: string]: components["schemas"]["PublicSubstitution"][];
+            };
+        };
+        PublicMenuList: {
+            items: components["schemas"]["PublicMenu"][];
+        };
+        PublicEvent: {
+            id: number;
+            title: string;
+            subtitle?: string | null;
+            description?: string | null;
+            color?: string | null;
+            /** Format: date */
+            date: string;
+            images: components["schemas"]["PublicImage"][];
+        };
+        PublicEventList: {
+            items: components["schemas"]["PublicEvent"][];
+        };
+        PublicClosure: {
+            id: number;
+            /** Format: date */
+            start_date: string;
+            /** Format: date */
+            end_date: string;
+            reason?: string | null;
+            description?: string | null;
+        };
+        PublicClosureList: {
+            items: components["schemas"]["PublicClosure"][];
+        };
+        Vote: {
+            /** @enum {integer} */
+            rating: 1 | 2 | 3;
+            dish_ids: number[];
+            updated_at?: string | null;
+        };
+        DishChoice: {
+            id: number;
+            name: string;
+            image_url?: string | null;
+        };
+        DishGroup: {
+            category_id: number;
+            label: string;
+            dishes: components["schemas"]["DishChoice"][];
+        };
+        VoteState: {
+            vote: (Record<string, never> | null) | components["schemas"]["Vote"];
+            dish_groups: components["schemas"]["DishGroup"][];
+            voting_open: boolean;
+        };
+        VoteInput: {
+            rating: number;
+            dish_ids?: number[];
+            /** @default null */
+            fingerprint: string | null;
+        };
+        Device: {
+            device_id: string;
         };
     };
     responses: {
