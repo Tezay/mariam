@@ -1,5 +1,11 @@
 """The dish catalog: CRUD, roles, isolation between sites."""
-from conftest import auth_headers, get_token, make_category, make_restaurant, make_user
+from conftest import auth_headers, get_token, make_category, make_restaurant, make_user, site_path
+
+
+def _dishes(client, token):
+    """The catalog of the caller's own site."""
+    rid = client.get('/v1/settings', headers=auth_headers(token)).get_json()['restaurant']['id']
+    return f'{site_path(rid)}/dishes'
 
 
 def _category_for(client, token):
@@ -19,7 +25,7 @@ def _category_for(client, token):
 
 def _create_dish(client, token, name='poulet rôti', **extra):
     extra.setdefault('category_id', _category_for(client, token))
-    return client.post('/v1/catalog',
+    return client.post(f'{_dishes(client, token)}',
                        json={'name': name, **extra},
                        headers=auth_headers(token))
 
@@ -31,20 +37,20 @@ class TestCatalogCrud:
         token = get_token(client)
         res = _create_dish(client, token)
         assert res.status_code == 201
-        dish = res.get_json()['dish']
+        dish = res.get_json()
         # Normalised: capital first letter.
         assert dish['name'] == 'Poulet rôti'
 
-    def test_create_dish_requires_auth(self, client):
-        res = client.post('/v1/catalog', json={'name': 'Poulet'})
+    def test_create_dish_requires_auth(self, app, client):
+        res = client.post(f'{site_path(make_restaurant(app))}/dishes', json={'name': 'Poulet'})
         assert res.status_code == 401
 
     def test_create_dish_invalid_payload(self, app, client):
         make_restaurant(app)
         make_user(app)
         token = get_token(client)
-        res = client.post('/v1/catalog', json={}, headers=auth_headers(token))
-        assert res.status_code == 400
+        res = client.post(f'{_dishes(client, token)}', json={}, headers=auth_headers(token))
+        assert res.status_code == 422
 
     def test_list_dishes(self, app, client):
         make_restaurant(app)
@@ -52,56 +58,56 @@ class TestCatalogCrud:
         token = get_token(client)
         _create_dish(client, token, name='Poulet rôti')
         _create_dish(client, token, name='Riz pilaf')
-        res = client.get('/v1/catalog', headers=auth_headers(token))
+        res = client.get(f'{_dishes(client, token)}', headers=auth_headers(token))
         assert res.status_code == 200
-        names = {d['name'] for d in res.get_json()['dishes']}
+        names = {d['name'] for d in res.get_json()['items']}
         assert names == {'Poulet rôti', 'Riz pilaf'}
 
     def test_get_dish(self, app, client):
         make_restaurant(app)
         make_user(app)
         token = get_token(client)
-        dish_id = _create_dish(client, token).get_json()['dish']['id']
-        res = client.get(f'/v1/catalog/{dish_id}', headers=auth_headers(token))
+        dish_id = _create_dish(client, token).get_json()['id']
+        res = client.get(f'{_dishes(client, token)}/{dish_id}', headers=auth_headers(token))
         assert res.status_code == 200
-        assert res.get_json()['dish']['id'] == dish_id
+        assert res.get_json()['id'] == dish_id
 
     def test_get_dish_not_found(self, app, client):
         make_restaurant(app)
         make_user(app)
         token = get_token(client)
-        res = client.get('/v1/catalog/9999', headers=auth_headers(token))
+        res = client.get(f'{_dishes(client, token)}/9999', headers=auth_headers(token))
         assert res.status_code == 404
 
     def test_update_dish(self, app, client):
         make_restaurant(app)
         make_user(app)
         token = get_token(client)
-        dish_id = _create_dish(client, token).get_json()['dish']['id']
-        res = client.put(f'/v1/catalog/{dish_id}',
+        dish_id = _create_dish(client, token).get_json()['id']
+        res = client.patch(f'{_dishes(client, token)}/{dish_id}',
                          json={'name': 'poulet basquaise'},
                          headers=auth_headers(token))
         assert res.status_code == 200
-        assert res.get_json()['dish']['name'] == 'Poulet basquaise'
+        assert res.get_json()['name'] == 'Poulet basquaise'
 
     def test_update_dish_invalid_payload(self, app, client):
         make_restaurant(app)
         make_user(app)
         token = get_token(client)
-        dish_id = _create_dish(client, token).get_json()['dish']['id']
-        res = client.put(f'/v1/catalog/{dish_id}',
+        dish_id = _create_dish(client, token).get_json()['id']
+        res = client.patch(f'{_dishes(client, token)}/{dish_id}',
                          json={'name': ''},
                          headers=auth_headers(token))
-        assert res.status_code == 400
+        assert res.status_code == 422
 
     def test_delete_dish(self, app, client):
         make_restaurant(app)
         make_user(app)
         token = get_token(client)
-        dish_id = _create_dish(client, token).get_json()['dish']['id']
-        res = client.delete(f'/v1/catalog/{dish_id}', headers=auth_headers(token))
-        assert res.status_code == 200
-        assert client.get(f'/v1/catalog/{dish_id}',
+        dish_id = _create_dish(client, token).get_json()['id']
+        res = client.delete(f'{_dishes(client, token)}/{dish_id}', headers=auth_headers(token))
+        assert res.status_code == 204
+        assert client.get(f'{_dishes(client, token)}/{dish_id}',
                           headers=auth_headers(token)).status_code == 404
 
     def test_delete_dish_used_in_menu_rejected(self, app, client):
@@ -110,13 +116,13 @@ class TestCatalogCrud:
         make_user(app)
         token = get_token(client)
         category_id = make_category(app, restaurant_id)
-        client.post('/v1/menus',
-                    json={'date': datetime.date.today().isoformat(),
-                          'items': [{'category_id': category_id, 'name': 'Poulet rôti'}]},
-                    headers=auth_headers(token))
-        dishes = client.get('/v1/catalog', headers=auth_headers(token)).get_json()['dishes']
+        client.put(f'{site_path(restaurant_id)}/menus/{datetime.date.today().isoformat()}',
+                   json={'items': [{'category_id': category_id, 'name': 'Poulet rôti'}],
+                         'chef_note': None},
+                   headers=auth_headers(token))
+        dishes = client.get(f'{_dishes(client, token)}', headers=auth_headers(token)).get_json()['items']
         assert len(dishes) == 1
-        res = client.delete(f"/v1/catalog/{dishes[0]['id']}", headers=auth_headers(token))
+        res = client.delete(f"{_dishes(client, token)}/{dishes[0]['id']}", headers=auth_headers(token))
         assert res.status_code == 409
 
     def test_menu_items_reuse_existing_dish(self, app, client):
@@ -128,19 +134,20 @@ class TestCatalogCrud:
         category_id = make_category(app, restaurant_id)
         today = datetime.date.today()
         for offset in (0, 1):
-            client.post('/v1/menus',
-                        json={'date': (today + datetime.timedelta(days=offset)).isoformat(),
-                              'items': [{'category_id': category_id, 'name': 'Poulet rôti'}]},
-                        headers=auth_headers(token))
-        dishes = client.get('/v1/catalog', headers=auth_headers(token)).get_json()['dishes']
+            day = (today + datetime.timedelta(days=offset)).isoformat()
+            client.put(f'{site_path(restaurant_id)}/menus/{day}',
+                       json={'items': [{'category_id': category_id, 'name': 'Poulet rôti'}],
+                             'chef_note': None},
+                       headers=auth_headers(token))
+        dishes = client.get(f'{_dishes(client, token)}', headers=auth_headers(token)).get_json()['items']
         assert len(dishes) == 1
 
     def test_dish_stats(self, app, client):
         make_restaurant(app)
         make_user(app)
         token = get_token(client)
-        dish_id = _create_dish(client, token).get_json()['dish']['id']
-        res = client.get(f'/v1/catalog/{dish_id}/stats', headers=auth_headers(token))
+        dish_id = _create_dish(client, token).get_json()['id']
+        res = client.get(f'{_dishes(client, token)}/{dish_id}/stats', headers=auth_headers(token))
         assert res.status_code == 200
         data = res.get_json()
         for key in ('week', 'month', 'semester', 'year', 'history'):
@@ -162,16 +169,16 @@ class TestCatalogRoles:
         make_user(app)
         make_user(app, email='reader@mariam.app', role='reader')
         admin_token = get_token(client)
-        dish_id = _create_dish(client, admin_token).get_json()['dish']['id']
+        dish_id = _create_dish(client, admin_token).get_json()['id']
         reader_token = get_token(client, email='reader@mariam.app')
-        res = client.delete(f'/v1/catalog/{dish_id}', headers=auth_headers(reader_token))
+        res = client.delete(f'{_dishes(client, reader_token)}/{dish_id}', headers=auth_headers(reader_token))
         assert res.status_code == 403
 
     def test_reader_can_list_dishes(self, app, client):
         make_restaurant(app)
         make_user(app, email='reader@mariam.app', role='reader')
         token = get_token(client, email='reader@mariam.app')
-        res = client.get('/v1/catalog', headers=auth_headers(token))
+        res = client.get(f'{_dishes(client, token)}', headers=auth_headers(token))
         assert res.status_code == 200
 
 
@@ -187,24 +194,24 @@ class TestCatalogTenantIsolation:
 
     def test_dish_not_visible_from_other_restaurant(self, app, client):
         token_a, token_b = self._two_restaurants(app, client)
-        dish_id = _create_dish(client, token_a).get_json()['dish']['id']
-        assert client.get(f'/v1/catalog/{dish_id}',
+        dish_id = _create_dish(client, token_a).get_json()['id']
+        assert client.get(f'{_dishes(client, token_b)}/{dish_id}',
                           headers=auth_headers(token_b)).status_code == 404
-        assert client.get('/v1/catalog',
-                          headers=auth_headers(token_b)).get_json()['dishes'] == []
+        assert client.get(f'{_dishes(client, token_b)}',
+                          headers=auth_headers(token_b)).get_json()['items'] == []
 
     def test_cannot_update_other_restaurant_dish(self, app, client):
         token_a, token_b = self._two_restaurants(app, client)
-        dish_id = _create_dish(client, token_a).get_json()['dish']['id']
-        res = client.put(f'/v1/catalog/{dish_id}',
+        dish_id = _create_dish(client, token_a).get_json()['id']
+        res = client.patch(f'{_dishes(client, token_b)}/{dish_id}',
                          json={'name': 'Piraté'},
                          headers=auth_headers(token_b))
         assert res.status_code == 404
 
     def test_cannot_delete_other_restaurant_dish(self, app, client):
         token_a, token_b = self._two_restaurants(app, client)
-        dish_id = _create_dish(client, token_a).get_json()['dish']['id']
-        res = client.delete(f'/v1/catalog/{dish_id}', headers=auth_headers(token_b))
+        dish_id = _create_dish(client, token_a).get_json()['id']
+        res = client.delete(f'{_dishes(client, token_b)}/{dish_id}', headers=auth_headers(token_b))
         assert res.status_code == 404
 
 
@@ -241,7 +248,7 @@ class TestDishSatisfaction:
         return dish.id
 
     def _satisfaction(self, client, token, dish_id):
-        res = client.get(f'/v1/catalog/{dish_id}/stats', headers=auth_headers(token))
+        res = client.get(f'{_dishes(client, token)}/{dish_id}/stats', headers=auth_headers(token))
         assert res.status_code == 200, res.get_json()
         return res.get_json()['satisfaction']
 
@@ -275,25 +282,25 @@ class TestStatsBatch:
         make_restaurant(app)
         make_user(app)
         token = get_token(client)
-        first = _create_dish(client, token, name='Poulet').get_json()['dish']['id']
-        second = _create_dish(client, token, name='Gratin').get_json()['dish']['id']
+        first = _create_dish(client, token, name='Poulet').get_json()['id']
+        second = _create_dish(client, token, name='Gratin').get_json()['id']
 
         res = client.get(
-            f'/v1/catalog/stats?ids={first},{second}', headers=auth_headers(token)
+            f'{_dishes(client, token)}/stats?ids={first},{second}', headers=auth_headers(token)
         )
 
         assert res.status_code == 200
-        assert set(res.get_json()['stats']) == {str(first), str(second)}
+        assert {stats['dish_id'] for stats in res.get_json()['items']} == {first, second}
 
     def test_a_dish_of_another_restaurant_is_dropped(self, app, client):
         make_restaurant(app)
         make_user(app)
         token = get_token(client)
-        mine = _create_dish(client, token, name='Poulet').get_json()['dish']['id']
+        mine = _create_dish(client, token, name='Poulet').get_json()['id']
 
-        res = client.get(f'/v1/catalog/stats?ids={mine},999999', headers=auth_headers(token))
+        res = client.get(f'{_dishes(client, token)}/stats?ids={mine},999999', headers=auth_headers(token))
 
-        assert set(res.get_json()['stats']) == {str(mine)}
+        assert [stats['dish_id'] for stats in res.get_json()['items']] == [mine]
 
 
 class TestLeafCategoryRule:
@@ -324,7 +331,8 @@ class TestLeafCategoryRule:
 
         res = _create_dish(client, token, name='Bœuf', category_id=parent_id)
 
-        assert res.status_code == 400
+        assert res.status_code == 422
+        assert res.get_json()['code'] == 'category_invalid'
 
     def test_a_subcategory_reports_the_dishes_it_would_strand(self, app, client):
         make_restaurant(app)
@@ -348,7 +356,7 @@ class TestLeafCategoryRule:
         )
         assert moved.status_code == 201
         child_id = moved.get_json()['category']['id']
-        listed = client.get('/v1/catalog', headers=auth_headers(token)).get_json()['dishes']
+        listed = client.get(f'{_dishes(client, token)}', headers=auth_headers(token)).get_json()['items']
         assert [dish['category_id'] for dish in listed if dish['name'] == 'Bœuf'] == [child_id]
 
     def test_a_populated_category_cannot_be_deleted(self, app, client):
@@ -372,12 +380,12 @@ class TestBulkActions:
         from app.models import Menu, MenuItem
         from app.utils.time import paris_today
 
-        make_restaurant(app)
+        rid = make_restaurant(app)
         make_user(app)
         token = get_token(client)
-        free = _create_dish(client, token, name='Libre').get_json()['dish']
-        served = _create_dish(client, token, name='Servi').get_json()['dish']
-        menu = Menu(restaurant_id=served['restaurant_id'], date=paris_today(), status='published')
+        free = _create_dish(client, token, name='Libre').get_json()
+        served = _create_dish(client, token, name='Servi').get_json()
+        menu = Menu(restaurant_id=rid, date=paris_today(), status='published')
         db.session.add(menu)
         db.session.commit()
         db.session.add(MenuItem(
@@ -386,7 +394,7 @@ class TestBulkActions:
         db.session.commit()
 
         res = client.post(
-            '/v1/catalog/bulk/delete',
+            f'{_dishes(client, token)}/batch-delete',
             json={'ids': [free['id'], served['id']]},
             headers=auth_headers(token),
         )
@@ -399,33 +407,33 @@ class TestBulkActions:
         from app.extensions import db
         from app.models import MenuCategory
 
-        make_restaurant(app)
+        rid = make_restaurant(app)
         make_user(app)
         token = get_token(client)
-        dish = _create_dish(client, token).get_json()['dish']
-        parent = MenuCategory(restaurant_id=dish['restaurant_id'], label='Parent', order=9)
+        dish = _create_dish(client, token).get_json()
+        parent = MenuCategory(restaurant_id=rid, label='Parent', order=9)
         db.session.add(parent)
         db.session.commit()
         db.session.add(MenuCategory(
-            restaurant_id=dish['restaurant_id'], parent_id=parent.id, label='Enfant', order=0
+            restaurant_id=rid, parent_id=parent.id, label='Enfant', order=0
         ))
         db.session.commit()
 
         res = client.post(
-            '/v1/catalog/bulk/category',
+            f'{_dishes(client, token)}/batch-update',
             json={'ids': [dish['id']], 'category_id': parent.id},
             headers=auth_headers(token),
         )
 
-        assert res.status_code == 400
+        assert res.status_code == 422
 
     def test_export_returns_a_csv(self, app, client):
         make_restaurant(app)
         make_user(app)
         token = get_token(client)
-        dish = _create_dish(client, token, name='Gratin').get_json()['dish']
+        dish = _create_dish(client, token, name='Gratin').get_json()
 
-        res = client.get(f'/v1/catalog/export?ids={dish["id"]}', headers=auth_headers(token))
+        res = client.get(f'{_dishes(client, token)}/export?ids={dish["id"]}', headers=auth_headers(token))
 
         assert res.status_code == 200
         assert 'text/csv' in res.headers['Content-Type']
@@ -438,7 +446,7 @@ class TestBulkActions:
         _create_dish(client, token, name='Gratin')
         _create_dish(client, token, name='Tarte')
 
-        res = client.get('/v1/catalog/export?q=gratin', headers=auth_headers(token))
+        res = client.get(f'{_dishes(client, token)}/export?q=gratin', headers=auth_headers(token))
 
         body = res.get_data(as_text=True)
         assert 'Gratin' in body
@@ -465,7 +473,7 @@ class TestBulkActions:
         db.session.commit()
         _create_dish(client, token, name='Bœuf', category_id=child.id, tag_ids=['vegetarian'])
 
-        res = client.get('/v1/catalog/export', headers=auth_headers(token))
+        res = client.get(f'{_dishes(client, token)}/export', headers=auth_headers(token))
 
         header, row = res.get_data(as_text=True).strip().splitlines()[:2]
         assert header.lstrip('﻿') == 'nom;categorie;sous_categorie;labels;certifications'
@@ -490,10 +498,10 @@ class TestCatalogFilters:
         _create_dish(client, token, name='Bœuf', category_id=plats.id)
 
         res = client.get(
-            f'/v1/catalog?category_ids={entrees.id},{desserts.id}', headers=auth_headers(token)
+            f'{_dishes(client, token)}?category_ids={entrees.id},{desserts.id}', headers=auth_headers(token)
         )
 
-        assert sorted(dish['name'] for dish in res.get_json()['dishes']) == ['Salade', 'Tarte']
+        assert sorted(dish['name'] for dish in res.get_json()['items']) == ['Salade', 'Tarte']
 
     def test_search_survives_a_typo(self, app, client):
         make_restaurant(app)
@@ -503,8 +511,8 @@ class TestCatalogFilters:
         _create_dish(client, token, name='Blanquette de veau')
 
         def names(query):
-            res = client.get(f'/v1/catalog?q={query}', headers=auth_headers(token))
-            return sorted(dish['name'] for dish in res.get_json()['dishes'])
+            res = client.get(f'{_dishes(client, token)}?q={query}', headers=auth_headers(token))
+            return sorted(dish['name'] for dish in res.get_json()['items'])
 
         assert names('bannane') == ['Banane']
         assert names('blanquete veaux') == ['Blanquette de veau']
@@ -516,9 +524,9 @@ class TestCatalogFilters:
         token = get_token(client)
         _create_dish(client, token, name='Ris de veau')
 
-        res = client.get('/v1/catalog?q=riz', headers=auth_headers(token))
+        res = client.get(f'{_dishes(client, token)}?q=riz', headers=auth_headers(token))
 
-        assert res.get_json()['dishes'] == []
+        assert res.get_json()['items'] == []
 
 
 def _second_category(app, restaurant_id, label='Desserts'):
@@ -536,7 +544,7 @@ class TestDuplicateNames:
         make_restaurant(app)
         make_user(app)
         token = get_token(client)
-        first = _create_dish(client, token, name='Banane').get_json()['dish']
+        first = _create_dish(client, token, name='Banane').get_json()
 
         res = _create_dish(client, token, name='banane')
 
@@ -560,11 +568,11 @@ class TestDuplicateNames:
         make_restaurant(app)
         make_user(app)
         token = get_token(client)
-        first = _create_dish(client, token, name='Banane').get_json()['dish']
-        second = _create_dish(client, token, name='Pomme').get_json()['dish']
+        first = _create_dish(client, token, name='Banane').get_json()
+        second = _create_dish(client, token, name='Pomme').get_json()
 
-        res = client.put(
-            f'/v1/catalog/{second["id"]}',
+        res = client.patch(
+            f'{_dishes(client, token)}/{second["id"]}',
             json={'name': 'Banane'},
             headers=auth_headers(token),
         )
@@ -579,10 +587,10 @@ class TestDuplicateNames:
         default = _category_for(client, token)
         other = _second_category(app, rid)
         _create_dish(client, token, name='Banane', category_id=default)
-        moving = _create_dish(client, token, name='Banane', category_id=other).get_json()['dish']
+        moving = _create_dish(client, token, name='Banane', category_id=other).get_json()
 
-        res = client.put(
-            f'/v1/catalog/{moving["id"]}',
+        res = client.patch(
+            f'{_dishes(client, token)}/{moving["id"]}',
             json={'category_id': default},
             headers=auth_headers(token),
         )
@@ -593,34 +601,34 @@ class TestDuplicateNames:
         make_restaurant(app)
         make_user(app)
         token = get_token(client)
-        dish = _create_dish(client, token, name='Banane').get_json()['dish']
+        dish = _create_dish(client, token, name='Banane').get_json()
 
-        res = client.put(
-            f'/v1/catalog/{dish["id"]}',
+        res = client.patch(
+            f'{_dishes(client, token)}/{dish["id"]}',
             json={'name': 'Banane', 'tag_ids': []},
             headers=auth_headers(token),
         )
 
         assert res.status_code == 200
 
-    def test_bulk_move_keeps_the_dishes_that_would_collide(self, app, client):
+    def test_a_batch_move_keeps_the_dishes_that_would_collide(self, app, client):
         rid = make_restaurant(app)
         make_user(app)
         token = get_token(client)
         target = _category_for(client, token)
         other = _second_category(app, rid)
         _create_dish(client, token, name='Banane', category_id=target)
-        twin = _create_dish(client, token, name='Banane', category_id=other).get_json()['dish']
-        free = _create_dish(client, token, name='Poire', category_id=other).get_json()['dish']
+        twin = _create_dish(client, token, name='Banane', category_id=other).get_json()
+        free = _create_dish(client, token, name='Poire', category_id=other).get_json()
 
         res = client.post(
-            '/v1/catalog/bulk/category',
+            f'{_dishes(client, token)}/batch-update',
             json={'ids': [twin['id'], free['id']], 'category_id': target},
             headers=auth_headers(token),
         )
 
         payload = res.get_json()
-        assert payload['moved'] == [free['id']]
+        assert payload['updated'] == [free['id']]
         assert [kept['id'] for kept in payload['kept']] == [twin['id']]
 
 
@@ -650,8 +658,8 @@ class TestNovelties:
         make_user(app)
         token = get_token(client)
         today = paris_today()
-        veteran = _create_dish(client, token, name='Poulet').get_json()['dish']
-        newcomer = _create_dish(client, token, name='Curry').get_json()['dish']
+        veteran = _create_dish(client, token, name='Poulet').get_json()
+        newcomer = _create_dish(client, token, name='Curry').get_json()
         self._serve(app, client, token, veteran['id'], today - datetime.timedelta(days=40))
         self._serve(app, client, token, veteran['id'], today)
         self._serve(app, client, token, newcomer['id'], today)
@@ -668,12 +676,40 @@ class TestNovelties:
         make_restaurant(app)
         make_user(app)
         token = get_token(client)
-        newcomer = _create_dish(client, token, name='Curry').get_json()['dish']
+        newcomer = _create_dish(client, token, name='Curry').get_json()
         _create_dish(client, token, name='Jamais servi')
         self._serve(app, client, token, newcomer['id'], paris_today())
 
-        scoped = client.get('/v1/catalog?new_only=1&period=30d', headers=auth_headers(token))
-        unbounded = client.get('/v1/catalog?new_only=1&period=all', headers=auth_headers(token))
+        scoped = client.get(f'{_dishes(client, token)}?new_only=1&period=30d', headers=auth_headers(token))
+        unbounded = client.get(f'{_dishes(client, token)}?new_only=1&period=all', headers=auth_headers(token))
 
-        assert [dish['name'] for dish in scoped.get_json()['dishes']] == ['Curry']
-        assert len(unbounded.get_json()['dishes']) == 2
+        assert [dish['name'] for dish in scoped.get_json()['items']] == ['Curry']
+        assert len(unbounded.get_json()['items']) == 2
+
+
+class TestPages:
+    def test_the_list_comes_in_pages_linked_by_the_header(self, app, client):
+        make_restaurant(app)
+        make_user(app)
+        token = get_token(client)
+        for name in ('Plat A', 'Plat B', 'Plat C'):
+            _create_dish(client, token, name=name)
+        url = f'{_dishes(client, token)}?sort=name&per_page=2'
+
+        first = client.get(f'{url}&page=1', headers=auth_headers(token))
+        last = client.get(f'{url}&page=2', headers=auth_headers(token))
+
+        assert [dish['name'] for dish in first.get_json()['items']] == ['Plat A', 'Plat B']
+        assert first.get_json()['total_count'] == 3
+        assert 'per_page=2&page=2>; rel="next"' in first.headers['Link']
+        assert [dish['name'] for dish in last.get_json()['items']] == ['Plat C']
+        assert 'rel="next"' not in last.headers['Link']
+
+    def test_a_new_dish_gives_its_address(self, app, client):
+        make_restaurant(app)
+        make_user(app)
+        token = get_token(client)
+
+        res = _create_dish(client, token)
+
+        assert client.get(res.headers['Location'], headers=auth_headers(token)).get_json() == res.get_json()

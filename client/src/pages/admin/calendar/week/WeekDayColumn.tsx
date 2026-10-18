@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { CalendarOff, Pencil } from 'lucide-react';
-import type { DishCatalogItem } from '@/lib/api/catalog';
+import type { MenuDish } from '@/lib/api/menus';
 import type { Event } from '@/lib/api/events';
 import type { MenuCategory } from '@/lib/api/categories';
-import type { MenuItem } from '@/lib/api/menus';
+import type { EditorItem } from '@/pages/admin/calendar/day/useMenuEditor';
 import type { DayData } from '../useCalendarData';
 import { EventCard } from '../EventCard';
 import { useMenuEditor } from '../day/useMenuEditor';
@@ -29,7 +29,6 @@ interface WeekDayColumnProps {
   date: string;
   isToday: boolean;
   dayData: DayData | undefined;
-  restaurantId: number | undefined;
   canEdit: boolean;
   categories: MenuCategory[];
   selection: UseSelectionReturn;
@@ -42,11 +41,11 @@ interface WeekDayColumnProps {
     reset: () => void
   ) => void;
   onRegisterDrop?: (
-    fn: (categoryId: number, dishId: number, dish?: DishCatalogItem) => void
+    fn: (categoryId: number, dishId: number, dish?: MenuDish) => void
   ) => void;
   onRegisterRemove?: (fn: (itemId: number) => void) => void;
-  onRegisterUpdateItem?: (fn: (itemId: number, changes: Partial<MenuItem>) => void) => void;
-  onRegisterGetItems?: (fn: () => MenuItem[]) => void;
+  onRegisterUpdateItem?: (fn: (itemId: number, changes: Partial<EditorItem>) => void) => void;
+  onRegisterGetItems?: (fn: () => EditorItem[]) => void;
   onEditEvent?: (event: Event) => void;
 }
 
@@ -54,7 +53,6 @@ export function WeekDayColumn({
   date,
   isToday,
   dayData,
-  restaurantId,
   canEdit,
   categories,
   selection,
@@ -73,7 +71,7 @@ export function WeekDayColumn({
   const [closureEditorOpen, setClosureEditorOpen] = useState(false);
   const [importMode, setImportMode] = useState<'csv' | null>(null);
 
-  const editor = useMenuEditor({ date, menu, restaurantId });
+  const editor = useMenuEditor({ date, menu });
 
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: `week-col-drop-${date}`,
@@ -141,7 +139,6 @@ export function WeekDayColumn({
       )}
       style={closure ? CLOSURE_HATCH_STYLE : undefined}
       data-day-date={date}
-      data-day-menu-id={menu?.id}
     >
       <div
         className={cn(
@@ -282,7 +279,6 @@ export function WeekDayColumn({
           ) : canEdit ? (
             <AddMenuCTA
               date={date}
-              restaurantId={restaurantId}
               onStartOnboarding={() => onStartOnboarding(date)}
               onImportCsv={() => setImportMode('csv')}
               onImported={onReload}
@@ -293,7 +289,6 @@ export function WeekDayColumn({
           <DayImportCsv
             open={importMode === 'csv'}
             targetDate={date}
-            restaurantId={restaurantId}
             categories={categories}
             onClose={() => setImportMode(null)}
             onImported={() => {

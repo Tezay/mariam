@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PartyPopper, Pencil } from 'lucide-react';
 import { getApiErrorMessage } from '@/lib/api/errors';
-import { sitesApi, type VoteDishGroup, type VoteState } from '@/lib/api/sites';
+import { menusApi, type VoteDishGroup, type VoteState } from '@/lib/api/menus';
 import { parisToday } from '@/lib/date-utils';
 import { getDeviceId } from '@/lib/device-id';
 import { deviceFingerprint } from '@/lib/device-fingerprint';
@@ -45,7 +45,7 @@ export function MobileVoteCard({
       try {
         const token = await getDeviceId();
         if (!token) throw new Error('no device token');
-        const next = await sitesApi.getVote(org, siteSlug, parisToday(), token);
+        const next = await menusApi.getVote({ org, site: siteSlug }, parisToday(), token);
         if (cancelled) return;
         setDeviceId(token);
         setState(next);
@@ -65,7 +65,7 @@ export function MobileVoteCard({
       setPending(true);
       try {
         const fingerprint = await deviceFingerprint();
-        const vote = await sitesApi.putVote(org, siteSlug, parisToday(), deviceId, {
+        const vote = await menusApi.putVote({ org, site: siteSlug }, parisToday(), deviceId, {
           rating,
           dish_ids: dishIds,
           fingerprint,

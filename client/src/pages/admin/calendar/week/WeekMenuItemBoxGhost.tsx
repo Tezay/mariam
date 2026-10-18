@@ -1,8 +1,8 @@
-import type { MenuItem } from '@/lib/api/menus';
+import type { EditorItem } from '@/pages/admin/calendar/day/useMenuEditor';
 import type { CategoryColor } from '@/lib/category-colors';
 
 interface WeekMenuItemBoxGhostProps {
-  item: MenuItem;
+  item: EditorItem;
   color: CategoryColor;
 }
 

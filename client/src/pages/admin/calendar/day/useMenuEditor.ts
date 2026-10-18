@@ -1,20 +1,30 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSiteRef } from '@/contexts/SiteContext';
 import { menusApi } from '@/lib/api/menus';
-import type { Menu, MenuItem } from '@/lib/api/menus';
-import type { DishCatalogItem } from '@/lib/api/catalog';
+import type { Menu, MenuDish } from '@/lib/api/menus';
+import { menuItems } from '@/lib/menu-tree';
 import { notify } from '@/lib/toast';
 
 export interface UseMenuEditorOptions {
   date: string;
   menu: Menu | null;
-  restaurantId: number | undefined;
+}
+
+/** An item as the editor holds it; its id is negative until the menu is saved. */
+export interface EditorItem {
+  id: number;
+  category_id: number;
+  dish_id: number;
+  dish?: MenuDish;
+  order: number;
+  is_out_of_stock: boolean;
 }
 
 // substitutions: categoryId (number) -> ordered list of dishes
-export type SubstitutionMap = Record<number, DishCatalogItem[]>;
+export type SubstitutionMap = Record<number, MenuDish[]>;
 
 export interface UseMenuEditorReturn {
-  items: MenuItem[];
+  items: EditorItem[];
   chefNote: string;
   substitutions: SubstitutionMap;
   isDirty: boolean;
@@ -22,14 +32,12 @@ export interface UseMenuEditorReturn {
   isPublishing: boolean;
   saveError: string | null;
   menuStatus: 'draft' | 'published' | null;
-  menuId: number | undefined;
-  restaurantId: number | undefined;
-  updateItem(localId: number, patch: Partial<MenuItem>): void;
-  addItem(categoryId: number, dishId: number, dish?: DishCatalogItem): void;
+  updateItem(localId: number, patch: Partial<EditorItem>): void;
+  addItem(categoryId: number, dishId: number, dish?: MenuDish): void;
   removeItem(localId: number): void;
   reorderItems(categoryId: number, fromIdx: number, toIdx: number): void;
   setChefNote(note: string): void;
-  updateSubstitutions(categoryId: number, dishes: DishCatalogItem[]): void;
+  updateSubstitutions(categoryId: number, dishes: MenuDish[]): void;
   save(options?: { silent?: boolean }): Promise<void>;
   publishMenu(): Promise<void>;
   unpublishMenu(): Promise<void>;
@@ -41,11 +49,8 @@ function nextTempId(): number {
   return tempIdCounter--;
 }
 
-function itemsFromMenu(menu: Menu | null): MenuItem[] {
-  return (menu?.items ?? []).map((item) => ({
-    ...item,
-    id: item.id ?? nextTempId(),
-  }));
+export function editorItems(menu: Menu | null): EditorItem[] {
+  return (menu ? menuItems(menu) : []).map((item) => ({ ...item, dish_id: item.dish.id }));
 }
 
 function subsFromMenu(menu: Menu | null): SubstitutionMap {
@@ -57,7 +62,7 @@ function subsFromMenu(menu: Menu | null): SubstitutionMap {
   return result;
 }
 
-function serializeItem(item: MenuItem): string {
+function serializeItem(item: EditorItem): string {
   return JSON.stringify({
     id: item.id,
     dish_id: item.dish_id,
@@ -66,14 +71,11 @@ function serializeItem(item: MenuItem): string {
   });
 }
 
-export function useMenuEditor({
-  date,
-  menu,
-  restaurantId: restaurantIdProp,
-}: UseMenuEditorOptions): UseMenuEditorReturn {
-  const [items, setItems] = useState<MenuItem[]>(() => itemsFromMenu(menu));
+export function useMenuEditor({ date, menu }: UseMenuEditorOptions): UseMenuEditorReturn {
+  const site = useSiteRef();
+  const [items, setItems] = useState<EditorItem[]>(() => editorItems(menu));
   const [chefNote, setChefNoteState] = useState<string>(menu?.chef_note ?? '');
-  const [originalItems, setOriginalItems] = useState<MenuItem[]>(() => itemsFromMenu(menu));
+  const [originalItems, setOriginalItems] = useState<EditorItem[]>(() => editorItems(menu));
   const [originalChefNote, setOriginalChefNote] = useState<string>(menu?.chef_note ?? '');
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -84,11 +86,7 @@ export function useMenuEditor({
     subsFromMenu(menu)
   );
   // Set by the first save() of a day without a menu; the ref keeps closures current.
-  const [savedMenuId, setSavedMenuId] = useState<number | undefined>(menu?.id);
-  const savedMenuIdRef = useRef<number | undefined>(menu?.id);
-
-  const menuId = menu?.id ?? savedMenuId;
-
+  const savedRef = useRef(menu !== null);
   const isDirty = useMemo(() => {
     if (chefNote !== originalChefNote) return true;
     if (items.length !== originalItems.length) return true;
@@ -114,7 +112,7 @@ export function useMenuEditor({
 
   // Reset when menu changes from outside (e.g. after reload)
   useEffect(() => {
-    const loaded = itemsFromMenu(menu);
+    const loaded = editorItems(menu);
     const subs = subsFromMenu(menu);
     setItems(loaded);
     setChefNoteState(menu?.chef_note ?? '');
@@ -123,17 +121,16 @@ export function useMenuEditor({
     setMenuStatus(menu?.status ?? null);
     setSubstitutions(subs);
     setOriginalSubstitutions(subs);
-    setSavedMenuId(menu?.id);
-    savedMenuIdRef.current = menu?.id;
+    savedRef.current = menu !== null;
     setSaveError(null);
   }, [menu]);
 
-  const updateItem = useCallback((localId: number, patch: Partial<MenuItem>) => {
+  const updateItem = useCallback((localId: number, patch: Partial<EditorItem>) => {
     setItems((prev) => prev.map((it) => (it.id === localId ? { ...it, ...patch } : it)));
   }, []);
 
-  const addItem = useCallback((categoryId: number, dishId: number, dish?: DishCatalogItem) => {
-    const newItem: MenuItem = {
+  const addItem = useCallback((categoryId: number, dishId: number, dish?: MenuDish) => {
+    const newItem: EditorItem = {
       id: nextTempId(),
       category_id: categoryId,
       dish_id: dishId,
@@ -163,29 +160,26 @@ export function useMenuEditor({
     setChefNoteState(note);
   }, []);
 
-  const updateSubstitutions = useCallback((categoryId: number, dishes: DishCatalogItem[]) => {
+  const updateSubstitutions = useCallback((categoryId: number, dishes: MenuDish[]) => {
     setSubstitutions((prev) => ({ ...prev, [categoryId]: dishes }));
   }, []);
 
-  const buildSaveItems = (currentItems: MenuItem[]) =>
-    currentItems.map(({ id, ...rest }) => {
-      if (id !== undefined && id < 0) return rest;
-      return { ...rest, id };
-    }) as MenuItem[];
+  const buildSaveItems = (currentItems: EditorItem[]) =>
+    currentItems.map(({ id, category_id, dish_id, order, is_out_of_stock }) => ({
+      ...(id > 0 ? { id } : {}),
+      category_id,
+      dish_id,
+      order,
+      is_out_of_stock,
+    }));
 
   const save = useCallback(
     async (options?: { silent?: boolean }) => {
       setIsSaving(true);
       setSaveError(null);
       try {
-        const savedMenu = await menusApi.save(
-          date,
-          buildSaveItems(items),
-          restaurantIdProp ?? undefined,
-          chefNote
-        );
-        setSavedMenuId(savedMenu.id);
-        savedMenuIdRef.current = savedMenu.id;
+        const savedMenu = await menusApi.put(site, date, buildSaveItems(items), chefNote || null);
+        savedRef.current = true;
         for (const [catId, dishes] of Object.entries(substitutions)) {
           const catIdNum = Number(catId);
           const origIds = (originalSubstitutions[catIdNum] ?? [])
@@ -197,14 +191,15 @@ export function useMenuEditor({
             .sort()
             .join(',');
           if (origIds !== currIds) {
-            await menusApi.updateSubstitutions(
-              savedMenu.id,
+            await menusApi.setSubstitutes(
+              site,
+              date,
               catIdNum,
               dishes.map((d) => d.id)
             );
           }
         }
-        const savedItems = itemsFromMenu(savedMenu);
+        const savedItems = editorItems(savedMenu);
         setItems(savedItems);
         setOriginalItems(savedItems);
         setOriginalChefNote(savedMenu?.chef_note ?? chefNote);
@@ -219,16 +214,15 @@ export function useMenuEditor({
         setIsSaving(false);
       }
     },
-    [date, items, restaurantIdProp, chefNote, substitutions, originalSubstitutions]
+    [site, date, items, chefNote, substitutions, originalSubstitutions]
   );
 
   const publishMenu = useCallback(async () => {
-    const id = menu?.id ?? savedMenuIdRef.current;
-    if (!id || items.length === 0) return;
+    if (!savedRef.current || items.length === 0) return;
     setIsPublishing(true);
     setSaveError(null);
     try {
-      await menusApi.publish(id);
+      await menusApi.publish(site, date);
       setMenuStatus('published');
       notify.success('Menu publié');
     } catch {
@@ -237,15 +231,14 @@ export function useMenuEditor({
     } finally {
       setIsPublishing(false);
     }
-  }, [menu, items.length]);
+  }, [site, date, items.length]);
 
   const unpublishMenu = useCallback(async () => {
-    const id = menu?.id ?? savedMenuIdRef.current;
-    if (!id) return;
+    if (!savedRef.current) return;
     setIsPublishing(true);
     setSaveError(null);
     try {
-      await menusApi.unpublish(id);
+      await menusApi.unpublish(site, date);
       setMenuStatus('draft');
       notify.success('Menu dépublié');
     } catch {
@@ -254,7 +247,7 @@ export function useMenuEditor({
     } finally {
       setIsPublishing(false);
     }
-  }, [menu]);
+  }, [site, date]);
 
   const reset = useCallback(() => {
     setItems([...originalItems]);
@@ -272,8 +265,6 @@ export function useMenuEditor({
     isPublishing,
     saveError,
     menuStatus,
-    menuId,
-    restaurantId: restaurantIdProp,
     updateItem,
     addItem,
     removeItem,

@@ -126,16 +126,6 @@ def get_current_user():
     return db.session.get(User, int(get_jwt_identity()))
 
 
-def get_user_and_restaurant():
-    """Return (user, restaurant) for the current JWT user.
-
-    The restaurant is the one the user belongs to, with no fallback to a default
-    restaurant: (user, None) if the user has no restaurant.
-    """
-    user = get_current_user()
-    return user, get_active_restaurant(user)
-
-
 def get_active_restaurant(user):
     """Restaurant targeted by the current request.
 

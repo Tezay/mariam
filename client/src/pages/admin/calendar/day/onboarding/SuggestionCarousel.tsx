@@ -1,13 +1,13 @@
 import { useRef, useState, useLayoutEffect } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import type { DishCatalogItem } from '@/lib/api/catalog';
+import type { Dish } from '@/lib/api/dishes';
 import type { CategoryColor } from '@/lib/category-colors';
 import { cn } from '@/lib/utils';
 
 interface SuggestionCarouselProps {
-  dishes: DishCatalogItem[];
+  dishes: Dish[];
   color: CategoryColor;
-  onSelect: (dish: DishCatalogItem, sourceEl: HTMLElement) => void;
+  onSelect: (dish: Dish, sourceEl: HTMLElement) => void;
 }
 
 // Pixels per second, deliberately out of sync between rows. Speed, not
@@ -29,7 +29,7 @@ function DishChip({
   onSelect,
   ariaHidden,
 }: {
-  dish: DishCatalogItem;
+  dish: Dish;
   color: CategoryColor;
   onSelect: SuggestionCarouselProps['onSelect'];
   ariaHidden?: boolean;
@@ -65,7 +65,7 @@ function CarouselRow({
   reverse,
   animate,
 }: {
-  dishes: DishCatalogItem[];
+  dishes: Dish[];
   color: CategoryColor;
   onSelect: SuggestionCarouselProps['onSelect'];
   speed: number;
@@ -146,7 +146,7 @@ export function SuggestionCarousel({ dishes, color, onSelect }: SuggestionCarous
   const rowCount = rowCountFor(dishes.length);
 
   // Round-robin: each dish appears in one row only.
-  const rows: DishCatalogItem[][] = Array.from({ length: rowCount }, () => []);
+  const rows: Dish[][] = Array.from({ length: rowCount }, () => []);
   dishes.forEach((dish, i) => rows[i % rowCount].push(dish));
 
   return (

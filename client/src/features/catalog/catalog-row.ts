@@ -7,7 +7,7 @@ import {
   UtensilsCrossed,
 } from 'lucide-react';
 import type { CertificationItem, DietaryTag } from '@/lib/api/taxonomy';
-import type { DishCatalogItem, DishSort } from '@/lib/api/catalog';
+import type { Dish, DishSort } from '@/lib/api/dishes';
 import type { OrgCatalogDish, OrgCatalogSort } from '@/lib/api/org';
 
 export type CatalogScope = 'site' | 'org';
@@ -32,7 +32,7 @@ export interface CatalogRow {
   certifications: CertificationItem[];
 }
 
-export function rowFromDish(dish: DishCatalogItem): CatalogRow {
+export function rowFromDish(dish: Dish): CatalogRow {
   return {
     key: String(dish.id),
     id: dish.id,

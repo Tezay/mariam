@@ -4,910 +4,6 @@
  */
 
 export interface paths {
-    "/v1/menus/week": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * This week's menus.
-         * @description - Without authentication: published only, display format.
-         *     - With editor authentication: all menus (drafts included), management format.
-         *
-         *     Query params: `restaurant_id` (int, optional), `week_offset` (int, default 0)
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["WeekMenu"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/menus": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List menus of the current user's restaurant, with optional filters.
-         * @description Query params: `start_date`, `end_date`, `status`
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MenuList"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        /**
-         * Create or update a menu for a given date.
-         * @description If a menu already exists for this date, items are diff-synced
-         *     (stable IDs preserved, linked images kept).
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["MenuCreate"];
-                };
-            };
-            responses: {
-                /** @description Menu updated (already existed) */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Menu"];
-                    };
-                };
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Menu"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/menus/week/publish": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Publish all draft menus for the week.
-         * @description Optional JSON body: `{ "week_offset": 0 }`
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["WeekPublish"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/menus/by-date/{date_str}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                date_str: string;
-            };
-            cookie?: never;
-        };
-        /** Get a menu by date (YYYY-MM-DD format). */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    date_str: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Menu"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/menus/{menu_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                menu_id: number;
-            };
-            cookie?: never;
-        };
-        /** Get a menu by ID. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    menu_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Menu"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        /** Update an existing menu (items and/or chef note). */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    menu_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["MenuUpdate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Menu"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        post?: never;
-        /** Delete a menu and all associated data (items, S3 images). */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    menu_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/menus/{menu_id}/publish": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                menu_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Publish a menu (draft → published). */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    menu_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Menu"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/menus/{menu_id}/unpublish": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                menu_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Revert a published menu to draft. */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    menu_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Menu"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/menus/{menu_id}/items/{item_id}/stock": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                menu_id: number;
-                item_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Toggle out-of-stock status for a menu item (service mode).
-         * @description JSON body: `{ "is_out_of_stock": true }`
-         */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    menu_id: number;
-                    item_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["MenuItemStock"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        trace?: never;
-    };
-    "/v1/menus/{menu_id}/images": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                menu_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Upload an image for a menu (max 6, 5 MB each).
-         * @description Accepts JPEG, PNG, WebP, HEIC formats (converted to JPEG).
-         *     Multipart/form-data with `file` field.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    menu_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Menu"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Service Unavailable */
-                503: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/menus/{menu_id}/images/{image_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                menu_id: number;
-                image_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete a menu image from S3 and database. */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    menu_id: number;
-                    image_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/menus/{menu_id}/images/reorder": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                menu_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Reorder menu images.
-         * @description JSON body: `{ "image_ids": [3, 1, 2] }`
-         */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    menu_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Menu"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/menus/{menu_id}/chef-note": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                menu_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        /** Update the chef note for a menu (max 300 characters). */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    menu_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Menu"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/menus/{menu_id}/substitutions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                menu_id: number;
-            };
-            cookie?: never;
-        };
-        /**
-         * The substitutes of every category of this menu.
-         * @description Response: { "substitutions": { "<category_id>": [{"dish": {...}, "order": 0}, ...] } }
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    menu_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/menus/{menu_id}/substitutions/{category_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                menu_id: number;
-                category_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Replace the substitutes of one category in this menu.
-         * @description Body: { "dish_ids": [1, 2, 3] }, in order of priority, three at most.
-         */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    menu_id: number;
-                    category_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/menus/jours-feries/{year}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                year: number;
-            };
-            cookie?: never;
-        };
-        /**
-         * French public holidays of a year.
-         * @description From https://calendrier.api.gouv.fr/jours-feries/metropole/<year>.json, cached
-         *     for 24 hours (services/holidays.py).
-         *     Response: [ { "date": "2026-01-01", "description": "Jour de l'An" }, ... ]
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    year: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/menus/vacances-scolaires/{year}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                year: number;
-            };
-            cookie?: never;
-        };
-        /**
-         * French school holidays of a year, for zone A, B or C.
-         * @description From data.education.gouv.fr, cached for 24 hours.
-         *     Response: { vacances: [{ start_date, end_date, description }] }
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    year: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/settings/categories": {
         parameters: {
             query?: never;
@@ -3926,336 +3022,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/catalog": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The site's catalog of dishes.
-         * @description Query params:
-         *     category_ids (csv): any of these categories
-         *     tag_ids, certification_ids (csv): every one of these labels
-         *     q (str): name search
-         *     period (str): 'all' (default), '7d', '30d', '90d' or '12m'
-         *     sort (str): 'usage' (default), 'name', 'recent' or 'score'
-         *     order (str): 'desc' (default) or 'asc'
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        /** Add a dish to the catalog. */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/catalog/{dish_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                dish_id: number;
-            };
-            cookie?: never;
-        };
-        /** One dish of the catalog. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    dish_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        /** Update a dish of the catalog. */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    dish_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        post?: never;
-        /**
-         * Delete a dish of the catalog.
-         * @description Refused while a menu uses it.
-         */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    dish_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/catalog/stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The statistics of several dishes in one request, to compare them. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/catalog/{dish_id}/stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                dish_id: number;
-            };
-            cookie?: never;
-        };
-        /** A dish's usage windows, weekly history and satisfaction. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    dish_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/catalog/bulk/delete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Delete the given dishes, keeping those a menu has served. */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/catalog/bulk/category": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Move the given dishes to one leaf category. */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/catalog/bulk/labels": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Add or remove labels and certifications on the given dishes. */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/catalog/export": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Export a selection of dishes, or the current filtered view, as CSV. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/catalog/{dish_id}/image": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                dish_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Upload or replace a dish's image (multipart/form-data, field `file`). */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    dish_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        /** Delete a dish's image. */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    dish_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/settings": {
         parameters: {
             query?: never;
@@ -4485,6 +3251,94 @@ export interface paths {
                         "application/json": components["schemas"]["Taxonomy"];
                     };
                 };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/holidays/{year}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                year: number;
+            };
+            cookie?: never;
+        };
+        /** The public holidays of metropolitan France, from calendrier.api.gouv.fr. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    year: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["HolidayList"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/school-holidays/{year}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                year: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * A zone's school holidays over the school years that touch `year`,
+         *     from data.education.gouv.fr.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    zone?: "A" | "B" | "C";
+                };
+                header?: never;
+                path: {
+                    year: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SchoolHolidayList"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
                 default: components["responses"]["DEFAULT_ERROR"];
             };
         };
@@ -5173,375 +4027,6 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/imports/menus/upload": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Upload and parse a CSV or Excel file.
-         * @description Multipart/form-data request with `file` field.
-         *     Accepted formats: `.csv`, `.xlsx`, `.xls`.
-         *
-         *     Returns detected columns, a preview of the first 10 rows,
-         *     an auto-suggested column mapping, and the detected date format.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ImportUpload"];
-                    };
-                };
-                /** @description Invalid or missing file */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Processing error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/imports/menus/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Generate an import preview based on the provided column mapping.
-         * @description Returns the menus that will be created, flagging duplicates
-         *     (existing menus for the same dates).
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ImportPreview"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ImportUpload"];
-                    };
-                };
-                /** @description Invalid data */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Session expired */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/imports/menus/confirm": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Confirm and execute the menu import into the database.
-         * @description - `duplicate_action`: `skip` (default), `replace` or `merge`
-         *     - `auto_publish`: immediately publish the imported menus
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ImportConfirm"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ImportUpload"];
-                    };
-                };
-                /** @description Invalid data or missing restaurant */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Session expired */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/imports/catalog/upload": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Upload and parse a CSV or Excel file of dishes.
-         * @description Returns the columns, a preview of the first rows and the column likely to hold
-         *     the dish name.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["CatalogImportUpload"];
-                    };
-                };
-                /** @description Invalid or missing file */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Processing error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/imports/catalog/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Preview the import: the dishes, the labels detected and the duplicates. */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["CatalogImportPreview"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["CatalogImportPreviewResult"];
-                    };
-                };
-                /** @description Invalid data */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Session expired */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/imports/catalog/confirm": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create the dishes in the catalog, skipping the duplicates. */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["CatalogImportPreview"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["CatalogImportResult"];
-                    };
-                };
-                /** @description Invalid data */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Session expired */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
         delete?: never;
         options?: never;
         head?: never;
@@ -6607,7 +5092,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** An active site, with what a visitor needs to read its menus. */
+        /**
+         * A site, with what a visitor needs to read its menus.
+         * @description Anyone reads an active site; its editors read it while it is closed too.
+         */
         get: {
             parameters: {
                 query?: never;
@@ -6627,104 +5115,6 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["PublicSite"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/orgs/{org}/sites/{site}/menus": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                org: string;
-                site: string;
-            };
-            cookie?: never;
-        };
-        /**
-         * Published menus between two dates, both included.
-         * @description Only the dates of the site's `menu_window` are visible: a range reaching
-         *     past it lists what falls inside.
-         */
-        get: {
-            parameters: {
-                query?: {
-                    /** @description First day; today by default */
-                    from?: string;
-                    /** @description Last day, included; the window's end by default */
-                    to?: string;
-                };
-                header?: never;
-                path: {
-                    org: string;
-                    site: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PublicMenuList"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/orgs/{org}/sites/{site}/menus/{date}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                org: string;
-                site: string;
-                date: string;
-            };
-            cookie?: never;
-        };
-        /** The published menu of one day, within the site's `menu_window`. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    org: string;
-                    site: string;
-                    date: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PublicMenu"];
                     };
                 };
                 default: components["responses"]["DEFAULT_ERROR"];
@@ -6829,6 +5219,543 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/orgs/{org}/sites/{site}/menus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Menus between two dates, both included.
+         * @description Anyone reads the published menus of the site's `menu_window`, and a range
+         *     reaching past it lists what falls inside. The site's editors read every
+         *     menu of the range, drafts included.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description First day; today by default */
+                    from?: string;
+                    /** @description Last day, included; the window's end by default */
+                    to?: string;
+                };
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MenuList"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/menus/{date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                date: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * The menu of one day: published and within the `menu_window`, or any for
+         *     the site's editors.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Menu"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        /**
+         * Create or replace the menu of a day.
+         * @description An item sent with its `id` keeps it; the items left out are removed. A menu
+         *     without items goes back to draft.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MenuWrite"];
+                };
+            };
+            responses: {
+                /** @description The menu replaced the day’s previous one */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Menu"];
+                    };
+                };
+                /** @description The day’s first menu */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Menu"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        post?: never;
+        /** Delete a menu, with its items and images. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Change the chef's note of a menu. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MenuPatch"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Menu"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/menus/{date}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                date: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish a menu; publishing it again records the new time. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Menu"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/menus/{date}/unpublish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                date: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Take a published menu back to draft. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Menu"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/menus/{date}/items/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                date: string;
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Mark an item out of stock during service, or back in. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    date: string;
+                    item_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MenuItemPatch"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublicMenuItem"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/menus/{date}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                date: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a photo to a menu: JPEG, PNG, WebP or HEIC, stored as JPEG. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": components["schemas"]["FileUpload"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MenuImage"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/menus/{date}/images/{image_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                date: string;
+                image_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a photo from a menu. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    date: string;
+                    image_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/menus/{date}/images/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                date: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Put a menu's photos in a new order. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ImageOrder"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MenuImageList"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/menus/{date}/substitutions/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                date: string;
+                category_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace the dishes offered when a dish of this category runs out. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    date: string;
+                    category_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SubstitutesInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SubstituteList"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/orgs/{org}/sites/{site}/menus/{date}/vote": {
         parameters: {
             query?: never;
@@ -6923,6 +5850,828 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/orgs/{org}/sites/{site}/dishes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /** The catalog, one page at a time; the `Link` header gives the others. */
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    per_page?: number;
+                    /** @description Comma-separated: any of these categories */
+                    category_ids?: string;
+                    /** @description Comma-separated: every one of these tags */
+                    tag_ids?: string;
+                    /** @description Comma-separated: every one of these certifications */
+                    certification_ids?: string;
+                    /** @description Words of the name */
+                    q?: string;
+                    period?: "all" | "7d" | "30d" | "90d" | "12m";
+                    /** @description Only the dishes first served in the period */
+                    new_only?: boolean;
+                    sort?: "usage" | "name" | "recent" | "score";
+                    /** @description A to Z for a name, best first for a measure, by default */
+                    order?: "asc" | "desc";
+                };
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DishList"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        /** Add a dish to the catalog. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DishInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Dish"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/dishes/{dish_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                dish_id: number;
+            };
+            cookie?: never;
+        };
+        /** One dish, with its use and votes of all time. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    dish_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Dish"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        /** Delete a dish that no menu has served. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    dish_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Change a dish's name, category or labels. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    dish_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DishPatch"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Dish"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/dishes/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /** The statistics of a few dishes in one request, to compare them. */
+        get: {
+            parameters: {
+                query: {
+                    period?: "all" | "7d" | "30d" | "90d" | "12m";
+                    /** @description Comma-separated, 5 at most */
+                    ids: string;
+                };
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DishStatsList"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/dishes/{dish_id}/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                dish_id: number;
+            };
+            cookie?: never;
+        };
+        /** A dish's use by period, its weekly history and its votes. */
+        get: {
+            parameters: {
+                query?: {
+                    period?: "all" | "7d" | "30d" | "90d" | "12m";
+                };
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    dish_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DishStats"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/dishes/batch-delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Delete the given dishes, keeping those a menu has served. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DishIds"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DishBatchDeleteResult"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/dishes/batch-update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move the given dishes to one category, add or remove labels on them.
+         * @description A dish whose name the target category already has is left as it was.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DishBatchUpdate"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DishBatchUpdateResult"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/dishes/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /** The given dishes, or those the filters select, as a CSV file. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Comma-separated: any of these categories */
+                    category_ids?: string;
+                    /** @description Comma-separated: every one of these tags */
+                    tag_ids?: string;
+                    /** @description Comma-separated: every one of these certifications */
+                    certification_ids?: string;
+                    /** @description Words of the name */
+                    q?: string;
+                    period?: "all" | "7d" | "30d" | "90d" | "12m";
+                    /** @description Only the dishes first served in the period */
+                    new_only?: boolean;
+                    /** @description Comma-separated: these dishes, in place of the filters */
+                    ids?: string;
+                };
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Semicolon-separated, UTF-8 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/csv": string;
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/dishes/{dish_id}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                dish_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Set or replace a dish's photo: JPEG, PNG, WebP or HEIC, stored as JPEG. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    dish_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": components["schemas"]["FileUpload"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Dish"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        post?: never;
+        /** Remove a dish's photo. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    dish_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/menu-imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a CSV or Excel file of menus: one row a day, one column a category.
+         * @description The answer suggests which column holds the date, and which category each
+         *     other column fills. The import stays open thirty minutes.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": components["schemas"]["FileUpload"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MenuImport"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/menu-imports/{import_id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The menus a mapping of the columns would give, each day that has a menu flagged. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    import_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MenuImportInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MenuImportPreview"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/menu-imports/{import_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Write the menus, as drafts unless `auto_publish`, and close the import.
+         * @description A day that has a menu is skipped, replaced or merged, as `duplicate_action` says.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    import_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MenuImportConfirm"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MenuImportResult"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/dish-imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a CSV or Excel file of dishes, or a catalog exported from Mariam.
+         * @description The answer suggests the column of the dish name; for an export, it lists
+         *     the file's categories and those the site already has. The import stays open
+         *     thirty minutes.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": components["schemas"]["FileUpload"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DishImport"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/dish-imports/{import_id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The dishes the file would add, the labels found and the duplicates. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    import_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DishImportInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DishImportPreview"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/dish-imports/{import_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add the dishes to the catalog, skipping the duplicates, and close the import. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    import_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DishImportInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DishImportResult"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/devices": {
         parameters: {
             query?: never;
@@ -6995,103 +6744,6 @@ export interface components {
             previous_page?: number;
             next_page?: number;
         };
-        WeekMenu: {
-            week_start?: string;
-            week_end?: string;
-            restaurant?: {
-                [key: string]: unknown;
-            } | null;
-            /** @description Map of date -> menu data */
-            menus?: {
-                [key: string]: unknown;
-            };
-        };
-        DishCatalog: {
-            readonly id?: number;
-            readonly restaurant_id?: number;
-            category_id?: number | null;
-            name?: string;
-            image_url?: string | null;
-            readonly usage_count?: number;
-            readonly tags?: {
-                [key: string]: unknown;
-            }[];
-            readonly certifications?: {
-                [key: string]: unknown;
-            }[];
-            readonly created_at?: string;
-        };
-        MenuItem: {
-            readonly id?: number;
-            readonly menu_id?: number;
-            /** @description MenuCategory.id */
-            category_id?: number;
-            /** @description DishCatalog.id */
-            dish_id?: number;
-            readonly dish?: components["schemas"]["DishCatalog"] | (Record<string, never> | null);
-            order?: number;
-            is_out_of_stock?: boolean;
-        };
-        Menu: {
-            readonly id?: number;
-            restaurant_id?: number;
-            /** @description Menu date (YYYY-MM-DD) */
-            date?: string;
-            /** @description 'draft' or 'published' */
-            status?: string;
-            items?: components["schemas"]["MenuItem"][];
-            /** @description Map of category_id -> [{dish, order}] substitution dishes */
-            readonly substitutions?: {
-                [key: string]: unknown;
-            };
-            images?: {
-                [key: string]: unknown;
-            }[];
-            chef_note?: string | null;
-            published_at?: string | null;
-        };
-        MenuList: {
-            menus?: components["schemas"]["Menu"][];
-        };
-        MenuCreate: {
-            /** @description Menu date (YYYY-MM-DD) */
-            date: string;
-            restaurant_id?: number;
-            /** @description List of menu items */
-            items?: {
-                [key: string]: unknown;
-            }[];
-            /** @description Chef's note (max 300 chars) */
-            chef_note?: string | null;
-        };
-        Error: {
-            /** @description Error message */
-            error?: string;
-            /** @description Detailed error description */
-            message?: string;
-        };
-        WeekPublish: {
-            /**
-             * @description Weeks from the current one: 1 publishes next week.
-             * @default 0
-             */
-            week_offset: number;
-        };
-        Message: {
-            /** @description Success message */
-            message?: string;
-        };
-        MenuUpdate: {
-            /** @description List of menu items */
-            items?: {
-                [key: string]: unknown;
-            }[];
-            /** @description Chef's note (max 300 chars) */
-            chef_note?: string | null;
-        };
-        MenuItemStock: {
-            is_out_of_stock: boolean;
-        };
         MenuCategory: {
             readonly id?: number;
             readonly restaurant_id?: number;
@@ -7105,17 +6757,27 @@ export interface components {
         };
         MenuCategoryCreate: {
             /** @default null */
-            parent_id: number | null;
+            parent_id?: number | null;
             label: string;
             /** @default 0 */
-            order: number;
+            order?: number;
             /** @default false */
-            move_dishes: boolean;
+            move_dishes?: boolean;
+        };
+        Error: {
+            /** @description Error message */
+            error?: string;
+            /** @description Detailed error description */
+            message?: string;
         };
         MenuCategoryReorder: {
             items: {
                 [key: string]: unknown;
             }[];
+        };
+        Message: {
+            /** @description Success message */
+            message?: string;
         };
         MenuCategoryUpdate: {
             label?: string;
@@ -7164,7 +6826,10 @@ export interface components {
             restaurant_id?: number | null;
             organization_id?: number | null;
             restaurant_name?: string | null;
+            restaurant_slug?: string | null;
             organization_name?: string | null;
+            /** @description The site's, for a site's own team */
+            organization_slug?: string | null;
             passkeys_count: number;
             /** @description Its address cannot be changed. */
             is_rescue_account?: boolean | null;
@@ -7582,20 +7247,38 @@ export interface components {
             dietary_tag_categories?: components["schemas"]["DietaryTagCategory"][];
             certification_categories?: components["schemas"]["CertificationCategory"][];
         };
+        Holiday: {
+            /** Format: date */
+            date: string;
+            description: string;
+        };
+        HolidayList: {
+            items: components["schemas"]["Holiday"][];
+        };
+        SchoolHoliday: {
+            /** Format: date */
+            start_date: string;
+            /** Format: date */
+            end_date: string;
+            description: string;
+        };
+        SchoolHolidayList: {
+            items: components["schemas"]["SchoolHoliday"][];
+        };
         Invite: {
             /**
              * Format: email
              * @description Suggested address; the invitee may enter another at activation
              * @default null
              */
-            email: string | null;
+            email?: string | null;
             /** @description Role: 'admin', 'editor', or 'reader' */
             role?: string;
             /**
              * @description Email the invitation to `email` as well
              * @default false
              */
-            send_email: boolean;
+            send_email?: boolean;
         };
         Invitation: {
             id?: number;
@@ -7642,109 +7325,6 @@ export interface components {
             tour_done?: boolean;
             tour_catalog_done?: boolean;
             tour_stats_done?: boolean;
-        };
-        ImportUpload: {
-            readonly file_id?: string;
-            readonly filename?: string;
-            columns?: string[];
-            preview_rows?: {
-                [key: string]: unknown;
-            }[];
-            row_count?: number;
-            detected_delimiter?: string | null;
-            auto_mapping?: {
-                [key: string]: unknown;
-            };
-            detected_date_format?: string | null;
-        };
-        ColumnMapping: {
-            csv_column: string;
-            /** @description 'date', 'category', or 'ignore' */
-            target_field: string;
-            /** @description MenuCategory.id (integer) */
-            category_id?: number | null;
-        };
-        DateConfig: {
-            /** @description 'from_file', 'align_week', or 'start_date' */
-            mode?: string;
-            /** @description Start date (YYYY-MM-DD) */
-            start_date?: string | null;
-            skip_weekends?: boolean;
-            date_format?: string | null;
-            auto_detect_tags?: boolean;
-        };
-        ImportPreview: {
-            file_id: string;
-            column_mapping?: components["schemas"]["ColumnMapping"][];
-            date_config?: components["schemas"]["DateConfig"];
-            restaurant_id?: number | null;
-        };
-        ImportConfirm: {
-            file_id: string;
-            column_mapping?: components["schemas"]["ColumnMapping"][];
-            date_config?: components["schemas"]["DateConfig"];
-            /** @description 'skip', 'replace', or 'merge' */
-            duplicate_action?: string;
-            auto_publish?: boolean;
-            restaurant_id?: number | null;
-        };
-        CatalogImportUpload: {
-            readonly file_id?: string;
-            readonly filename?: string;
-            columns?: string[];
-            preview_rows?: {
-                [key: string]: unknown;
-            }[];
-            row_count?: number;
-            delimiter?: string | null;
-            suggested_name_column?: string | null;
-            is_catalog_export?: boolean;
-            category_paths?: string[];
-            known_categories?: {
-                [key: string]: number;
-            };
-        };
-        CatalogImportPreview: {
-            file_id: string;
-            /**
-             * @description Column holding the dish name
-             * @default null
-             */
-            name_column: string | null;
-            /**
-             * @description Columns searched for labels
-             * @default []
-             */
-            tag_columns: string[];
-            /** @default null */
-            category_id: number | null;
-            /** @default true */
-            auto_detect_tags: boolean;
-            /**
-             * @description File path to a category id, or 'create'
-             * @default null
-             */
-            category_map: {
-                [key: string]: string;
-            } | null;
-        };
-        CatalogImportPreviewDish: {
-            name?: string;
-            tags?: string[];
-            certifications?: string[];
-            is_duplicate?: boolean;
-            category_path?: string;
-        };
-        CatalogImportPreviewResult: {
-            dishes?: components["schemas"]["CatalogImportPreviewDish"][];
-            total?: number;
-            new_count?: number;
-            duplicate_count?: number;
-            categories_to_create?: string[];
-        };
-        CatalogImportResult: {
-            created_count?: number;
-            skipped_count?: number;
         };
         PushKeys: {
             p256dh: string;
@@ -7905,50 +7485,9 @@ export interface components {
             /** @description The dates whose published menus can be read */
             menu_window: components["schemas"]["MenuWindow"];
         };
-        PublicDish: {
-            id: number;
-            name: string;
-            image_url?: string | null;
-            tags: components["schemas"]["DietaryTag"][];
-            certifications: components["schemas"]["Certification"][];
-        };
-        PublicMenuItem: {
-            id: number;
-            category_id: number;
-            dish: components["schemas"]["PublicDish"];
-            order: number;
-            is_out_of_stock: boolean;
-        };
-        PublicCategory: {
-            id: number;
-            label: string;
-            is_highlighted: boolean;
-            order: number;
-            color_key?: string | null;
-            items?: components["schemas"]["PublicMenuItem"][];
-            subcategories?: components["schemas"]["PublicCategory"][];
-        };
         PublicImage: {
             url: string;
             order: number;
-        };
-        PublicSubstitution: {
-            dish: components["schemas"]["PublicDish"];
-            order: number;
-        };
-        PublicMenu: {
-            /** Format: date */
-            date: string;
-            chef_note?: string | null;
-            categories: components["schemas"]["PublicCategory"][];
-            images: components["schemas"]["PublicImage"][];
-            /** @description Dishes that may replace another, by category id */
-            substitutions: {
-                [key: string]: components["schemas"]["PublicSubstitution"][];
-            };
-        };
-        PublicMenuList: {
-            items: components["schemas"]["PublicMenu"][];
         };
         PublicEvent: {
             id: number;
@@ -7975,6 +7514,106 @@ export interface components {
         PublicClosureList: {
             items: components["schemas"]["PublicClosure"][];
         };
+        PublicDish: {
+            id: number;
+            name: string;
+            image_url?: string | null;
+            tags: components["schemas"]["DietaryTag"][];
+            certifications: components["schemas"]["Certification"][];
+        };
+        PublicMenuItem: {
+            id: number;
+            category_id: number;
+            dish: components["schemas"]["PublicDish"];
+            order: number;
+            is_out_of_stock: boolean;
+        };
+        PublicCategory: {
+            id: number;
+            label: string;
+            is_highlighted: boolean;
+            order: number;
+            color_key?: string | null;
+            items?: components["schemas"]["PublicMenuItem"][];
+            subcategories?: components["schemas"]["PublicCategory"][];
+        };
+        MenuImage: {
+            url: string;
+            order: number;
+            /** @description For the site's editors */
+            id?: number;
+        };
+        PublicSubstitution: {
+            dish: components["schemas"]["PublicDish"];
+            order: number;
+        };
+        Menu: {
+            /** Format: date */
+            date: string;
+            chef_note?: string | null;
+            categories: components["schemas"]["PublicCategory"][];
+            images: components["schemas"]["MenuImage"][];
+            /** @description Dishes that may replace another, by category id */
+            substitutions: {
+                [key: string]: components["schemas"]["PublicSubstitution"][];
+            };
+            /**
+             * @description For the site's editors
+             * @enum {string}
+             */
+            status?: "draft" | "published";
+            /**
+             * Format: date-time
+             * @description For the site's editors
+             */
+            published_at?: string | null;
+            /**
+             * Format: date-time
+             * @description For the site's editors
+             */
+            updated_at?: string | null;
+        };
+        MenuList: {
+            items: components["schemas"]["Menu"][];
+        };
+        MenuItemInput: {
+            id?: number;
+            category_id: number;
+            dish_id?: number;
+            name?: string;
+            tag_ids?: string[];
+            certification_ids?: string[];
+            order?: number;
+            is_out_of_stock?: boolean;
+        };
+        MenuWrite: {
+            items: components["schemas"]["MenuItemInput"][];
+            chef_note: string | null;
+        };
+        MenuPatch: {
+            chef_note: string | null;
+        };
+        MenuItemPatch: {
+            is_out_of_stock: boolean;
+        };
+        FileUpload: {
+            /** Format: binary */
+            file: string;
+        };
+        ImageOrder: {
+            /** @description Every image of the menu, in their new order */
+            image_ids: number[];
+        };
+        MenuImageList: {
+            items: components["schemas"]["MenuImage"][];
+        };
+        SubstitutesInput: {
+            /** @description In order of preference */
+            dish_ids: number[];
+        };
+        SubstituteList: {
+            items: components["schemas"]["PublicSubstitution"][];
+        };
         Vote: {
             /** @enum {integer} */
             rating: 1 | 2 | 3;
@@ -8000,7 +7639,251 @@ export interface components {
             rating: number;
             dish_ids?: number[];
             /** @default null */
-            fingerprint: string | null;
+            fingerprint?: string | null;
+        };
+        Dish: {
+            id: number;
+            category_id: number | null;
+            name: string;
+            image_url: string | null;
+            /** @description Menus that served it, over the list's period */
+            usage_count: number;
+            votes: number;
+            /** @description None below the votes needed */
+            score: number | null;
+            tags: components["schemas"]["DietaryTag"][];
+            certifications: components["schemas"]["Certification"][];
+            /** Format: date-time */
+            created_at: string | null;
+        };
+        DishList: {
+            items: components["schemas"]["Dish"][];
+            total_count: number;
+        };
+        DishInput: {
+            name: string;
+            category_id: number;
+            tag_ids?: string[];
+            certification_ids?: string[];
+        };
+        DishPatch: {
+            name?: string;
+            category_id?: number;
+            tag_ids?: string[];
+            certification_ids?: string[];
+        };
+        WeekCount: {
+            /**
+             * Format: date
+             * @description Its Monday
+             */
+            week: string;
+            count: number;
+        };
+        Distribution: {
+            1: number;
+            2: number;
+            3: number;
+        };
+        RatingDay: {
+            /** Format: date */
+            date: string;
+            votes: number;
+            score: number;
+        };
+        Standing: {
+            rank: number;
+            rated_in_category: number;
+            gap_to_average: number;
+        };
+        Satisfaction: {
+            /** @description The site collects votes */
+            enabled: boolean;
+            /** @description A vote may name this dish */
+            votable: boolean;
+            icon_preset: string;
+            votes: number;
+            score: number | null;
+            /** @description Votes by rating */
+            distribution: components["schemas"]["Distribution"];
+            series: components["schemas"]["RatingDay"][];
+            /** @description None while too few votes rank it in its category */
+            standing: components["schemas"]["Standing"] | (Record<string, never> | null);
+        };
+        DishStats: {
+            dish_id: number;
+            week: number;
+            month: number;
+            semester: number;
+            year: number;
+            history: components["schemas"]["WeekCount"][];
+            satisfaction: components["schemas"]["Satisfaction"];
+        };
+        DishStatsList: {
+            items: components["schemas"]["DishStats"][];
+        };
+        DishIds: {
+            ids: number[];
+        };
+        KeptDish: {
+            id: number;
+            name: string;
+            /** @description Menus that served it, when that kept it */
+            usage_count?: number;
+        };
+        DishBatchDeleteResult: {
+            deleted: number[];
+            /** @description Served by a menu */
+            kept: components["schemas"]["KeptDish"][];
+        };
+        DishBatchUpdate: {
+            ids: number[];
+            /** @description A category without subcategories */
+            category_id?: number;
+            add_tag_ids?: string[];
+            remove_tag_ids?: string[];
+            add_certification_ids?: string[];
+            remove_certification_ids?: string[];
+        };
+        DishBatchUpdateResult: {
+            updated: number[];
+            /** @description Unchanged: the category already has a dish of that name */
+            kept: components["schemas"]["KeptDish"][];
+        };
+        AutoMapping: {
+            /** @description The column that looks like a date */
+            date?: string;
+            /** @description Column to category id */
+            categories?: {
+                [key: string]: number;
+            };
+        };
+        MenuImport: {
+            id: string;
+            filename: string;
+            columns: string[];
+            /** @description The first ten rows */
+            preview_rows: {
+                [key: string]: string;
+            }[];
+            row_count: number;
+            delimiter: string | null;
+            auto_mapping: components["schemas"]["AutoMapping"];
+            detected_date_format: string | null;
+        };
+        ColumnMapping: {
+            csv_column: string;
+            /** @enum {string} */
+            target_field: "date" | "category" | "ignore";
+            category_id?: number | null;
+        };
+        DateConfig: {
+            /**
+             * @default from_file
+             * @enum {string}
+             */
+            mode?: "from_file" | "align_week" | "start_date";
+            /** @description YYYY-MM-DD */
+            start_date?: string | null;
+            /** @default true */
+            skip_weekends?: boolean;
+            /** @description A strptime format */
+            date_format?: string | null;
+            /** @default true */
+            auto_detect_tags?: boolean;
+        };
+        MenuImportInput: {
+            column_mapping: components["schemas"]["ColumnMapping"][];
+            date_config?: components["schemas"]["DateConfig"];
+        };
+        ImportedItem: {
+            category_id: number;
+            name: string;
+            order: number;
+            tags: string[];
+            certifications: string[];
+        };
+        ImportedMenu: {
+            /** Format: date */
+            date: string;
+            items: components["schemas"]["ImportedItem"][];
+            /** @description The day has a menu */
+            has_duplicate: boolean;
+        };
+        MenuImportPreview: {
+            menus: components["schemas"]["ImportedMenu"][];
+            total_count: number;
+            duplicates_count: number;
+            new_count: number;
+        };
+        MenuImportConfirm: {
+            column_mapping: components["schemas"]["ColumnMapping"][];
+            date_config?: components["schemas"]["DateConfig"];
+            /**
+             * @default skip
+             * @enum {string}
+             */
+            duplicate_action?: "skip" | "replace" | "merge";
+            /** @default false */
+            auto_publish?: boolean;
+        };
+        MenuImportResult: {
+            imported_count: number;
+            replaced_count: number;
+            skipped_count: number;
+        };
+        DishImport: {
+            id: string;
+            filename: string;
+            columns: string[];
+            /** @description The first ten rows */
+            preview_rows: {
+                [key: string]: string;
+            }[];
+            row_count: number;
+            delimiter: string | null;
+            suggested_name_column: string | null;
+            is_catalog_export: boolean;
+            category_paths: string[];
+            known_categories: {
+                [key: string]: number;
+            };
+        };
+        DishImportInput: {
+            /** @default null */
+            name_column?: string | null;
+            /** @description Columns searched for labels */
+            tag_columns?: string[];
+            /** @default null */
+            category_id?: number | null;
+            /** @default true */
+            auto_detect_tags?: boolean;
+            /**
+             * @description File path to a category id, or 'create'
+             * @default null
+             */
+            category_map?: {
+                [key: string]: string;
+            } | null;
+        };
+        ImportedDish: {
+            name: string;
+            tags: string[];
+            certifications: string[];
+            is_duplicate: boolean;
+            /** @description From a Mariam export */
+            category_path?: string;
+        };
+        DishImportPreview: {
+            dishes: components["schemas"]["ImportedDish"][];
+            total: number;
+            new_count: number;
+            duplicate_count: number;
+            categories_to_create: string[];
+        };
+        DishImportResult: {
+            created_count: number;
+            skipped_count: number;
         };
         Device: {
             device_id: string;

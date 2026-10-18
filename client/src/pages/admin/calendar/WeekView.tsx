@@ -23,11 +23,12 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
-import { menusApi } from '@/lib/api/menus';
-import { catalogApi } from '@/lib/api/catalog';
-import type { DishCatalogItem } from '@/lib/api/catalog';
+import { useSiteRef } from '@/contexts/SiteContext';
+import { menusApi, type MenuDish } from '@/lib/api/menus';
+import { dishesApi } from '@/lib/api/dishes';
+import type { Dish } from '@/lib/api/dishes';
 import type { MenuCategory } from '@/lib/api/categories';
-import type { MenuItem } from '@/lib/api/menus';
+import { editorItems, type EditorItem } from '@/pages/admin/calendar/day/useMenuEditor';
 import { getCategoryColor } from '@/lib/category-colors';
 import { addDays, parisToday } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
@@ -73,7 +74,6 @@ interface WeekViewProps {
   data: CalendarData;
   canEdit: boolean;
   serviceDays: number[];
-  restaurantId: number | undefined;
   categories: MenuCategory[];
   onReload: () => void;
   onDirtyChange?: (dirty: boolean) => void;
@@ -86,13 +86,13 @@ export function WeekView({
   data,
   canEdit,
   serviceDays,
-  restaurantId,
   categories,
   onReload,
   onDirtyChange,
   onEditEvent,
   onStartOnboarding,
 }: WeekViewProps) {
+  const site = useSiteRef();
   const today = parisToday();
   const navigate = useNavigate();
   const selection = useSelection();
@@ -119,10 +119,10 @@ export function WeekView({
   const [isSavingAll, setIsSavingAll] = useState(false);
 
   const [activeDragItem, setActiveDragItem] = useState<{
-    item: MenuItem;
+    item: EditorItem;
     color: ReturnType<typeof getCategoryColor>;
   } | null>(null);
-  const [multiDragItems, setMultiDragItems] = useState<MenuItem[]>([]);
+  const [multiDragItems, setMultiDragItems] = useState<EditorItem[]>([]);
 
   // Alt (Option) turns a move into a copy.
   const altHeldRef = useRef(false);
@@ -140,13 +140,13 @@ export function WeekView({
     };
   }, []);
   const dropHandlersRef = useRef<
-    Record<string, (categoryId: number, dishId: number, dish?: DishCatalogItem) => void>
+    Record<string, (categoryId: number, dishId: number, dish?: MenuDish) => void>
   >({});
   const removeHandlersRef = useRef<Record<string, (itemId: number) => void>>({});
   const updateItemHandlersRef = useRef<
-    Record<string, (itemId: number, changes: Partial<MenuItem>) => void>
+    Record<string, (itemId: number, changes: Partial<EditorItem>) => void>
   >({});
-  const getItemsHandlersRef = useRef<Record<string, () => MenuItem[]>>({});
+  const getItemsHandlersRef = useRef<Record<string, () => EditorItem[]>>({});
 
   const handleBulkMarkOos = useCallback(() => {
     for (const entry of selection.selection) {
@@ -173,7 +173,7 @@ export function WeekView({
     (event: DragStartEvent) => {
       const d = event.active.data.current as
         | {
-            item: MenuItem;
+            item: EditorItem;
             color: ReturnType<typeof getCategoryColor>;
             categoryId: number;
             date?: string;
@@ -192,9 +192,9 @@ export function WeekView({
           .filter((e) => e.type === 'item' && e.date === sourceDate)
           .map((e) => {
             if (e.type !== 'item') return null;
-            return (data[sourceDate]?.menu?.items ?? []).find((i) => i.id === e.itemId) ?? null;
+            return editorItems(data[sourceDate]?.menu ?? null).find((i) => i.id === e.itemId) ?? null;
           })
-          .filter((i): i is MenuItem => i !== null);
+          .filter((i): i is EditorItem => i !== null);
         setMultiDragItems(multi.length > 1 ? multi : []);
       } else {
         setMultiDragItems([]);
@@ -213,7 +213,7 @@ export function WeekView({
       if (!over) return;
 
       const dragData = active.data.current as
-        | { dishId?: number; categoryId?: number; date?: string; item?: MenuItem }
+        | { dishId?: number; categoryId?: number; date?: string; item?: EditorItem }
         | undefined;
       const dropData = over.data.current as { date?: string } | undefined;
       if (!dragData?.dishId || !dragData.categoryId || !dragData.date || !dropData?.date) return;
@@ -286,31 +286,27 @@ export function WeekView({
   }, []);
 
   type ContextTarget =
-    | { type: 'day'; date: string; menuId?: number; menuStatus?: 'draft' | 'published' | null }
+    | { type: 'day'; date: string; hasMenu: boolean; menuStatus?: 'draft' | 'published' | null }
     | {
         type: 'item';
         date: string;
         itemId: number;
-        menuId?: number;
         isOos: boolean;
         dishId?: number | null;
       };
 
   const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null);
   const [contextImportDate, setContextImportDate] = useState<string | null>(null);
-  const [contextDupeItems, setContextDupeItems] = useState<MenuItem[] | null>(null);
+  const [contextDupeItems, setContextDupeItems] = useState<EditorItem[] | null>(null);
   const [dupeAnchor, setDupeAnchor] = useState<{ x: number; y: number } | null>(null);
-  const [deleteMenuTarget, setDeleteMenuTarget] = useState<{
-    menuId: number;
-    date: string;
-  } | null>(null);
+  const [deleteMenuTarget, setDeleteMenuTarget] = useState<{ date: string } | null>(null);
   const [isDeletingMenu, setIsDeletingMenu] = useState(false);
 
   const handleDeleteMenu = useCallback(async () => {
     if (!deleteMenuTarget) return;
     setIsDeletingMenu(true);
     try {
-      await menusApi.delete(deleteMenuTarget.menuId);
+      await menusApi.remove(site, deleteMenuTarget.date);
       setDeleteMenuTarget(null);
       onReload();
     } catch {
@@ -318,12 +314,12 @@ export function WeekView({
     } finally {
       setIsDeletingMenu(false);
     }
-  }, [deleteMenuTarget, onReload]);
+  }, [site, deleteMenuTarget, onReload]);
   const [pendingAddDish, setPendingAddDish] = useState<{
     date: string;
     categoryId: number;
   } | null>(null);
-  const [addDishCatalog, setAddDishCatalog] = useState<DishCatalogItem[]>([]);
+  const [addDishCatalog, setAddDishCatalog] = useState<Dish[]>([]);
   const [addDishLoading, setAddDishLoading] = useState(false);
 
   const columnsContainerRef = useRef<HTMLDivElement>(null);
@@ -355,15 +351,13 @@ export function WeekView({
       if (itemEl) {
         const itemId = Number(itemEl.dataset.menuItemId);
         const itemDate = itemEl.dataset.menuItemDate ?? '';
-        const menuId = data[itemDate]?.menu?.id;
         // The editor's live state, ahead of `data` until the next reload.
         const liveItems = getItemsHandlersRef.current[itemDate]?.();
-        const item = (liveItems ?? data[itemDate]?.menu?.items)?.find((i) => i.id === itemId);
+        const item = (liveItems ?? editorItems(data[itemDate]?.menu ?? null)).find((i) => i.id === itemId);
         setContextTarget({
           type: 'item',
           date: itemDate,
           itemId,
-          menuId,
           isOos: item?.is_out_of_stock ?? false,
           dishId: item?.dish_id,
         });
@@ -376,7 +370,7 @@ export function WeekView({
         setContextTarget({
           type: 'day',
           date,
-          menuId: dayData?.menu?.id,
+          hasMenu: Boolean(dayData?.menu),
           menuStatus: dayData?.menu?.status ?? null,
         });
         return;
@@ -387,15 +381,15 @@ export function WeekView({
   );
 
   const handleContextTogglePublish = useCallback(async () => {
-    if (contextTarget?.type !== 'day' || !contextTarget.menuId) return;
+    if (contextTarget?.type !== 'day' || !contextTarget.hasMenu) return;
     try {
-      if (contextTarget.menuStatus === 'published') await menusApi.unpublish(contextTarget.menuId);
-      else await menusApi.publish(contextTarget.menuId);
+      if (contextTarget.menuStatus === 'published') await menusApi.unpublish(site, contextTarget.date);
+      else await menusApi.publish(site, contextTarget.date);
       onReload();
     } catch {
       /* The menu keeps its status. */
     }
-  }, [contextTarget, onReload]);
+  }, [site, contextTarget, onReload]);
 
   const handleContextToggleOos = useCallback(() => {
     if (contextTarget?.type !== 'item') return;
@@ -423,14 +417,14 @@ export function WeekView({
       const { date } = contextTarget;
       setAddDishCatalog([]);
       setAddDishLoading(true);
-      catalogApi
-        .list({ category_ids: String(categoryId), sort: 'name' })
+      dishesApi
+        .listAll(site, { category_ids: String(categoryId), sort: 'name' })
         .then((dishes) => setAddDishCatalog(dishes))
         .catch(() => {})
         .finally(() => setAddDishLoading(false));
       setPendingAddDish({ date, categoryId });
     },
-    [contextTarget]
+    [site, contextTarget]
   );
 
   const allDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -447,7 +441,7 @@ export function WeekView({
     .map((e) => {
       if (e.type !== 'item') return null;
       const dayData = data[e.date];
-      return (dayData?.menu?.items ?? []).find((i) => i.id === e.itemId) ?? null;
+      return editorItems(dayData?.menu ?? null).find((i) => i.id === e.itemId) ?? null;
     })
     .filter((i): i is NonNullable<typeof i> => i !== null);
 
@@ -461,8 +455,7 @@ export function WeekView({
     contextTarget?.type === 'item'
       ? (
           getItemsHandlersRef.current[contextTarget.date]?.() ??
-          data[contextTarget.date]?.menu?.items ??
-          []
+          editorItems(data[contextTarget.date]?.menu ?? null)
         ).find((i) => i.id === contextTarget.itemId)
       : undefined;
 
@@ -487,7 +480,6 @@ export function WeekView({
               <SelectionToolbar
                 selection={selection}
                 selectedItems={selectedItems}
-                restaurantId={restaurantId}
                 onMarkOos={handleBulkMarkOos}
                 onMarkInStock={handleBulkMarkInStock}
                 onRemove={handleBulkRemove}
@@ -569,7 +561,6 @@ export function WeekView({
                   date={date}
                   isToday={date === today}
                   dayData={data[date]}
-                  restaurantId={restaurantId}
                   canEdit={canEdit}
                   categories={categories}
                   selection={selection}
@@ -631,7 +622,7 @@ export function WeekView({
                       ))}
                   </ContextMenuSubContent>
                 </ContextMenuSub>
-                {contextTarget.menuId && (
+                {contextTarget.hasMenu && (
                   <ContextMenuItem className="gap-2" onClick={handleContextTogglePublish}>
                     {contextTarget.menuStatus === 'published' ? (
                       <>
@@ -656,7 +647,7 @@ export function WeekView({
                   className="gap-2"
                   onClick={() =>
                     runAfterMenuClose(() => {
-                      const items = data[contextTarget.date]?.menu?.items ?? [];
+                      const items = editorItems(data[contextTarget.date]?.menu ?? null);
                       setContextDupeItems(items);
                     })
                   }
@@ -664,17 +655,14 @@ export function WeekView({
                   <Copy className="h-3.5 w-3.5" />
                   Dupliquer vers…
                 </ContextMenuItem>
-                {contextTarget.menuId && (
+                {contextTarget.hasMenu && (
                   <>
                     <ContextMenuSeparator />
                     <ContextMenuItem
                       className="gap-2 text-destructive focus:text-destructive"
                       onClick={() =>
                         runAfterMenuClose(() =>
-                          setDeleteMenuTarget({
-                            menuId: contextTarget.menuId!,
-                            date: contextTarget.date,
-                          })
+                          setDeleteMenuTarget({ date: contextTarget.date })
                         )
                       }
                     >
@@ -827,7 +815,6 @@ export function WeekView({
         }}
         anchorPoint={dupeAnchor}
         targetDate={contextImportDate ?? undefined}
-        restaurantId={restaurantId}
         onDone={() => {
           setContextImportDate(null);
           onReload();
@@ -868,7 +855,6 @@ export function WeekView({
         }}
         anchorPoint={dupeAnchor}
         sourceItems={contextDupeItems ?? []}
-        restaurantId={restaurantId}
         onDone={() => {
           setContextDupeItems(null);
           onReload();

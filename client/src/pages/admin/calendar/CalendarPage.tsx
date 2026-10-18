@@ -206,19 +206,15 @@ export function CalendarPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [desktopView, centerDate]);
 
-  const { data, isLoading, error, reload, restaurantId, serviceDays } = useCalendarData(
-    rangeStart,
-    rangeEnd
-  );
+  const { data, isLoading, error, reload, serviceDays } = useCalendarData(rangeStart, rangeEnd);
 
   const [calendarSettings, setCalendarSettings] = useState<CalendarSettings | undefined>(undefined);
   useEffect(() => {
-    if (!restaurantId) return;
     adminApi
       .getCalendarSettings()
       .then(setCalendarSettings)
       .catch(() => {});
-  }, [restaurantId]);
+  }, []);
 
   const hasAutoSelectedRef = useRef(false);
   useEffect(() => {
@@ -360,7 +356,6 @@ export function CalendarPage() {
       {onboardingDate && (
         <MenuOnboardingWizard
           date={onboardingDate}
-          restaurantId={restaurantId}
           categories={topCategories}
           onDone={() => {
             setOnboardingDate(null);
@@ -423,7 +418,6 @@ export function CalendarPage() {
                   selectedDate={centerDate}
                   data={data}
                   canEdit={canEdit}
-                  restaurantId={restaurantId}
                   serviceDays={serviceDays}
                   categories={categories}
                   onDateChange={setCenterDate}
@@ -439,7 +433,6 @@ export function CalendarPage() {
                   data={data}
                   canEdit={canEdit}
                   serviceDays={serviceDays}
-                  restaurantId={restaurantId}
                   categories={categories}
                   onReload={reload}
                   onDirtyChange={setEditorDirty}
@@ -478,7 +471,6 @@ export function CalendarPage() {
                   selectedDate={centerDate}
                   data={data}
                   canEdit={canEdit}
-                  restaurantId={restaurantId}
                   serviceDays={serviceDays}
                   categories={categories}
                   onDateChange={setCenterDate}
@@ -494,7 +486,6 @@ export function CalendarPage() {
                   data={data}
                   canEdit={canEdit}
                   serviceDays={serviceDays}
-                  restaurantId={restaurantId}
                   categories={categories}
                   onReload={reload}
                   onDirtyChange={setEditorDirty}

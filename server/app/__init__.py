@@ -235,12 +235,13 @@ def create_app(config_class=None):
     from .routes.analytics import analytics_bp
     from .routes.audit import audit_bp
     from .routes.auth import auth_bp
-    from .routes.catalog import catalog_bp
     from .routes.categories import categories_bp
     from .routes.closures import closures_bp
     from .routes.devices import devices_bp
+    from .routes.dishes import dishes_bp
     from .routes.domains import domains_bp
     from .routes.events import events_bp
+    from .routes.holidays import holidays_bp
     from .routes.imports import imports_bp
     from .routes.inbox import inbox_bp
     from .routes.menus import menus_bp
@@ -253,16 +254,14 @@ def create_app(config_class=None):
     from .routes.taxonomy import taxonomy_bp
     from .routes.users import users_bp
 
-    api.register_blueprint(menus_bp,         url_prefix='/v1/menus')
     api.register_blueprint(categories_bp,    url_prefix='/v1')
     api.register_blueprint(auth_bp,          url_prefix='/v1/auth')
     api.register_blueprint(events_bp,        url_prefix='/v1/events')
-    api.register_blueprint(catalog_bp,       url_prefix='/v1/catalog')
     api.register_blueprint(restaurant_bp,    url_prefix='/v1')
     api.register_blueprint(taxonomy_bp,      url_prefix='/v1/taxonomy')
+    api.register_blueprint(holidays_bp,      url_prefix='/v1')
     api.register_blueprint(users_bp,         url_prefix='/v1/users')
     api.register_blueprint(audit_bp,         url_prefix='/v1/audit-logs')
-    api.register_blueprint(imports_bp,       url_prefix='/v1/imports')
     api.register_blueprint(notifications_bp, url_prefix='/v1/notifications')
     api.register_blueprint(inbox_bp,         url_prefix='/v1/inbox')
     api.register_blueprint(closures_bp,      url_prefix='/v1/closures')
@@ -272,6 +271,9 @@ def create_app(config_class=None):
     api.register_blueprint(domains_bp,       url_prefix='/v1/domains')
     api.register_blueprint(orgs_bp,          url_prefix='/v1/orgs')
     api.register_blueprint(sites_bp,         url_prefix='/v1/orgs/<org>/sites')
+    api.register_blueprint(menus_bp,         url_prefix='/v1/orgs/<org>/sites/<site>/menus')
+    api.register_blueprint(dishes_bp,        url_prefix='/v1/orgs/<org>/sites/<site>/dishes')
+    api.register_blueprint(imports_bp,       url_prefix='/v1/orgs/<org>/sites/<site>')
     api.register_blueprint(devices_bp,       url_prefix='/v1/devices')
 
     @app.route('/health')

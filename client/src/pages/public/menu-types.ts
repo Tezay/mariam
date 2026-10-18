@@ -3,7 +3,8 @@
  * from the API's resources by publicMenuData(). An item may be a substitute the
  * view assembles itself, hence its optional fields.
  */
-import type { PublicClosure, PublicEvent, PublicMenu, PublicSite } from '@/lib/api/sites';
+import type { Menu } from '@/lib/api/menus';
+import type { PublicClosure, PublicEvent, PublicSite } from '@/lib/api/sites';
 import type { components } from '@/lib/api/schema.gen';
 
 type Schemas = components['schemas'];
@@ -67,7 +68,7 @@ export interface PublicMenuData {
 
 export interface SitePage {
   site: PublicSite;
-  menus: PublicMenu[];
+  menus: Menu[];
   events: PublicEvent[];
   closures: PublicClosure[];
 }

@@ -7,7 +7,9 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { SiteProvider } from '@/contexts/SiteContext';
 import { categoriesApi, type MenuCategory } from '@/lib/api/categories';
+import type { SiteRef } from '@/lib/api/sites';
 import { addDays, parisToday } from '@/lib/date-utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -25,7 +27,15 @@ function formatWeekLabel(monday: string): string {
   return `${format(monday, false)} – ${format(sunday, true)}`;
 }
 
-export function SiteWeekCalendar({ siteId }: { siteId: number }) {
+export function SiteWeekCalendar({ siteId, site }: { siteId: number; site: SiteRef }) {
+  return (
+    <SiteProvider site={site}>
+      <SiteWeek siteId={siteId} />
+    </SiteProvider>
+  );
+}
+
+function SiteWeek({ siteId }: { siteId: number }) {
   const [weekOffset, setWeekOffset] = useState(0);
 
   const monday = useMemo(() => addDays(getMondayOf(parisToday()), weekOffset * 7), [weekOffset]);
@@ -91,7 +101,6 @@ export function SiteWeekCalendar({ siteId }: { siteId: number }) {
               data={data}
               canEdit={false}
               serviceDays={serviceDays}
-              restaurantId={siteId}
               categories={categories}
               onReload={reload}
             />

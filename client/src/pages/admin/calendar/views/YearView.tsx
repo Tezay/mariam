@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { closuresApi } from '@/lib/api/closures';
-import { menusApi } from '@/lib/api/menus';
-import { adminApi } from '@/lib/api/admin';
+import { holidaysApi } from '@/lib/api/holidays';
 import type { ExceptionalClosure } from '@/lib/api/closures';
 import type { CalendarSettings } from '@/lib/api/admin';
 import { addDays, parisToday } from '@/lib/date-utils';
@@ -225,8 +224,8 @@ export function YearView({
       setJoursFeries({});
       return;
     }
-    menusApi
-      .getJoursFeries(year)
+    holidaysApi
+      .list(year)
       .then((list) => {
         const map: Record<string, string> = {};
         for (const { date, description } of list) map[date] = description;
@@ -240,8 +239,8 @@ export function YearView({
       setVacanceDates(new Set());
       return;
     }
-    adminApi
-      .getVacancesScolaires(year, vacanceZone)
+    holidaysApi
+      .listSchool(year, vacanceZone)
       .then((list) => {
         const dates = new Set<string>();
         for (const { start_date, end_date } of list) {

@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { useDraggable } from '@dnd-kit/core';
-import type { MenuItem } from '@/lib/api/menus';
+import type { EditorItem } from '@/pages/admin/calendar/day/useMenuEditor';
 import type { CategoryColor } from '@/lib/category-colors';
 import { cn } from '@/lib/utils';
 
 interface WeekMenuItemBoxProps {
-  item: MenuItem;
+  item: EditorItem;
   color: CategoryColor;
   canEdit: boolean;
   selectionMode: boolean;

@@ -1,4 +1,5 @@
 import os
+import re
 import pytest
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
@@ -265,6 +266,15 @@ class MemoryRevocations:
         return int(key in self.keys)
 
 
+_ARGUMENT = re.compile(r'<(?:(\w+)(?:\([^)]*\))?:)?(\w+)>')
+# A value each URL converter accepts, so that a probe reaches the view.
+_CONVERTER_SAMPLES = {'date': '2026-01-05'}
+
+
+def probe_path(rule: str) -> str:
+    return _ARGUMENT.sub(lambda match: _CONVERTER_SAMPLES.get(match.group(1), '1'), rule)
+
+
 # Sentinel: distinguishes "auto-attach" from an explicit None.
 _AUTO_RESTAURANT = object()
 
@@ -274,11 +284,7 @@ def make_user(app, email='admin@mariam.app', role='admin', restaurant_id=_AUTO_R
     from app.models import Restaurant, User
     if restaurant_id is _AUTO_RESTAURANT:
         restaurant = Restaurant.query.order_by(Restaurant.id).first()
-        if restaurant is None:
-            restaurant = Restaurant(name='RU Test Auto', code='RU_AUTO', is_active=True)
-            _db.session.add(restaurant)
-            _db.session.commit()
-        restaurant_id = restaurant.id
+        restaurant_id = restaurant.id if restaurant else make_restaurant(app, 'RU Test Auto', 'RU_AUTO')
     user = User(
         email=email,
         password_hash=TEST_PASSWORD_HASH,
@@ -293,12 +299,38 @@ def make_user(app, email='admin@mariam.app', role='admin', restaurant_id=_AUTO_R
     return user.id
 
 
-def make_restaurant(app, name='RU Test', code='RU_TEST'):
-    from app.models import Restaurant
-    restaurant = Restaurant(name=name, code=code, is_active=True)
+TEST_ORG_SLUG = 'test-org'
+
+
+def make_restaurant(app, name='RU Test', code='RU_TEST', organization_id=None):
+    """A site of `organization_id`, or of the shared test organization; its slug
+    comes from its code.
+    """
+    from app.models import Organization, Restaurant
+    if organization_id is None:
+        org = Organization.query.filter_by(slug=TEST_ORG_SLUG).first()
+        if org is None:
+            org = Organization(name='Organisation de test', slug=TEST_ORG_SLUG)
+            _db.session.add(org)
+            _db.session.flush()
+        organization_id = org.id
+    restaurant = Restaurant(
+        name=name,
+        code=code,
+        slug=code.lower().replace('_', '-'),
+        organization_id=organization_id,
+        is_active=True,
+    )
     _db.session.add(restaurant)
     _db.session.commit()
     return restaurant.id
+
+
+def site_path(restaurant_id: int) -> str:
+    from app.models import Organization, Restaurant
+    site = _db.session.get(Restaurant, restaurant_id)
+    org = _db.session.get(Organization, site.organization_id)
+    return f'/v1/orgs/{org.slug}/sites/{site.slug}'
 
 
 def make_category(app, restaurant_id, label='Plat principal', order=0):

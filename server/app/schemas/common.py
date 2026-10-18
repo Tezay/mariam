@@ -1,4 +1,5 @@
-from marshmallow import EXCLUDE, Schema, ValidationError, fields
+from flask_smorest.fields import Upload
+from marshmallow import EXCLUDE, Schema, ValidationError, fields, validate
 
 from ..utils.display_name import parse_display_name
 from ..utils.email_address import canonical_email
@@ -70,3 +71,15 @@ class SiteName(fields.Str):
                 'web ni adresse e-mail (« / », « : » et « @ » sont refusés).'
             )
         return name
+
+
+class PageQuerySchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    page = fields.Int(load_default=1, validate=validate.Range(min=1))
+    per_page = fields.Int(load_default=50, validate=validate.Range(min=1, max=200))
+
+
+class FileUploadSchema(Schema):
+    file = Upload(required=True)

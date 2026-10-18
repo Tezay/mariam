@@ -1,8 +1,13 @@
 import { useState } from 'react';
 import { ChevronRight, Check } from 'lucide-react';
-import { csvImportApi } from '@/lib/api/imports';
+import { useSiteRef } from '@/contexts/SiteContext';
+import {
+  menuImportsApi,
+  type ColumnMapping,
+  type MenuImport,
+  type MenuImportPreview,
+} from '@/lib/api/imports';
 import { notify } from '@/lib/toast';
-import type { CsvUploadResponse, ImportPreviewResponse, ColumnMapping } from '@/lib/api/imports';
 import type { MenuCategory } from '@/lib/api/categories';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet';
@@ -17,10 +22,16 @@ const STEPS = [
   { id: 'preview' as const, label: 'Confirmer' },
 ];
 
+const DAY_LABEL = new Intl.DateTimeFormat('fr-FR', {
+  weekday: 'long',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+});
+
 interface DayImportCsvProps {
   open: boolean;
   targetDate: string;
-  restaurantId: number | undefined;
   categories: MenuCategory[];
   onClose: () => void;
   onImported: () => void;
@@ -29,15 +40,15 @@ interface DayImportCsvProps {
 export function DayImportCsv({
   open,
   targetDate,
-  restaurantId,
   categories,
   onClose,
   onImported,
 }: DayImportCsvProps) {
+  const site = useSiteRef();
   const [step, setStep] = useState<Step>('upload');
-  const [uploadData, setUploadData] = useState<CsvUploadResponse | null>(null);
+  const [uploadData, setUploadData] = useState<MenuImport | null>(null);
   const [mapping, setMapping] = useState<ColumnMapping[]>([]);
-  const [previewData, setPreviewData] = useState<ImportPreviewResponse | null>(null);
+  const [previewData, setPreviewData] = useState<MenuImportPreview | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,7 +64,7 @@ export function DayImportCsv({
     setIsLoading(true);
     setError(null);
     try {
-      const data = await csvImportApi.upload(file);
+      const data = await menuImportsApi.create(site, file);
       setUploadData(data);
       const cols: ColumnMapping[] = data.columns.map((col) => {
         const autoCategory = data.auto_mapping.categories?.[col];
@@ -75,12 +86,11 @@ export function DayImportCsv({
     setIsLoading(true);
     setError(null);
     try {
-      const data = await csvImportApi.preview(
-        uploadData.file_id,
-        mapping,
-        { mode: 'start_date', start_date: targetDate, skip_weekends: false },
-        restaurantId
-      );
+      const data = await menuImportsApi.preview(site, uploadData.id, mapping, {
+        mode: 'start_date',
+        start_date: targetDate,
+        skip_weekends: false,
+      });
       setPreviewData(data);
       setStep('preview');
     } catch {
@@ -95,13 +105,11 @@ export function DayImportCsv({
     setIsLoading(true);
     setError(null);
     try {
-      await csvImportApi.confirm({
-        file_id: uploadData.file_id,
+      await menuImportsApi.confirm(site, uploadData.id, {
         column_mapping: mapping,
         date_config: { mode: 'start_date', start_date: targetDate, skip_weekends: false },
         duplicate_action: 'replace',
         auto_publish: false,
-        restaurant_id: restaurantId,
       });
       const count = previewData?.new_count ?? 0;
       notify.success(`${count} menu${count > 1 ? 's' : ''} importé${count > 1 ? 's' : ''}`);
@@ -204,7 +212,9 @@ export function DayImportCsv({
               {previewData.menus.map((m) => (
                 <div key={m.date} className="space-y-1 rounded-xl border border-border bg-card p-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold">{m.date_display}</p>
+                    <p className="text-xs font-semibold">
+                      {DAY_LABEL.format(new Date(`${m.date}T12:00:00`))}
+                    </p>
                     {m.has_duplicate && (
                       <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
                         Remplace

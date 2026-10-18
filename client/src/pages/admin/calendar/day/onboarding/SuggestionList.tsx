@@ -1,11 +1,11 @@
 /** Presentational: ItemPickStep filters the dishes. */
-import type { DishCatalogItem } from '@/lib/api/catalog';
+import type { Dish } from '@/lib/api/dishes';
 import type { CategoryColor } from '@/lib/category-colors';
 
 interface SuggestionListProps {
-  dishes: DishCatalogItem[];
+  dishes: Dish[];
   color: CategoryColor;
-  onSelect: (dish: DishCatalogItem, sourceEl: HTMLElement) => void;
+  onSelect: (dish: Dish, sourceEl: HTMLElement) => void;
 }
 
 export function SuggestionList({ dishes, color, onSelect }: SuggestionListProps) {

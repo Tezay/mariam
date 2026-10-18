@@ -5,77 +5,105 @@ class ColumnMappingSchema(Schema):
     class Meta:
         unknown = EXCLUDE
     csv_column = fields.Str(required=True)
-    target_field = fields.Str(required=True, metadata={'description': "'date', 'category', or 'ignore'"})
-    category_id = fields.Int(allow_none=True, metadata={'description': "MenuCategory.id (integer)"})
+    target_field = fields.Str(required=True, validate=validate.OneOf(['date', 'category', 'ignore']))
+    category_id = fields.Int(allow_none=True)
 
 
 class DateConfigSchema(Schema):
     class Meta:
         unknown = EXCLUDE
-    mode = fields.Str(metadata={'description': "'from_file', 'align_week', or 'start_date'"})
-    start_date = fields.Str(allow_none=True, metadata={'description': "Start date (YYYY-MM-DD)"})
-    skip_weekends = fields.Bool()
-    date_format = fields.Str(allow_none=True)
-    auto_detect_tags = fields.Bool()
+    mode = fields.Str(
+        load_default='from_file', validate=validate.OneOf(['from_file', 'align_week', 'start_date'])
+    )
+    start_date = fields.Str(allow_none=True, metadata={'description': "YYYY-MM-DD"})
+    skip_weekends = fields.Bool(load_default=True)
+    date_format = fields.Str(allow_none=True, metadata={'description': "A strptime format"})
+    auto_detect_tags = fields.Bool(load_default=True)
 
 
-class ImportUploadSchema(Schema):
+class ImportFileSchema(Schema):
+    id = fields.Str(required=True)
+    filename = fields.Str(required=True)
+    columns = fields.List(fields.Str(), required=True)
+    preview_rows = fields.List(
+        fields.Dict(keys=fields.Str(), values=fields.Str()),
+        required=True,
+        metadata={'description': "The first ten rows"},
+    )
+    row_count = fields.Int(required=True)
+    delimiter = fields.Str(allow_none=True, required=True)
+
+
+class AutoMappingSchema(Schema):
+    date = fields.Str(metadata={'description': "The column that looks like a date"})
+    categories = fields.Dict(
+        keys=fields.Str(), values=fields.Int(), metadata={'description': "Column to category id"}
+    )
+
+
+class MenuImportSchema(ImportFileSchema):
+    auto_mapping = fields.Nested(AutoMappingSchema, required=True)
+    detected_date_format = fields.Str(allow_none=True, required=True)
+
+
+class MenuImportInputSchema(Schema):
     class Meta:
         unknown = EXCLUDE
-    file_id = fields.Str(dump_only=True)
-    filename = fields.Str(dump_only=True)
-    columns = fields.List(fields.Str())
-    preview_rows = fields.List(fields.Dict())
-    row_count = fields.Int()
-    detected_delimiter = fields.Str(allow_none=True)
-    auto_mapping = fields.Dict()
-    detected_date_format = fields.Str(allow_none=True)
+    column_mapping = fields.List(fields.Nested(ColumnMappingSchema), required=True)
+    date_config = fields.Nested(DateConfigSchema, load_default=dict)
 
 
-class ImportPreviewSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-    file_id = fields.Str(required=True)
-    column_mapping = fields.List(fields.Nested(ColumnMappingSchema))
-    date_config = fields.Nested(DateConfigSchema)
-    restaurant_id = fields.Int(allow_none=True)
+class MenuImportConfirmSchema(MenuImportInputSchema):
+    duplicate_action = fields.Str(
+        load_default='skip', validate=validate.OneOf(['skip', 'replace', 'merge'])
+    )
+    auto_publish = fields.Bool(load_default=False)
 
 
-class ImportConfirmSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-    file_id = fields.Str(required=True)
-    column_mapping = fields.List(fields.Nested(ColumnMappingSchema))
-    date_config = fields.Nested(DateConfigSchema)
-    duplicate_action = fields.Str(metadata={'description': "'skip', 'replace', or 'merge'"})
-    auto_publish = fields.Bool()
-    restaurant_id = fields.Int(allow_none=True)
+class ImportedItemSchema(Schema):
+    category_id = fields.Int(required=True)
+    name = fields.Str(required=True)
+    order = fields.Int(required=True)
+    tags = fields.List(fields.Str(), required=True)
+    certifications = fields.List(fields.Str(), required=True)
 
 
-class CatalogImportUploadSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-    file_id = fields.Str(dump_only=True)
-    filename = fields.Str(dump_only=True)
-    columns = fields.List(fields.Str())
-    preview_rows = fields.List(fields.Dict())
-    row_count = fields.Int()
-    delimiter = fields.Str(allow_none=True)
-    suggested_name_column = fields.Str(allow_none=True)
-    is_catalog_export = fields.Bool()
-    category_paths = fields.List(fields.Str())
-    known_categories = fields.Dict(keys=fields.Str(), values=fields.Int())
+class ImportedMenuSchema(Schema):
+    date = fields.Date(required=True)
+    items = fields.List(fields.Nested(ImportedItemSchema), required=True)
+    has_duplicate = fields.Bool(required=True, metadata={'description': "The day has a menu"})
 
 
-class CatalogImportPreviewSchema(Schema):
+class MenuImportPreviewSchema(Schema):
+    menus = fields.List(fields.Nested(ImportedMenuSchema), required=True)
+    total_count = fields.Int(required=True)
+    duplicates_count = fields.Int(required=True)
+    new_count = fields.Int(required=True)
+
+
+class MenuImportResultSchema(Schema):
+    imported_count = fields.Int(required=True)
+    replaced_count = fields.Int(required=True)
+    skipped_count = fields.Int(required=True)
+
+
+class DishImportSchema(ImportFileSchema):
+    suggested_name_column = fields.Str(allow_none=True, required=True)
+    is_catalog_export = fields.Bool(required=True)
+    category_paths = fields.List(fields.Str(), required=True)
+    known_categories = fields.Dict(keys=fields.Str(), values=fields.Int(), required=True)
+
+
+class DishImportInputSchema(Schema):
     """Either any file, with name_column and category_id, or a Mariam export, which
     carries its categories and labels and only needs its categories mapped.
     """
     class Meta:
         unknown = EXCLUDE
-    file_id = fields.Str(required=True)
-    name_column = fields.Str(load_default=None, allow_none=True, metadata={'description': "Column holding the dish name"})
-    tag_columns = fields.List(fields.Str(), load_default=[], metadata={'description': "Columns searched for labels"})
+    name_column = fields.Str(load_default=None, allow_none=True)
+    tag_columns = fields.List(
+        fields.Str(), load_default=list, metadata={'description': "Columns searched for labels"}
+    )
     category_id = fields.Int(load_default=None, allow_none=True, validate=validate.Range(min=1))
     auto_detect_tags = fields.Bool(load_default=True)
     category_map = fields.Dict(
@@ -84,32 +112,22 @@ class CatalogImportPreviewSchema(Schema):
     )
 
 
-class CatalogImportPreviewDishSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-    name = fields.Str()
-    tags = fields.List(fields.Str())
-    certifications = fields.List(fields.Str())
-    is_duplicate = fields.Bool()
-    category_path = fields.Str()
+class ImportedDishSchema(Schema):
+    name = fields.Str(required=True)
+    tags = fields.List(fields.Str(), required=True)
+    certifications = fields.List(fields.Str(), required=True)
+    is_duplicate = fields.Bool(required=True)
+    category_path = fields.Str(metadata={'description': "From a Mariam export"})
 
 
-class CatalogImportPreviewResultSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-    dishes = fields.List(fields.Nested(CatalogImportPreviewDishSchema))
-    total = fields.Int()
-    new_count = fields.Int()
-    duplicate_count = fields.Int()
-    categories_to_create = fields.List(fields.Str())
+class DishImportPreviewSchema(Schema):
+    dishes = fields.List(fields.Nested(ImportedDishSchema), required=True)
+    total = fields.Int(required=True)
+    new_count = fields.Int(required=True)
+    duplicate_count = fields.Int(required=True)
+    categories_to_create = fields.List(fields.Str(), required=True)
 
 
-# The confirmation repeats the preview.
-CatalogImportConfirmSchema = CatalogImportPreviewSchema
-
-
-class CatalogImportResultSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-    created_count = fields.Int()
-    skipped_count = fields.Int()
+class DishImportResultSchema(Schema):
+    created_count = fields.Int(required=True)
+    skipped_count = fields.Int(required=True)

@@ -14,11 +14,12 @@ import {
   Shield,
   CornerDownRight,
 } from 'lucide-react';
-import { catalogApi } from '@/lib/api/catalog';
+import { dishesApi } from '@/lib/api/dishes';
 import { eventsApi } from '@/lib/api/events';
 import { closuresApi } from '@/lib/api/closures';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOptionalSiteRef } from '@/contexts/SiteContext';
 import { cn } from '@/lib/utils';
 import { fuzzyMatches } from '@/lib/fuzzy';
 import { Spinner } from '@/components/ui/spinner';
@@ -139,6 +140,7 @@ export function GlobalSearch() {
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const site = useOptionalSiteRef();
   const isAdmin = user?.role === 'admin';
 
   const debouncedQuery = useDebounce(query, 300);
@@ -167,7 +169,7 @@ export function GlobalSearch() {
       }
 
       const [dishes, events, closures] = await Promise.allSettled([
-        catalogApi.list({ q: q.trim() }),
+        site ? dishesApi.list(site, { q: q.trim(), per_page: 5 }) : Promise.reject(),
         eventsApi.list(false, undefined, false),
         closuresApi.list(),
       ]);
@@ -189,7 +191,7 @@ export function GlobalSearch() {
       }
 
       if (dishes.status === 'fulfilled') {
-        for (const d of dishes.value.slice(0, 5)) {
+        for (const d of dishes.value.items) {
           next.push({ kind: 'dish', id: d.id, label: d.name });
         }
       }
@@ -209,7 +211,7 @@ export function GlobalSearch() {
       setActiveIndex(-1);
       setLoading(false);
     },
-    [isAdmin]
+    [isAdmin, site]
   );
 
   useEffect(() => {

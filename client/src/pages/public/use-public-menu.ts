@@ -3,6 +3,7 @@
  * screen through a failed refresh.
  */
 import { useQuery } from '@tanstack/react-query';
+import { menusApi } from '@/lib/api/menus';
 import { sitesApi } from '@/lib/api/sites';
 import { addDays, nowInstant, parisToday } from '@/lib/date-utils';
 import { publicMenuData } from './public-menu-data';
@@ -23,7 +24,7 @@ export function usePublicMenu(
       const today = parisToday(now);
       const [details, menus, events, closures] = await Promise.all([
         sitesApi.get(org, site),
-        sitesApi.menus(org, site, today, addDays(today, 1)),
+        menusApi.listPublished({ org, site }, today, addDays(today, 1)),
         sitesApi.events(org, site, mode),
         sitesApi.closures(org, site),
       ]);

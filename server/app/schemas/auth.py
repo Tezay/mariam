@@ -155,7 +155,11 @@ class AccountSchema(Schema):
     restaurant_id = fields.Int(allow_none=True)
     organization_id = fields.Int(allow_none=True)
     restaurant_name = fields.Str(allow_none=True)
+    restaurant_slug = fields.Str(allow_none=True)
     organization_name = fields.Str(allow_none=True)
+    organization_slug = fields.Str(
+        allow_none=True, metadata={'description': "The site's, for a site's own team"}
+    )
     passkeys_count = fields.Int(required=True)
     is_rescue_account = fields.Bool(
         allow_none=True, metadata={'description': 'Its address cannot be changed.'}

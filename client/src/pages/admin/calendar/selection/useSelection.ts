@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { MenuItem } from '@/lib/api/menus';
+import type { EditorItem } from '@/pages/admin/calendar/day/useMenuEditor';
 
 export interface SelectionEntry {
   type: 'item';
@@ -20,8 +20,8 @@ export interface UseSelectionReturn {
   toggleSelectionMode(): void;
   toggleItem(entry: SelectionEntry): void;
   isItemSelected(itemId: number, date: string): boolean;
-  getGroupState(date: string, items: MenuItem[]): GroupState;
-  toggleGroup(date: string, items: MenuItem[]): void;
+  getGroupState(date: string, items: EditorItem[]): GroupState;
+  toggleGroup(date: string, items: EditorItem[]): void;
   selectMultiple(entries: SelectionEntry[]): void;
   clearSelection(): void;
   selectedItemCount: number;
@@ -53,7 +53,7 @@ export function useSelection(): UseSelectionReturn {
   );
 
   const getGroupState = useCallback(
-    (date: string, items: MenuItem[]): GroupState => {
+    (date: string, items: EditorItem[]): GroupState => {
       const withId = items.filter((i) => i.id != null);
       if (withId.length === 0) return 'none';
       const selected = withId.filter((it) =>
@@ -65,7 +65,7 @@ export function useSelection(): UseSelectionReturn {
     [selection]
   );
 
-  const toggleGroup = useCallback((date: string, items: MenuItem[]) => {
+  const toggleGroup = useCallback((date: string, items: EditorItem[]) => {
     const entries: SelectionEntry[] = items
       .filter((i) => i.id != null)
       .map((i) => ({ type: 'item', itemId: i.id!, date, categoryId: i.category_id }));

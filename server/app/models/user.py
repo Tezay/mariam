@@ -188,10 +188,17 @@ class User(db.Model):
             from .organization import Organization
 
             data['restaurant_name'] = self.restaurant.name if self.restaurant else None
+            data['restaurant_slug'] = self.restaurant.slug if self.restaurant else None
             organization = (
                 db.session.get(Organization, self.organization_id) if self.organization_id else None
             )
             data['organization_name'] = organization.name if organization else None
+            # A site's own team has no organization of its own, yet its addresses name one.
+            home = organization or (
+                db.session.get(Organization, self.restaurant.organization_id)
+                if self.restaurant else None
+            )
+            data['organization_slug'] = home.slug if home else None
 
         if include_sensitive or include_tenant:
             data['is_rescue_account'] = self.is_rescue_account

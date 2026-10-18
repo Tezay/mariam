@@ -1,8 +1,8 @@
 import { TagIcon } from '@/components/TagIcon';
-import type { MenuItem } from '@/lib/api/menus';
+import type { EditorItem } from '@/pages/admin/calendar/day/useMenuEditor';
 
 interface AdminTagsBubbleProps {
-  item: MenuItem;
+  item: EditorItem;
   // editor and canEdit kept for API compat
   editor?: unknown;
   canEdit?: boolean;

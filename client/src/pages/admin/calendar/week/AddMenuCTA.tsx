@@ -6,7 +6,6 @@ import { MenuCopyPopover } from '../selection/MenuCopyPopover';
 
 interface AddMenuCTAProps {
   date: string;
-  restaurantId: number | undefined;
   onStartOnboarding: () => void;
   onImportCsv: () => void;
   onImported: () => void;
@@ -55,7 +54,6 @@ OptionButton.displayName = 'OptionButton';
 
 export function AddMenuCTA({
   date,
-  restaurantId,
   onStartOnboarding,
   onImportCsv,
   onImported,
@@ -108,7 +106,6 @@ export function AddMenuCTA({
       <MenuCopyPopover
         direction="import"
         targetDate={date}
-        restaurantId={restaurantId}
         onDone={() => {
           setExpanded(false);
           onImported();

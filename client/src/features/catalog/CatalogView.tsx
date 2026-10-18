@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, BookOpen } from 'lucide-react';
-import { catalogApi, type DishSort } from '@/lib/api/catalog';
+import { dishesApi, type DishSort } from '@/lib/api/dishes';
 import { categoriesApi } from '@/lib/api/categories';
 import { orgApi, type OrgCatalogSort } from '@/lib/api/org';
 import { publicApi } from '@/lib/api/public';
 import { EmptyState } from '@/components/dashboard/EmptyState';
+import { useOptionalSiteRef } from '@/contexts/SiteContext';
 import { useDebounce } from '@/hooks/useDebounce';
 import { downloadBlob } from '@/lib/download';
 import { notify } from '@/lib/toast';
@@ -37,6 +38,8 @@ const VIEW_KEY = 'mariam-catalogue-view';
 
 export function CatalogView({ scope }: { scope: CatalogScope }) {
   const isOrg = scope === 'org';
+  // The site scope renders inside the site's pages, which provide it.
+  const site = useOptionalSiteRef();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { filters, patch, activeCount, clear } = useCatalogFilters('usage');
@@ -87,7 +90,7 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
   };
   const siteFilters = {
     ...shared,
-    new_only: filters.newOnly && filters.period !== 'all' ? '1' : undefined,
+    new_only: filters.newOnly && filters.period !== 'all' ? true : undefined,
     category_ids: filters.categoryIds.join(',') || undefined,
     tag_ids: filters.tagIds.join(',') || undefined,
     certification_ids: filters.certIds.join(',') || undefined,
@@ -106,15 +109,16 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
       filters.certIds,
     ],
     queryFn: ({ pageParam }) =>
-      catalogApi.listPaginated({
+      dishesApi.list(site!, {
         ...siteFilters,
         sort: filters.sort as DishSort,
         page: pageParam,
         per_page: PAGE_SIZE,
       }),
     initialPageParam: 1,
-    getNextPageParam: (last, pages) => (last.has_more ? pages.length + 1 : undefined),
-    enabled: !isOrg,
+    getNextPageParam: (last, pages) =>
+      pages.length * PAGE_SIZE < last.total_count ? pages.length + 1 : undefined,
+    enabled: !isOrg && site !== null,
   });
 
   const orgQuery = useInfiniteQuery({
@@ -135,8 +139,8 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
   const active = isOrg ? orgQuery : siteQuery;
   const rows: CatalogRow[] = isOrg
     ? (orgQuery.data?.pages ?? []).flatMap((page) => page.dishes.map(rowFromPooled))
-    : (siteQuery.data?.pages ?? []).flatMap((page) => page.dishes.map(rowFromDish));
-  const total = active.data?.pages[0]?.total;
+    : (siteQuery.data?.pages ?? []).flatMap((page) => page.items.map(rowFromDish));
+  const total = isOrg ? orgQuery.data?.pages[0]?.total : siteQuery.data?.pages[0]?.total_count;
 
   const { fetchNextPage, hasNextPage, isFetchingNextPage } = active;
   useEffect(() => {
@@ -194,7 +198,7 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
 
   const exportCsv = async () => {
     try {
-      downloadBlob(await catalogApi.exportCsv(siteFilters), 'catalogue.csv');
+      downloadBlob(await dishesApi.exportCsv(site!, siteFilters), 'catalogue.csv');
     } catch {
       notify.error("L'export a échoué");
     }

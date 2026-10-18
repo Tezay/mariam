@@ -5,7 +5,7 @@ from app.extensions import db
 from app.models import Organization, PageViewRollup, Restaurant, User, VisitorDailyUnique
 from app.services import telemetry
 from app.utils.time import paris_today
-from conftest import FakeRedis, auth_headers, get_token, make_restaurant, make_user
+from conftest import TEST_ORG_SLUG, FakeRedis, auth_headers, get_token, make_restaurant, make_user
 
 
 def _track(client, page_kind, site=None, ip='198.51.100.4', user_agent='Mozilla/5.0',
@@ -17,7 +17,7 @@ def _track(client, page_kind, site=None, ip='198.51.100.4', user_agent='Mozilla/
     headers = {'X-Real-IP': ip, 'User-Agent': user_agent}
     if origin:
         headers['Origin'] = origin
-    org = Organization.query.one().slug
+    org = Organization.query.filter(Organization.slug != TEST_ORG_SLUG).one().slug
     return client.post(f'/v1/orgs/{org}/page-views', json=payload, headers=headers)
 
 
@@ -31,10 +31,8 @@ def _org_with_site(slug='tel-org', code='TEL'):
     org = Organization(name=slug, slug=slug)
     db.session.add(org)
     db.session.commit()
-    rid = make_restaurant(None, name=code, code=code)
-    site = db.session.get(Restaurant, rid)
-    site.organization_id = org.id
-    site.slug = code.lower()
+    rid = make_restaurant(None, name=code, code=code, organization_id=org.id)
+    db.session.get(Restaurant, rid).slug = code.lower()
     db.session.commit()
     return org.id, rid
 

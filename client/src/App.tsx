@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router';
 import { Toaster } from 'sonner';
 import { useAuth } from './contexts/AuthContext';
 import { PwaInstallProvider } from './contexts/PwaInstallContext';
+import { SiteProvider } from './contexts/SiteContext';
 import { useTheme } from './contexts/ThemeProvider';
 import { PageLoader } from './components/PageLoader';
 import { dashboardPathForRole } from './lib/dashboard-routes';
@@ -135,7 +136,12 @@ function SiteDashboardRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/org" replace />;
   }
 
-  return <>{children}</>;
+  const org = user?.organization_slug;
+  const site = user?.restaurant_slug;
+  if (!org || !site) {
+    return <NotFound />;
+  }
+  return <SiteProvider site={{ org, site }}>{children}</SiteProvider>;
 }
 
 function EditorRoute({ children }: { children: React.ReactNode }) {

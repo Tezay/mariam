@@ -14,6 +14,7 @@ import { EmptyState } from '@/components/dashboard/EmptyState';
 import { RoleBadge } from '@/components/dashboard/RoleBadge';
 import { menuStatusLabel } from '@/lib/menu-status';
 import { DataTable, type DataTableColumn } from '@/components/dashboard/DataTable';
+import { useAuth } from '@/contexts/AuthContext';
 import { SiteWeekCalendar } from './site/SiteWeekCalendar';
 import { TrafficView } from '@/features/analytics/TrafficView';
 import { SatisfactionView } from '@/features/analytics/SatisfactionView';
@@ -41,6 +42,7 @@ const SITE_USER_COLUMNS: DataTableColumn<User>[] = [
 
 export function OrgSiteDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const siteId = Number(id);
   const [site, setSite] = useState<OrgSite | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -115,7 +117,12 @@ export function OrgSiteDetailPage() {
       </div>
 
       <div className="mt-8">
-        <SiteWeekCalendar siteId={site.id} />
+        {user?.organization_slug && site.slug && (
+          <SiteWeekCalendar
+            siteId={site.id}
+            site={{ org: user.organization_slug, site: site.slug }}
+          />
+        )}
       </div>
 
       <div className="mt-8">

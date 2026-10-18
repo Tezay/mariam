@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query';
-import { menusApi, Menu } from '@/lib/api/menus';
+import { useSiteRef } from '@/contexts/SiteContext';
+import { menusApi, type Menu } from '@/lib/api/menus';
+import { sitesApi } from '@/lib/api/sites';
 import { eventsApi, Event } from '@/lib/api/events';
 import { closuresApi, ExceptionalClosure } from '@/lib/api/closures';
-import { parisToday, addDays } from '@/lib/date-utils';
+import { addDays } from '@/lib/date-utils';
 
 export interface DayData {
   date: string;
@@ -28,34 +30,12 @@ function dateToMariamDay(dateStr: string): number {
   return (d.getDay() + 6) % 7;
 }
 
-/** Offsets from the current week, as menusApi.getWeek takes them. */
-function computeWeekOffsets(rangeStart: string, rangeEnd: string): number[] {
-  const today = parisToday();
-  const todayMonday = getMondayOf(today);
-  const todayMondayMs = new Date(todayMonday + 'T12:00:00').getTime();
-
-  const startMonday = getMondayOf(rangeStart);
-  const endMonday = getMondayOf(rangeEnd);
-
-  const offsets: number[] = [];
-  let cursor = startMonday;
-
-  while (cursor <= endMonday) {
-    const cursorMs = new Date(cursor + 'T12:00:00').getTime();
-    const diffDays = Math.round((cursorMs - todayMondayMs) / (24 * 60 * 60 * 1000));
-    const offset = Math.round(diffDays / 7);
-    if (!offsets.includes(offset)) offsets.push(offset);
-    cursor = addDays(cursor, 7);
+function weekMondays(rangeStart: string, rangeEnd: string): string[] {
+  const mondays: string[] = [];
+  for (let cursor = getMondayOf(rangeStart); cursor <= rangeEnd; cursor = addDays(cursor, 7)) {
+    mondays.push(cursor);
   }
-
-  return offsets;
-}
-
-// menusApi.getWeek returns a payload keyed by date with the restaurant config.
-interface WeekPayload {
-  restaurant_id?: number;
-  service_days?: number[];
-  menus: Record<string, Menu | null>;
+  return mondays;
 }
 
 interface UseCalendarDataResult {
@@ -63,7 +43,6 @@ interface UseCalendarDataResult {
   isLoading: boolean;
   error: unknown;
   reload: () => void;
-  restaurantId: number | undefined;
   serviceDays: number[]; // 0 is Monday
   storageConfigured: boolean;
 }
@@ -76,22 +55,26 @@ export function useCalendarData(
   siteId?: number
 ): UseCalendarDataResult {
   const queryClient = useQueryClient();
+  const site = useSiteRef();
 
-  const weekOffsets = useMemo(
-    () => computeWeekOffsets(rangeStart, rangeEnd),
-    [rangeStart, rangeEnd]
-  );
+  const mondays = useMemo(() => weekMondays(rangeStart, rangeEnd), [rangeStart, rangeEnd]);
 
-  // Large ranges (year view) would fire 50+ week requests; fetch only week 0 for
-  const skipMenus = weekOffsets.length > 8;
-  const fetchedOffsets = skipMenus ? [0] : weekOffsets;
+  // A year would take 50+ week requests, and the year view shows no menu.
+  const skipMenus = mondays.length > 8;
+  const fetchedMondays = skipMenus ? [] : mondays;
 
   const weekResults = useQueries({
-    queries: fetchedOffsets.map((offset) => ({
-      queryKey: ['calendar-week', siteId ?? 'self', offset],
-      queryFn: () => menusApi.getWeek(offset, siteId) as Promise<WeekPayload>,
+    queries: fetchedMondays.map((monday) => ({
+      queryKey: ['calendar-week', site.org, site.site, monday],
+      queryFn: () => menusApi.list(site, monday, addDays(monday, 6)),
       staleTime: STALE_TIME,
     })),
+  });
+
+  const siteQuery = useQuery({
+    queryKey: ['site', site.org, site.site],
+    queryFn: () => sitesApi.getOwn(site),
+    staleTime: STALE_TIME,
   });
 
   const eventsQuery = useQuery({
@@ -112,35 +95,28 @@ export function useCalendarData(
     staleTime: 5 * 60_000,
   });
 
-  // Signature that changes only when the underlying query data changes, so the
   const weekSignature = weekResults.map((r) => r.dataUpdatedAt).join('|');
 
-  const { data, restaurantId, serviceDays } = useMemo(() => {
-    const weekPayloads = weekResults.map((r) => r.data).filter(Boolean) as WeekPayload[];
+  const { data, serviceDays } = useMemo(() => {
     const events = eventsQuery.data ?? [];
     const closures = closuresQuery.data ?? [];
     const result: CalendarData = {};
-    let rid: number | undefined;
-    let sdays: number[] = [];
-
-    // Config (restaurant id + service days) from the fetched weeks.
-    for (const wp of weekPayloads) {
-      if (rid === undefined) rid = wp.restaurant_id;
-      if (!sdays.length && wp.service_days) sdays = wp.service_days.map((d) => d);
-    }
+    const sdays = siteQuery.data?.service_days ?? [];
 
     if (!skipMenus) {
-      for (const wp of weekPayloads) {
-        for (const [date, menu] of Object.entries(wp.menus ?? {})) {
+      fetchedMondays.forEach((monday, index) => {
+        const byDate = new Map((weekResults[index].data ?? []).map((menu) => [menu.date, menu]));
+        for (let offset = 0; offset < 7; offset += 1) {
+          const date = addDays(monday, offset);
           result[date] = {
             date,
-            menu: menu ?? null,
+            menu: byDate.get(date) ?? null,
             events: [],
             closure: null,
             isServiceDay: sdays.includes(dateToMariamDay(date)),
           };
         }
-      }
+      });
     }
 
     for (const event of events) {
@@ -174,15 +150,28 @@ export function useCalendarData(
       }
     }
 
-    return { data: result, restaurantId: rid, serviceDays: sdays };
+    return { data: result, serviceDays: sdays };
     // Query data is tracked via the *UpdatedAt signatures, keeping the result stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weekSignature, eventsQuery.dataUpdatedAt, closuresQuery.dataUpdatedAt, skipMenus]);
+  }, [
+    weekSignature,
+    eventsQuery.dataUpdatedAt,
+    closuresQuery.dataUpdatedAt,
+    siteQuery.dataUpdatedAt,
+    skipMenus,
+  ]);
 
   const isLoading =
-    weekResults.some((r) => r.isPending) || eventsQuery.isPending || closuresQuery.isPending;
+    weekResults.some((r) => r.isPending) ||
+    siteQuery.isPending ||
+    eventsQuery.isPending ||
+    closuresQuery.isPending;
   const error =
-    weekResults.find((r) => r.error)?.error ?? eventsQuery.error ?? closuresQuery.error ?? null;
+    weekResults.find((r) => r.error)?.error ??
+    siteQuery.error ??
+    eventsQuery.error ??
+    closuresQuery.error ??
+    null;
 
   const reload = () => {
     queryClient.invalidateQueries({ queryKey: ['calendar-week'] });
@@ -196,7 +185,6 @@ export function useCalendarData(
     isLoading,
     error,
     reload,
-    restaurantId,
     serviceDays,
     storageConfigured: (storageQuery.data as boolean) ?? false,
   };

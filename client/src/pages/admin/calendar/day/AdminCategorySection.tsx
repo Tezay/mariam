@@ -1,5 +1,5 @@
 import { ArrowLeftRight } from 'lucide-react';
-import type { MenuItem } from '@/lib/api/menus';
+import type { EditorItem } from '@/pages/admin/calendar/day/useMenuEditor';
 import type { MenuCategory } from '@/lib/api/categories';
 import { getCategoryColor } from '@/lib/category-colors';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -10,7 +10,7 @@ import type { UseMenuEditorReturn } from './useMenuEditor';
 
 interface AdminCategorySectionProps {
   category: MenuCategory;
-  items: MenuItem[];
+  items: EditorItem[];
   editor: UseMenuEditorReturn;
   canEdit: boolean;
   hint?: boolean;
@@ -50,7 +50,7 @@ function SubstitutionPopoverButton({
 }
 
 interface ItemListProps {
-  items: MenuItem[];
+  items: EditorItem[];
   actualCategory: MenuCategory;
   editor: UseMenuEditorReturn;
   canEdit: boolean;
@@ -91,7 +91,7 @@ function StandardSection({ category, items, editor, canEdit, hint }: AdminCatego
           {category.label}
         </span>
         <div className="h-px flex-1" style={{ backgroundColor: color.sectionBorder }} />
-        {canEdit && editor.menuId && (
+        {canEdit && editor.menuStatus !== null && (
           <div className="absolute right-0">
             <SubstitutionPopoverButton categoryId={category.id} editor={editor} />
           </div>
@@ -115,7 +115,7 @@ function HighlightedSection({ category, items, editor, canEdit, hint }: AdminCat
   const headerTextColor = hasSubcategories ? '#093EAA' : color.sectionLabel;
   const headerLineColor = hasSubcategories ? '#C5D2F1' : color.sectionBorder;
 
-  const itemsByCatId = new Map<number, MenuItem[]>();
+  const itemsByCatId = new Map<number, EditorItem[]>();
   for (const item of items) {
     const list = itemsByCatId.get(item.category_id) ?? [];
     list.push(item);
@@ -139,7 +139,7 @@ function HighlightedSection({ category, items, editor, canEdit, hint }: AdminCat
           {category.label}
         </span>
         <div className="h-px flex-1" style={{ backgroundColor: headerLineColor }} />
-        {canEdit && editor.menuId && !hasSubcategories && (
+        {canEdit && editor.menuStatus !== null && !hasSubcategories && (
           <div className="absolute right-0">
             <SubstitutionPopoverButton categoryId={category.id} editor={editor} />
           </div>
@@ -172,7 +172,7 @@ function HighlightedSection({ category, items, editor, canEdit, hint }: AdminCat
                   >
                     {sub.label}
                   </p>
-                  {canEdit && editor.menuId && (
+                  {canEdit && editor.menuStatus !== null && (
                     <SubstitutionPopoverButton categoryId={sub.id} editor={editor} />
                   )}
                 </div>

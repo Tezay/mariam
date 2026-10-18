@@ -1,9 +1,9 @@
 /** The holiday display is saved with the page; the closures it creates are saved at once. */
 import { useState } from 'react';
 import { parisYear } from '@/lib/date-utils';
-import { adminApi, CalendarSettings, VacanceScolaire } from '@/lib/api/admin';
+import type { CalendarSettings } from '@/lib/api/admin';
 import { closuresApi } from '@/lib/api/closures';
-import { menusApi, JourFerie } from '@/lib/api/menus';
+import { holidaysApi, type Holiday, type SchoolHoliday } from '@/lib/api/holidays';
 import { notify } from '@/lib/toast';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -26,12 +26,12 @@ export function CalendriersTab({ state }: { state: SettingsState }) {
   const currentYear = parisYear();
 
   const [feriesYear, setFeriesYear] = useState(currentYear);
-  const [feries, setFeries] = useState<JourFerie[] | null>(null);
+  const [feries, setFeries] = useState<Holiday[] | null>(null);
   const [isLoadingFeries, setIsLoadingFeries] = useState(false);
   const [selectedFeries, setSelectedFeries] = useState<Set<string>>(new Set());
 
   const [vacanceYear, setVacanceYear] = useState(currentYear);
-  const [vacances, setVacances] = useState<VacanceScolaire[] | null>(null);
+  const [vacances, setVacances] = useState<SchoolHoliday[] | null>(null);
   const [isLoadingVacances, setIsLoadingVacances] = useState(false);
   const [selectedVacances, setSelectedVacances] = useState<Set<string>>(new Set());
 
@@ -48,7 +48,7 @@ export function CalendriersTab({ state }: { state: SettingsState }) {
     setFeries(null);
     setSelectedFeries(new Set());
     try {
-      const data = await menusApi.getJoursFeries(feriesYear);
+      const data = await holidaysApi.list(feriesYear);
       setFeries(data);
       setSelectedFeries(new Set(data.map((f) => f.date)));
     } catch {
@@ -64,7 +64,7 @@ export function CalendriersTab({ state }: { state: SettingsState }) {
     setVacances(null);
     setSelectedVacances(new Set());
     try {
-      const data = await adminApi.getVacancesScolaires(vacanceYear, settings.school_vacation_zone);
+      const data = await holidaysApi.listSchool(vacanceYear, settings.school_vacation_zone);
       setVacances(data);
       setSelectedVacances(new Set(data.map((v) => v.start_date)));
     } catch {

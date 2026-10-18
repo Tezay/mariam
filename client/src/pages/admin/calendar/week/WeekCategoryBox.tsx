@@ -1,5 +1,5 @@
 import { ArrowLeftRight } from 'lucide-react';
-import type { MenuItem } from '@/lib/api/menus';
+import type { EditorItem } from '@/pages/admin/calendar/day/useMenuEditor';
 import type { MenuCategory } from '@/lib/api/categories';
 import { getCategoryColor } from '@/lib/category-colors';
 import { cn } from '@/lib/utils';
@@ -12,7 +12,7 @@ import type { CategoryColor } from '@/lib/category-colors';
 
 interface WeekCategoryBoxProps {
   category: MenuCategory;
-  items: MenuItem[];
+  items: EditorItem[];
   editor: UseMenuEditorReturn;
   canEdit: boolean;
   selectionMode: boolean;
@@ -37,14 +37,14 @@ export function WeekCategoryBox({
   const headerTextColor = hasSubcategories ? '#093EAA' : color.sectionLabel;
   const headerLineColor = hasSubcategories ? '#C5D2F1' : color.sectionBorder;
 
-  const itemsByCatId = new Map<number, MenuItem[]>();
+  const itemsByCatId = new Map<number, EditorItem[]>();
   for (const item of items) {
     const list = itemsByCatId.get(item.category_id) ?? [];
     list.push(item);
     itemsByCatId.set(item.category_id, list);
   }
 
-  const renderItemList = (itemList: MenuItem[], itemColor: CategoryColor) => (
+  const renderItemList = (itemList: EditorItem[], itemColor: CategoryColor) => (
     <div className="space-y-0.5 rounded-xl">
       {itemList.map((item) => (
         <WeekMenuItemBox

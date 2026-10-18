@@ -2,12 +2,18 @@
 import datetime
 import io
 
-from conftest import auth_headers, get_token, make_category, make_restaurant, make_user
+from conftest import auth_headers, get_token, make_category, make_restaurant, make_user, site_path
+
+
+def _site(client, token):
+    """The address of the caller's own site."""
+    rid = client.get('/v1/settings', headers=auth_headers(token)).get_json()['restaurant']['id']
+    return site_path(rid)
 
 
 def _upload_csv(client, token, content='Plat principal\nPoulet rôti, Riz pilaf\n'):
     return client.post(
-        '/v1/imports/menus/upload',
+        f'{_site(client, token)}/menu-imports',
         data={'file': (io.BytesIO(content.encode('utf-8')), 'menus.csv')},
         content_type='multipart/form-data',
         headers=auth_headers(token),
@@ -26,11 +32,11 @@ class TestCsvImport:
         make_user(app)
         token = get_token(client)
         res = _upload_csv(client, token)
-        assert res.status_code == 200
+        assert res.status_code == 201
         data = res.get_json()
         assert data['columns'] == ['Plat principal']
         assert data['row_count'] == 1
-        assert data['file_id']
+        assert data['id']
 
     def test_confirm_creates_menu_and_catalog_dishes(self, app, client):
         restaurant_id = make_restaurant(app)
@@ -38,12 +44,11 @@ class TestCsvImport:
         token = get_token(client)
         category_id = make_category(app, restaurant_id)
 
-        file_id = _upload_csv(client, token).get_json()['file_id']
+        file_id = _upload_csv(client, token).get_json()['id']
         today = datetime.date.today().isoformat()
 
-        res = client.post('/v1/imports/menus/confirm', json={
-            'file_id': file_id,
-            'column_mapping': [
+        res = client.post(f'{_site(client, token)}/menu-imports/{file_id}/confirm', json={
+                        'column_mapping': [
                 {'csv_column': 'Plat principal', 'target_field': 'category',
                  'category_id': category_id},
             ],
@@ -54,16 +59,13 @@ class TestCsvImport:
         assert res.status_code == 200, res.get_json()
         assert res.get_json()['imported_count'] == 1
 
-        menu = client.get(f'/v1/menus/by-date/{today}',
-                          headers=auth_headers(token)).get_json()['menu']
-        assert menu is not None
-        items = menu['items']
+        menu = client.get(f'{_site(client, token)}/menus/{today}', headers=auth_headers(token)).get_json()
+        items = menu['categories'][0]['items']
         assert len(items) == 2
-        assert all(item['dish_id'] for item in items)
         names = {item['dish']['name'] for item in items}
         assert names == {'Poulet rôti', 'Riz pilaf'}
 
-        dishes = client.get('/v1/catalog', headers=auth_headers(token)).get_json()['dishes']
+        dishes = client.get(f'{_site(client, token)}/dishes', headers=auth_headers(token)).get_json()['items']
         assert {d['name'] for d in dishes} == {'Poulet rôti', 'Riz pilaf'}
 
     def test_reimport_reuses_catalog_dishes(self, app, client):
@@ -75,10 +77,9 @@ class TestCsvImport:
         today = datetime.date.today().isoformat()
 
         for _ in range(2):
-            file_id = _upload_csv(client, token).get_json()['file_id']
-            res = client.post('/v1/imports/menus/confirm', json={
-                'file_id': file_id,
-                'column_mapping': [
+            file_id = _upload_csv(client, token).get_json()['id']
+            res = client.post(f'{_site(client, token)}/menu-imports/{file_id}/confirm', json={
+                                'column_mapping': [
                     {'csv_column': 'Plat principal', 'target_field': 'category',
                      'category_id': category_id},
                 ],
@@ -88,13 +89,13 @@ class TestCsvImport:
             }, headers=auth_headers(token))
             assert res.status_code == 200
 
-        dishes = client.get('/v1/catalog', headers=auth_headers(token)).get_json()['dishes']
+        dishes = client.get(f'{_site(client, token)}/dishes', headers=auth_headers(token)).get_json()['items']
         assert len(dishes) == 2
 
 
 def _upload_catalog(client, token, content, filename='plats.csv'):
     return client.post(
-        '/v1/imports/catalog/upload',
+        f'{_site(client, token)}/dish-imports',
         data={'file': (io.BytesIO(content.encode('utf-8')), filename)},
         content_type='multipart/form-data',
         headers=auth_headers(token),
@@ -124,12 +125,12 @@ class TestCatalogImportUpload:
         make_user(app)
         token = get_token(client)
         res = _upload_catalog(client, token, 'Nom du plat;Tags\nPoulet rôti;épicé\n')
-        assert res.status_code == 200
+        assert res.status_code == 201
         data = res.get_json()
         assert data['columns'] == ['Nom du plat', 'Tags']
         assert data['suggested_name_column'] == 'Nom du plat'
         assert data['row_count'] == 1
-        assert data['file_id']
+        assert data['id']
 
 
 class TestCatalogImportPreview:
@@ -137,23 +138,23 @@ class TestCatalogImportPreview:
         make_restaurant(app)
         make_user(app)
         token = get_token(client)
-        file_id = _upload_catalog(client, token, 'Nom\nPoulet rôti\n').get_json()['file_id']
-        res = client.post('/v1/imports/catalog/preview', json={
-            'file_id': file_id, 'name_column': 'Nom',
+        file_id = _upload_catalog(client, token, 'Nom\nPoulet rôti\n').get_json()['id']
+        res = client.post(f'{_site(client, token)}/dish-imports/{file_id}/preview', json={
+            'name_column': 'Nom',
         }, headers=auth_headers(token))
         # Required outside a Mariam export only: the route refuses, not the schema.
-        assert res.status_code == 400
+        assert res.status_code == 422
 
     def test_preview_flags_existing_duplicate(self, app, client):
         restaurant_id = make_restaurant(app)
         make_user(app)
         token = get_token(client)
         category_id = make_category(app, restaurant_id)
-        client.post('/v1/catalog', json={'name': 'Poulet rôti', 'category_id': category_id},
+        client.post(f'{_site(client, token)}/dishes', json={'name': 'Poulet rôti', 'category_id': category_id},
                     headers=auth_headers(token))
-        file_id = _upload_catalog(client, token, 'Nom\nPoulet rôti\nRiz pilaf\n').get_json()['file_id']
-        res = client.post('/v1/imports/catalog/preview', json={
-            'file_id': file_id, 'name_column': 'Nom', 'category_id': category_id,
+        file_id = _upload_catalog(client, token, 'Nom\nPoulet rôti\nRiz pilaf\n').get_json()['id']
+        res = client.post(f'{_site(client, token)}/dish-imports/{file_id}/preview', json={
+            'name_column': 'Nom', 'category_id': category_id,
         }, headers=auth_headers(token))
         assert res.status_code == 200
         data = res.get_json()
@@ -168,9 +169,9 @@ class TestCatalogImportPreview:
         make_user(app)
         token = get_token(client)
         category_id = make_category(app, restaurant_id)
-        file_id = _upload_catalog(client, token, 'Nom\nPoulet rôti\npoulet roti\n').get_json()['file_id']
-        res = client.post('/v1/imports/catalog/preview', json={
-            'file_id': file_id, 'name_column': 'Nom', 'category_id': category_id,
+        file_id = _upload_catalog(client, token, 'Nom\nPoulet rôti\npoulet roti\n').get_json()['id']
+        res = client.post(f'{_site(client, token)}/dish-imports/{file_id}/preview', json={
+            'name_column': 'Nom', 'category_id': category_id,
         }, headers=auth_headers(token))
         # A normalised duplicate of « Poulet rôti ».
         assert res.get_json()['new_count'] == 1
@@ -181,9 +182,9 @@ class TestCatalogImportPreview:
         _seed_vegetarian_tag(app)
         token = get_token(client)
         category_id = make_category(app, restaurant_id)
-        file_id = _upload_catalog(client, token, 'Nom\nLasagnes végétarien\n').get_json()['file_id']
-        res = client.post('/v1/imports/catalog/preview', json={
-            'file_id': file_id, 'name_column': 'Nom', 'category_id': category_id,
+        file_id = _upload_catalog(client, token, 'Nom\nLasagnes végétarien\n').get_json()['id']
+        res = client.post(f'{_site(client, token)}/dish-imports/{file_id}/preview', json={
+            'name_column': 'Nom', 'category_id': category_id,
             'auto_detect_tags': True,
         }, headers=auth_headers(token))
         assert 'vegetarian' in res.get_json()['dishes'][0]['tags']
@@ -194,9 +195,9 @@ class TestCatalogImportPreview:
         _seed_vegetarian_tag(app)
         token = get_token(client)
         category_id = make_category(app, restaurant_id)
-        file_id = _upload_catalog(client, token, 'Nom;Régime\nLasagnes;végétarien\n').get_json()['file_id']
-        res = client.post('/v1/imports/catalog/preview', json={
-            'file_id': file_id, 'name_column': 'Nom', 'tag_columns': ['Régime'], 'category_id': category_id,
+        file_id = _upload_catalog(client, token, 'Nom;Régime\nLasagnes;végétarien\n').get_json()['id']
+        res = client.post(f'{_site(client, token)}/dish-imports/{file_id}/preview', json={
+            'name_column': 'Nom', 'tag_columns': ['Régime'], 'category_id': category_id,
             'auto_detect_tags': False,
         }, headers=auth_headers(token))
         assert 'vegetarian' in res.get_json()['dishes'][0]['tags']
@@ -208,13 +209,13 @@ class TestCatalogImportConfirm:
         make_user(app)
         token = get_token(client)
         category_id = make_category(app, restaurant_id)
-        file_id = _upload_catalog(client, token, 'Nom\nPoulet rôti\nRiz pilaf\n').get_json()['file_id']
-        res = client.post('/v1/imports/catalog/confirm', json={
-            'file_id': file_id, 'name_column': 'Nom', 'category_id': category_id,
+        file_id = _upload_catalog(client, token, 'Nom\nPoulet rôti\nRiz pilaf\n').get_json()['id']
+        res = client.post(f'{_site(client, token)}/dish-imports/{file_id}/confirm', json={
+            'name_column': 'Nom', 'category_id': category_id,
         }, headers=auth_headers(token))
         assert res.status_code == 200
         assert res.get_json() == {'created_count': 2, 'skipped_count': 0}
-        dishes = client.get('/v1/catalog', headers=auth_headers(token)).get_json()['dishes']
+        dishes = client.get(f'{_site(client, token)}/dishes', headers=auth_headers(token)).get_json()['items']
         assert {d['name'] for d in dishes} == {'Poulet rôti', 'Riz pilaf'}
         assert all(d['category_id'] == category_id for d in dishes)
 
@@ -225,17 +226,17 @@ class TestCatalogImportConfirm:
         category_id = make_category(app, restaurant_id)
         content = 'Nom\nPoulet rôti\nRiz pilaf\n'
 
-        first = _upload_catalog(client, token, content).get_json()['file_id']
-        client.post('/v1/imports/catalog/confirm', json={
-            'file_id': first, 'name_column': 'Nom', 'category_id': category_id,
+        first = _upload_catalog(client, token, content).get_json()['id']
+        client.post(f'{_site(client, token)}/dish-imports/{first}/confirm', json={
+            'name_column': 'Nom', 'category_id': category_id,
         }, headers=auth_headers(token))
 
-        second = _upload_catalog(client, token, content).get_json()['file_id']
-        res = client.post('/v1/imports/catalog/confirm', json={
-            'file_id': second, 'name_column': 'Nom', 'category_id': category_id,
+        second = _upload_catalog(client, token, content).get_json()['id']
+        res = client.post(f'{_site(client, token)}/dish-imports/{second}/confirm', json={
+            'name_column': 'Nom', 'category_id': category_id,
         }, headers=auth_headers(token))
         assert res.get_json() == {'created_count': 0, 'skipped_count': 2}
-        dishes = client.get('/v1/catalog', headers=auth_headers(token)).get_json()['dishes']
+        dishes = client.get(f'{_site(client, token)}/dishes', headers=auth_headers(token)).get_json()['items']
         assert len(dishes) == 2
 
     def test_confirm_attaches_detected_tags(self, app, client):
@@ -244,11 +245,11 @@ class TestCatalogImportConfirm:
         _seed_vegetarian_tag(app)
         token = get_token(client)
         category_id = make_category(app, restaurant_id)
-        file_id = _upload_catalog(client, token, 'Nom\nLasagnes végétarien\n').get_json()['file_id']
-        client.post('/v1/imports/catalog/confirm', json={
-            'file_id': file_id, 'name_column': 'Nom', 'category_id': category_id,
+        file_id = _upload_catalog(client, token, 'Nom\nLasagnes végétarien\n').get_json()['id']
+        client.post(f'{_site(client, token)}/dish-imports/{file_id}/confirm', json={
+            'name_column': 'Nom', 'category_id': category_id,
         }, headers=auth_headers(token))
-        dish = client.get('/v1/catalog', headers=auth_headers(token)).get_json()['dishes'][0]
+        dish = client.get(f'{_site(client, token)}/dishes', headers=auth_headers(token)).get_json()['items'][0]
         assert [t['id'] for t in dish['tags']] == ['vegetarian']
 
     def test_confirm_writes_audit_log(self, app, client):
@@ -256,9 +257,9 @@ class TestCatalogImportConfirm:
         make_user(app)
         token = get_token(client)
         category_id = make_category(app, restaurant_id)
-        file_id = _upload_catalog(client, token, 'Nom\nPoulet rôti\n').get_json()['file_id']
-        client.post('/v1/imports/catalog/confirm', json={
-            'file_id': file_id, 'name_column': 'Nom', 'category_id': category_id,
+        file_id = _upload_catalog(client, token, 'Nom\nPoulet rôti\n').get_json()['id']
+        client.post(f'{_site(client, token)}/dish-imports/{file_id}/confirm', json={
+            'name_column': 'Nom', 'category_id': category_id,
         }, headers=auth_headers(token))
         from app.models import AuditLog
         assert AuditLog.query.filter_by(action='catalog_import').count() == 1
@@ -272,12 +273,12 @@ class TestCatalogImportTenantIsolation:
         make_user(app, email='b@mariam.app', restaurant_id=rid_b)
         category_a = make_category(app, rid_a)
         token_b = get_token(client, email='b@mariam.app')
-        file_id = _upload_catalog(client, token_b, 'Nom\nPoulet rôti\n').get_json()['file_id']
+        file_id = _upload_catalog(client, token_b, 'Nom\nPoulet rôti\n').get_json()['id']
         # B names one of A's categories.
-        res = client.post('/v1/imports/catalog/confirm', json={
-            'file_id': file_id, 'name_column': 'Nom', 'category_id': category_a,
+        res = client.post(f'{_site(client, token_b)}/dish-imports/{file_id}/confirm', json={
+            'name_column': 'Nom', 'category_id': category_a,
         }, headers=auth_headers(token_b))
-        assert res.status_code == 400
+        assert res.status_code == 422
 
 
 class TestCatalogExportRoundTrip:
@@ -299,15 +300,15 @@ class TestCatalogExportRoundTrip:
         db.session.add_all([child, dessert])
         db.session.commit()
 
-        client.post('/v1/catalog', json={
+        client.post(f'{_site(client, token)}/dishes', json={
             'name': 'Bœuf bourguignon', 'category_id': child.id, 'tag_ids': ['vegetarian'],
         }, headers=auth_headers(token))
-        client.post('/v1/catalog', json={
+        client.post(f'{_site(client, token)}/dishes', json={
             'name': 'Tarte aux pommes', 'category_id': dessert.id,
         }, headers=auth_headers(token))
 
         csv_body = client.get(
-            '/v1/catalog/export', headers=auth_headers(token)
+            f'{_site(client, token)}/dishes/export', headers=auth_headers(token)
         ).get_data(as_text=True)
 
         DishCatalog.query.filter_by(restaurant_id=rid).delete()
@@ -323,23 +324,23 @@ class TestCatalogExportRoundTrip:
         assert upload['category_paths'] == ['Plat principal › Viandes', 'Desserts']
 
         mapping = {path: 'create' for path in upload['category_paths']}
-        preview = client.post('/v1/imports/catalog/preview', json={
-            'file_id': upload['file_id'], 'category_map': mapping,
+        preview = client.post(f'{_site(client, token)}/dish-imports/{upload["id"]}/preview', json={
+            'category_map': mapping,
         }, headers=auth_headers(token)).get_json()
         assert preview['new_count'] == 2
         assert sorted(preview['categories_to_create']) == ['Desserts', 'Plat principal › Viandes']
 
-        result = client.post('/v1/imports/catalog/confirm', json={
-            'file_id': upload['file_id'], 'category_map': mapping,
+        result = client.post(f'{_site(client, token)}/dish-imports/{upload["id"]}/confirm', json={
+            'category_map': mapping,
         }, headers=auth_headers(token))
         assert result.get_json()['created_count'] == 2
 
-        dishes = client.get('/v1/catalog', headers=auth_headers(token)).get_json()['dishes']
+        dishes = client.get(f'{_site(client, token)}/dishes', headers=auth_headers(token)).get_json()['items']
         restored = {dish['name']: dish for dish in dishes}
         assert sorted(restored) == ['Bœuf bourguignon', 'Tarte aux pommes']
         assert [tag['id'] for tag in restored['Bœuf bourguignon']['tags']] == ['vegetarian']
 
-        again = client.get('/v1/catalog/export', headers=auth_headers(token))
+        again = client.get(f'{_site(client, token)}/dishes/export', headers=auth_headers(token))
         assert again.get_data(as_text=True) == csv_body
 
     def test_mapping_to_an_existing_category_creates_nothing(self, app, client):
@@ -352,11 +353,32 @@ class TestCatalogExportRoundTrip:
 
         upload = _upload_catalog(client, token, csv_body, 'catalogue.csv').get_json()
         mapping = {path: str(target) for path in upload['category_paths']}
-        client.post('/v1/imports/catalog/confirm', json={
-            'file_id': upload['file_id'], 'category_map': mapping,
+        client.post(f'{_site(client, token)}/dish-imports/{upload["id"]}/confirm', json={
+            'category_map': mapping,
         }, headers=auth_headers(token))
 
         labels = {c.label for c in MenuCategory.query.filter_by(restaurant_id=rid).all()}
         assert labels == {'Tout venant'}
-        dishes = client.get('/v1/catalog', headers=auth_headers(token)).get_json()['dishes']
+        dishes = client.get(f'{_site(client, token)}/dishes', headers=auth_headers(token)).get_json()['items']
         assert {dish['category_id'] for dish in dishes} == {target}
+
+
+class TestImportScope:
+    def test_an_import_closes_only_where_and_as_it_was_opened(self, app, client):
+        from app.models import ImportSession
+
+        rid = make_restaurant(app)
+        user_id = make_user(app)
+        token = get_token(client)
+        import_id = _upload_csv(client, token).get_json()['id']
+
+        as_dishes = client.post(
+            f'{_site(client, token)}/dish-imports/{import_id}/preview',
+            json={'name_column': 'Plat principal', 'category_id': make_category(app, rid)},
+            headers=auth_headers(token),
+        )
+        assert as_dishes.status_code == 404
+        assert as_dishes.get_json()['code'] == 'import_not_found'
+        other = make_restaurant(app, name='RU B', code='RU_B')
+        assert ImportSession.get_valid(import_id, user_id, other, 'menus') is None
+        assert ImportSession.get_valid(import_id, user_id, rid, 'menus') is not None

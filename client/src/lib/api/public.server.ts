@@ -1,8 +1,8 @@
 import type { SitePage } from '@/pages/public/menu-types';
+import type { Menu } from './menus';
 import type {
   PublicClosure,
   PublicEvent,
-  PublicMenu,
   PublicOrg,
   PublicSite,
   PublicSiteSummary,
@@ -87,7 +87,7 @@ export async function fetchSitePage(
   const path = `/orgs/${encodeURIComponent(org)}/sites/${encodeURIComponent(slug)}`;
   const [site, menus, events, closures] = await Promise.all([
     getJson<PublicSite>(request, path),
-    getJson<{ items: PublicMenu[] }>(request, `${path}/menus?from=${from}&to=${to}`),
+    getJson<{ items: Menu[] }>(request, `${path}/menus?from=${from}&to=${to}`),
     getJson<{ items: PublicEvent[] }>(request, `${path}/events?visibility=mobile`),
     getJson<{ items: PublicClosure[] }>(request, `${path}/closures`),
   ]);

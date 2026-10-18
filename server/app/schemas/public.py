@@ -121,10 +121,6 @@ class PublicMenuSchema(Schema):
     )
 
 
-class PublicMenuListSchema(Schema):
-    items = fields.List(fields.Nested(PublicMenuSchema), required=True)
-
-
 class MenuRangeQuerySchema(Schema):
     class Meta:
         unknown = EXCLUDE

@@ -1,5 +1,6 @@
 import { addDays, parisToday } from '@/lib/date-utils';
-import type { PublicEvent, PublicMenu, PublicSite } from '@/lib/api/sites';
+import type { Menu } from '@/lib/api/menus';
+import type { PublicEvent, PublicSite } from '@/lib/api/sites';
 import type { EventData, MenuData, PublicMenuData, RestaurantPublic, SitePage } from './menu-types';
 
 const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
@@ -9,7 +10,7 @@ function restaurantOf(site: PublicSite): RestaurantPublic {
   return { ...site, config: { service_days, dietary_tags, certifications } };
 }
 
-function dayOf(date: string, menus: PublicMenu[], restaurant: RestaurantPublic): MenuData {
+function dayOf(date: string, menus: Menu[], restaurant: RestaurantPublic): MenuData {
   const menu = menus.find((candidate) => candidate.date === date);
   return {
     date,

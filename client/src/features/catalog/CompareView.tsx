@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Scale } from 'lucide-react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
-import { catalogApi, type CatalogPeriod, type DishStats } from '@/lib/api/catalog';
+import { useSiteRef } from '@/contexts/SiteContext';
+import { dishesApi, type CatalogPeriod, type DishStats } from '@/lib/api/dishes';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/dashboard/EmptyState';
@@ -39,15 +40,17 @@ export function CompareView() {
     [params]
   );
 
+  const site = useSiteRef();
   const { data: dishes, isPending: dishesPending } = useQuery({
     queryKey: ['catalogue', 'compare-dishes', ids],
-    queryFn: () => Promise.all(ids.map((id) => catalogApi.get(id))),
+    queryFn: () => Promise.all(ids.map((id) => dishesApi.get(site, id))),
     enabled: ids.length > 0,
   });
 
   const { data: stats } = useQuery({
     queryKey: ['catalogue', 'compare-stats', ids, period],
-    queryFn: () => catalogApi.getStatsBatch(ids, period),
+    queryFn: async () =>
+      new Map((await dishesApi.compare(site, ids, period)).map((entry) => [entry.dish_id, entry])),
     enabled: ids.length > 0,
   });
 
@@ -56,7 +59,7 @@ export function CompareView() {
     const byDate = new Map<string, Record<string, string | number>>();
     (dishes ?? []).forEach((dish, index) => {
       config[`dish_${dish.id}`] = { label: dish.name, color: SERIES_COLORS[index] };
-      for (const point of stats?.[String(dish.id)]?.satisfaction.series ?? []) {
+      for (const point of stats?.get(dish.id)?.satisfaction.series ?? []) {
         const row = byDate.get(point.date) ?? { date: point.date };
         row[`dish_${dish.id}`] = point.score;
         byDate.set(point.date, row);
@@ -106,7 +109,7 @@ export function CompareView() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {(dishes ?? []).map((dish, index) => {
-            const entry: DishStats | undefined = stats?.[String(dish.id)];
+            const entry: DishStats | undefined = stats?.get(dish.id);
             return (
               <section
                 key={dish.id}

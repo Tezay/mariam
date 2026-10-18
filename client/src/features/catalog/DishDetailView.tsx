@@ -4,7 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, BookOpen, ImagePlus, Pencil, Scale, Trash2 } from 'lucide-react';
 import { TagIcon } from '@/components/TagIcon';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
-import { catalogApi, type CatalogPeriod } from '@/lib/api/catalog';
+import { useSiteRef } from '@/contexts/SiteContext';
+import { dishesApi, type CatalogPeriod } from '@/lib/api/dishes';
 import { categoriesApi } from '@/lib/api/categories';
 import { publicApi } from '@/lib/api/public';
 import { Button } from '@/components/ui/button';
@@ -74,6 +75,7 @@ function Figure({ label, value }: { label: string; value: string }) {
 }
 
 export function DishDetailView({ dishId }: { dishId: number }) {
+  const site = useSiteRef();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -85,11 +87,11 @@ export function DishDetailView({ dishId }: { dishId: number }) {
 
   const dishQuery = useQuery({
     queryKey: ['dish', dishId],
-    queryFn: () => catalogApi.get(dishId),
+    queryFn: () => dishesApi.get(site, dishId),
   });
   const statsQuery = useQuery({
     queryKey: ['dish', dishId, 'stats', period],
-    queryFn: () => catalogApi.getStats(dishId, period),
+    queryFn: () => dishesApi.getStats(site, dishId, period),
   });
   const { data: meta } = useQuery({
     queryKey: ['catalogue-meta'],
@@ -123,9 +125,9 @@ export function DishDetailView({ dishId }: { dishId: number }) {
 
   const save = useMutation({
     mutationFn: (next: DishDraft) =>
-      catalogApi.update(dishId, {
+      dishesApi.update(site, dishId, {
         name: next.name.trim(),
-        category_id: next.categoryId,
+        category_id: next.categoryId ?? undefined,
         tag_ids: next.tagIds,
         certification_ids: next.certIds,
       }),
@@ -144,13 +146,19 @@ export function DishDetailView({ dishId }: { dishId: number }) {
   });
 
   const image = useMutation({
-    mutationFn: (file: File) => catalogApi.uploadImage(dishId, file),
+    mutationFn: (file: File) => dishesApi.uploadImage(site, dishId, file),
     onSuccess: invalidate,
     onError: () => notify.error("La photo n'a pas pu être modifiée"),
   });
 
+  const dropImage = useMutation({
+    mutationFn: () => dishesApi.removeImage(site, dishId),
+    onSuccess: invalidate,
+    onError: () => notify.error("La photo n'a pas pu être retirée"),
+  });
+
   const remove = useMutation({
-    mutationFn: () => catalogApi.delete(dishId),
+    mutationFn: () => dishesApi.remove(site, dishId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['catalogue'] });
       navigate('/admin/catalogue');
@@ -213,21 +221,35 @@ export function DishDetailView({ dishId }: { dishId: number }) {
             ) : (
               <DishThumb url={null} className="absolute inset-0 h-full w-full rounded-none" />
             )}
-            <label className="absolute bottom-2 right-2 cursor-pointer rounded-lg border border-border bg-card/90 px-2.5 py-1.5 text-xs font-medium text-foreground backdrop-blur transition-colors hover:bg-card">
-              <ImagePlus className="mr-1.5 inline h-3.5 w-3.5" />
-              {dish.image_url ? 'Remplacer' : 'Ajouter'}
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                disabled={image.isPending}
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) image.mutate(file);
-                  event.target.value = '';
-                }}
-              />
-            </label>
+            <div className="absolute bottom-2 right-2 flex gap-1.5">
+              {dish.image_url && (
+                <button
+                  type="button"
+                  title="La photo disparaît du catalogue et des menus où le plat figure."
+                  disabled={dropImage.isPending || image.isPending}
+                  onClick={() => dropImage.mutate()}
+                  className="rounded-lg border border-border bg-card/90 px-2.5 py-1.5 text-xs font-medium text-foreground backdrop-blur transition-colors hover:bg-card disabled:opacity-50"
+                >
+                  <Trash2 className="mr-1.5 inline h-3.5 w-3.5" />
+                  Retirer
+                </button>
+              )}
+              <label className="cursor-pointer rounded-lg border border-border bg-card/90 px-2.5 py-1.5 text-xs font-medium text-foreground backdrop-blur transition-colors hover:bg-card">
+                <ImagePlus className="mr-1.5 inline h-3.5 w-3.5" />
+                {dish.image_url ? 'Remplacer' : 'Ajouter'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={image.isPending || dropImage.isPending}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) image.mutate(file);
+                    event.target.value = '';
+                  }}
+                />
+              </label>
+            </div>
           </div>
 
           <div className="min-w-0 flex-1 p-5">

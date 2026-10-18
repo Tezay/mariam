@@ -1,31 +1,26 @@
 import re
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
-from flask import current_app, jsonify, request
 from flask_jwt_extended import get_jwt_identity
 from flask_smorest import Blueprint
 
 from ..extensions import db
-from ..models import (
-    AuditLog,
-    DishCatalog,
-    ImportSession,
-    Menu,
-    MenuItem,
-)
+from ..models import AuditLog, DishCatalog, ImportSession, Menu, MenuItem, Restaurant
 from ..models.category import MenuCategory
-from ..schemas.common import ErrorSchema
+from ..problems import Problem
+from ..schemas.common import FileUploadSchema
 from ..schemas.imports import (
-    CatalogImportConfirmSchema,
-    CatalogImportPreviewResultSchema,
-    CatalogImportPreviewSchema,
-    CatalogImportResultSchema,
-    CatalogImportUploadSchema,
-    ImportConfirmSchema,
-    ImportPreviewSchema,
-    ImportUploadSchema,
+    DishImportInputSchema,
+    DishImportPreviewSchema,
+    DishImportResultSchema,
+    DishImportSchema,
+    MenuImportConfirmSchema,
+    MenuImportInputSchema,
+    MenuImportPreviewSchema,
+    MenuImportResultSchema,
+    MenuImportSchema,
 )
 from ..security import get_client_ip
 from ..services import catalog_csv
@@ -36,17 +31,66 @@ from ..services.csv_import import (
     parse_upload,
 )
 from ..utils.time import paris_today
-from .helpers import (
-    editor_required,
-    get_or_create_dish,
-    get_user_and_restaurant,
-    normalize_dish_name,
-)
+from .helpers import editor_required, get_or_create_dish, normalize_dish_name
+from .menus import mark_published
+from .scope import member_site
 
 imports_bp = Blueprint(
     'imports', __name__,
-    description='CSV/Excel import — Bulk menu loading from file'
+    description='Menus and dishes loaded from a CSV or Excel file: send it, preview, confirm',
 )
+
+MENUS, DISHES = 'menus', 'dishes'
+
+
+def _open_import(restaurant: Restaurant, kind: str, upload) -> tuple[ImportSession, list, list, str | None]:
+    try:
+        columns, rows, delimiter = parse_upload(upload)
+    except ValueError as err:
+        raise Problem(422, 'file_invalid', str(err)) from None
+    ImportSession.cleanup_expired()
+    session = ImportSession(
+        id=str(uuid.uuid4()),
+        user_id=int(get_jwt_identity()),
+        restaurant_id=restaurant.id,
+        kind=kind,
+        filename=upload.filename,
+        columns=columns,
+        rows=rows,
+        expires_minutes=30,
+    )
+    db.session.add(session)
+    db.session.commit()
+    return session, columns, rows, delimiter
+
+
+def _import_file(session: ImportSession, columns: list, rows: list, delimiter: str | None) -> dict:
+    return {
+        'id': session.id,
+        'filename': session.filename,
+        'columns': columns,
+        'preview_rows': rows[:10],
+        'row_count': len(rows),
+        'delimiter': delimiter,
+    }
+
+
+def _session(restaurant: Restaurant, kind: str, import_id: str) -> ImportSession:
+    session = ImportSession.get_valid(import_id, int(get_jwt_identity()), restaurant.id, kind)
+    if session is None:
+        raise Problem(
+            404, 'import_not_found', 'Import expiré ou introuvable : envoyez de nouveau le fichier.'
+        )
+    return session
+
+
+def _menus_from(session: ImportSession, restaurant: Restaurant, body: dict) -> list[dict]:
+    try:
+        return build_menus_from_rows(
+            session.get_rows(), body['column_mapping'], body['date_config'], restaurant.id
+        )
+    except ValueError as err:
+        raise Problem(422, 'import_invalid', str(err)) from None
 
 
 def detect_date_format(date_str: str) -> str | None:
@@ -171,263 +215,9 @@ def build_menus_from_rows(rows, column_mapping, date_config, restaurant_id):
                 items.append(item)
 
         if items:
-            menus.append({
-                'date': menu_date.isoformat(),
-                'date_display': menu_date.strftime('%A %d/%m/%Y'),
-                'items': items,
-                'has_duplicate': False,
-                'existing_menu': None,
-            })
+            menus.append({'date': menu_date, 'items': items, 'has_duplicate': False})
 
     return menus
-
-
-@imports_bp.route('/menus/upload', methods=['POST'])
-@imports_bp.response(200, ImportUploadSchema)
-@imports_bp.alt_response(400, schema=ErrorSchema, description="Invalid or missing file")
-@imports_bp.alt_response(500, schema=ErrorSchema, description="Processing error")
-@editor_required
-def upload_file():
-    """Upload and parse a CSV or Excel file.
-
-    Multipart/form-data request with `file` field.
-    Accepted formats: `.csv`, `.xlsx`, `.xls`.
-
-    Returns detected columns, a preview of the first 10 rows,
-    an auto-suggested column mapping, and the detected date format.
-    """
-    if 'file' not in request.files:
-        return jsonify({'error': 'Aucun fichier fourni'}), 400
-
-    file = request.files['file']
-    if not file.filename:
-        return jsonify({'error': 'Nom de fichier manquant'}), 400
-
-    try:
-        columns, rows, delimiter = parse_upload(file)
-
-        file_id = str(uuid.uuid4())
-        ImportSession.cleanup_expired()
-
-        current_user_id = int(get_jwt_identity())
-        session = ImportSession(
-            id=file_id,
-            user_id=current_user_id,
-            filename=file.filename,
-            columns=columns,
-            rows=rows,
-            expires_minutes=30,
-        )
-        db.session.add(session)
-        db.session.commit()
-
-        # Restaurant derived from the account, never from the form (multi-tenant).
-        _, _caller_restaurant = get_user_and_restaurant()
-        upload_restaurant_id = _caller_restaurant.id if _caller_restaurant else None
-        auto_mapping = suggest_column_mapping(columns, upload_restaurant_id)
-
-        detected_date_format = None
-        if auto_mapping.get('date'):
-            date_col = auto_mapping['date']
-            for row in rows[:5]:
-                date_val = row.get(date_col, '')
-                if date_val:
-                    detected_date_format = detect_date_format(date_val)
-                    if detected_date_format:
-                        break
-
-        return jsonify({
-            'file_id': file_id,
-            'filename': file.filename,
-            'columns': columns,
-            'preview_rows': rows[:10],
-            'row_count': len(rows),
-            'detected_delimiter': delimiter,
-            'auto_mapping': auto_mapping,
-            'detected_date_format': detected_date_format,
-        }), 200
-
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        current_app.logger.error(f"CSV upload failed: {e}")
-        return jsonify({'error': f'Erreur lors du traitement du fichier: {e}'}), 500
-
-
-@imports_bp.route('/menus/preview', methods=['POST'])
-@editor_required
-@imports_bp.arguments(ImportPreviewSchema)
-@imports_bp.response(200, ImportUploadSchema)
-@imports_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
-@imports_bp.alt_response(404, schema=ErrorSchema, description="Session expired")
-def preview_import(data):
-    """Generate an import preview based on the provided column mapping.
-
-    Returns the menus that will be created, flagging duplicates
-    (existing menus for the same dates).
-    """
-    file_id = data.get('file_id')
-    column_mapping = data.get('column_mapping', [])
-    date_config = data.get('date_config', {})
-
-    current_user_id = int(get_jwt_identity())
-    session = ImportSession.get_valid(file_id, current_user_id)
-    if not session:
-        return jsonify({'error': 'Session expirée ou fichier non trouvé. Veuillez re-uploader le fichier.'}), 404
-
-    rows = session.get_rows()
-
-    _, _caller_restaurant = get_user_and_restaurant()
-    restaurant_id = _caller_restaurant.id if _caller_restaurant else None
-    if not restaurant_id:
-        return jsonify({'error': 'Aucun restaurant associé à votre compte'}), 400
-
-    try:
-        menus = build_menus_from_rows(rows, column_mapping, date_config, restaurant_id)
-
-        for menu_data in menus:
-            existing = Menu.query.filter_by(
-                restaurant_id=restaurant_id,
-                date=datetime.strptime(menu_data['date'], '%Y-%m-%d').date()
-            ).first()
-            menu_data['has_duplicate'] = existing is not None
-            if existing:
-                menu_data['existing_menu'] = existing.to_dict()
-
-        duplicates_count = sum(1 for m in menus if m['has_duplicate'])
-
-        return jsonify({
-            'menus': menus,
-            'total_count': len(menus),
-            'duplicates_count': duplicates_count,
-            'new_count': len(menus) - duplicates_count,
-        }), 200
-
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        current_app.logger.error(f"Import preview failed: {e}")
-        return jsonify({'error': f'Erreur lors de la prévisualisation: {e}'}), 500
-
-
-@imports_bp.route('/menus/confirm', methods=['POST'])
-@editor_required
-@imports_bp.arguments(ImportConfirmSchema)
-@imports_bp.response(200, ImportUploadSchema)
-@imports_bp.alt_response(400, schema=ErrorSchema, description="Invalid data or missing restaurant")
-@imports_bp.alt_response(404, schema=ErrorSchema, description="Session expired")
-def confirm_import(data):
-    """Confirm and execute the menu import into the database.
-
-    - `duplicate_action`: `skip` (default), `replace` or `merge`
-    - `auto_publish`: immediately publish the imported menus
-    """
-    current_user_id = int(get_jwt_identity())
-
-    file_id = data.get('file_id')
-    column_mapping = data.get('column_mapping', [])
-    date_config = data.get('date_config', {})
-    duplicate_action = data.get('duplicate_action', 'skip')
-    auto_publish = data.get('auto_publish', False)
-    # restaurant_id: ignored here, derived from the account below (multi-tenant)
-
-    session = ImportSession.get_valid(file_id, current_user_id)
-    if not session:
-        return jsonify({'error': 'Session expirée ou fichier non trouvé. Veuillez re-uploader le fichier.'}), 404
-
-    rows = session.get_rows()
-
-    # Restaurant derived from the account, never from the body (multi-tenant).
-    _, _caller_restaurant = get_user_and_restaurant()
-    restaurant_id = _caller_restaurant.id if _caller_restaurant else None
-    if not restaurant_id:
-        return jsonify({'error': 'Aucun restaurant associé à votre compte'}), 400
-    if not restaurant_id:
-        return jsonify({'error': 'Aucun restaurant configuré'}), 400
-
-    try:
-        menus_data = build_menus_from_rows(rows, column_mapping, date_config, restaurant_id)
-
-        imported_count = replaced_count = skipped_count = 0
-
-        for menu_data in menus_data:
-            menu_date = datetime.strptime(menu_data['date'], '%Y-%m-%d').date()
-            existing_menu = Menu.query.filter_by(restaurant_id=restaurant_id, date=menu_date).first()
-
-            if existing_menu:
-                if duplicate_action == 'skip':
-                    skipped_count += 1
-                    continue
-                elif duplicate_action == 'replace':
-                    MenuItem.query.filter_by(menu_id=existing_menu.id).delete()
-                    menu = existing_menu
-                    replaced_count += 1
-                elif duplicate_action == 'merge':
-                    menu = existing_menu
-                    replaced_count += 1
-                else:
-                    continue
-            else:
-                menu = Menu(restaurant_id=restaurant_id, date=menu_date, status='draft')
-                db.session.add(menu)
-                db.session.flush()
-                imported_count += 1
-
-            for idx, item_data in enumerate(menu_data['items']):
-                dish = get_or_create_dish(restaurant_id, {
-                    'name': item_data['name'],
-                    'category_id': item_data['category_id'],
-                    'tag_ids': item_data.get('tags', []),
-                    'certification_ids': item_data.get('certifications', []),
-                })
-                if not dish:
-                    continue
-                item = MenuItem(
-                    menu_id=menu.id,
-                    category_id=item_data['category_id'],
-                    dish_id=dish.id,
-                    order=item_data.get('order', idx),
-                )
-                db.session.add(item)
-
-            if auto_publish:
-                menu.status = 'published'
-                menu.published_at = datetime.now(UTC)
-                menu.published_by_id = current_user_id
-
-        AuditLog.log(
-            action='csv_import',
-            user_id=current_user_id,
-            details={
-                'filename': session.filename,
-                'imported_count': imported_count,
-                'replaced_count': replaced_count,
-                'skipped_count': skipped_count,
-                'auto_publish': auto_publish,
-            },
-            ip_address=get_client_ip()
-        )
-
-        db.session.commit()
-
-        db.session.delete(session)
-        db.session.commit()
-
-        return jsonify({
-            'success': True,
-            'imported_count': imported_count,
-            'replaced_count': replaced_count,
-            'skipped_count': skipped_count,
-            'message': f'{imported_count + replaced_count} menu(s) importé(s)',
-        }), 200
-
-    except ValueError as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"CSV import failed: {e}")
-        return jsonify({'error': f"Erreur lors de l'import: {e}"}), 500
 
 
 _NAME_COLUMN_HINTS = ['nom', 'plat', 'name', 'intitule', 'dish', 'libelle', 'produit']
@@ -590,178 +380,228 @@ def build_export_dishes(session, restaurant_id: int, mapping: dict, create: bool
     return dishes
 
 
-@imports_bp.route('/catalog/upload', methods=['POST'])
-@imports_bp.response(200, CatalogImportUploadSchema)
-@imports_bp.alt_response(400, schema=ErrorSchema, description="Invalid or missing file")
-@imports_bp.alt_response(500, schema=ErrorSchema, description="Processing error")
+@imports_bp.route('/menu-imports', methods=['POST'])
 @editor_required
-def catalog_upload():
-    """Upload and parse a CSV or Excel file of dishes.
+@imports_bp.arguments(FileUploadSchema, location='files')
+@imports_bp.response(201, MenuImportSchema)
+def create_menu_import(files, org: str, site: str):
+    """Send a CSV or Excel file of menus: one row a day, one column a category.
 
-    Returns the columns, a preview of the first rows and the column likely to hold
-    the dish name.
+    The answer suggests which column holds the date, and which category each
+    other column fills. The import stays open thirty minutes.
     """
-    if 'file' not in request.files:
-        return jsonify({'error': 'Aucun fichier fourni'}), 400
-    file = request.files['file']
-    if not file.filename:
-        return jsonify({'error': 'Nom de fichier manquant'}), 400
-
-    try:
-        columns, rows, delimiter = parse_upload(file)
-
-        file_id = str(uuid.uuid4())
-        ImportSession.cleanup_expired()
-        session = ImportSession(
-            id=file_id,
-            user_id=int(get_jwt_identity()),
-            filename=file.filename,
-            columns=columns,
-            rows=rows,
-            expires_minutes=30,
-        )
-        db.session.add(session)
-        db.session.commit()
-
-        _, restaurant = get_user_and_restaurant()
-        is_export = catalog_csv.is_export_file(columns)
-        paths = catalog_csv.distinct_paths(catalog_csv.parse(rows)) if is_export else []
-
-        return jsonify({
-            'file_id': file_id,
-            'filename': file.filename,
-            'columns': columns,
-            'preview_rows': rows[:10],
-            'row_count': len(rows),
-            'delimiter': delimiter,
-            'suggested_name_column': suggest_name_column(columns),
-            'is_catalog_export': is_export,
-            'category_paths': paths,
-            'known_categories': (
-                catalog_csv.leaf_ids_by_path(restaurant.id) if is_export and restaurant else {}
-            ),
-        }), 200
-
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        current_app.logger.error(f"Catalog upload failed: {e}")
-        return jsonify({'error': f'Erreur lors du traitement du fichier: {e}'}), 500
+    restaurant = member_site(org, site)
+    session, columns, rows, delimiter = _open_import(restaurant, MENUS, files['file'])
+    mapping = suggest_column_mapping(columns, restaurant.id)
+    detected_format = None
+    if mapping.get('date'):
+        for row in rows[:5]:
+            value = row.get(mapping['date'], '')
+            if value and (detected_format := detect_date_format(value)):
+                break
+    return {
+        **_import_file(session, columns, rows, delimiter),
+        'auto_mapping': mapping,
+        'detected_date_format': detected_format,
+    }
 
 
-@imports_bp.route('/catalog/preview', methods=['POST'])
+@imports_bp.route('/menu-imports/<import_id>/preview', methods=['POST'])
 @editor_required
-@imports_bp.arguments(CatalogImportPreviewSchema)
-@imports_bp.response(200, CatalogImportPreviewResultSchema)
-@imports_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
-@imports_bp.alt_response(404, schema=ErrorSchema, description="Session expired")
-def catalog_preview(data):
-    """Preview the import: the dishes, the labels detected and the duplicates."""
-    user, restaurant = get_user_and_restaurant()
-    if not restaurant:
-        return jsonify({'error': 'Aucun restaurant configuré'}), 400
+@imports_bp.arguments(MenuImportInputSchema)
+@imports_bp.response(200, MenuImportPreviewSchema)
+def preview_menu_import(body, org: str, site: str, import_id: str):
+    """The menus a mapping of the columns would give, each day that has a menu flagged."""
+    restaurant = member_site(org, site)
+    menus = _menus_from(_session(restaurant, MENUS, import_id), restaurant, body)
+    taken = {
+        menu.date for menu in Menu.query.filter(
+            Menu.restaurant_id == restaurant.id,
+            Menu.date.in_([menu['date'] for menu in menus]),
+        )
+    }
+    for menu in menus:
+        menu['has_duplicate'] = menu['date'] in taken
+    duplicates = sum(1 for menu in menus if menu['has_duplicate'])
+    return {
+        'menus': menus,
+        'total_count': len(menus),
+        'duplicates_count': duplicates,
+        'new_count': len(menus) - duplicates,
+    }
 
-    session = ImportSession.get_valid(data['file_id'], user.id)
-    if not session:
-        return jsonify({'error': 'Session expirée ou fichier non trouvé. Veuillez re-uploader le fichier.'}), 404
 
-    if data.get('category_map') is not None:
+@imports_bp.route('/menu-imports/<import_id>/confirm', methods=['POST'])
+@editor_required
+@imports_bp.arguments(MenuImportConfirmSchema)
+@imports_bp.response(200, MenuImportResultSchema)
+def confirm_menu_import(body, org: str, site: str, import_id: str):
+    """Write the menus, as drafts unless `auto_publish`, and close the import.
+
+    A day that has a menu is skipped, replaced or merged, as `duplicate_action` says.
+    """
+    restaurant = member_site(org, site)
+    session = _session(restaurant, MENUS, import_id)
+    imported = replaced = skipped = 0
+    for menu_data in _menus_from(session, restaurant, body):
+        menu = Menu.query.filter_by(restaurant_id=restaurant.id, date=menu_data['date']).first()
+        if menu is not None and body['duplicate_action'] == 'skip':
+            skipped += 1
+            continue
+        if menu is None:
+            menu = Menu(restaurant_id=restaurant.id, date=menu_data['date'], status='draft')
+            db.session.add(menu)
+            db.session.flush()
+            imported += 1
+        else:
+            if body['duplicate_action'] == 'replace':
+                MenuItem.query.filter_by(menu_id=menu.id).delete()
+            replaced += 1
+
+        for idx, item_data in enumerate(menu_data['items']):
+            dish = get_or_create_dish(restaurant.id, {
+                'name': item_data['name'],
+                'category_id': item_data['category_id'],
+                'tag_ids': item_data['tags'],
+                'certification_ids': item_data['certifications'],
+            })
+            if dish:
+                db.session.add(MenuItem(
+                    menu_id=menu.id,
+                    category_id=item_data['category_id'],
+                    dish_id=dish.id,
+                    order=item_data.get('order', idx),
+                ))
+        if body['auto_publish']:
+            mark_published(menu)
+
+    AuditLog.log(
+        action='csv_import',
+        user_id=session.user_id,
+        restaurant_id=restaurant.id,
+        details={
+            'filename': session.filename,
+            'imported_count': imported,
+            'replaced_count': replaced,
+            'skipped_count': skipped,
+            'auto_publish': body['auto_publish'],
+        },
+        ip_address=get_client_ip(),
+    )
+    db.session.delete(session)
+    db.session.commit()
+    return {'imported_count': imported, 'replaced_count': replaced, 'skipped_count': skipped}
+
+
+@imports_bp.route('/dish-imports', methods=['POST'])
+@editor_required
+@imports_bp.arguments(FileUploadSchema, location='files')
+@imports_bp.response(201, DishImportSchema)
+def create_dish_import(files, org: str, site: str):
+    """Send a CSV or Excel file of dishes, or a catalog exported from Mariam.
+
+    The answer suggests the column of the dish name; for an export, it lists
+    the file's categories and those the site already has. The import stays open
+    thirty minutes.
+    """
+    restaurant = member_site(org, site)
+    session, columns, rows, delimiter = _open_import(restaurant, DISHES, files['file'])
+    is_export = catalog_csv.is_export_file(columns)
+    return {
+        **_import_file(session, columns, rows, delimiter),
+        'suggested_name_column': suggest_name_column(columns),
+        'is_catalog_export': is_export,
+        'category_paths': catalog_csv.distinct_paths(catalog_csv.parse(rows)) if is_export else [],
+        'known_categories': catalog_csv.leaf_ids_by_path(restaurant.id) if is_export else {},
+    }
+
+
+def _dishes_from(session: ImportSession, restaurant: Restaurant, body: dict, create: bool):
+    if body['category_map'] is not None:
         try:
-            dishes = build_export_dishes(session, restaurant.id, data['category_map'], create=False)
+            return build_export_dishes(session, restaurant.id, body['category_map'], create)
         except CategoryMappingError as error:
-            return jsonify({'error': str(error)}), 400
+            db.session.rollback()
+            raise Problem(422, 'category_invalid', str(error)) from None
+    if not body['name_column'] or not body['category_id']:
+        raise Problem(
+            422, 'import_invalid', 'Indiquez la colonne du nom et la catégorie des plats.'
+        )
+    category = MenuCategory.query.filter_by(
+        id=body['category_id'], restaurant_id=restaurant.id
+    ).first()
+    if category is None or not category.is_leaf:
+        raise Problem(
+            422, 'category_invalid', 'Catégorie inconnue, ou qui porte des sous-catégories.'
+        )
+    dishes = build_catalog_dishes(
+        session, body['name_column'], body['tag_columns'], body['auto_detect_tags'],
+        existing_dish_norms(restaurant.id, category.id),
+    )
+    for dish in dishes:
+        dish['category_id'] = category.id
+    return dishes
+
+
+@imports_bp.route('/dish-imports/<import_id>/preview', methods=['POST'])
+@editor_required
+@imports_bp.arguments(DishImportInputSchema)
+@imports_bp.response(200, DishImportPreviewSchema)
+def preview_dish_import(body, org: str, site: str, import_id: str):
+    """The dishes the file would add, the labels found and the duplicates."""
+    restaurant = member_site(org, site)
+    dishes = _dishes_from(_session(restaurant, DISHES, import_id), restaurant, body, create=False)
+    to_create = []
+    if body['category_map'] is not None:
         known = catalog_csv.leaf_ids_by_path(restaurant.id)
         to_create = [
-            path for path, target in data['category_map'].items()
+            path for path, target in body['category_map'].items()
             if target == 'create' and path not in known
         ]
-    else:
-        if not data.get('name_column') or not data.get('category_id'):
-            return jsonify({'error': 'Colonne du nom et catégorie requises'}), 400
-        existing = existing_dish_norms(restaurant.id, data['category_id'])
-        dishes = build_catalog_dishes(
-            session, data['name_column'], data['tag_columns'],
-            data['auto_detect_tags'], existing,
-        )
-        to_create = []
-    new_count = sum(1 for d in dishes if not d['is_duplicate'])
-
-    return jsonify({
+    new_count = sum(1 for dish in dishes if not dish['is_duplicate'])
+    return {
         'dishes': dishes,
         'total': len(dishes),
         'new_count': new_count,
         'duplicate_count': len(dishes) - new_count,
         'categories_to_create': to_create,
-    }), 200
+    }
 
 
-@imports_bp.route('/catalog/confirm', methods=['POST'])
+@imports_bp.route('/dish-imports/<import_id>/confirm', methods=['POST'])
 @editor_required
-@imports_bp.arguments(CatalogImportConfirmSchema)
-@imports_bp.response(200, CatalogImportResultSchema)
-@imports_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
-@imports_bp.alt_response(404, schema=ErrorSchema, description="Session expired")
-def catalog_confirm(data):
-    """Create the dishes in the catalog, skipping the duplicates."""
-    user, restaurant = get_user_and_restaurant()
-    if not restaurant:
-        return jsonify({'error': 'Aucun restaurant configuré'}), 400
-
-    session = ImportSession.get_valid(data['file_id'], user.id)
-    if not session:
-        return jsonify({'error': 'Session expirée ou fichier non trouvé. Veuillez re-uploader le fichier.'}), 404
-
-    if data.get('category_map') is not None:
-        try:
-            dishes = build_export_dishes(session, restaurant.id, data['category_map'], create=True)
-        except CategoryMappingError as error:
-            db.session.rollback()
-            return jsonify({'error': str(error)}), 409
-        category_id = None
-    else:
-        if not data.get('name_column') or not data.get('category_id'):
-            return jsonify({'error': 'Colonne du nom et catégorie requises'}), 400
-        category = MenuCategory.query.filter_by(
-            id=data['category_id'], restaurant_id=restaurant.id
-        ).first()
-        if not category:
-            return jsonify({'error': 'Catégorie introuvable'}), 400
-        category_id = category.id
-        existing = existing_dish_norms(restaurant.id, category.id)
-        dishes = build_catalog_dishes(
-            session, data['name_column'], data['tag_columns'],
-            data['auto_detect_tags'], existing,
-        )
-        for dish in dishes:
-            dish['category_id'] = category.id
-
+@imports_bp.arguments(DishImportInputSchema)
+@imports_bp.response(200, DishImportResultSchema)
+def confirm_dish_import(body, org: str, site: str, import_id: str):
+    """Add the dishes to the catalog, skipping the duplicates, and close the import."""
+    restaurant = member_site(org, site)
+    session = _session(restaurant, DISHES, import_id)
+    dishes = _dishes_from(session, restaurant, body, create=True)
     created = 0
-    for d in dishes:
-        if d['is_duplicate'] or not d.get('category_id'):
+    for dish in dishes:
+        if dish['is_duplicate'] or not dish.get('category_id'):
             continue
         get_or_create_dish(restaurant.id, {
-            'name': d['name'],
-            'category_id': d['category_id'],
-            'tag_ids': d['tags'],
-            'certification_ids': d['certifications'],
+            'name': dish['name'],
+            'category_id': dish['category_id'],
+            'tag_ids': dish['tags'],
+            'certification_ids': dish['certifications'],
         })
         created += 1
     skipped = len(dishes) - created
 
     AuditLog.log(
         action='catalog_import',
-        user_id=user.id,
+        user_id=session.user_id,
+        restaurant_id=restaurant.id,
         details={
             'filename': session.filename,
-            'category_id': category_id,
+            'category_id': body['category_id'],
             'created_count': created,
             'skipped_count': skipped,
         },
         ip_address=get_client_ip(),
     )
-    db.session.commit()
-
     db.session.delete(session)
     db.session.commit()
-
-    return jsonify({'created_count': created, 'skipped_count': skipped}), 200
+    return {'created_count': created, 'skipped_count': skipped}

@@ -129,14 +129,5 @@ class CategorySubstitution(db.Model):
         db.Index('ix_cat_sub_cat', 'category_id'),
     )
 
-    def to_dict(self) -> dict:
-        return {
-            'id': self.id,
-            'menu_id': self.menu_id,
-            'category_id': self.category_id,
-            'dish': self.dish.to_dict() if self.dish else None,
-            'order': self.order,
-        }
-
     def __repr__(self) -> str:
         return f'<CategorySubstitution menu={self.menu_id} cat={self.category_id} dish={self.dish_id}>'
