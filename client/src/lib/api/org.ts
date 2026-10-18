@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { CatalogPeriod } from './catalog';
+import type { CatalogPeriod } from './dishes';
 import type { MenuDayStatus } from './menus';
 
 export interface OrgSite {

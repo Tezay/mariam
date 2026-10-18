@@ -22,10 +22,10 @@ class Restaurant(db.Model):
     created_at = db.Column(db.DateTime, default=utc_now_naive)
 
     organization_id = db.Column(
-        db.Integer, db.ForeignKey('organizations.id'), nullable=True, index=True
+        db.Integer, db.ForeignKey('organizations.id'), nullable=False, index=True
     )
     # URL-safe slug, unique within an organization; carries the public path
-    slug = db.Column(db.String(63), nullable=True, index=True)
+    slug = db.Column(db.String(63), nullable=False, index=True)
 
     __table_args__ = (
         db.UniqueConstraint('organization_id', 'slug', name='uq_restaurant_org_slug'),

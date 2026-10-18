@@ -4,13 +4,14 @@
  * itself, debounced, after every change.
  */
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { catalogApi } from '@/lib/api/catalog';
+import { useSiteRef } from '@/contexts/SiteContext';
+import { dishesApi } from '@/lib/api/dishes';
 import { menusApi } from '@/lib/api/menus';
 import { restaurantApi } from '@/lib/api/restaurant';
 import type { Menu } from '@/lib/api/menus';
 import type { MenuCategory } from '@/lib/api/categories';
 import type { DietaryTag, CertificationItem } from '@/lib/api/taxonomy';
-import type { DishCatalogItem } from '@/lib/api/catalog';
+import type { Dish } from '@/lib/api/dishes';
 import { notify } from '@/lib/toast';
 import { useMenuEditor, type UseMenuEditorReturn } from '../useMenuEditor';
 import {
@@ -33,7 +34,6 @@ async function fetchTagConfig(): Promise<TagConfig> {
 
 export interface UseOnboardingStateOptions {
   date: string;
-  restaurantId: number | undefined;
   categories: MenuCategory[];
   onExit: (reason: 'done' | 'discarded' | 'blocked') => void;
 }
@@ -50,18 +50,18 @@ export interface UseOnboardingStateReturn {
   isFinalizing: boolean;
   pendingDish: PendingDish | null;
   /** The dish of the photo step or of the « added » screen. */
-  activeDish: DishCatalogItem | null;
+  activeDish: Dish | null;
   /** The current category's dishes, without duplicates or those already on the menu. */
-  availableDishes: DishCatalogItem[];
-  findInMenuByName(name: string): DishCatalogItem | null;
-  selectExistingDish(dish: DishCatalogItem): void;
+  availableDishes: Dish[];
+  findInMenuByName(name: string): Dish | null;
+  selectExistingDish(dish: Dish): void;
   startNewDish(name: string): void;
   togglePendingTag(tag: DietaryTag): void;
   togglePendingCert(cert: CertificationItem): void;
   confirmNewDishTags(): Promise<void>;
   uploadDishPhoto(file: File): Promise<void>;
   skipPhoto(): void;
-  openPhotoStep(dish: DishCatalogItem): void;
+  openPhotoStep(dish: Dish): void;
   addAnother(): void;
   finishCategory(): void;
   skipCategory(): void;
@@ -76,12 +76,12 @@ export interface UseOnboardingStateReturn {
 
 export function useOnboardingState({
   date,
-  restaurantId,
   categories,
   onExit,
 }: UseOnboardingStateOptions): UseOnboardingStateReturn {
+  const site = useSiteRef();
   const [initialMenu, setInitialMenu] = useState<Menu | null>(null);
-  const [catalog, setCatalog] = useState<DishCatalogItem[]>([]);
+  const [catalog, setCatalog] = useState<Dish[]>([]);
   const [tagConfig, setTagConfig] = useState<TagConfig>({ dietary_tags: [], certifications: [] });
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isResuming, setIsResuming] = useState(false);
@@ -91,8 +91,8 @@ export function useOnboardingState({
     (async () => {
       try {
         const [menu, dishes, config] = await Promise.all([
-          menusApi.getByDate(date, restaurantId).catch(() => null),
-          catalogApi.list({ sort: 'usage' }).catch(() => [] as DishCatalogItem[]),
+          menusApi.get(site, date).catch(() => null),
+          dishesApi.listAll(site, { sort: 'usage' }).catch(() => [] as Dish[]),
           fetchTagConfig().catch(() => ({ dietary_tags: [], certifications: [] })),
         ]);
         if (cancelled) return;
@@ -118,7 +118,7 @@ export function useOnboardingState({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- bootstrap unique au mount
   }, []);
 
-  const editor = useMenuEditor({ date, menu: initialMenu, restaurantId });
+  const editor = useMenuEditor({ date, menu: initialMenu });
 
   const groups = useMemo(() => buildCatGroups(categories), [categories]);
   const [step, setStep] = useState<OnboardingStep>({
@@ -127,7 +127,7 @@ export function useOnboardingState({
     sub: 'pick',
   });
   const [pendingDish, setPendingDish] = useState<PendingDish | null>(null);
-  const [activeDish, setActiveDish] = useState<DishCatalogItem | null>(null);
+  const [activeDish, setActiveDish] = useState<Dish | null>(null);
   const [isCreatingDish, setIsCreatingDish] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
 
@@ -173,18 +173,20 @@ export function useOnboardingState({
   }, [catalog, currentGroup, menuDishIds]);
 
   const findInMenuByName = useCallback(
-    (name: string): DishCatalogItem | null => {
+    (name: string): Dish | null => {
       const norm = name.trim().toLowerCase();
       for (const item of editor.items) {
-        if (item.dish?.name.trim().toLowerCase() === norm) return item.dish;
+        if (item.dish?.name.trim().toLowerCase() === norm) {
+          return catalog.find((dish) => dish.id === item.dish_id) ?? null;
+        }
       }
       return null;
     },
-    [editor.items]
+    [editor.items, catalog]
   );
 
   const selectExistingDish = useCallback(
-    (dish: DishCatalogItem) => {
+    (dish: Dish) => {
       if (step.kind !== 'category' || !currentGroup || menuDishIds.has(dish.id)) return;
       editor.addItem(currentGroup.catId, dish.id, dish);
       setActiveDish(dish);
@@ -231,7 +233,7 @@ export function useOnboardingState({
     if (step.kind !== 'category' || !pendingDish || !currentGroup || isCreatingDish) return;
     setIsCreatingDish(true);
     try {
-      const dish = await catalogApi.create({
+      const dish = await dishesApi.create(site, {
         name: pendingDish.name,
         category_id: currentGroup.catId,
         tag_ids: pendingDish.tags.map((t) => t.id),
@@ -247,18 +249,18 @@ export function useOnboardingState({
     } finally {
       setIsCreatingDish(false);
     }
-  }, [step, pendingDish, currentGroup, isCreatingDish, editor]);
+  }, [site, step, pendingDish, currentGroup, isCreatingDish, editor]);
 
   const uploadDishPhoto = useCallback(
     async (file: File) => {
       if (!activeDish) return;
-      const updated = await catalogApi.uploadImage(activeDish.id, file);
+      const updated = await dishesApi.uploadImage(site, activeDish.id, file);
       setActiveDish(updated);
       setCatalog((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
       const item = editor.items.find((it) => it.dish_id === updated.id);
       if (item?.id !== undefined) editor.updateItem(item.id, { dish: updated });
     },
-    [activeDish, editor]
+    [site, activeDish, editor]
   );
 
   const skipPhoto = useCallback(() => {
@@ -267,7 +269,7 @@ export function useOnboardingState({
   }, [step]);
 
   const openPhotoStep = useCallback(
-    (dish: DishCatalogItem) => {
+    (dish: Dish) => {
       if (step.kind !== 'category') return;
       setActiveDish(dish);
       setStep({ kind: 'category', groupIdx: step.groupIdx, sub: 'photo' });
@@ -383,10 +385,10 @@ export function useOnboardingState({
     }
   }, [isFinalizing, flushSave, onExit]);
 
-  const menuIdRef = useRef<number | undefined>(undefined);
+  const hasMenuRef = useRef(false);
   useEffect(() => {
-    menuIdRef.current = editor.menuId;
-  }, [editor.menuId]);
+    hasMenuRef.current = editor.menuStatus !== null;
+  }, [editor.menuStatus]);
 
   const discardAndExit = useCallback(async () => {
     if (isFinalizing) return;
@@ -394,7 +396,7 @@ export function useOnboardingState({
     try {
       // A save in flight would create the menu again after the DELETE.
       if (savePromiseRef.current) await savePromiseRef.current;
-      if (menuIdRef.current) await menusApi.delete(menuIdRef.current);
+      if (hasMenuRef.current) await menusApi.remove(site, date);
       onExit('discarded');
     } catch {
       notify.error('Impossible de supprimer le brouillon.');
@@ -402,7 +404,7 @@ export function useOnboardingState({
       return;
     }
     setIsFinalizing(false);
-  }, [isFinalizing, onExit]);
+  }, [site, date, isFinalizing, onExit]);
 
   const exitAfterCelebration = useCallback(() => onExit('done'), [onExit]);
 

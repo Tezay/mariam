@@ -157,14 +157,16 @@ def _ensure_demo_organization() -> Organization:
 
 
 def _ensure_demo_restaurant(organization: Organization, site: dict) -> Restaurant:
-    """One demo site, attached to the organization.
-
-    The public pages resolve their tenant from the Host, so a site without an
-    organization has no reachable menu page at all.
-    """
+    """One demo site of the organization; a site seeded earlier keeps its slug."""
     restaurant = Restaurant.query.filter_by(code=site['code']).first()
     if not restaurant:
-        restaurant = Restaurant(name=site['name'], code=site['code'], is_active=True)
+        restaurant = Restaurant(
+            name=site['name'],
+            code=site['code'],
+            slug=site['slug'],
+            organization_id=organization.id,
+            is_active=True,
+        )
         db.session.add(restaurant)
         click.echo(f'  Site created: {site["name"]}')
     else:

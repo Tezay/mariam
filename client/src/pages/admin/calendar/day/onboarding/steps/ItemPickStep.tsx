@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import Fuse from 'fuse.js';
 import { Search, ChevronRight, SkipForward, Plus } from 'lucide-react';
-import type { DishCatalogItem } from '@/lib/api/catalog';
+import type { Dish } from '@/lib/api/dishes';
 import { getCategoryColor } from '@/lib/category-colors';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -16,7 +16,7 @@ const DESKTOP_MEDIA_QUERY = '(min-width: 1024px)';
 interface ItemPickStepProps {
   state: UseOnboardingStateReturn;
   keyboardOpen: boolean;
-  onSelectWithFly: (dish: DishCatalogItem, sourceEl: HTMLElement | null) => void;
+  onSelectWithFly: (dish: Dish, sourceEl: HTMLElement | null) => void;
 }
 
 export function ItemPickStep({ state, keyboardOpen, onSelectWithFly }: ItemPickStepProps) {
@@ -83,7 +83,7 @@ export function ItemPickStep({ state, keyboardOpen, onSelectWithFly }: ItemPickS
     state.startNewDish(q);
   };
 
-  const handleSelect = (dish: DishCatalogItem, el: HTMLElement) => {
+  const handleSelect = (dish: Dish, el: HTMLElement) => {
     setQuery('');
     onSelectWithFly(dish, el);
   };

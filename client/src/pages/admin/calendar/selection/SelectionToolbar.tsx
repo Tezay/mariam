@@ -1,13 +1,12 @@
 import { X, Trash2, PackageX, Package, Copy } from 'lucide-react';
-import type { MenuItem } from '@/lib/api/menus';
+import type { EditorItem } from '@/pages/admin/calendar/day/useMenuEditor';
 import { Button } from '@/components/ui/button';
 import { MenuCopyPopover } from './MenuCopyPopover';
 import type { UseSelectionReturn } from './useSelection';
 
 interface SelectionToolbarProps {
   selection: UseSelectionReturn;
-  selectedItems: MenuItem[];
-  restaurantId: number | undefined;
+  selectedItems: EditorItem[];
   onMarkOos: () => void;
   onMarkInStock: () => void;
   onRemove: () => void;
@@ -17,7 +16,6 @@ interface SelectionToolbarProps {
 export function SelectionToolbar({
   selection,
   selectedItems,
-  restaurantId,
   onMarkOos,
   onMarkInStock,
   onRemove,
@@ -89,7 +87,6 @@ export function SelectionToolbar({
       <MenuCopyPopover
         direction="export"
         sourceItems={selectedItems}
-        restaurantId={restaurantId}
         onDone={onClearAndReload}
         align="end"
       >

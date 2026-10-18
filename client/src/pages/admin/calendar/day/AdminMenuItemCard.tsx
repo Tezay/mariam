@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { PackageX, Package, BookOpen, Trash2 } from 'lucide-react';
-import type { MenuItem } from '@/lib/api/menus';
+import type { EditorItem } from '@/pages/admin/calendar/day/useMenuEditor';
 import type { MenuCategory } from '@/lib/api/categories';
 import { getCategoryColor } from '@/lib/category-colors';
 import { cn } from '@/lib/utils';
@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/context-menu';
 
 interface AdminMenuItemCardProps {
-  item: MenuItem;
+  item: EditorItem;
   category: MenuCategory;
   editor: UseMenuEditorReturn;
   canEdit: boolean;

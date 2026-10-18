@@ -30,33 +30,6 @@ class Menu(db.Model):
     
     __table_args__ = (db.UniqueConstraint('restaurant_id', 'date', name='uq_menu_restaurant_date'),)
     
-    def to_dict(self, include_items=True, include_images=True):
-        data = {
-            'id': self.id,
-            'restaurant_id': self.restaurant_id,
-            'date': self.date.isoformat() if self.date else None,
-            'status': self.status,
-            'chef_note': self.chef_note,
-            'published_at': self.published_at.isoformat() if self.published_at else None,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
-        
-        if include_items:
-            data['items'] = [item.to_dict() for item in self.items.order_by(MenuItem.category_id, MenuItem.order)]
-            subs: dict[str, list] = {}
-            for s in self.substitutions:
-                key = str(s.category_id)
-                if key not in subs:
-                    subs[key] = []
-                subs[key].append({'dish': s.dish.to_dict() if s.dish else None, 'order': s.order})
-            data['substitutions'] = subs
-
-        if include_images:
-            data['images'] = [img.to_dict() for img in self.images.order_by(MenuImage.order)]
-
-        return data
-    
     def __repr__(self):
         return f'<Menu {self.date} - {self.status}>'
 
@@ -106,15 +79,6 @@ class MenuImage(db.Model):
     filename = db.Column(db.String(255), nullable=True)
     order = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=utc_now_naive)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'menu_id': self.menu_id,
-            'url': self.url,
-            'filename': self.filename,
-            'order': self.order,
-        }
 
     def __repr__(self):
         return f'<MenuImage {self.id} for Menu {self.menu_id}>'

@@ -1,8 +1,9 @@
 /** Three at most, as the server allows. Shared by the day view and the menu onboarding. */
 import { useState, useEffect } from 'react';
 import { X, Plus, Search } from 'lucide-react';
-import type { DishCatalogItem } from '@/lib/api/catalog';
-import { catalogApi } from '@/lib/api/catalog';
+import type { Dish } from '@/lib/api/dishes';
+import { useSiteRef } from '@/contexts/SiteContext';
+import { dishesApi } from '@/lib/api/dishes';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Command,
@@ -21,21 +22,22 @@ export function SubstituteCombobox({
 }: {
   categoryId: number;
   existingIds: number[];
-  onAdd: (dish: DishCatalogItem) => void;
+  onAdd: (dish: Dish) => void;
 }) {
+  const site = useSiteRef();
   const [open, setOpen] = useState(false);
-  const [dishes, setDishes] = useState<DishCatalogItem[]>([]);
+  const [dishes, setDishes] = useState<Dish[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!open || dishes.length > 0) return;
     setLoading(true);
-    catalogApi
-      .list({ sort: 'name' })
+    dishesApi
+      .listAll(site, { sort: 'name' })
       .then(setDishes)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [open, dishes.length]);
+  }, [site, open, dishes.length]);
 
   const available = dishes.filter(
     (d) => d.category_id === categoryId && !existingIds.includes(d.id)
@@ -103,7 +105,7 @@ export function SubstitutionsSection({
     );
   };
 
-  const handleAdd = (dish: DishCatalogItem) => {
+  const handleAdd = (dish: Dish) => {
     if (dishes.some((d) => d.id === dish.id)) return;
     editor.updateSubstitutions(categoryId, [...dishes, dish]);
   };

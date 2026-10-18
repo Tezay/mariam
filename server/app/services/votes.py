@@ -291,9 +291,7 @@ def validate_and_record_vote(restaurant, token: str | None, rating: int,
         raise VoteError(403, 'device_invalid', "Jeton d'appareil invalide.")
     if not RATING_MIN <= rating <= RATING_MAX:
         raise VoteError(422, 'rating_invalid', 'Note invalide.')
-    # Uniqueness is scoped to the organization, so a site outside one has no
-    # scope to be unique in and cannot take a vote at all.
-    if not restaurant.vote_enabled or restaurant.organization_id is None:
+    if not restaurant.vote_enabled:
         raise VoteError(409, 'voting_disabled', "Le vote n'est pas proposé sur ce site.")
 
     menu = published_menu_today(restaurant.id)

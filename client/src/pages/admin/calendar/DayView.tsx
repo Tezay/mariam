@@ -111,7 +111,6 @@ interface DayViewProps {
   selectedDate: string;
   data: CalendarData;
   canEdit: boolean;
-  restaurantId: number | undefined;
   serviceDays: number[];
   categories: MenuCategory[];
   onDateChange: (date: string) => void;
@@ -125,7 +124,6 @@ export function DayView({
   selectedDate,
   data,
   canEdit,
-  restaurantId,
   serviceDays,
   categories,
   onDateChange,
@@ -295,7 +293,6 @@ export function DayView({
           <AdminDayDisplay
             date={selectedDate}
             menu={dayData?.menu ?? null}
-            restaurantId={restaurantId}
             canEdit={canEdit}
             categories={categories}
             events={dayData?.events ?? []}

@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react';
 import { Check, BookOpen } from 'lucide-react';
+import { useSiteRef } from '@/contexts/SiteContext';
 import {
-  catalogImportApi,
-  type CatalogImportUploadResponse,
-  type CatalogImportPreviewResponse,
+  dishImportsApi,
+  type DishImport,
+  type DishImportInput,
+  type DishImportPreview,
 } from '@/lib/api/imports';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import { type MenuCategory } from '@/lib/api/categories';
@@ -52,9 +54,10 @@ export function CatalogueImportDialog({
   onClose,
   onImported,
 }: CatalogueImportDialogProps) {
+  const site = useSiteRef();
   const [step, setStep] = useState<Step>('upload');
-  const [uploadData, setUploadData] = useState<CatalogImportUploadResponse | null>(null);
-  const [previewData, setPreviewData] = useState<CatalogImportPreviewResponse | null>(null);
+  const [uploadData, setUploadData] = useState<DishImport | null>(null);
+  const [previewData, setPreviewData] = useState<DishImportPreview | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -104,7 +107,7 @@ export function CatalogueImportDialog({
     setIsLoading(true);
     setError(null);
     try {
-      const data = await catalogImportApi.upload(file);
+      const data = await dishImportsApi.create(site, file);
       setUploadData(data);
       setNameColumn(data.suggested_name_column ?? data.columns[0] ?? '');
       setCategoryMap(
@@ -123,11 +126,10 @@ export function CatalogueImportDialog({
     }
   };
 
-  const importParams = () =>
+  const importParams = (): DishImportInput =>
     isExport
-      ? { file_id: uploadData!.file_id, category_map: categoryMap }
+      ? { category_map: categoryMap }
       : {
-          file_id: uploadData!.file_id,
           name_column: nameColumn,
           tag_columns: [...tagColumns],
           category_id: categoryId as number,
@@ -139,7 +141,7 @@ export function CatalogueImportDialog({
     setIsLoading(true);
     setError(null);
     try {
-      const data = await catalogImportApi.preview(importParams());
+      const data = await dishImportsApi.preview(site, uploadData!.id, importParams());
       setPreviewData(data);
       setStep('preview');
     } catch {
@@ -154,7 +156,7 @@ export function CatalogueImportDialog({
     setIsLoading(true);
     setError(null);
     try {
-      const result = await catalogImportApi.confirm(importParams());
+      const result = await dishImportsApi.confirm(site, uploadData!.id, importParams());
       const { created_count, skipped_count } = result;
       notify.success(
         `${created_count} plat${created_count > 1 ? 's' : ''} importé${created_count > 1 ? 's' : ''}`,

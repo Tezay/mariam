@@ -26,6 +26,7 @@ import {
 import { useMenuEditor } from './useMenuEditor';
 import type { UseMenuEditorReturn } from './useMenuEditor';
 import { AdminCategorySection } from './AdminCategorySection';
+import { useSiteRef } from '@/contexts/SiteContext';
 import { ChefNotePopover } from './ChefNotePopover';
 import { consumeSwipeHint } from './swipeHint';
 import { DayImportCsv } from './DayImportCsv';
@@ -35,7 +36,6 @@ import { EventCard } from '../EventCard';
 interface AdminDayDisplayProps {
   date: string;
   menu: Menu | null;
-  restaurantId: number | undefined;
   canEdit: boolean;
   categories: MenuCategory[];
   events: Event[];
@@ -202,7 +202,6 @@ function MenuEditToolbar({
 export function AdminDayDisplay({
   date,
   menu,
-  restaurantId,
   canEdit,
   categories,
   events,
@@ -211,13 +210,14 @@ export function AdminDayDisplay({
   onDirtyChange,
   onStartOnboarding,
 }: AdminDayDisplayProps) {
+  const site = useSiteRef();
   const [mode, setMode] = useState<Mode>('view');
   const [isDeletingMenu, setIsDeletingMenu] = useState(false);
   const [deleteMenuConfirmOpen, setDeleteMenuConfirmOpen] = useState(false);
   const [dupeOpen, setDupeOpen] = useState(false);
   const [dupeAnchor, setDupeAnchor] = useState<{ x: number; y: number } | null>(null);
 
-  const editor = useMenuEditor({ date, menu, restaurantId });
+  const editor = useMenuEditor({ date, menu });
 
   useEffect(() => {
     onDirtyChange?.(editor.isDirty);
@@ -232,7 +232,7 @@ export function AdminDayDisplay({
     if (!menu) return;
     setIsDeletingMenu(true);
     try {
-      await menusApi.delete(menu.id);
+      await menusApi.remove(site, date);
       onReload();
     } catch {
       /* The menu stays where it was. */
@@ -260,7 +260,6 @@ export function AdminDayDisplay({
       <DayImportCsv
         open={mode === 'import-csv'}
         targetDate={date}
-        restaurantId={restaurantId}
         categories={categories}
         onClose={() => setMode('view')}
         onImported={() => {
@@ -274,7 +273,6 @@ export function AdminDayDisplay({
         onOpenChange={setDupeOpen}
         anchorPoint={dupeAnchor}
         sourceItems={editor.items}
-        restaurantId={restaurantId}
         onDone={() => {
           setDupeOpen(false);
           onReload();
@@ -329,7 +327,6 @@ export function AdminDayDisplay({
                 <MenuCopyPopover
                   direction="import"
                   targetDate={date}
-                  restaurantId={restaurantId}
                   onDone={() => onReload()}
                   align="start"
                 >

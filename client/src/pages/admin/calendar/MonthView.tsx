@@ -4,7 +4,7 @@ import { closuresApi } from '@/lib/api/closures';
 import type { Event } from '@/lib/api/events';
 import type { ExceptionalClosure } from '@/lib/api/closures';
 import type { MenuCategory } from '@/lib/api/categories';
-import type { MenuItem } from '@/lib/api/menus';
+import { editorItems, type EditorItem } from '@/pages/admin/calendar/day/useMenuEditor';
 import { addDays, parisToday } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
 import { getCategoryColor } from '@/lib/category-colors';
@@ -27,10 +27,10 @@ function getMondayOfWeekContaining(dateStr: string): string {
 }
 
 function groupItemsByCategory(
-  items: MenuItem[],
+  items: EditorItem[],
   categories: MenuCategory[]
-): Array<{ category: MenuCategory; items: MenuItem[] }> {
-  const map = new Map<number, { category: MenuCategory; items: MenuItem[] }>();
+): Array<{ category: MenuCategory; items: EditorItem[] }> {
+  const map = new Map<number, { category: MenuCategory; items: EditorItem[] }>();
   for (const cat of categories) {
     map.set(cat.id, { category: cat, items: [] });
   }
@@ -56,7 +56,7 @@ function getDragPreviewStyle(date: string, drag: DragMode | null): string {
   return '';
 }
 
-function CompactCategoryBox({ category, items }: { category: MenuCategory; items: MenuItem[] }) {
+function CompactCategoryBox({ category, items }: { category: MenuCategory; items: EditorItem[] }) {
   const color = getCategoryColor(category.color_key, category.order);
   return (
     <div
@@ -85,7 +85,6 @@ interface MonthViewProps {
   canEdit: boolean;
   serviceDays: number[];
   categories: MenuCategory[];
-  restaurantId?: number;
   onNavigate: (view: DesktopView | MobileView, date: string) => void;
   onReload: () => void;
   onEditEvent?: (event: Event) => void;
@@ -98,7 +97,6 @@ export function MonthView({
   canEdit,
   serviceDays,
   categories,
-  restaurantId,
   onNavigate,
   onReload,
   onEditEvent,
@@ -112,13 +110,13 @@ export function MonthView({
   const [closurePrefill, setClosurePrefill] = useState<{ start: string; end: string } | null>(null);
   const [pendingRange, setPendingRange] = useState<{ start: string; end: string } | null>(null);
 
-  const rangeItems = useMemo<MenuItem[]>(() => {
+  const rangeItems = useMemo<EditorItem[]>(() => {
     if (!pendingRange) return [];
-    const items: MenuItem[] = [];
+    const items: EditorItem[] = [];
     let c = pendingRange.start;
     while (c <= pendingRange.end) {
       const menu = data[c]?.menu;
-      if (menu?.items) items.push(...menu.items);
+      items.push(...editorItems(menu ?? null));
       c = addDays(c, 1);
     }
     return items;
@@ -248,7 +246,7 @@ export function MonthView({
             const menu = dayData?.menu ?? null;
             const groups =
               menu && categories.length > 0
-                ? groupItemsByCategory(menu.items ?? [], categories)
+                ? groupItemsByCategory(editorItems(menu), categories)
                 : [];
 
             const dragStyle = getDragPreviewStyle(date, drag);
@@ -387,7 +385,6 @@ export function MonthView({
           <MenuCopyPopover
             direction="export"
             sourceItems={rangeItems}
-            restaurantId={restaurantId}
             onDone={() => {
               setPendingRange(null);
               onReload();

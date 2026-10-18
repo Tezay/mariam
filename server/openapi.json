@@ -5,812 +5,6 @@
     }
   ],
   "paths": {
-    "/v1/menus/week": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WeekMenu"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "This week's menus.",
-        "description": "- Without authentication: published only, display format.\n- With editor authentication: all menus (drafts included), management format.\n\nQuery params: `restaurant_id` (int, optional), `week_offset` (int, default 0)",
-        "tags": [
-          "menus"
-        ],
-        "security": []
-      }
-    },
-    "/v1/menus": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MenuList"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "List menus of the current user's restaurant, with optional filters.",
-        "description": "Query params: `start_date`, `end_date`, `status`",
-        "tags": [
-          "menus"
-        ]
-      },
-      "post": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Menu updated (already existed)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Menu"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Menu"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MenuCreate"
-              }
-            }
-          }
-        },
-        "summary": "Create or update a menu for a given date.",
-        "description": "If a menu already exists for this date, items are diff-synced\n(stable IDs preserved, linked images kept).",
-        "tags": [
-          "menus"
-        ]
-      }
-    },
-    "/v1/menus/week/publish": {
-      "post": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WeekPublish"
-              }
-            }
-          }
-        },
-        "summary": "Publish all draft menus for the week.",
-        "description": "Optional JSON body: `{ \"week_offset\": 0 }`",
-        "tags": [
-          "menus"
-        ]
-      }
-    },
-    "/v1/menus/by-date/{date_str}": {
-      "get": {
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Menu"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Get a menu by date (YYYY-MM-DD format).",
-        "tags": [
-          "menus"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "date_str",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      ]
-    },
-    "/v1/menus/{menu_id}": {
-      "get": {
-        "responses": {
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Menu"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Get a menu by ID.",
-        "tags": [
-          "menus"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "menu_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ],
-      "put": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Menu"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MenuUpdate"
-              }
-            }
-          }
-        },
-        "summary": "Update an existing menu (items and/or chef note).",
-        "tags": [
-          "menus"
-        ]
-      },
-      "delete": {
-        "responses": {
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Delete a menu and all associated data (items, S3 images).",
-        "tags": [
-          "menus"
-        ]
-      }
-    },
-    "/v1/menus/{menu_id}/publish": {
-      "post": {
-        "responses": {
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Menu"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Publish a menu (draft \u2192 published).",
-        "tags": [
-          "menus"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "menu_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/menus/{menu_id}/unpublish": {
-      "post": {
-        "responses": {
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Menu"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Revert a published menu to draft.",
-        "tags": [
-          "menus"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "menu_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/menus/{menu_id}/items/{item_id}/stock": {
-      "patch": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MenuItemStock"
-              }
-            }
-          }
-        },
-        "summary": "Toggle out-of-stock status for a menu item (service mode).",
-        "description": "JSON body: `{ \"is_out_of_stock\": true }`",
-        "tags": [
-          "menus"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "menu_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        },
-        {
-          "in": "path",
-          "name": "item_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/menus/{menu_id}/images": {
-      "post": {
-        "responses": {
-          "503": {
-            "description": "Service Unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Menu"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Upload an image for a menu (max 6, 5 MB each).",
-        "description": "Accepts JPEG, PNG, WebP, HEIC formats (converted to JPEG).\nMultipart/form-data with `file` field.",
-        "tags": [
-          "menus"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "menu_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/menus/{menu_id}/images/{image_id}": {
-      "delete": {
-        "responses": {
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Delete a menu image from S3 and database.",
-        "tags": [
-          "menus"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "menu_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        },
-        {
-          "in": "path",
-          "name": "image_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/menus/{menu_id}/images/reorder": {
-      "put": {
-        "responses": {
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Menu"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Reorder menu images.",
-        "description": "JSON body: `{ \"image_ids\": [3, 1, 2] }`",
-        "tags": [
-          "menus"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "menu_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/menus/{menu_id}/chef-note": {
-      "put": {
-        "responses": {
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Menu"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Update the chef note for a menu (max 300 characters).",
-        "tags": [
-          "menus"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "menu_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/menus/{menu_id}/substitutions": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "The substitutes of every category of this menu.",
-        "description": "Response: { \"substitutions\": { \"<category_id>\": [{\"dish\": {...}, \"order\": 0}, ...] } }",
-        "tags": [
-          "menus"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "menu_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/menus/{menu_id}/substitutions/{category_id}": {
-      "put": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Replace the substitutes of one category in this menu.",
-        "description": "Body: { \"dish_ids\": [1, 2, 3] }, in order of priority, three at most.",
-        "tags": [
-          "menus"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "menu_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        },
-        {
-          "in": "path",
-          "name": "category_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/menus/jours-feries/{year}": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "French public holidays of a year.",
-        "description": "From https://calendrier.api.gouv.fr/jours-feries/metropole/<year>.json, cached\nfor 24 hours (services/holidays.py).\nResponse: [ { \"date\": \"2026-01-01\", \"description\": \"Jour de l'An\" }, ... ]",
-        "tags": [
-          "menus"
-        ],
-        "security": []
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "year",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/menus/vacances-scolaires/{year}": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "French school holidays of a year, for zone A, B or C.",
-        "description": "From data.education.gouv.fr, cached for 24 hours.\nResponse: { vacances: [{ start_date, end_date, description }] }",
-        "tags": [
-          "menus"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "year",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
     "/v1/settings/categories": {
       "get": {
         "responses": {
@@ -3523,202 +2717,6 @@
         }
       ]
     },
-    "/v1/catalog": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "The site's catalog of dishes.",
-        "description": "Query params:\ncategory_ids (csv): any of these categories\ntag_ids, certification_ids (csv): every one of these labels\nq (str): name search\nperiod (str): 'all' (default), '7d', '30d', '90d' or '12m'\nsort (str): 'usage' (default), 'name', 'recent' or 'score'\norder (str): 'desc' (default) or 'asc'",
-        "tags": [
-          "catalog"
-        ]
-      },
-      "post": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Add a dish to the catalog.",
-        "tags": [
-          "catalog"
-        ]
-      }
-    },
-    "/v1/catalog/{dish_id}": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "One dish of the catalog.",
-        "tags": [
-          "catalog"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "dish_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ],
-      "put": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Update a dish of the catalog.",
-        "tags": [
-          "catalog"
-        ]
-      },
-      "delete": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Delete a dish of the catalog.",
-        "description": "Refused while a menu uses it.",
-        "tags": [
-          "catalog"
-        ]
-      }
-    },
-    "/v1/catalog/stats": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "The statistics of several dishes in one request, to compare them.",
-        "tags": [
-          "catalog"
-        ]
-      }
-    },
-    "/v1/catalog/{dish_id}/stats": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "A dish's usage windows, weekly history and satisfaction.",
-        "tags": [
-          "catalog"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "dish_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/catalog/bulk/delete": {
-      "post": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Delete the given dishes, keeping those a menu has served.",
-        "tags": [
-          "catalog"
-        ]
-      }
-    },
-    "/v1/catalog/bulk/category": {
-      "post": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Move the given dishes to one leaf category.",
-        "tags": [
-          "catalog"
-        ]
-      }
-    },
-    "/v1/catalog/bulk/labels": {
-      "post": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Add or remove labels and certifications on the given dishes.",
-        "tags": [
-          "catalog"
-        ]
-      }
-    },
-    "/v1/catalog/export": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Export a selection of dishes, or the current filtered view, as CSV.",
-        "tags": [
-          "catalog"
-        ]
-      }
-    },
-    "/v1/catalog/{dish_id}/image": {
-      "post": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Upload or replace a dish's image (multipart/form-data, field `file`).",
-        "tags": [
-          "catalog"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "dish_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ],
-      "delete": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Delete a dish's image.",
-        "tags": [
-          "catalog"
-        ]
-      }
-    },
     "/v1/settings": {
       "get": {
         "responses": {
@@ -3902,6 +2900,94 @@
         ],
         "security": []
       }
+    },
+    "/v1/holidays/{year}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolidayList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The public holidays of metropolitan France, from calendrier.api.gouv.fr.",
+        "tags": [
+          "holidays"
+        ],
+        "security": []
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "year",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/v1/school-holidays/{year}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "zone",
+            "schema": {
+              "type": "string",
+              "default": "A",
+              "enum": [
+                "A",
+                "B",
+                "C"
+              ]
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchoolHolidayList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "A zone's school holidays over the school years that touch `year`,\nfrom data.education.gouv.fr.",
+        "tags": [
+          "holidays"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "year",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
     },
     "/v1/users/invite": {
       "post": {
@@ -4475,320 +3561,6 @@
         "description": "Requires the administrator to have MFA enabled.\n\nQuery params:\n- `page` \u2014 Page number (default 1)\n- `per_page` \u2014 Entries per page (default 50, max 100)\n- `action` \u2014 Filter by action type\n- `user_id` \u2014 Filter by user\n- `start_date` \u2014 Start date (ISO format)\n- `end_date` \u2014 End date (ISO format)",
         "tags": [
           "audit"
-        ]
-      }
-    },
-    "/v1/imports/menus/upload": {
-      "post": {
-        "responses": {
-          "500": {
-            "description": "Processing error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid or missing file",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ImportUpload"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Upload and parse a CSV or Excel file.",
-        "description": "Multipart/form-data request with `file` field.\nAccepted formats: `.csv`, `.xlsx`, `.xls`.\n\nReturns detected columns, a preview of the first 10 rows,\nan auto-suggested column mapping, and the detected date format.",
-        "tags": [
-          "imports"
-        ]
-      }
-    },
-    "/v1/imports/menus/preview": {
-      "post": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "404": {
-            "description": "Session expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid data",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ImportUpload"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ImportPreview"
-              }
-            }
-          }
-        },
-        "summary": "Generate an import preview based on the provided column mapping.",
-        "description": "Returns the menus that will be created, flagging duplicates\n(existing menus for the same dates).",
-        "tags": [
-          "imports"
-        ]
-      }
-    },
-    "/v1/imports/menus/confirm": {
-      "post": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "404": {
-            "description": "Session expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid data or missing restaurant",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ImportUpload"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ImportConfirm"
-              }
-            }
-          }
-        },
-        "summary": "Confirm and execute the menu import into the database.",
-        "description": "- `duplicate_action`: `skip` (default), `replace` or `merge`\n- `auto_publish`: immediately publish the imported menus",
-        "tags": [
-          "imports"
-        ]
-      }
-    },
-    "/v1/imports/catalog/upload": {
-      "post": {
-        "responses": {
-          "500": {
-            "description": "Processing error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid or missing file",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CatalogImportUpload"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Upload and parse a CSV or Excel file of dishes.",
-        "description": "Returns the columns, a preview of the first rows and the column likely to hold\nthe dish name.",
-        "tags": [
-          "imports"
-        ]
-      }
-    },
-    "/v1/imports/catalog/preview": {
-      "post": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "404": {
-            "description": "Session expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid data",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CatalogImportPreviewResult"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CatalogImportPreview"
-              }
-            }
-          }
-        },
-        "summary": "Preview the import: the dishes, the labels detected and the duplicates.",
-        "tags": [
-          "imports"
-        ]
-      }
-    },
-    "/v1/imports/catalog/confirm": {
-      "post": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "404": {
-            "description": "Session expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid data",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CatalogImportResult"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CatalogImportPreview"
-              }
-            }
-          }
-        },
-        "summary": "Create the dishes in the catalog, skipping the duplicates.",
-        "tags": [
-          "imports"
         ]
       }
     },
@@ -5633,81 +4405,17 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "An active site, with what a visitor needs to read its menus.",
+        "summary": "A site, with what a visitor needs to read its menus.",
+        "description": "Anyone reads an active site; its editors read it while it is closed too.",
         "tags": [
           "sites"
         ],
-        "security": []
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "org",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        {
-          "in": "path",
-          "name": "site",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      ]
-    },
-    "/v1/orgs/{org}/sites/{site}/menus": {
-      "get": {
-        "parameters": [
+        "security": [
+          {},
           {
-            "in": "query",
-            "name": "from",
-            "description": "First day; today by default",
-            "schema": {
-              "type": "string",
-              "format": "date"
-            },
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "to",
-            "description": "Last day, included; the window's end by default",
-            "schema": {
-              "type": "string",
-              "format": "date"
-            },
-            "required": false
+            "bearer": []
           }
-        ],
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicMenuList"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Published menus between two dates, both included.",
-        "description": "Only the dates of the site's `menu_window` are visible: a range reaching\npast it lists what falls inside.",
-        "tags": [
-          "sites"
-        ],
-        "security": []
+        ]
       },
       "parameters": [
         {
@@ -5726,59 +4434,6 @@
           "schema": {
             "type": "string",
             "minLength": 1
-          }
-        }
-      ]
-    },
-    "/v1/orgs/{org}/sites/{site}/menus/{date}": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicMenu"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "The published menu of one day, within the site's `menu_window`.",
-        "tags": [
-          "sites"
-        ],
-        "security": []
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "org",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        {
-          "in": "path",
-          "name": "site",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        {
-          "in": "path",
-          "name": "date",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "format": "date"
           }
         }
       ]
@@ -5900,6 +4555,668 @@
         }
       ]
     },
+    "/v1/orgs/{org}/sites/{site}/menus": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "description": "First day; today by default",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "description": "Last day, included; the window's end by default",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenuList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Menus between two dates, both included.",
+        "description": "Anyone reads the published menus of the site's `menu_window`, and a range\nreaching past it lists what falls inside. The site's editors read every\nmenu of the range, drafts included.",
+        "tags": [
+          "menus"
+        ],
+        "security": [
+          {},
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/menus/{date}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Menu"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The menu of one day: published and within the `menu_window`, or any for\nthe site's editors.",
+        "tags": [
+          "menus"
+        ],
+        "security": [
+          {},
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "date",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      ],
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "201": {
+            "description": "The day\u2019s first menu",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Menu"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "The menu replaced the day\u2019s previous one",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Menu"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MenuWrite"
+              }
+            }
+          }
+        },
+        "summary": "Create or replace the menu of a day.",
+        "description": "An item sent with its `id` keeps it; the items left out are removed. A menu\nwithout items goes back to draft.",
+        "tags": [
+          "menus"
+        ]
+      },
+      "patch": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Menu"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MenuPatch"
+              }
+            }
+          }
+        },
+        "summary": "Change the chef's note of a menu.",
+        "tags": [
+          "menus"
+        ]
+      },
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Delete a menu, with its items and images.",
+        "tags": [
+          "menus"
+        ]
+      }
+    },
+    "/v1/orgs/{org}/sites/{site}/menus/{date}/publish": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Menu"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Publish a menu; publishing it again records the new time.",
+        "tags": [
+          "menus"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "date",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/menus/{date}/unpublish": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Menu"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Take a published menu back to draft.",
+        "tags": [
+          "menus"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "date",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/menus/{date}/items/{item_id}": {
+      "patch": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicMenuItem"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MenuItemPatch"
+              }
+            }
+          }
+        },
+        "summary": "Mark an item out of stock during service, or back in.",
+        "tags": [
+          "menus"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "date",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        {
+          "in": "path",
+          "name": "item_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/menus/{date}/images": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenuImage"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/FileUpload"
+              }
+            }
+          }
+        },
+        "summary": "Add a photo to a menu: JPEG, PNG, WebP or HEIC, stored as JPEG.",
+        "tags": [
+          "menus"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "date",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/menus/{date}/images/{image_id}": {
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Remove a photo from a menu.",
+        "tags": [
+          "menus"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "date",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        {
+          "in": "path",
+          "name": "image_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/menus/{date}/images/order": {
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenuImageList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageOrder"
+              }
+            }
+          }
+        },
+        "summary": "Put a menu's photos in a new order.",
+        "tags": [
+          "menus"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "date",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/menus/{date}/substitutions/{category_id}": {
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubstituteList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubstitutesInput"
+              }
+            }
+          }
+        },
+        "summary": "Replace the dishes offered when a dish of this category runs out.",
+        "tags": [
+          "menus"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "date",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        {
+          "in": "path",
+          "name": "category_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
     "/v1/orgs/{org}/sites/{site}/menus/{date}/vote": {
       "get": {
         "parameters": [
@@ -5935,7 +5252,7 @@
         "summary": "What the caller's device may rate today, and its own vote if any.",
         "description": "Never anyone else's vote.",
         "tags": [
-          "sites"
+          "menus"
         ],
         "security": []
       },
@@ -6021,10 +5338,1135 @@
         },
         "summary": "Rate today's meal: one vote per device, organization and day.",
         "tags": [
-          "sites"
+          "menus"
         ],
         "security": []
       }
+    },
+    "/v1/orgs/{org}/sites/{site}/dishes": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 200
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "category_ids",
+            "description": "Comma-separated: any of these categories",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "tag_ids",
+            "description": "Comma-separated: every one of these tags",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "certification_ids",
+            "description": "Comma-separated: every one of these certifications",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "description": "Words of the name",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "enum": [
+                "all",
+                "7d",
+                "30d",
+                "90d",
+                "12m"
+              ]
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "new_only",
+            "description": "Only the dishes first served in the period",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string",
+              "default": "usage",
+              "enum": [
+                "usage",
+                "name",
+                "recent",
+                "score"
+              ]
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "order",
+            "description": "A to Z for a name, best first for a measure, by default",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DishList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The catalog, one page at a time; the `Link` header gives the others.",
+        "tags": [
+          "dishes"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ],
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dish"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DishInput"
+              }
+            }
+          }
+        },
+        "summary": "Add a dish to the catalog.",
+        "tags": [
+          "dishes"
+        ]
+      }
+    },
+    "/v1/orgs/{org}/sites/{site}/dishes/{dish_id}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dish"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "One dish, with its use and votes of all time.",
+        "tags": [
+          "dishes"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "dish_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ],
+      "patch": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dish"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DishPatch"
+              }
+            }
+          }
+        },
+        "summary": "Change a dish's name, category or labels.",
+        "tags": [
+          "dishes"
+        ]
+      },
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Delete a dish that no menu has served.",
+        "tags": [
+          "dishes"
+        ]
+      }
+    },
+    "/v1/orgs/{org}/sites/{site}/dishes/stats": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "period",
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "enum": [
+                "all",
+                "7d",
+                "30d",
+                "90d",
+                "12m"
+              ]
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "ids",
+            "description": "Comma-separated, 5 at most",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DishStatsList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The statistics of a few dishes in one request, to compare them.",
+        "tags": [
+          "dishes"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/dishes/{dish_id}/stats": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "period",
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "enum": [
+                "all",
+                "7d",
+                "30d",
+                "90d",
+                "12m"
+              ]
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DishStats"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "A dish's use by period, its weekly history and its votes.",
+        "tags": [
+          "dishes"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "dish_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/dishes/batch-delete": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DishBatchDeleteResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DishIds"
+              }
+            }
+          }
+        },
+        "summary": "Delete the given dishes, keeping those a menu has served.",
+        "tags": [
+          "dishes"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/dishes/batch-update": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DishBatchUpdateResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DishBatchUpdate"
+              }
+            }
+          }
+        },
+        "summary": "Move the given dishes to one category, add or remove labels on them.",
+        "description": "A dish whose name the target category already has is left as it was.",
+        "tags": [
+          "dishes"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/dishes/export": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "category_ids",
+            "description": "Comma-separated: any of these categories",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "tag_ids",
+            "description": "Comma-separated: every one of these tags",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "certification_ids",
+            "description": "Comma-separated: every one of these certifications",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "description": "Words of the name",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "enum": [
+                "all",
+                "7d",
+                "30d",
+                "90d",
+                "12m"
+              ]
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "new_only",
+            "description": "Only the dishes first served in the period",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "ids",
+            "description": "Comma-separated: these dishes, in place of the filters",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "Semicolon-separated, UTF-8",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The given dishes, or those the filters select, as a CSV file.",
+        "tags": [
+          "dishes"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/dishes/{dish_id}/image": {
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dish"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/FileUpload"
+              }
+            }
+          }
+        },
+        "summary": "Set or replace a dish's photo: JPEG, PNG, WebP or HEIC, stored as JPEG.",
+        "tags": [
+          "dishes"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "dish_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ],
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Remove a dish's photo.",
+        "tags": [
+          "dishes"
+        ]
+      }
+    },
+    "/v1/orgs/{org}/sites/{site}/menu-imports": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenuImport"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/FileUpload"
+              }
+            }
+          }
+        },
+        "summary": "Send a CSV or Excel file of menus: one row a day, one column a category.",
+        "description": "The answer suggests which column holds the date, and which category each\nother column fills. The import stays open thirty minutes.",
+        "tags": [
+          "imports"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/menu-imports/{import_id}/preview": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenuImportPreview"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MenuImportInput"
+              }
+            }
+          }
+        },
+        "summary": "The menus a mapping of the columns would give, each day that has a menu flagged.",
+        "tags": [
+          "imports"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "import_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/menu-imports/{import_id}/confirm": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenuImportResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MenuImportConfirm"
+              }
+            }
+          }
+        },
+        "summary": "Write the menus, as drafts unless `auto_publish`, and close the import.",
+        "description": "A day that has a menu is skipped, replaced or merged, as `duplicate_action` says.",
+        "tags": [
+          "imports"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "import_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/dish-imports": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DishImport"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/FileUpload"
+              }
+            }
+          }
+        },
+        "summary": "Send a CSV or Excel file of dishes, or a catalog exported from Mariam.",
+        "description": "The answer suggests the column of the dish name; for an export, it lists\nthe file's categories and those the site already has. The import stays open\nthirty minutes.",
+        "tags": [
+          "imports"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/dish-imports/{import_id}/preview": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DishImportPreview"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DishImportInput"
+              }
+            }
+          }
+        },
+        "summary": "The dishes the file would add, the labels found and the duplicates.",
+        "tags": [
+          "imports"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "import_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/dish-imports/{import_id}/confirm": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DishImportResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DishImportInput"
+              }
+            }
+          }
+        },
+        "summary": "Add the dishes to the catalog, skipping the duplicates, and close the import.",
+        "tags": [
+          "imports"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "import_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
     },
     "/v1/devices": {
       "post": {
@@ -6058,10 +6500,6 @@
   },
   "tags": [
     {
-      "name": "menus",
-      "description": "Menus \u2014 Public display and editor management"
-    },
-    {
       "name": "categories",
       "description": "Menu categories \u2014 CRUD and ordering"
     },
@@ -6074,10 +6512,6 @@
       "description": "Events \u2014 Public display and editor management"
     },
     {
-      "name": "catalog",
-      "description": "Dish catalog \u2014 CRUD per restaurant"
-    },
-    {
       "name": "restaurant",
       "description": "Restaurant \u2014 Public info, settings and management"
     },
@@ -6086,16 +6520,16 @@
       "description": "Taxonomy \u2014 Dietary tag and certification catalog"
     },
     {
+      "name": "holidays",
+      "description": "French public and school holidays"
+    },
+    {
       "name": "users",
       "description": "Users \u2014 Account and invitation management (admin)"
     },
     {
       "name": "audit",
       "description": "Audit log \u2014 Admin action history (MFA required)"
-    },
-    {
-      "name": "imports",
-      "description": "CSV/Excel import \u2014 Bulk menu loading from file"
     },
     {
       "name": "notifications",
@@ -6131,7 +6565,19 @@
     },
     {
       "name": "sites",
-      "description": "A site, its menus, events and closures"
+      "description": "A site, its events and closures"
+    },
+    {
+      "name": "menus",
+      "description": "A site's menus: the published ones for anyone, drafts too for its editors"
+    },
+    {
+      "name": "dishes",
+      "description": "A site's catalog of dishes"
+    },
+    {
+      "name": "imports",
+      "description": "Menus and dishes loaded from a CSV or Excel file: send it, preview, confirm"
     },
     {
       "name": "devices",
@@ -6221,263 +6667,6 @@
         },
         "additionalProperties": false
       },
-      "WeekMenu": {
-        "type": "object",
-        "properties": {
-          "week_start": {
-            "type": "string"
-          },
-          "week_end": {
-            "type": "string"
-          },
-          "restaurant": {
-            "type": "object",
-            "additionalProperties": {},
-            "nullable": true
-          },
-          "menus": {
-            "type": "object",
-            "description": "Map of date -> menu data",
-            "additionalProperties": {}
-          }
-        }
-      },
-      "DishCatalog": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "readOnly": true
-          },
-          "restaurant_id": {
-            "type": "integer",
-            "readOnly": true
-          },
-          "category_id": {
-            "type": "integer",
-            "nullable": true
-          },
-          "name": {
-            "type": "string"
-          },
-          "image_url": {
-            "type": "string",
-            "nullable": true
-          },
-          "usage_count": {
-            "type": "integer",
-            "readOnly": true
-          },
-          "tags": {
-            "type": "array",
-            "readOnly": true,
-            "items": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          },
-          "certifications": {
-            "type": "array",
-            "readOnly": true,
-            "items": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          },
-          "created_at": {
-            "type": "string",
-            "readOnly": true
-          }
-        }
-      },
-      "MenuItem": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "readOnly": true
-          },
-          "menu_id": {
-            "type": "integer",
-            "readOnly": true
-          },
-          "category_id": {
-            "type": "integer",
-            "description": "MenuCategory.id"
-          },
-          "dish_id": {
-            "type": "integer",
-            "description": "DishCatalog.id"
-          },
-          "dish": {
-            "readOnly": true,
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DishCatalog"
-              },
-              {
-                "type": "object",
-                "nullable": true
-              }
-            ]
-          },
-          "order": {
-            "type": "integer"
-          },
-          "is_out_of_stock": {
-            "type": "boolean"
-          }
-        }
-      },
-      "Menu": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "readOnly": true
-          },
-          "restaurant_id": {
-            "type": "integer"
-          },
-          "date": {
-            "type": "string",
-            "description": "Menu date (YYYY-MM-DD)"
-          },
-          "status": {
-            "type": "string",
-            "description": "'draft' or 'published'"
-          },
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/MenuItem"
-            }
-          },
-          "substitutions": {
-            "type": "object",
-            "readOnly": true,
-            "description": "Map of category_id -> [{dish, order}] substitution dishes",
-            "additionalProperties": {}
-          },
-          "images": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          },
-          "chef_note": {
-            "type": "string",
-            "nullable": true
-          },
-          "published_at": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
-      "MenuList": {
-        "type": "object",
-        "properties": {
-          "menus": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Menu"
-            }
-          }
-        }
-      },
-      "MenuCreate": {
-        "type": "object",
-        "properties": {
-          "date": {
-            "type": "string",
-            "description": "Menu date (YYYY-MM-DD)"
-          },
-          "restaurant_id": {
-            "type": "integer"
-          },
-          "items": {
-            "type": "array",
-            "description": "List of menu items",
-            "items": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          },
-          "chef_note": {
-            "type": "string",
-            "description": "Chef's note (max 300 chars)",
-            "nullable": true
-          }
-        },
-        "required": [
-          "date"
-        ]
-      },
-      "Error": {
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "string",
-            "description": "Error message"
-          },
-          "message": {
-            "type": "string",
-            "description": "Detailed error description"
-          }
-        }
-      },
-      "WeekPublish": {
-        "type": "object",
-        "properties": {
-          "week_offset": {
-            "type": "integer",
-            "default": 0,
-            "minimum": -52,
-            "maximum": 52,
-            "description": "Weeks from the current one: 1 publishes next week."
-          }
-        }
-      },
-      "Message": {
-        "type": "object",
-        "properties": {
-          "message": {
-            "type": "string",
-            "description": "Success message"
-          }
-        }
-      },
-      "MenuUpdate": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "description": "List of menu items",
-            "items": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          },
-          "chef_note": {
-            "type": "string",
-            "description": "Chef's note (max 300 chars)",
-            "nullable": true
-          }
-        }
-      },
-      "MenuItemStock": {
-        "type": "object",
-        "properties": {
-          "is_out_of_stock": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "is_out_of_stock"
-        ]
-      },
       "MenuCategory": {
         "type": "object",
         "properties": {
@@ -6543,6 +6732,19 @@
           "label"
         ]
       },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message"
+          },
+          "message": {
+            "type": "string",
+            "description": "Detailed error description"
+          }
+        }
+      },
       "MenuCategoryReorder": {
         "type": "object",
         "properties": {
@@ -6557,6 +6759,15 @@
         "required": [
           "items"
         ]
+      },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Success message"
+          }
+        }
       },
       "MenuCategoryUpdate": {
         "type": "object",
@@ -6701,8 +6912,17 @@
             "type": "string",
             "nullable": true
           },
+          "restaurant_slug": {
+            "type": "string",
+            "nullable": true
+          },
           "organization_name": {
             "type": "string",
+            "nullable": true
+          },
+          "organization_slug": {
+            "type": "string",
+            "description": "The site's, for a site's own team",
             "nullable": true
           },
           "passkeys_count": {
@@ -7974,6 +8194,75 @@
           }
         }
       },
+      "Holiday": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "description"
+        ],
+        "additionalProperties": false
+      },
+      "HolidayList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Holiday"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "SchoolHoliday": {
+        "type": "object",
+        "properties": {
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "description",
+          "end_date",
+          "start_date"
+        ],
+        "additionalProperties": false
+      },
+      "SchoolHolidayList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchoolHoliday"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
       "Invite": {
         "type": "object",
         "properties": {
@@ -8120,306 +8409,6 @@
           },
           "tour_stats_done": {
             "type": "boolean"
-          }
-        }
-      },
-      "ImportUpload": {
-        "type": "object",
-        "properties": {
-          "file_id": {
-            "type": "string",
-            "readOnly": true
-          },
-          "filename": {
-            "type": "string",
-            "readOnly": true
-          },
-          "columns": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "preview_rows": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          },
-          "row_count": {
-            "type": "integer"
-          },
-          "detected_delimiter": {
-            "type": "string",
-            "nullable": true
-          },
-          "auto_mapping": {
-            "type": "object",
-            "additionalProperties": {}
-          },
-          "detected_date_format": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
-      "ColumnMapping": {
-        "type": "object",
-        "properties": {
-          "csv_column": {
-            "type": "string"
-          },
-          "target_field": {
-            "type": "string",
-            "description": "'date', 'category', or 'ignore'"
-          },
-          "category_id": {
-            "type": "integer",
-            "description": "MenuCategory.id (integer)",
-            "nullable": true
-          }
-        },
-        "required": [
-          "csv_column",
-          "target_field"
-        ]
-      },
-      "DateConfig": {
-        "type": "object",
-        "properties": {
-          "mode": {
-            "type": "string",
-            "description": "'from_file', 'align_week', or 'start_date'"
-          },
-          "start_date": {
-            "type": "string",
-            "description": "Start date (YYYY-MM-DD)",
-            "nullable": true
-          },
-          "skip_weekends": {
-            "type": "boolean"
-          },
-          "date_format": {
-            "type": "string",
-            "nullable": true
-          },
-          "auto_detect_tags": {
-            "type": "boolean"
-          }
-        }
-      },
-      "ImportPreview": {
-        "type": "object",
-        "properties": {
-          "file_id": {
-            "type": "string"
-          },
-          "column_mapping": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ColumnMapping"
-            }
-          },
-          "date_config": {
-            "$ref": "#/components/schemas/DateConfig"
-          },
-          "restaurant_id": {
-            "type": "integer",
-            "nullable": true
-          }
-        },
-        "required": [
-          "file_id"
-        ]
-      },
-      "ImportConfirm": {
-        "type": "object",
-        "properties": {
-          "file_id": {
-            "type": "string"
-          },
-          "column_mapping": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ColumnMapping"
-            }
-          },
-          "date_config": {
-            "$ref": "#/components/schemas/DateConfig"
-          },
-          "duplicate_action": {
-            "type": "string",
-            "description": "'skip', 'replace', or 'merge'"
-          },
-          "auto_publish": {
-            "type": "boolean"
-          },
-          "restaurant_id": {
-            "type": "integer",
-            "nullable": true
-          }
-        },
-        "required": [
-          "file_id"
-        ]
-      },
-      "CatalogImportUpload": {
-        "type": "object",
-        "properties": {
-          "file_id": {
-            "type": "string",
-            "readOnly": true
-          },
-          "filename": {
-            "type": "string",
-            "readOnly": true
-          },
-          "columns": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "preview_rows": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          },
-          "row_count": {
-            "type": "integer"
-          },
-          "delimiter": {
-            "type": "string",
-            "nullable": true
-          },
-          "suggested_name_column": {
-            "type": "string",
-            "nullable": true
-          },
-          "is_catalog_export": {
-            "type": "boolean"
-          },
-          "category_paths": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "known_categories": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "integer"
-            }
-          }
-        }
-      },
-      "CatalogImportPreview": {
-        "type": "object",
-        "properties": {
-          "file_id": {
-            "type": "string"
-          },
-          "name_column": {
-            "type": "string",
-            "default": null,
-            "description": "Column holding the dish name",
-            "nullable": true
-          },
-          "tag_columns": {
-            "type": "array",
-            "default": [],
-            "description": "Columns searched for labels",
-            "items": {
-              "type": "string"
-            }
-          },
-          "category_id": {
-            "type": "integer",
-            "default": null,
-            "minimum": 1,
-            "nullable": true
-          },
-          "auto_detect_tags": {
-            "type": "boolean",
-            "default": true
-          },
-          "category_map": {
-            "type": "object",
-            "default": null,
-            "description": "File path to a category id, or 'create'",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "nullable": true
-          }
-        },
-        "required": [
-          "file_id"
-        ]
-      },
-      "CatalogImportPreviewDish": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "tags": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "certifications": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "is_duplicate": {
-            "type": "boolean"
-          },
-          "category_path": {
-            "type": "string"
-          }
-        }
-      },
-      "CatalogImportPreviewResult": {
-        "type": "object",
-        "properties": {
-          "dishes": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CatalogImportPreviewDish"
-            }
-          },
-          "total": {
-            "type": "integer"
-          },
-          "new_count": {
-            "type": "integer"
-          },
-          "duplicate_count": {
-            "type": "integer"
-          },
-          "categories_to_create": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      },
-      "CatalogImportResult": {
-        "type": "object",
-        "properties": {
-          "created_count": {
-            "type": "integer"
-          },
-          "skipped_count": {
-            "type": "integer"
           }
         }
       },
@@ -8946,6 +8935,122 @@
         ],
         "additionalProperties": false
       },
+      "PublicImage": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "order": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "order",
+          "url"
+        ],
+        "additionalProperties": false
+      },
+      "PublicEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicImage"
+            }
+          }
+        },
+        "required": [
+          "date",
+          "id",
+          "images",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "PublicEventList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicEvent"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "PublicClosure": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "end_date",
+          "id",
+          "start_date"
+        ],
+        "additionalProperties": false
+      },
+      "PublicClosureList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicClosure"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
       "PublicDish": {
         "type": "object",
         "properties": {
@@ -9048,7 +9153,7 @@
         ],
         "additionalProperties": false
       },
-      "PublicImage": {
+      "MenuImage": {
         "type": "object",
         "properties": {
           "url": {
@@ -9056,6 +9161,10 @@
           },
           "order": {
             "type": "integer"
+          },
+          "id": {
+            "type": "integer",
+            "description": "For the site's editors"
           }
         },
         "required": [
@@ -9080,7 +9189,7 @@
         ],
         "additionalProperties": false
       },
-      "PublicMenu": {
+      "Menu": {
         "type": "object",
         "properties": {
           "date": {
@@ -9100,7 +9209,7 @@
           "images": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PublicImage"
+              "$ref": "#/components/schemas/MenuImage"
             }
           },
           "substitutions": {
@@ -9112,6 +9221,26 @@
                 "$ref": "#/components/schemas/PublicSubstitution"
               }
             }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published"
+            ],
+            "description": "For the site's editors"
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "For the site's editors",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "For the site's editors",
+            "nullable": true
           }
         },
         "required": [
@@ -9122,13 +9251,13 @@
         ],
         "additionalProperties": false
       },
-      "PublicMenuList": {
+      "MenuList": {
         "type": "object",
         "properties": {
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PublicMenu"
+              "$ref": "#/components/schemas/Menu"
             }
           }
         },
@@ -9137,53 +9266,124 @@
         ],
         "additionalProperties": false
       },
-      "PublicEvent": {
+      "MenuItemInput": {
         "type": "object",
         "properties": {
           "id": {
             "type": "integer"
           },
-          "title": {
-            "type": "string"
+          "category_id": {
+            "type": "integer"
           },
-          "subtitle": {
+          "dish_id": {
+            "type": "integer"
+          },
+          "name": {
             "type": "string",
-            "nullable": true
+            "maxLength": 200
           },
-          "description": {
-            "type": "string",
-            "nullable": true
-          },
-          "color": {
-            "type": "string",
-            "nullable": true
-          },
-          "date": {
-            "type": "string",
-            "format": "date"
-          },
-          "images": {
+          "tag_ids": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PublicImage"
+              "type": "string"
             }
+          },
+          "certification_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "order": {
+            "type": "integer"
+          },
+          "is_out_of_stock": {
+            "type": "boolean"
           }
         },
         "required": [
-          "date",
-          "id",
-          "images",
-          "title"
-        ],
-        "additionalProperties": false
+          "category_id"
+        ]
       },
-      "PublicEventList": {
+      "MenuWrite": {
         "type": "object",
         "properties": {
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PublicEvent"
+              "$ref": "#/components/schemas/MenuItemInput"
+            }
+          },
+          "chef_note": {
+            "type": "string",
+            "maxLength": 300,
+            "nullable": true
+          }
+        },
+        "required": [
+          "chef_note",
+          "items"
+        ]
+      },
+      "MenuPatch": {
+        "type": "object",
+        "properties": {
+          "chef_note": {
+            "type": "string",
+            "maxLength": 300,
+            "nullable": true
+          }
+        },
+        "required": [
+          "chef_note"
+        ]
+      },
+      "MenuItemPatch": {
+        "type": "object",
+        "properties": {
+          "is_out_of_stock": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "is_out_of_stock"
+        ]
+      },
+      "FileUpload": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "additionalProperties": false
+      },
+      "ImageOrder": {
+        "type": "object",
+        "properties": {
+          "image_ids": {
+            "type": "array",
+            "description": "Every image of the menu, in their new order",
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "required": [
+          "image_ids"
+        ]
+      },
+      "MenuImageList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MenuImage"
             }
           }
         },
@@ -9192,43 +9392,29 @@
         ],
         "additionalProperties": false
       },
-      "PublicClosure": {
+      "SubstitutesInput": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "integer"
-          },
-          "start_date": {
-            "type": "string",
-            "format": "date"
-          },
-          "end_date": {
-            "type": "string",
-            "format": "date"
-          },
-          "reason": {
-            "type": "string",
-            "nullable": true
-          },
-          "description": {
-            "type": "string",
-            "nullable": true
+          "dish_ids": {
+            "type": "array",
+            "maxItems": 3,
+            "description": "In order of preference",
+            "items": {
+              "type": "integer"
+            }
           }
         },
         "required": [
-          "end_date",
-          "id",
-          "start_date"
-        ],
-        "additionalProperties": false
+          "dish_ids"
+        ]
       },
-      "PublicClosureList": {
+      "SubstituteList": {
         "type": "object",
         "properties": {
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PublicClosure"
+              "$ref": "#/components/schemas/PublicSubstitution"
             }
           }
         },
@@ -9364,6 +9550,923 @@
         "required": [
           "rating"
         ]
+      },
+      "Dish": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "category_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "name": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "usage_count": {
+            "type": "integer",
+            "description": "Menus that served it, over the list's period"
+          },
+          "votes": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "number",
+            "description": "None below the votes needed",
+            "nullable": true
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DietaryTag"
+            }
+          },
+          "certifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Certification"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "category_id",
+          "certifications",
+          "created_at",
+          "id",
+          "image_url",
+          "name",
+          "score",
+          "tags",
+          "usage_count",
+          "votes"
+        ],
+        "additionalProperties": false
+      },
+      "DishList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Dish"
+            }
+          },
+          "total_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total_count"
+        ],
+        "additionalProperties": false
+      },
+      "DishInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "category_id": {
+            "type": "integer"
+          },
+          "tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "certification_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "category_id",
+          "name"
+        ]
+      },
+      "DishPatch": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "category_id": {
+            "type": "integer"
+          },
+          "tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "certification_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "WeekCount": {
+        "type": "object",
+        "properties": {
+          "week": {
+            "type": "string",
+            "format": "date",
+            "description": "Its Monday"
+          },
+          "count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count",
+          "week"
+        ],
+        "additionalProperties": false
+      },
+      "Distribution": {
+        "type": "object",
+        "properties": {
+          "1": {
+            "type": "integer"
+          },
+          "2": {
+            "type": "integer"
+          },
+          "3": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "1",
+          "2",
+          "3"
+        ],
+        "additionalProperties": false
+      },
+      "RatingDay": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "votes": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "date",
+          "score",
+          "votes"
+        ],
+        "additionalProperties": false
+      },
+      "Standing": {
+        "type": "object",
+        "properties": {
+          "rank": {
+            "type": "integer"
+          },
+          "rated_in_category": {
+            "type": "integer"
+          },
+          "gap_to_average": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "gap_to_average",
+          "rank",
+          "rated_in_category"
+        ],
+        "additionalProperties": false
+      },
+      "Satisfaction": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "The site collects votes"
+          },
+          "votable": {
+            "type": "boolean",
+            "description": "A vote may name this dish"
+          },
+          "icon_preset": {
+            "type": "string"
+          },
+          "votes": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "number",
+            "nullable": true
+          },
+          "distribution": {
+            "description": "Votes by rating",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Distribution"
+              }
+            ]
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RatingDay"
+            }
+          },
+          "standing": {
+            "description": "None while too few votes rank it in its category",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Standing"
+              },
+              {
+                "type": "object",
+                "nullable": true
+              }
+            ]
+          }
+        },
+        "required": [
+          "distribution",
+          "enabled",
+          "icon_preset",
+          "score",
+          "series",
+          "standing",
+          "votable",
+          "votes"
+        ],
+        "additionalProperties": false
+      },
+      "DishStats": {
+        "type": "object",
+        "properties": {
+          "dish_id": {
+            "type": "integer"
+          },
+          "week": {
+            "type": "integer"
+          },
+          "month": {
+            "type": "integer"
+          },
+          "semester": {
+            "type": "integer"
+          },
+          "year": {
+            "type": "integer"
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WeekCount"
+            }
+          },
+          "satisfaction": {
+            "$ref": "#/components/schemas/Satisfaction"
+          }
+        },
+        "required": [
+          "dish_id",
+          "history",
+          "month",
+          "satisfaction",
+          "semester",
+          "week",
+          "year"
+        ],
+        "additionalProperties": false
+      },
+      "DishStatsList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DishStats"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "DishIds": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 500,
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "KeptDish": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "usage_count": {
+            "type": "integer",
+            "description": "Menus that served it, when that kept it"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "DishBatchDeleteResult": {
+        "type": "object",
+        "properties": {
+          "deleted": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "kept": {
+            "type": "array",
+            "description": "Served by a menu",
+            "items": {
+              "$ref": "#/components/schemas/KeptDish"
+            }
+          }
+        },
+        "required": [
+          "deleted",
+          "kept"
+        ],
+        "additionalProperties": false
+      },
+      "DishBatchUpdate": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 500,
+            "items": {
+              "type": "integer"
+            }
+          },
+          "category_id": {
+            "type": "integer",
+            "description": "A category without subcategories"
+          },
+          "add_tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "remove_tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "add_certification_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "remove_certification_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "DishBatchUpdateResult": {
+        "type": "object",
+        "properties": {
+          "updated": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "kept": {
+            "type": "array",
+            "description": "Unchanged: the category already has a dish of that name",
+            "items": {
+              "$ref": "#/components/schemas/KeptDish"
+            }
+          }
+        },
+        "required": [
+          "kept",
+          "updated"
+        ],
+        "additionalProperties": false
+      },
+      "AutoMapping": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "The column that looks like a date"
+          },
+          "categories": {
+            "type": "object",
+            "description": "Column to category id",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "MenuImport": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "preview_rows": {
+            "type": "array",
+            "description": "The first ten rows",
+            "items": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "row_count": {
+            "type": "integer"
+          },
+          "delimiter": {
+            "type": "string",
+            "nullable": true
+          },
+          "auto_mapping": {
+            "$ref": "#/components/schemas/AutoMapping"
+          },
+          "detected_date_format": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "auto_mapping",
+          "columns",
+          "delimiter",
+          "detected_date_format",
+          "filename",
+          "id",
+          "preview_rows",
+          "row_count"
+        ],
+        "additionalProperties": false
+      },
+      "ColumnMapping": {
+        "type": "object",
+        "properties": {
+          "csv_column": {
+            "type": "string"
+          },
+          "target_field": {
+            "type": "string",
+            "enum": [
+              "date",
+              "category",
+              "ignore"
+            ]
+          },
+          "category_id": {
+            "type": "integer",
+            "nullable": true
+          }
+        },
+        "required": [
+          "csv_column",
+          "target_field"
+        ]
+      },
+      "DateConfig": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "default": "from_file",
+            "enum": [
+              "from_file",
+              "align_week",
+              "start_date"
+            ]
+          },
+          "start_date": {
+            "type": "string",
+            "description": "YYYY-MM-DD",
+            "nullable": true
+          },
+          "skip_weekends": {
+            "type": "boolean",
+            "default": true
+          },
+          "date_format": {
+            "type": "string",
+            "description": "A strptime format",
+            "nullable": true
+          },
+          "auto_detect_tags": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "MenuImportInput": {
+        "type": "object",
+        "properties": {
+          "column_mapping": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ColumnMapping"
+            }
+          },
+          "date_config": {
+            "$ref": "#/components/schemas/DateConfig"
+          }
+        },
+        "required": [
+          "column_mapping"
+        ]
+      },
+      "ImportedItem": {
+        "type": "object",
+        "properties": {
+          "category_id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "order": {
+            "type": "integer"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "certifications": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "category_id",
+          "certifications",
+          "name",
+          "order",
+          "tags"
+        ],
+        "additionalProperties": false
+      },
+      "ImportedMenu": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportedItem"
+            }
+          },
+          "has_duplicate": {
+            "type": "boolean",
+            "description": "The day has a menu"
+          }
+        },
+        "required": [
+          "date",
+          "has_duplicate",
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "MenuImportPreview": {
+        "type": "object",
+        "properties": {
+          "menus": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportedMenu"
+            }
+          },
+          "total_count": {
+            "type": "integer"
+          },
+          "duplicates_count": {
+            "type": "integer"
+          },
+          "new_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "duplicates_count",
+          "menus",
+          "new_count",
+          "total_count"
+        ],
+        "additionalProperties": false
+      },
+      "MenuImportConfirm": {
+        "type": "object",
+        "properties": {
+          "column_mapping": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ColumnMapping"
+            }
+          },
+          "date_config": {
+            "$ref": "#/components/schemas/DateConfig"
+          },
+          "duplicate_action": {
+            "type": "string",
+            "default": "skip",
+            "enum": [
+              "skip",
+              "replace",
+              "merge"
+            ]
+          },
+          "auto_publish": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "column_mapping"
+        ]
+      },
+      "MenuImportResult": {
+        "type": "object",
+        "properties": {
+          "imported_count": {
+            "type": "integer"
+          },
+          "replaced_count": {
+            "type": "integer"
+          },
+          "skipped_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "imported_count",
+          "replaced_count",
+          "skipped_count"
+        ],
+        "additionalProperties": false
+      },
+      "DishImport": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "preview_rows": {
+            "type": "array",
+            "description": "The first ten rows",
+            "items": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "row_count": {
+            "type": "integer"
+          },
+          "delimiter": {
+            "type": "string",
+            "nullable": true
+          },
+          "suggested_name_column": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_catalog_export": {
+            "type": "boolean"
+          },
+          "category_paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "known_categories": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          }
+        },
+        "required": [
+          "category_paths",
+          "columns",
+          "delimiter",
+          "filename",
+          "id",
+          "is_catalog_export",
+          "known_categories",
+          "preview_rows",
+          "row_count",
+          "suggested_name_column"
+        ],
+        "additionalProperties": false
+      },
+      "DishImportInput": {
+        "type": "object",
+        "properties": {
+          "name_column": {
+            "type": "string",
+            "default": null,
+            "nullable": true
+          },
+          "tag_columns": {
+            "type": "array",
+            "description": "Columns searched for labels",
+            "items": {
+              "type": "string"
+            }
+          },
+          "category_id": {
+            "type": "integer",
+            "default": null,
+            "minimum": 1,
+            "nullable": true
+          },
+          "auto_detect_tags": {
+            "type": "boolean",
+            "default": true
+          },
+          "category_map": {
+            "type": "object",
+            "default": null,
+            "description": "File path to a category id, or 'create'",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "ImportedDish": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "certifications": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "is_duplicate": {
+            "type": "boolean"
+          },
+          "category_path": {
+            "type": "string",
+            "description": "From a Mariam export"
+          }
+        },
+        "required": [
+          "certifications",
+          "is_duplicate",
+          "name",
+          "tags"
+        ],
+        "additionalProperties": false
+      },
+      "DishImportPreview": {
+        "type": "object",
+        "properties": {
+          "dishes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportedDish"
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "new_count": {
+            "type": "integer"
+          },
+          "duplicate_count": {
+            "type": "integer"
+          },
+          "categories_to_create": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "categories_to_create",
+          "dishes",
+          "duplicate_count",
+          "new_count",
+          "total"
+        ],
+        "additionalProperties": false
+      },
+      "DishImportResult": {
+        "type": "object",
+        "properties": {
+          "created_count": {
+            "type": "integer"
+          },
+          "skipped_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "created_count",
+          "skipped_count"
+        ],
+        "additionalProperties": false
       },
       "Device": {
         "type": "object",

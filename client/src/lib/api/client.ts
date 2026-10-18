@@ -141,3 +141,12 @@ pushAxios.interceptors.request.use((config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+export interface SiteRef {
+  org: string;
+  site: string;
+}
+
+export function sitePath({ org, site }: SiteRef): string {
+  return `/orgs/${encodeURIComponent(org)}/sites/${encodeURIComponent(site)}`;
+}

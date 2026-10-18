@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The frontend server passes on the visitor's address only when the proxy set it.**
 - **Public responses carry no internal field**: no site id or code, event status or closure reminder flags.
 - **The vote's device token travels in the `Device-Id` header**, out of the addresses that access logs keep.
+- **A menu item goes to a category of its own site**; an item naming another site's category is refused.
+- **An import closes only on the site and kind it was opened for.**
 
 ### Added
 
@@ -26,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`/v1/orgs/{org}/sites/{site}`**, with its menus by date, events, closures and vote: read with no account, from any origin.
 - **`GET /v1/domains/{host}`**, the organization a host serves.
 - **Each route documents whether it needs a session**; `/v1/docs` takes a token (*Authorize*) for those that do.
+- **A site's menus, dishes and imports under `/v1/orgs/{org}/sites/{site}`**: a menu by its date, read by anyone once published and by the site's editors as a draft too.
+- **`/v1/holidays/{year}` and `/v1/school-holidays/{year}`.**
+- **The profile names its site and organization by slug** (`restaurant_slug`, `organization_slug`).
 
 ### Changed
 
@@ -33,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **uv runs Python 3.11** (`server/.python-version`), the version of the images; CI tests on it too.
 - **The public pages and the display read the API under `/v1/orgs`**; the frontend server no longer sends `Origin`.
 - **Anonymous callers see menus 30 days back and 7 ahead**; public reads answer `304` to a known `ETag`.
+- **The catalog is always paginated**, with the `Link` header and `total_count`; batch changes are `batch-delete` and `batch-update`.
+- **A menu is one tree of categories**, for its editors as for anyone: the flat `items` list is gone.
+- **A site always has an organization and a slug**: the migration refuses a site without them, so check production first.
+- **The generated client types make a field with a default optional** in a request body.
 
 - **React Router 7** replaces `react-router-dom` 6; the current page stays visible while the next one loads.
 - **The frontend is built by React Router's framework mode**; the build needs Node 22 alongside Bun.
@@ -65,11 +74,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The proxy's own rate limits**: the API's are the only ones.
 - **The `/v1/public/` routes**, replaced by `/v1/orgs`; `<site>/week` served any published week, without bound. The unsubscribe link stays.
 - **`GET /v1/menus/today`, `/v1/menus/tomorrow` and `/v1/restaurant`**, read anonymously by `restaurant_id` and unused.
+- **`/v1/menus`, `/v1/catalog` and `/v1/imports`**, which took the site from the session or `X-Restaurant-Id`; `/v1/menus/week` read any site anonymously by `restaurant_id`.
+- **Publishing a whole week at once**, which nothing called since the calendar lost its button.
 
 ### Fixed
 
 - **`deploy/nginx` follows a recreated container** instead of answering 502 until its own restart.
 - **`/health/ready` through the proxy** reaches the API instead of the frontend.
+- **A menu import's preview names the days in French.**
+- **A chef's note over 300 characters is refused** rather than cut.
 
 ## [0.19.0] - 2026-10-13
 

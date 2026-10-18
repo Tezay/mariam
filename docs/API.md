@@ -14,7 +14,9 @@ as `Authorization: Bearer <token>`.
 
 **Trying it:** in `/v1/docs`, *Try it out* calls the API it is served by. *Authorize* takes the
 `access_token` of `POST /v1/auth/login` (then `POST /v1/auth/mfa/verify` for an account with an
-authenticator app) and sends it to every route with a padlock.
+authenticator app) and sends it to every route with a padlock. A route without one is open to
+anyone. A padlock shown closed before any token is given marks a route open to anyone where a
+session sees more (a site's drafts); Swagger UI counts its anonymous option as already met.
 
 ## Conventions
 
@@ -33,8 +35,10 @@ route as it is today.
 - **Dates.** RFC 3339: `2026-10-16`, `2026-10-16T11:30:00+02:00`. A range is
   `?from=…&to=…`, both ends included.
 - **Lists.** An object with the entries under `items`. A paginated list takes `page` and
-  `per_page`, and links the other pages in the `Link` header (RFC 8288).
-- **JSON.** snake_case; an empty field is `null`, never left out.
+  `per_page`, counts every entry in `total_count`, and links the other pages in the `Link`
+  header (RFC 8288).
+- **JSON.** snake_case; an empty field is `null`, never left out. A field reserved to a
+  site's editors is left out for anyone else, and the specification says so.
 - **Versions.** `/v1` changes in place until Mariam 1.0.0, then only in compatible ways: a route
   retired after it answers `Deprecation` and `Sunset` (RFC 9745, RFC 8594) for a release first.
 - **Rate limits.** A limited route answers `X-RateLimit-Limit`, `X-RateLimit-Remaining` and
@@ -312,36 +316,54 @@ persisted; no address, user agent or per-visitor row reaches PostgreSQL.
 | `GET` | `/health/ready` | Readiness — checks DB, Redis and a scheduler flush in the last 15 minutes; returns 503 otherwise |
 | `GET` | `/v1/taxonomy` | Dietary tags and certifications catalog |
 | `GET` | `/v1/notifications/vapid-public-key` | VAPID public key for push subscriptions |
+| `GET` | `/v1/holidays/{year}` | French public holidays of a year, from calendrier.api.gouv.fr |
 | `GET`/`POST` | `/v1/public/unsubscribe/<token>` | Turn the weekly digest off from the email; POST answers the one-click of mail clients |
-| `GET` | `/v1/menus/week`, `/v1/events`, `/v1/closures` | Read anonymously by `?restaurant_id=`, until their domain moves under `/v1/orgs` |
+| `GET` | `/v1/events`, `/v1/closures` | Read anonymously by `?restaurant_id=`, until their domain moves under `/v1/orgs` |
 
 ---
 
 ## Menus
 
-Requires `editor` role or above, except the public read routes listed above.
+A site's menus live at the addresses above, one per day. The same `GET` routes serve a
+session: an editor of the site (a supervisor included) reads its drafts too, with no window,
+and receives the editors' fields: `status`, `published_at`, `updated_at` and the `id` of each
+image. Writes require the `editor` role on the site; a supervisor reads but never writes.
+Below, `S` stands for `/v1/orgs/{org}/sites/{site}`.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `/v1/menus` | List menus (supports filters) |
-| `GET` | `/v1/menus/week` | Full week including drafts |
-| `GET` | `/v1/menus/<id>` | Menu details |
-| `GET` | `/v1/menus/by-date/<date>` | Menu by date (YYYY-MM-DD) |
-| `GET` | `/v1/menus/jours-feries/<year>` | French public holidays for a year (no authentication) |
-| `GET` | `/v1/menus/vacances-scolaires/<year>` | School holidays for a year, by zone (no authentication) |
-| `POST` | `/v1/menus` | Create or update a menu |
-| `PUT` | `/v1/menus/<id>` | Update a menu |
-| `POST` | `/v1/menus/<id>/publish` | Publish a menu |
-| `POST` | `/v1/menus/<id>/unpublish` | Revert a menu to draft |
-| `DELETE` | `/v1/menus/<id>` | Delete a menu |
-| `POST` | `/v1/menus/week/publish` | Publish the drafts of a week (`week_offset`, current week by default) |
-| `POST` | `/v1/menus/<id>/images` | Upload image (multipart/form-data) |
-| `DELETE` | `/v1/menus/<id>/images/<img_id>` | Delete an image |
-| `PUT` | `/v1/menus/<id>/images/reorder` | Reorder images |
-| `PUT` | `/v1/menus/<id>/chef-note` | Update chef note |
-| `PATCH` | `/v1/menus/<id>/items/<item_id>/stock` | Toggle item out-of-stock status |
-| `GET` | `/v1/menus/<id>/substitutions` | Substitution dishes grouped by category |
-| `PUT` | `/v1/menus/<id>/substitutions/<category_id>` | Set substitution dishes for a category |
+| `PUT` | `S/menus/{date}` | Create or replace the menu of a day: `items` and `chef_note` (300 characters); `201` the first time, `200` after |
+| `PATCH` | `S/menus/{date}` | Change the `chef_note` |
+| `DELETE` | `S/menus/{date}` | Delete the menu, its items and images |
+| `POST` | `S/menus/{date}/publish` | Publish; `409 menu_empty` without items |
+| `POST` | `S/menus/{date}/unpublish` | Back to draft; `409 menu_not_published` for a draft |
+| `PATCH` | `S/menus/{date}/items/{item_id}` | Mark an item out of stock (`is_out_of_stock`) |
+| `POST` | `S/menus/{date}/images` | Add a photo (multipart `file`), six per menu |
+| `PUT` | `S/menus/{date}/images/order` | New order of the images: every `image_ids` of the menu, once |
+| `DELETE` | `S/menus/{date}/images/{image_id}` | Remove a photo |
+| `PUT` | `S/menus/{date}/substitutions/{category_id}` | The dishes offered when one of the category runs out: `dish_ids`, three at most, from the site's catalog |
+
+A menu is one tree, `categories`, each holding its `items` or its `subcategories`. An item of
+`PUT` keeps its `id` when sent with it, and the items left out are removed. A new item names
+a dish by `dish_id`, or by `name`, which reuses the dish of that name in the category or adds
+it to the catalog. Every item goes to a category of the site that has no subcategories
+(`422 category_invalid`). A menu saved without items goes back to draft.
+
+```bash
+curl -X PUT https://crous-example.mariam.app/v1/orgs/crous-example/sites/sciences/menus/2026-10-19 \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"items": [{"category_id": 3, "name": "Poulet rôti"}], "chef_note": null}'
+```
+
+### Holidays
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/v1/holidays/{year}` | Public holidays, open to anyone |
+| `GET` | `/v1/school-holidays/{year}` | School holidays of `zone` (`A`, `B` or `C`) over the school years touching `year`; `editor` role |
+
+Years 2020 to 2040; another answers `404 year_out_of_range`, and a calendar that does not
+answer `502 holidays_unavailable`. Both are cached for a day.
 
 ---
 
@@ -381,25 +403,24 @@ Requires `editor` role or above to write. Unauthenticated requests to
 
 ---
 
-## Dish Catalog
+## Dishes
 
-Requires `editor` role or above. Dishes are scoped to the authenticated user's restaurant.
+A site's catalog. Reading requires a session on the site, writing the `editor` role.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `/v1/catalog` | List dishes (`q`, `category_ids`, `tag_ids`, `certification_ids`, `period`, `sort`, `order`; optional pagination) |
-| `POST` | `/v1/catalog` | Create a dish |
-| `GET` | `/v1/catalog/<id>` | Dish details |
-| `PUT` | `/v1/catalog/<id>` | Update a dish |
-| `DELETE` | `/v1/catalog/<id>` | Delete a dish (409 if used in a menu) |
-| `GET` | `/v1/catalog/<id>/stats` | Usage windows, weekly history and satisfaction |
-| `GET` | `/v1/catalog/stats?ids=` | The same for up to five dishes, for the comparison view |
-| `POST` | `/v1/catalog/bulk/delete` | Delete several dishes, keeping those served in a menu |
-| `POST` | `/v1/catalog/bulk/category` | Attach several dishes to one leaf category |
-| `POST` | `/v1/catalog/bulk/labels` | Add or remove dietary tags and certifications on several dishes |
-| `GET` | `/v1/catalog/export` | Export dishes as CSV: `ids=` for a selection, the list filters otherwise |
-| `POST` | `/v1/catalog/<id>/image` | Upload or replace the dish image (multipart/form-data) |
-| `DELETE` | `/v1/catalog/<id>/image` | Delete the dish image |
+| `GET` | `S/dishes` | One page of dishes (`page`, `per_page` up to 200, 50 by default), filtered by `q`, `category_ids`, `tag_ids`, `certification_ids`, `period`, `new_only` and sorted by `sort`, `order` |
+| `POST` | `S/dishes` | Add a dish; `201` with its address in `Location` |
+| `GET` | `S/dishes/{dish_id}` | A dish |
+| `PATCH` | `S/dishes/{dish_id}` | Change its name, category or labels |
+| `DELETE` | `S/dishes/{dish_id}` | Delete it; `409 dish_in_use` while a menu serves it |
+| `GET` | `S/dishes/{dish_id}/stats` | Use by period, weekly history and satisfaction |
+| `GET` | `S/dishes/stats?ids=` | The same for up to five dishes, to compare them |
+| `POST` | `S/dishes/batch-delete` | Delete `ids`, keeping those a menu has served |
+| `POST` | `S/dishes/batch-update` | Move `ids` to `category_id`, add or remove labels and certifications |
+| `GET` | `S/dishes/export` | CSV of `ids`, or of what the filters select |
+| `PUT` | `S/dishes/{dish_id}/image` | Set or replace the photo (multipart `file`) |
+| `DELETE` | `S/dishes/{dish_id}/image` | Remove the photo |
 
 Notes:
 
@@ -415,22 +436,19 @@ Notes:
 - `q` tolerates a typo: case, accents and ligatures are folded, then each word of
   the query must appear in the name or sit within one edit of a word of it (two
   beyond seven letters). Words of three letters or fewer must match exactly.
-- `new_only=1` keeps the dishes whose first service ever falls inside `period`;
+- `new_only=true` keeps the dishes whose first service ever falls inside `period`;
   with `period=all` there is no window and the filter is ignored.
 - The export writes `nom;categorie;sous_categorie;labels;certifications`, labels
   and certifications by their display name. The import reads that file back, so
   exporting a catalog and importing it into an empty one restores it; images are
   the exception, being out of reach of a CSV.
-- A dish requires a category, and that category must be a leaf: one carrying
-  subcategories is refused. Creation without a category is refused, and an update
-  may not set it back to null.
+- A dish requires a category without subcategories (`422 category_invalid`).
 - Two dishes of the same name may not share a category. Creation and update
-  answer 409 with `dish_id` and `dish_name`, naming the dish already there;
-  `POST /v1/catalog/bulk/category` keeps such a dish where it is and lists it
-  under `kept`.
-- `POST /v1/catalog/bulk/delete` answers `{deleted, kept}`: a dish still served in
-  a menu is kept, with its name and usage count. The other bulk routes answer the
-  ids they changed. All of them are audited and require the `editor` role.
+  answer `409 dish_duplicate` with `dish_id` and `dish_name`, naming the dish
+  already there; `batch-update` leaves such a dish as it was and lists it under
+  `kept`.
+- `batch-delete` answers `{deleted, kept}`: a dish still served in a menu is kept,
+  with its name and usage count. `batch-update` answers `{updated, kept}`.
 - The `satisfaction` block of a dish's stats reports why it carries no rating:
   `enabled` (the site collects votes), `votable` (the dish's category is offered
   to voters) and `votes`. It also carries the site's `icon_preset` so the
@@ -639,36 +657,26 @@ Notes:
 
 ---
 
-## CSV / Excel Import
+## Imports
 
-Requires `editor` role or above. Three-step flow: upload, preview, confirm.
-
-### Menus (matrix format: columns = categories, rows = dates)
-
-| Method | Route | Description |
-|--------|-------|-------------|
-| `POST` | `/v1/imports/menus/upload` | Upload and parse file |
-| `POST` | `/v1/imports/menus/preview` | Preview with column mapping |
-| `POST` | `/v1/imports/menus/confirm` | Execute import |
-
-### Dish catalog (list format: one row per dish)
-
-Imports a flat list of dishes into a single chosen category/subcategory (required).
-Tags and certifications are auto-detected from the dish name and any designated
-"tag" columns. Dishes whose normalized name already exists in the target category
-are skipped (idempotent).
+Menus or dishes loaded from a CSV or Excel file, in three steps: send the file, preview,
+confirm. An import belongs to the account, the site and the kind it was opened for, and closes
+after thirty minutes or once confirmed (`404 import_not_found` after). Requires the `editor`
+role.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `POST` | `/v1/imports/catalog/upload` | Upload and parse file; suggests the name column |
-| `POST` | `/v1/imports/catalog/preview` | Preview dishes with detected tags and duplicate flags |
-| `POST` | `/v1/imports/catalog/confirm` | Create the dishes (duplicates skipped) |
+| `POST` | `S/menu-imports` | Send a file of menus, one row a day and one column a category (multipart `file`); `201` with the import's `id`, its columns, the first rows and a suggested mapping |
+| `POST` | `S/menu-imports/{import_id}/preview` | The menus a `column_mapping` and a `date_config` give, each day that has a menu flagged |
+| `POST` | `S/menu-imports/{import_id}/confirm` | Write them: `duplicate_action` (`skip`, `replace` or `merge`) for a day that has a menu, `auto_publish` |
+| `POST` | `S/dish-imports` | Send a file of dishes; suggests the name column |
+| `POST` | `S/dish-imports/{import_id}/preview` | The dishes it would add, with the labels found and the duplicates |
+| `POST` | `S/dish-imports/{import_id}/confirm` | Add them, skipping the duplicates |
 
-Preview/confirm body: `{ file_id, name_column, tag_columns[], category_id, auto_detect_tags }`.
-
-A file carrying the export columns is recognised at upload (`is_catalog_export`),
-which returns the category paths it contains and those the site already has.
-Preview and confirm then take `category_map` — each path to a category id or to
-`"create"` — instead of a name column and a single category, and read categories,
-labels and certifications from the file itself. Creating a subcategory under a
-category that already holds dishes is refused (409).
+A file of dishes goes into one category (`name_column`, `category_id`, `tag_columns`,
+`auto_detect_tags`): labels and certifications are found in the name and in the tag columns,
+and a dish whose name the category already has is skipped. A file with the export's columns
+is recognised when sent (`is_catalog_export`), with the category paths it holds and those the
+site has. Preview and confirm then take `category_map`, each path to a category id or to
+`"create"`, and read categories, labels and certifications from the file. A subcategory under
+a category that already holds dishes is refused (`422 category_invalid`).

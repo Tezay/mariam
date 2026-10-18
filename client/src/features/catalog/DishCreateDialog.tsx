@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { catalogApi } from '@/lib/api/catalog';
+import { useSiteRef } from '@/contexts/SiteContext';
+import { dishesApi } from '@/lib/api/dishes';
 import { type MenuCategory } from '@/lib/api/categories';
 import {
   Dialog,
@@ -30,13 +31,15 @@ export function DishCreateDialog({
   onClose: () => void;
 }) {
   const navigate = useNavigate();
+  const site = useSiteRef();
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState<number | ''>('');
   const [duplicate, setDuplicate] = useState<DuplicateDish | null>(null);
 
   const create = useMutation({
-    mutationFn: () => catalogApi.create({ name: name.trim(), category_id: categoryId || null }),
+    mutationFn: () =>
+      dishesApi.create(site, { name: name.trim(), category_id: Number(categoryId) }),
     onSuccess: (dish) => {
       queryClient.invalidateQueries({ queryKey: ['catalogue'] });
       setName('');

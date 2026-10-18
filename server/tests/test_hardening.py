@@ -1,5 +1,4 @@
 """Backend hardening tests: opt-in pagination, auth hardening and the production guard."""
-import re
 
 import pyotp
 import pytest
@@ -7,7 +6,7 @@ import pytest
 from app import create_app
 from app.extensions import db
 from app.models import Organization, User
-from conftest import TEST_PASSWORD, auth_headers, get_token, make_restaurant, make_user
+from conftest import TEST_PASSWORD, auth_headers, get_token, make_restaurant, make_user, probe_path
 from tests.auth_support import session_headers
 
 
@@ -108,7 +107,7 @@ class TestAuthenticationComesFirst:
         'notifications.update_preferences',
         'notifications.send_test',
         'public.unsubscribe',
-        'sites.put_vote',
+        'menus.put_vote',
         'devices.create_device',
         'orgs.record_view',
     }
@@ -116,7 +115,7 @@ class TestAuthenticationComesFirst:
     def test_a_guarded_route_answers_401_before_it_reads_the_body(self, app, client):
         answers = {
             f'{method} {rule.rule}': client.open(
-                re.sub(r'<[^>]+>', '1', rule.rule), method=method, json=[]
+                probe_path(rule.rule), method=method, json=[]
             ).status_code
             for rule in app.url_map.iter_rules()
             if rule.endpoint not in self.OPEN_TO_ANYONE
@@ -133,7 +132,7 @@ class TestAuthenticationComesFirst:
 
         answers = {}
         for rule in app.url_map.iter_rules():
-            path = re.sub(r'<[^>]+>', '1', rule.rule)
+            path = probe_path(rule.rule)
             for method in sorted(rule.methods - {'HEAD', 'OPTIONS'}):
                 if client.open(path, method=method, json=[]).status_code == 401:
                     answers[f'{method} {rule.rule}'] = client.open(
@@ -172,7 +171,7 @@ class TestUnauthorizedSpeaksOfTheSession:
             if rule.endpoint not in self.TAKE_THE_REFRESH_TOKEN
             for method in sorted(rule.methods - {'HEAD', 'OPTIONS'})
             if client.open(
-                re.sub(r'<[^>]+>', '1', rule.rule), method=method, json=[], headers=headers
+                probe_path(rule.rule), method=method, json=[], headers=headers
             ).status_code == 401
         ]
 

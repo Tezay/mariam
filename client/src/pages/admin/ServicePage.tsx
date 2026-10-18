@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { menusApi, Menu, MenuItem } from '@/lib/api/menus';
+import { useSiteRef } from '@/contexts/SiteContext';
+import { menusApi, type Menu, type MenuItem } from '@/lib/api/menus';
+import { menuItems, withItem } from '@/lib/menu-tree';
 import { categoriesApi, MenuCategory } from '@/lib/api/categories';
 import { closuresApi } from '@/lib/api/closures';
 import { restaurantApi, ServiceHours } from '@/lib/api/restaurant';
@@ -262,6 +264,7 @@ function ActionsCard({ isFullscreen, onToggleFullscreen, onOpenEditor }: Actions
 
 export function ServicePage() {
   const navigate = useNavigate();
+  const site = useSiteRef();
   const today = parisToday();
 
   const [menu, setMenu] = useState<Menu | null>(null);
@@ -277,26 +280,27 @@ export function ServicePage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const duringService = !closure.closed && isInServiceHours(serviceHours);
-  const outOfStockCount = (menu?.items ?? []).filter((i) => i.is_out_of_stock).length;
-  const totalCount = (menu?.items ?? []).length;
+  const items = menu ? menuItems(menu) : [];
+  const outOfStockCount = items.filter((i) => i.is_out_of_stock).length;
+  const totalCount = items.length;
   const published = !!menu && menu.status === 'published';
 
   const loadMenu = useCallback(async () => {
     try {
-      const menuRes = await menusApi.getByDate(today).catch(() => null);
+      const menuRes = await menusApi.get(site, today);
       setMenu(menuRes ?? null);
       setChefNote((prev) => menuRes?.chef_note ?? prev);
       setLastUpdated(nowInstant());
     } catch {
       /* The next poll tries again. */
     }
-  }, [today]);
+  }, [site, today]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [menuRes, catRes, restaurantRes, closuresRes] = await Promise.all([
-        menusApi.getByDate(today).catch(() => null),
+        menusApi.get(site, today).catch(() => null),
         categoriesApi.list().catch(() => ({ categories: [] })),
         restaurantApi.getMine().catch(() => null),
         closuresApi.list().catch(() => []),
@@ -315,7 +319,7 @@ export function ServicePage() {
     } finally {
       setLoading(false);
     }
-  }, [today]);
+  }, [site, today]);
 
   useEffect(() => {
     loadData();
@@ -338,18 +342,11 @@ export function ServicePage() {
   };
 
   const handleToggleStock = async (item: MenuItem) => {
-    if (!menu?.id || !item.id || togglingId === item.id) return;
+    if (!menu || togglingId === item.id) return;
     setTogglingId(item.id);
     try {
-      const updated = await menusApi.updateItemStock(menu.id, item.id, !item.is_out_of_stock);
-      setMenu((prev) =>
-        prev
-          ? {
-              ...prev,
-              items: prev.items.map((i) => (i.id === item.id ? { ...i, ...updated } : i)),
-            }
-          : prev
-      );
+      const updated = await menusApi.setItemStock(site, today, item.id, !item.is_out_of_stock);
+      setMenu((prev) => (prev ? withItem(prev, updated) : prev));
     } catch {
       /* The switch stays as it was. */
     } finally {
@@ -358,21 +355,20 @@ export function ServicePage() {
   };
 
   const handleChefNoteBlur = async () => {
-    if (!menu?.id || chefNote === (menu.chef_note ?? '')) return;
+    if (!menu || chefNote === (menu.chef_note ?? '')) return;
     setChefNoteSaving(true);
     try {
-      await menusApi.updateChefNote(menu.id, chefNote || null);
-      setMenu((prev) => (prev ? { ...prev, chef_note: chefNote || undefined } : prev));
+      setMenu(await menusApi.setChefNote(site, today, chefNote || null));
     } finally {
       setChefNoteSaving(false);
     }
   };
 
   const renderLeafItems = (category: MenuCategory) => {
-    const items = (menu?.items ?? [])
+    const leafItems = items
       .filter((i) => i.category_id === category.id)
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-    if (items.length === 0) return null;
+    if (leafItems.length === 0) return null;
 
     return (
       <div key={category.id} className="space-y-2">
@@ -380,7 +376,7 @@ export function ServicePage() {
           {category.label}
         </p>
         <div className="space-y-1.5">
-          {items.map((item) => (
+          {leafItems.map((item) => (
             <ItemRow
               key={item.id}
               item={item}

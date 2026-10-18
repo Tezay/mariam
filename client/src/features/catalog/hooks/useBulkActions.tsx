@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { TagIcon } from '@/components/TagIcon';
-import { catalogApi, type BulkDeleteResult } from '@/lib/api/catalog';
+import { useSiteRef } from '@/contexts/SiteContext';
+import { dishesApi, type DishBatchDeleteResult } from '@/lib/api/dishes';
 import { type CertificationItem, type DietaryTag } from '@/lib/api/taxonomy';
 import { type MenuCategory } from '@/lib/api/categories';
 import { Button } from '@/components/ui/button';
@@ -48,8 +49,9 @@ export function useBulkActions({
   onDone: () => void;
 }) {
   const queryClient = useQueryClient();
+  const site = useSiteRef();
   const [confirming, setConfirming] = useState(false);
-  const [kept, setKept] = useState<BulkDeleteResult['kept'] | null>(null);
+  const [kept, setKept] = useState<DishBatchDeleteResult['kept'] | null>(null);
   const [moving, setMoving] = useState(false);
   const [target, setTarget] = useState<number | ''>('');
   const [labelling, setLabelling] = useState(false);
@@ -61,7 +63,7 @@ export function useBulkActions({
   const leaves = leafCategories(categories);
 
   const remove = useMutation({
-    mutationFn: () => catalogApi.bulkDelete(ids),
+    mutationFn: () => dishesApi.batchDelete(site, ids),
     onSuccess: (result) => {
       refresh();
       setConfirming(false);
@@ -76,13 +78,13 @@ export function useBulkActions({
   });
 
   const move = useMutation({
-    mutationFn: () => catalogApi.bulkCategory(ids, Number(target)),
-    onSuccess: ({ moved, kept }) => {
+    mutationFn: () => dishesApi.batchUpdate(site, ids, { category_id: Number(target) }),
+    onSuccess: ({ updated, kept }) => {
       refresh();
       setMoving(false);
       setTarget('');
       notify.success(
-        `${moved.length} plats déplacés`,
+        `${updated.length} plats déplacés`,
         kept.length > 0
           ? `${kept.length} conservés : un plat de même nom occupe déjà la catégorie`
           : undefined
@@ -94,13 +96,14 @@ export function useBulkActions({
 
   const label = useMutation({
     mutationFn: () =>
-      catalogApi.bulkLabels(
+      dishesApi.batchUpdate(
+        site,
         ids,
         mode === 'add'
           ? { add_tag_ids: tagIds, add_certification_ids: certIds }
           : { remove_tag_ids: tagIds, remove_certification_ids: certIds }
       ),
-    onSuccess: (updated) => {
+    onSuccess: ({ updated }) => {
       refresh();
       setLabelling(false);
       setTagIds([]);
@@ -113,7 +116,7 @@ export function useBulkActions({
 
   const download = async () => {
     try {
-      downloadBlob(await catalogApi.exportCsv({ ids }), 'catalogue.csv');
+      downloadBlob(await dishesApi.exportCsv(site, { ids }), 'catalogue.csv');
     } catch {
       notify.error("L'export a échoué");
     }
@@ -173,7 +176,7 @@ export function useBulkActions({
               <li key={dish.id} className="flex items-center justify-between gap-3">
                 <span className="truncate text-foreground">{dish.name}</span>
                 <span className="shrink-0 tabular-nums text-muted-foreground">
-                  {dish.usage_count} service{dish.usage_count > 1 ? 's' : ''}
+                  {dish.usage_count} service{(dish.usage_count ?? 0) > 1 ? 's' : ''}
                 </span>
               </li>
             ))}

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { publicMenuData } from '@/pages/public/public-menu-data';
-import type { PublicClosure, PublicEvent, PublicMenu, PublicSite } from '@/lib/api/sites';
+import type { Menu } from '@/lib/api/menus';
+import type { PublicClosure, PublicEvent, PublicSite } from '@/lib/api/sites';
 
 // Thursday 15 October 2026, 23:30 in Paris: still Thursday there, already
 // Friday in UTC.
@@ -18,7 +19,7 @@ const site = {
   menu_window: { from: '2026-09-15', to: '2026-10-22' },
 } satisfies PublicSite;
 
-function menu(date: string): PublicMenu {
+function menu(date: string): Menu {
   return { date, categories: [], images: [], substitutions: {} };
 }
 

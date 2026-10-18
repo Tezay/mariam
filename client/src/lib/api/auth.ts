@@ -26,7 +26,10 @@ export interface User {
   is_rescue_account?: boolean;
   /** Resolved only on the authenticated user's own profile. */
   restaurant_name?: string | null;
+  restaurant_slug?: string | null;
   organization_name?: string | null;
+  /** The site's organization, for a site's own team. */
+  organization_slug?: string | null;
 }
 
 export interface ActivationLinkInfo {

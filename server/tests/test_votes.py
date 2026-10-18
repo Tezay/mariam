@@ -420,24 +420,6 @@ class TestVotableCategories:
         assert _cast(client, 'vote19', token).status_code == 409
         assert _state(client, 'vote19', token)['voting_open'] is False
 
-    def test_a_site_outside_an_organization_takes_no_vote(self, app, client, monkeypatch):
-        """Uniqueness is scoped to the organization, so such a site has no scope.
-
-        Driven through the service, not the route: the public resolver finds a
-        site by its organization, so it never reaches one without.
-        """
-        _use_fake_redis(monkeypatch)
-        _, rid, _, _ = _site_with_menu('vote-org-22', 'VOTE22')
-        site = db.session.get(Restaurant, rid)
-        site.organization_id = None
-        db.session.commit()
-
-        with pytest.raises(votes_service.VoteError) as raised:
-            votes_service.validate_and_record_vote(
-                site, votes_service.mint_device_id(), 3, [], None, '10.0.0.1'
-            )
-        assert raised.value.status == 409
-
 
 class TestIconPreset:
     def test_the_vote_records_the_preset_its_author_saw(self, app, client, monkeypatch):

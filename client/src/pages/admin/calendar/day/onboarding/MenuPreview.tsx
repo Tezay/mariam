@@ -1,6 +1,6 @@
 import { X, UtensilsCrossed } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { MenuItem } from '@/lib/api/menus';
+import type { EditorItem } from '@/pages/admin/calendar/day/useMenuEditor';
 import { getCategoryColor } from '@/lib/category-colors';
 import type { UseMenuEditorReturn } from '../useMenuEditor';
 import type { CatGroup } from './types';
@@ -15,7 +15,7 @@ function PreviewItemBox({
   color,
   onRemove,
 }: {
-  item: MenuItem;
+  item: EditorItem;
   color: ReturnType<typeof getCategoryColor>;
   onRemove: () => void;
 }) {

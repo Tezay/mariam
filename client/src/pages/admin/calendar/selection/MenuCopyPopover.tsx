@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { X } from 'lucide-react';
-import type { MenuItem } from '@/lib/api/menus';
+import type { EditorItem } from '@/pages/admin/calendar/day/useMenuEditor';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -10,10 +10,9 @@ import { useMenuCopy, CONFLICT_OPTIONS, type CopyDirection } from './useMenuCopy
 
 interface MenuCopyPopoverProps {
   direction: CopyDirection;
-  restaurantId: number | undefined;
   onDone: () => void;
   /** Export: the dishes to copy. */
-  sourceItems?: MenuItem[];
+  sourceItems?: EditorItem[];
   /** Import: the day that receives them. */
   targetDate?: string;
   /** Rendered as the trigger; without it, `open` drives the popover. */
@@ -40,7 +39,6 @@ const TEXT = {
 
 export function MenuCopyPopover({
   direction,
-  restaurantId,
   onDone,
   sourceItems = [],
   targetDate,
@@ -61,7 +59,6 @@ export function MenuCopyPopover({
 
   const copy = useMenuCopy({
     direction,
-    restaurantId,
     sourceItems,
     targetDate,
     onDone: () => {

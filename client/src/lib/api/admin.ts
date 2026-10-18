@@ -32,12 +32,6 @@ export interface CalendarSettings {
   school_vacation_zone: 'A' | 'B' | 'C' | null;
 }
 
-export interface VacanceScolaire {
-  start_date: string;
-  end_date: string;
-  description: string;
-}
-
 export const adminApi = {
   getUiPreferences: async (): Promise<UiPreferences> => {
     const response = await api.get('/users/me/ui-preferences');
@@ -130,19 +124,6 @@ export const adminApi = {
     return response.data.restaurants;
   },
 
-  createRestaurant: async (data: { name: string; code: string; address?: string }) => {
-    const response = await api.post('/restaurants', data);
-    return response.data.restaurant;
-  },
-
-  updateRestaurant: async (
-    id: number,
-    data: Partial<{ name: string; address: string; is_active: boolean }>
-  ) => {
-    const response = await api.put(`/restaurants/${id}`, data);
-    return response.data.restaurant;
-  },
-
   getSettings: async () => {
     const response = await api.get('/settings');
     return response.data.restaurant;
@@ -163,10 +144,5 @@ export const adminApi = {
   ): Promise<CalendarSettings> => {
     const response = await api.put('/restaurant/calendar-settings', settings);
     return response.data as CalendarSettings;
-  },
-
-  getVacancesScolaires: async (year: number, zone: 'A' | 'B' | 'C'): Promise<VacanceScolaire[]> => {
-    const response = await api.get(`/menus/vacances-scolaires/${year}`, { params: { zone } });
-    return response.data.vacances as VacanceScolaire[];
   },
 };

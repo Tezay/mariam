@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { menusApi } from '@/lib/api/menus';
-import type { MenuItem } from '@/lib/api/menus';
+import { useSiteRef } from '@/contexts/SiteContext';
+import { menusApi, type MenuItemInput } from '@/lib/api/menus';
+import type { SiteRef } from '@/lib/api/sites';
+import { editorItems, type EditorItem } from '@/pages/admin/calendar/day/useMenuEditor';
 import { notify } from '@/lib/toast';
 
 export type ConflictMode = 'replace' | 'ignore' | 'add';
@@ -12,25 +14,25 @@ export const CONFLICT_OPTIONS: { value: ConflictMode; label: string; desc: strin
   { value: 'ignore', label: 'Ignorer', desc: 'Saute les jours déjà remplis' },
 ];
 
-/** Without the fields of a saved item, so that it can be saved elsewhere. */
-function stripItem({ id: _id, dish: _dish, menu_id: _menuId, ...rest }: MenuItem) {
-  return rest;
+/** Without the id of a saved item, so that it can be saved elsewhere. */
+function asNewItem({ category_id, dish_id, order, is_out_of_stock }: EditorItem): MenuItemInput {
+  return { category_id, dish_id, order, is_out_of_stock };
 }
 
 /** True when the menu was written, false when it was left alone. */
 async function applyItemsToDate(
+  site: SiteRef,
   date: string,
-  sourceItems: MenuItem[],
-  mode: ConflictMode,
-  restaurantId: number | undefined
+  sourceItems: EditorItem[],
+  mode: ConflictMode
 ): Promise<boolean> {
-  const existing = await menusApi.getByDate(date, restaurantId).catch(() => null);
+  const existing = await menusApi.get(site, date);
   if (mode === 'ignore' && existing) return false;
 
-  const base = existing ? existing.items.map(stripItem) : [];
-  const clean = sourceItems.map(stripItem);
+  const base = editorItems(existing).map(asNewItem);
+  const clean = sourceItems.map(asNewItem);
 
-  let items: ReturnType<typeof stripItem>[];
+  let items: MenuItemInput[];
   if (mode === 'replace') {
     // Only the categories the source brings are replaced.
     const cats = new Set(clean.map((i) => i.category_id));
@@ -41,16 +43,15 @@ async function applyItemsToDate(
     items = clean;
   }
 
-  await menusApi.save(date, items, restaurantId);
+  await menusApi.put(site, date, items, existing?.chef_note ?? null);
   return true;
 }
 
 interface UseMenuCopyParams {
   direction: CopyDirection;
-  restaurantId: number | undefined;
   onDone: () => void;
   /** Export: the dishes to copy to the chosen dates. */
-  sourceItems?: MenuItem[];
+  sourceItems?: EditorItem[];
   /** Import: the day that receives the dishes of the chosen dates. */
   targetDate?: string;
 }
@@ -61,11 +62,11 @@ interface UseMenuCopyParams {
  */
 export function useMenuCopy({
   direction,
-  restaurantId,
   onDone,
   sourceItems = [],
   targetDate,
 }: UseMenuCopyParams) {
+  const site = useSiteRef();
   const [dates, setDates] = useState<Set<string>>(new Set());
   const [conflictMode, setConflictMode] = useState<ConflictMode>('add');
   const [isSaving, setIsSaving] = useState(false);
@@ -93,7 +94,7 @@ export function useMenuCopy({
         let copied = 0;
         let skipped = 0;
         for (const date of dates) {
-          if (await applyItemsToDate(date, sourceItems, conflictMode, restaurantId)) copied++;
+          if (await applyItemsToDate(site, date, sourceItems, conflictMode)) copied++;
           else skipped++;
         }
         if (copied && skipped) {
@@ -108,17 +109,16 @@ export function useMenuCopy({
           );
         }
       } else {
-        const merged: MenuItem[] = [];
+        const merged: EditorItem[] = [];
         for (const date of dates) {
-          const menu = await menusApi.getByDate(date, restaurantId).catch(() => null);
-          if (menu?.items) merged.push(...menu.items);
+          merged.push(...editorItems(await menusApi.get(site, date)));
         }
         if (merged.length === 0) {
           setError('Aucun plat trouvé sur les dates choisies.');
           setIsSaving(false);
           return;
         }
-        await applyItemsToDate(targetDate!, merged, conflictMode, restaurantId);
+        await applyItemsToDate(site, targetDate!, merged, conflictMode);
         notify.success('Menu importé');
       }
 

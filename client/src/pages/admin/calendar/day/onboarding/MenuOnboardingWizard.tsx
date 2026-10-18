@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import type { MenuCategory } from '@/lib/api/categories';
-import type { DishCatalogItem } from '@/lib/api/catalog';
+import type { Dish } from '@/lib/api/dishes';
 import { getCategoryColor } from '@/lib/category-colors';
 import { useSidebar } from '@/contexts/SidebarContext';
 import {
@@ -32,7 +32,6 @@ import { CelebrationStep } from './steps/CelebrationStep';
 
 interface MenuOnboardingWizardProps {
   date: string;
-  restaurantId: number | undefined;
   categories: MenuCategory[];
   /** After a change the caller should reload for. */
   onDone: () => void;
@@ -42,7 +41,6 @@ interface MenuOnboardingWizardProps {
 
 export function MenuOnboardingWizard({
   date,
-  restaurantId,
   categories,
   onDone,
   onCancel,
@@ -52,7 +50,6 @@ export function MenuOnboardingWizard({
 
   const state = useOnboardingState({
     date,
-    restaurantId,
     categories,
     onExit: () => onDone(),
   });
@@ -76,7 +73,7 @@ export function MenuOnboardingWizard({
     [date]
   );
 
-  const handleSelectWithFly = (dish: DishCatalogItem, sourceEl: HTMLElement | null) => {
+  const handleSelectWithFly = (dish: Dish, sourceEl: HTMLElement | null) => {
     const groupIdx = step.kind === 'category' ? step.groupIdx : 0;
     const color = getCategoryColor(state.currentGroup?.category.color_key, groupIdx);
     fly(sourceEl, dish.name, color);
@@ -84,7 +81,7 @@ export function MenuOnboardingWizard({
   };
 
   const handleRequestClose = () => {
-    if (!editor.menuId && editor.items.length === 0 && !editor.isDirty) {
+    if (editor.menuStatus === null && editor.items.length === 0 && !editor.isDirty) {
       onCancel();
       return;
     }
