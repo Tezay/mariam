@@ -40,9 +40,7 @@ interface WeekDayColumnProps {
     save: () => Promise<void>,
     reset: () => void
   ) => void;
-  onRegisterDrop?: (
-    fn: (categoryId: number, dishId: number, dish?: MenuDish) => void
-  ) => void;
+  onRegisterDrop?: (fn: (categoryId: number, dishId: number, dish?: MenuDish) => void) => void;
   onRegisterRemove?: (fn: (itemId: number) => void) => void;
   onRegisterUpdateItem?: (fn: (itemId: number, changes: Partial<EditorItem>) => void) => void;
   onRegisterGetItems?: (fn: () => EditorItem[]) => void;

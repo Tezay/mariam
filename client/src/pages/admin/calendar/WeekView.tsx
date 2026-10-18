@@ -192,7 +192,9 @@ export function WeekView({
           .filter((e) => e.type === 'item' && e.date === sourceDate)
           .map((e) => {
             if (e.type !== 'item') return null;
-            return editorItems(data[sourceDate]?.menu ?? null).find((i) => i.id === e.itemId) ?? null;
+            return (
+              editorItems(data[sourceDate]?.menu ?? null).find((i) => i.id === e.itemId) ?? null
+            );
           })
           .filter((i): i is EditorItem => i !== null);
         setMultiDragItems(multi.length > 1 ? multi : []);
@@ -353,7 +355,9 @@ export function WeekView({
         const itemDate = itemEl.dataset.menuItemDate ?? '';
         // The editor's live state, ahead of `data` until the next reload.
         const liveItems = getItemsHandlersRef.current[itemDate]?.();
-        const item = (liveItems ?? editorItems(data[itemDate]?.menu ?? null)).find((i) => i.id === itemId);
+        const item = (liveItems ?? editorItems(data[itemDate]?.menu ?? null)).find(
+          (i) => i.id === itemId
+        );
         setContextTarget({
           type: 'item',
           date: itemDate,
@@ -383,7 +387,8 @@ export function WeekView({
   const handleContextTogglePublish = useCallback(async () => {
     if (contextTarget?.type !== 'day' || !contextTarget.hasMenu) return;
     try {
-      if (contextTarget.menuStatus === 'published') await menusApi.unpublish(site, contextTarget.date);
+      if (contextTarget.menuStatus === 'published')
+        await menusApi.unpublish(site, contextTarget.date);
       else await menusApi.publish(site, contextTarget.date);
       onReload();
     } catch {
@@ -661,9 +666,7 @@ export function WeekView({
                     <ContextMenuItem
                       className="gap-2 text-destructive focus:text-destructive"
                       onClick={() =>
-                        runAfterMenuClose(() =>
-                          setDeleteMenuTarget({ date: contextTarget.date })
-                        )
+                        runAfterMenuClose(() => setDeleteMenuTarget({ date: contextTarget.date }))
                       }
                     >
                       <Trash2 className="h-3.5 w-3.5" />

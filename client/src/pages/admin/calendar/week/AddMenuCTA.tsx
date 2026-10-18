@@ -52,12 +52,7 @@ const OptionButton = forwardRef<HTMLButtonElement, OptionButtonProps>(
 );
 OptionButton.displayName = 'OptionButton';
 
-export function AddMenuCTA({
-  date,
-  onStartOnboarding,
-  onImportCsv,
-  onImported,
-}: AddMenuCTAProps) {
+export function AddMenuCTA({ date, onStartOnboarding, onImportCsv, onImported }: AddMenuCTAProps) {
   const [expanded, setExpanded] = useState(false);
 
   if (!expanded) {

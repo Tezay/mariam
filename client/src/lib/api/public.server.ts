@@ -1,12 +1,6 @@
 import type { SitePage } from '@/pages/public/menu-types';
 import type { Menu } from './menus';
-import type {
-  PublicClosure,
-  PublicEvent,
-  PublicOrg,
-  PublicSite,
-  PublicSiteSummary,
-} from './sites';
+import type { PublicClosure, PublicEvent, PublicOrg, PublicSite, PublicSiteSummary } from './sites';
 
 type Env = Record<string, string | undefined>;
 

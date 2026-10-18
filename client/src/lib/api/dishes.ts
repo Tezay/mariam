@@ -50,7 +50,10 @@ export const dishesApi = {
   ): Promise<DishPage> => (await api.get(dishesPath(ref), { params })).data,
 
   /** Every page of the catalog: a site holds a few hundred dishes at most. */
-  listAll: async (ref: SiteRef, params: CatalogQuery & { sort?: DishSort } = {}): Promise<Dish[]> => {
+  listAll: async (
+    ref: SiteRef,
+    params: CatalogQuery & { sort?: DishSort } = {}
+  ): Promise<Dish[]> => {
     const dishes: Dish[] = [];
     for (let page = 1; ; page += 1) {
       const { items, total_count } = await dishesApi.list(ref, {

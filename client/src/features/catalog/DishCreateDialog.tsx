@@ -38,7 +38,8 @@ export function DishCreateDialog({
   const [duplicate, setDuplicate] = useState<DuplicateDish | null>(null);
 
   const create = useMutation({
-    mutationFn: () => dishesApi.create(site, { name: name.trim(), category_id: Number(categoryId) }),
+    mutationFn: () =>
+      dishesApi.create(site, { name: name.trim(), category_id: Number(categoryId) }),
     onSuccess: (dish) => {
       queryClient.invalidateQueries({ queryKey: ['catalogue'] });
       setName('');
