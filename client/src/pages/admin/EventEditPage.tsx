@@ -4,7 +4,7 @@ import { useEditor, useEditorState, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { getApiErrorMessage } from '@/lib/api/errors';
-import { eventsApi, Event, EventImage } from '@/lib/api/events';
+import { eventsApi, storedImages, type Event, type StoredImage } from '@/lib/api/events';
 import { EVENT_PRESET_COLORS, generateEventPalette } from '@/lib/color-utils';
 import { notify } from '@/lib/toast';
 import { ImageUploader } from '@/components/ImageUploader';
@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { isRichTextHtml } from '@/lib/rich-text';
 import { cn } from '@/lib/utils';
+import { useSiteRef } from '@/contexts/SiteContext';
 
 // ── Tiptap toolbar ────────────────────────────────────────────────────────
 export function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
@@ -144,6 +145,7 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (hex: strin
 
 // ── Main page ─────────────────────────────────────────────────────────────
 export function EventEditPage() {
+  const site = useSiteRef();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isCreating = !id;
@@ -162,13 +164,10 @@ export function EventEditPage() {
   const [status, setStatus] = useState<'draft' | 'published'>('draft');
 
   // Images
-  const [serverImages, setServerImages] = useState<EventImage[]>([]);
+  const [serverImages, setServerImages] = useState<StoredImage[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [deletedImageIds, setDeletedImageIds] = useState<number[]>([]);
-  const [storageConfigured, setStorageConfigured] = useState(false);
-
-  // Saved event id (set after creation)
-  const [savedEventId, setSavedEventId] = useState<number | null>(id ? Number(id) : null);
+  const [imagesReordered, setImagesReordered] = useState(false);
 
   // Warn before leaving (reload / close / external navigation) with unsaved edits.
   useEffect(() => {
@@ -195,23 +194,18 @@ export function EventEditPage() {
 
   // Load existing event
   useEffect(() => {
-    eventsApi
-      .storageStatus()
-      .then((configured) => setStorageConfigured(configured))
-      .catch(() => setStorageConfigured(false));
-
     if (isCreating) return;
     setLoading(true);
     eventsApi
-      .get(Number(id))
+      .get(site, Number(id))
       .then((event) => {
         setTitle(event.title);
         setSubtitle(event.subtitle ?? '');
-        setEventDate(event.event_date);
+        setEventDate(event.date);
         setColor(event.color ?? '#3498DB');
-        setVisibility(event.visibility);
-        setStatus(event.status);
-        setServerImages(event.images ?? []);
+        setVisibility(event.visibility ?? 'all');
+        setStatus(event.status ?? 'draft');
+        setServerImages(storedImages(event.images));
         // Insert description into Tiptap — treat as plain text if no HTML tags
         if (editor && event.description) {
           if (isRichTextHtml(event.description)) {
@@ -248,53 +242,68 @@ export function EventEditPage() {
       setIsSaving(true);
       try {
         const description = editor?.getHTML() ?? '';
-        const payload: Partial<Event> = {
+        const fields = {
           title: title.trim(),
-          subtitle: subtitle.trim() || undefined,
-          description: description === '<p></p>' ? undefined : description,
-          event_date: eventDate,
+          subtitle: subtitle.trim() || null,
+          description: description === '<p></p>' ? null : description,
+          date: eventDate,
           color,
           visibility,
-          status: publish ? 'published' : status,
         };
 
         let savedEvent: Event;
         if (isCreating) {
-          savedEvent = await eventsApi.create(payload);
-          setSavedEventId(savedEvent.id);
+          savedEvent = await eventsApi.create(site, {
+            ...fields,
+            status: publish ? 'published' : status,
+          });
         } else {
-          savedEvent = await eventsApi.update(Number(id), payload);
+          savedEvent = await eventsApi.update(site, Number(id), fields);
         }
 
-        // Upload pending images
-        if (pendingFiles.length > 0 && storageConfigured) {
+        // Removals, then order, then uploads: the order names every stored image
+        // once, and an upload counts against the six an event holds.
+        for (const imgId of deletedImageIds) {
+          try {
+            await eventsApi.deleteImage(site, savedEvent.id, imgId);
+          } catch (err) {
+            notify.error(getApiErrorMessage(err, "Une image n'a pas pu être retirée"));
+          }
+        }
+        setDeletedImageIds([]);
+
+        if (imagesReordered) {
+          try {
+            await eventsApi.orderImages(
+              site,
+              savedEvent.id,
+              serverImages.map((img) => img.id)
+            );
+          } catch (err) {
+            notify.error(getApiErrorMessage(err, "L'ordre des images n'a pas pu être enregistré"));
+          }
+          setImagesReordered(false);
+        }
+
+        if (pendingFiles.length > 0) {
           setIsUploading(true);
           for (const file of pendingFiles) {
             try {
-              await eventsApi.uploadImage(savedEvent.id, file);
-            } catch {
-              /* skip */
+              const uploaded = await eventsApi.uploadImage(site, savedEvent.id, file);
+              setServerImages((prev) => [...prev, ...storedImages([uploaded])]);
+            } catch (err) {
+              notify.error(getApiErrorMessage(err, `L'image ${file.name} n'a pas pu être ajoutée`));
             }
           }
           setPendingFiles([]);
           setIsUploading(false);
         }
 
-        // Delete removed images
-        for (const imgId of deletedImageIds) {
-          try {
-            await eventsApi.deleteImage(savedEvent.id, imgId);
-          } catch {
-            /* skip */
-          }
-        }
-        setDeletedImageIds([]);
-
         if (publish && savedEvent.status !== 'published') {
-          await eventsApi.publish(savedEvent.id);
+          await eventsApi.publish(site, savedEvent.id);
           setStatus('published');
         } else {
-          setStatus(savedEvent.status);
+          setStatus(savedEvent.status ?? status);
         }
 
         setIsDirty(false);
@@ -325,7 +334,9 @@ export function EventEditPage() {
       id,
       pendingFiles,
       deletedImageIds,
-      storageConfigured,
+      imagesReordered,
+      serverImages,
+      site,
       navigate,
     ]
   );
@@ -456,43 +467,30 @@ export function EventEditPage() {
             <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               <ImageIcon className="h-3.5 w-3.5" /> Images (1 à 6)
             </Label>
-            {storageConfigured ? (
-              <ImageUploader
-                images={serverImages}
-                pendingFiles={pendingFiles}
-                maxImages={6}
-                onFilesAdded={(files) => {
-                  setPendingFiles((prev) => [...prev, ...files]);
-                  setIsDirty(true);
-                }}
-                onPendingRemove={(i) =>
-                  setPendingFiles((prev) => prev.filter((_, idx) => idx !== i))
-                }
-                onServerRemove={(imgId) => {
-                  setServerImages((prev) => prev.filter((img) => img.id !== imgId));
-                  setDeletedImageIds((prev) => [...prev, imgId]);
-                  setIsDirty(true);
-                }}
-                onReorder={async (imgIds) => {
-                  const reordered = imgIds
-                    .map((imgId) => serverImages.find((img) => img.id === imgId))
-                    .filter(Boolean) as EventImage[];
-                  setServerImages(reordered);
-                  if (savedEventId) {
-                    try {
-                      await eventsApi.reorderImages(savedEventId, imgIds);
-                    } catch {
-                      /* ignore */
-                    }
-                  }
-                }}
-                disabled={isSaving}
-              />
-            ) : (
-              <div className="rounded-xl border border-border bg-muted p-4 text-center text-sm text-muted-foreground">
-                Le stockage S3 n'est pas configuré.
-              </div>
-            )}
+            <ImageUploader
+              images={serverImages}
+              pendingFiles={pendingFiles}
+              maxImages={6}
+              onFilesAdded={(files) => {
+                setPendingFiles((prev) => [...prev, ...files]);
+                setIsDirty(true);
+              }}
+              onPendingRemove={(i) => setPendingFiles((prev) => prev.filter((_, idx) => idx !== i))}
+              onServerRemove={(imgId) => {
+                setServerImages((prev) => prev.filter((img) => img.id !== imgId));
+                setDeletedImageIds((prev) => [...prev, imgId]);
+                setIsDirty(true);
+              }}
+              onReorder={(imgIds) => {
+                const reordered = imgIds
+                  .map((imgId) => serverImages.find((img) => img.id === imgId))
+                  .filter((img): img is StoredImage => img !== undefined);
+                setServerImages(reordered);
+                setImagesReordered(true);
+                setIsDirty(true);
+              }}
+              disabled={isSaving}
+            />
           </div>
         </div>
 

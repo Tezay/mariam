@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
-import { restaurantApi, ServiceHours } from '@/lib/api/restaurant';
+import { useSiteRef } from '@/contexts/SiteContext';
+import { sitesApi, type ServiceHours } from '@/lib/api/sites';
 import { isInServiceHours } from '@/lib/utils';
 import { DashboardShell } from '@/components/layout/DashboardShell';
 import { type SidebarNavItem } from '@/components/layout/Sidebar';
@@ -39,6 +40,7 @@ const ADMIN_ONLY_PATHS = ['/admin/stats', '/admin/users', '/admin/settings', '/a
 
 export function AdminLayout() {
   const { user } = useAuth();
+  const site = useSiteRef();
   const { pathname } = useLocation();
   const [serviceHours, setServiceHours] = useState<ServiceHours>({});
   const [duringService, setDuringService] = useState(false);
@@ -53,11 +55,11 @@ export function AdminLayout() {
   }, [user?.id]);
 
   useEffect(() => {
-    restaurantApi
-      .getMine()
-      .then((r) => setServiceHours(r?.config?.service_hours ?? {}))
+    sitesApi
+      .getOwn(site)
+      .then((own) => setServiceHours(own.service_hours))
       .catch(() => {});
-  }, []);
+  }, [site]);
 
   useEffect(() => {
     const check = () => setDuringService(isInServiceHours(serviceHours));

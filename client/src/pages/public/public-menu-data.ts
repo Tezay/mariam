@@ -1,11 +1,12 @@
 import { addDays, parisToday } from '@/lib/date-utils';
 import type { Menu } from '@/lib/api/menus';
-import type { PublicEvent, PublicSite } from '@/lib/api/sites';
+import type { Event } from '@/lib/api/events';
+import type { Site } from '@/lib/api/sites';
 import type { EventData, MenuData, PublicMenuData, RestaurantPublic, SitePage } from './menu-types';
 
 const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
-function restaurantOf(site: PublicSite): RestaurantPublic {
+function restaurantOf(site: Site): RestaurantPublic {
   const { service_days, dietary_tags, certifications } = site;
   return { ...site, config: { service_days, dietary_tags, certifications } };
 }
@@ -27,7 +28,9 @@ function dayOf(date: string, menus: Menu[], restaurant: RestaurantPublic): MenuD
   };
 }
 
-function eventOf({ date, ...event }: PublicEvent): EventData {
+const UPCOMING_EVENTS = 4;
+
+function eventOf({ date, ...event }: Event): EventData {
   return { ...event, event_date: date };
 }
 
@@ -42,7 +45,10 @@ export function publicMenuData(
     today: dayOf(today, menus, restaurant),
     tomorrow: dayOf(addDays(today, 1), menus, restaurant),
     todayEvent: events.filter((event) => event.date === today).map(eventOf)[0] ?? null,
-    upcomingEvents: events.filter((event) => event.date > today).map(eventOf),
+    upcomingEvents: events
+      .filter((event) => event.date > today)
+      .slice(0, UPCOMING_EVENTS)
+      .map(eventOf),
     activeClosure:
       closures.find((closure) => closure.start_date <= today && today <= closure.end_date) ?? null,
     upcomingClosures: closures.filter((closure) => closure.start_date > today),

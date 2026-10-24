@@ -4,7 +4,9 @@
  * view assembles itself, hence its optional fields.
  */
 import type { Menu } from '@/lib/api/menus';
-import type { PublicClosure, PublicEvent, PublicSite } from '@/lib/api/sites';
+import type { Closure } from '@/lib/api/closures';
+import type { Event } from '@/lib/api/events';
+import type { Site } from '@/lib/api/sites';
 import type { components } from '@/lib/api/schema.gen';
 
 type Schemas = components['schemas'];
@@ -40,8 +42,8 @@ export interface MenuResponse {
   substitutions?: Record<string, CategorySubstitutionData[]>;
 }
 
-export type RestaurantPublic = PublicSite & {
-  config: Pick<PublicSite, 'service_days' | 'dietary_tags' | 'certifications'>;
+export type RestaurantPublic = Site & {
+  config: Pick<Site, 'service_days' | 'dietary_tags' | 'certifications'>;
 };
 
 export interface MenuData {
@@ -51,9 +53,9 @@ export interface MenuData {
   restaurant: RestaurantPublic;
 }
 
-export type EventData = Omit<PublicEvent, 'date' | 'images'> & {
+export type EventData = Omit<Event, 'date' | 'images'> & {
   event_date: string;
-  images?: Schemas['PublicImage'][];
+  images?: Schemas['Image'][];
 };
 
 export interface PublicMenuData {
@@ -61,14 +63,14 @@ export interface PublicMenuData {
   tomorrow: MenuData | null;
   todayEvent: EventData | null;
   upcomingEvents: EventData[];
-  activeClosure: PublicClosure | null;
-  upcomingClosures: PublicClosure[];
+  activeClosure: Closure | null;
+  upcomingClosures: Closure[];
   restaurant: RestaurantPublic | null;
 }
 
 export interface SitePage {
-  site: PublicSite;
+  site: Site;
   menus: Menu[];
-  events: PublicEvent[];
-  closures: PublicClosure[];
+  events: Event[];
+  closures: Closure[];
 }

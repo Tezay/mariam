@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Trash2, CalendarOff } from 'lucide-react';
 import { closuresApi } from '@/lib/api/closures';
-import type { ExceptionalClosure } from '@/lib/api/closures';
+import type { Closure } from '@/lib/api/closures';
 import {
   Dialog,
   DialogContent,
@@ -28,10 +28,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useSiteRef } from '@/contexts/SiteContext';
 
 interface ClosureEditorProps {
   open: boolean;
-  closure?: ExceptionalClosure | null;
+  closure?: Closure | null;
   prefillStart?: string;
   prefillEnd?: string;
   onClose: () => void;
@@ -74,6 +75,7 @@ export function ClosureEditor({
   onClose,
   onSaved,
 }: ClosureEditorProps) {
+  const site = useSiteRef();
   const isEditing = !!closure;
   const isMobile = useIsMobile();
   const [form, setForm] = useState<FormData>(EMPTY);
@@ -132,9 +134,9 @@ export function ClosureEditor({
     };
     try {
       if (closure) {
-        await closuresApi.update(closure.id, payload);
+        await closuresApi.update(site, closure.id, payload);
       } else {
-        await closuresApi.create(payload);
+        await closuresApi.create(site, payload);
       }
       onSaved();
     } catch {
@@ -148,7 +150,7 @@ export function ClosureEditor({
     if (!closure) return;
     setIsDeleting(true);
     try {
-      await closuresApi.delete(closure.id);
+      await closuresApi.remove(site, closure.id);
       onSaved();
     } catch {
       setError('Erreur lors de la suppression.');

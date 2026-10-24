@@ -38,12 +38,12 @@ from ..schemas.dishes import (
     DishStatsQuerySchema,
     DishStatsSchema,
 )
-from ..security import get_client_ip, limiter
+from ..security import limiter
 from ..services import catalog_csv, text_match
 from ..services.dish_stats import MAX_BATCH, dish_stats, first_served, period_cutoff
 from ..services.storage import storage
 from ..utils.time import paris_today
-from .helpers import editor_required, get_current_user, normalize_dish_name
+from .helpers import audit, editor_required, normalize_dish_name, store_image
 from .scope import member_site
 
 dishes_bp = Blueprint('dishes', __name__, description="A site's catalog of dishes")
@@ -196,16 +196,6 @@ def _filtered_dishes(restaurant: Restaurant, query: dict) -> list:
     return found
 
 
-def _audit(action: str, restaurant: Restaurant, **fields) -> None:
-    AuditLog.log(
-        action=action,
-        user_id=get_current_user().id,
-        restaurant_id=restaurant.id,
-        ip_address=get_client_ip(),
-        **fields,
-    )
-
-
 @dishes_bp.route('', methods=['GET'])
 @jwt_required()
 @dishes_bp.arguments(DishQuerySchema, location='query')
@@ -254,7 +244,7 @@ def create_dish(body, org: str, site: str):
     )
     db.session.add(dish)
     db.session.flush()
-    _audit(
+    audit(
         AuditLog.ACTION_DISH_CREATE, restaurant,
         target_type='dish', target_id=dish.id, details={'name': dish.name},
     )
@@ -291,7 +281,7 @@ def patch_dish(body, org: str, site: str, dish_id: int):
         dish.tags = tags
     if 'certification_ids' in body:
         dish.certifications = certifications
-    _audit(
+    audit(
         AuditLog.ACTION_DISH_UPDATE, restaurant,
         target_type='dish', target_id=dish.id, details={'name': dish.name},
     )
@@ -314,7 +304,7 @@ def delete_dish(org: str, site: str, dish_id: int):
         )
     if dish.storage_key:
         storage.delete_file(dish.storage_key)
-    _audit(
+    audit(
         AuditLog.ACTION_DISH_DELETE, restaurant,
         target_type='dish', target_id=dish.id, details={'name': dish.name},
     )
@@ -361,7 +351,7 @@ def batch_delete_dishes(body, org: str, site: str):
             continue
         if dish.storage_key:
             storage.delete_file(dish.storage_key)
-        _audit(
+        audit(
             AuditLog.ACTION_DISH_DELETE, restaurant,
             target_type='dish', target_id=dish.id, details={'name': dish.name},
         )
@@ -402,7 +392,7 @@ def batch_update_dishes(body, org: str, site: str):
         ] + [cert for cert in add_certs if cert not in dish.certifications]
         updated.append(dish.id)
 
-    _audit(
+    audit(
         AuditLog.ACTION_DISH_UPDATE, restaurant,
         target_type='dish', details={'batch_update': True, 'count': len(updated)},
     )
@@ -446,27 +436,11 @@ def put_dish_image(files, org: str, site: str, dish_id: int):
     """Set or replace a dish's photo: JPEG, PNG, WebP or HEIC, stored as JPEG."""
     restaurant = member_site(org, site)
     dish = _site_dish(restaurant, dish_id)
-    if not storage.is_configured:
-        raise Problem(503, 'storage_unavailable', "Le stockage des images n'est pas configuré.")
-
-    upload = files['file']
-    is_valid, error = storage.validate_image(upload.filename)
-    if not is_valid:
-        raise Problem(422, 'image_invalid', error)
-    try:
-        data, filename, content_type = storage.process_image(
-            upload.read(), upload.filename, upload.content_type or 'application/octet-stream'
-        )
-    except ValueError as err:
-        raise Problem(422, 'image_invalid', str(err)) from None
-    stored = storage.upload_file(data, filename, prefix='catalog', content_type=content_type)
-    if not stored:
-        raise Problem(502, 'storage_failed', "L'image n'a pas pu être enregistrée.")
-
+    stored, filename = store_image(files['file'], 'catalog')
     if dish.storage_key:
         storage.delete_file(dish.storage_key)
     dish.storage_key, dish.image_url = stored['key'], stored['url']
-    _audit(
+    audit(
         AuditLog.ACTION_DISH_IMAGE_UPLOAD, restaurant,
         target_type='dish', target_id=dish.id, details={'name': dish.name, 'filename': filename},
     )
@@ -484,7 +458,7 @@ def delete_dish_image(org: str, site: str, dish_id: int):
     if dish.storage_key:
         storage.delete_file(dish.storage_key)
         dish.storage_key = dish.image_url = None
-        _audit(
+        audit(
             AuditLog.ACTION_DISH_IMAGE_DELETE, restaurant,
             target_type='dish', target_id=dish.id, details={'name': dish.name},
         )

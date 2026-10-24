@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { eventsApi, Event } from '@/lib/api/events';
 import { notify } from '@/lib/toast';
-import { parisToday } from '@/lib/date-utils';
+import { addDays, parisToday } from '@/lib/date-utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateEventPalette } from '@/lib/color-utils';
 import { Button } from '@/components/ui/button';
@@ -31,10 +31,12 @@ import {
   Megaphone,
 } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
+import { useSiteRef } from '@/contexts/SiteContext';
 
 type FilterMode = 'upcoming' | 'past' | 'all';
 
 export function EventsPage() {
+  const site = useSiteRef();
   const { user } = useAuth();
   const navigate = useNavigate();
   const canEdit = user?.role === 'admin' || user?.role === 'editor';
@@ -50,26 +52,21 @@ export function EventsPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await eventsApi.list(filter === 'upcoming', undefined, true);
-
-      // The API has no past filter: everything loads and the past is kept here.
-      if (filter === 'past') {
-        const allData = await eventsApi.list(false, undefined, true);
-        const today = parisToday();
-        setEvents(allData.filter((e) => e.event_date < today));
-      } else if (filter === 'all') {
-        const allData = await eventsApi.list(false, undefined, true);
-        setEvents(allData);
-      } else {
-        setEvents(data);
-      }
+      const today = parisToday();
+      const range =
+        filter === 'upcoming'
+          ? { from: today }
+          : filter === 'past'
+            ? { to: addDays(today, -1) }
+            : {};
+      setEvents(await eventsApi.list(site, range));
     } catch (err) {
       console.error('Loading the events failed:', err);
       setError(err);
     } finally {
       setIsLoading(false);
     }
-  }, [filter]);
+  }, [site, filter]);
 
   useEffect(() => {
     loadEvents();
@@ -77,7 +74,7 @@ export function EventsPage() {
 
   const handleDelete = async (id: number) => {
     try {
-      await eventsApi.delete(id);
+      await eventsApi.remove(site, id);
       await loadEvents();
       notify.success('Événement supprimé');
     } catch {
@@ -89,7 +86,7 @@ export function EventsPage() {
 
   const handleDuplicate = async (event: Event) => {
     try {
-      await eventsApi.duplicate(event.id);
+      await eventsApi.duplicate(site, event.id);
       await loadEvents();
       notify.success('Événement dupliqué');
     } catch {
@@ -101,9 +98,9 @@ export function EventsPage() {
     try {
       const wasPublished = event.status === 'published';
       if (wasPublished) {
-        await eventsApi.unpublish(event.id);
+        await eventsApi.unpublish(site, event.id);
       } else {
-        await eventsApi.publish(event.id);
+        await eventsApi.publish(site, event.id);
         window.umami?.track('event-publish');
       }
       await loadEvents();
@@ -160,8 +157,8 @@ export function EventsPage() {
 
   const renderEventCard = (event: Event) => {
     const palette = generateEventPalette(event.color || '#3498DB');
-    const today = isToday(event.event_date);
-    const past = isPast(event.event_date);
+    const today = isToday(event.date);
+    const past = isPast(event.date);
 
     return (
       <Card
@@ -178,7 +175,7 @@ export function EventsPage() {
               <span
                 className={`text-sm font-medium ${today ? 'text-primary' : 'text-muted-foreground'}`}
               >
-                {today ? "Aujourd'hui : en cours" : formatDate(event.event_date)}
+                {today ? "Aujourd'hui : en cours" : formatDate(event.date)}
               </span>
             </div>
             <div className="flex items-center gap-2">

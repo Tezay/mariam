@@ -4,14 +4,14 @@ import { useSiteRef } from '@/contexts/SiteContext';
 import { menusApi, type Menu } from '@/lib/api/menus';
 import { sitesApi } from '@/lib/api/sites';
 import { eventsApi, Event } from '@/lib/api/events';
-import { closuresApi, ExceptionalClosure } from '@/lib/api/closures';
+import { closuresApi, type Closure } from '@/lib/api/closures';
 import { addDays } from '@/lib/date-utils';
 
 export interface DayData {
   date: string;
   menu: Menu | null;
   events: Event[];
-  closure: ExceptionalClosure | null;
+  closure: Closure | null;
   isServiceDay: boolean;
 }
 
@@ -44,16 +44,11 @@ interface UseCalendarDataResult {
   error: unknown;
   reload: () => void;
   serviceDays: number[]; // 0 is Monday
-  storageConfigured: boolean;
 }
 
 const STALE_TIME = 60_000;
 
-export function useCalendarData(
-  rangeStart: string,
-  rangeEnd: string,
-  siteId?: number
-): UseCalendarDataResult {
+export function useCalendarData(rangeStart: string, rangeEnd: string): UseCalendarDataResult {
   const queryClient = useQueryClient();
   const site = useSiteRef();
 
@@ -77,22 +72,17 @@ export function useCalendarData(
     staleTime: STALE_TIME,
   });
 
+  const range = { from: rangeStart, to: rangeEnd };
   const eventsQuery = useQuery({
-    queryKey: ['calendar-events', siteId ?? 'self'],
-    queryFn: () => eventsApi.list(false, siteId, true) as Promise<Event[]>,
+    queryKey: ['calendar-events', site.org, site.site, rangeStart, rangeEnd],
+    queryFn: () => eventsApi.list(site, range),
     staleTime: STALE_TIME,
   });
 
   const closuresQuery = useQuery({
-    queryKey: ['calendar-closures', siteId ?? 'self'],
-    queryFn: () => closuresApi.list(false, siteId, true) as Promise<ExceptionalClosure[]>,
+    queryKey: ['calendar-closures', site.org, site.site, rangeStart, rangeEnd],
+    queryFn: () => closuresApi.list(site, range),
     staleTime: STALE_TIME,
-  });
-
-  const storageQuery = useQuery({
-    queryKey: ['storage-status'],
-    queryFn: () => eventsApi.storageStatus().catch(() => false),
-    staleTime: 5 * 60_000,
   });
 
   const weekSignature = weekResults.map((r) => r.dataUpdatedAt).join('|');
@@ -120,7 +110,7 @@ export function useCalendarData(
     }
 
     for (const event of events) {
-      const d = event.event_date;
+      const d = event.date;
       if (!result[d]) {
         result[d] = {
           date: d,
@@ -177,7 +167,6 @@ export function useCalendarData(
     queryClient.invalidateQueries({ queryKey: ['calendar-week'] });
     queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
     queryClient.invalidateQueries({ queryKey: ['calendar-closures'] });
-    queryClient.invalidateQueries({ queryKey: ['storage-status'] });
   };
 
   return {
@@ -186,6 +175,5 @@ export function useCalendarData(
     error,
     reload,
     serviceDays,
-    storageConfigured: (storageQuery.data as boolean) ?? false,
   };
 }

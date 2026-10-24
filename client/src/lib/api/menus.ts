@@ -5,7 +5,6 @@ import type { components } from './schema.gen';
 type Schemas = components['schemas'];
 
 export type Menu = Schemas['Menu'];
-export type MenuCategoryNode = Schemas['PublicCategory'];
 export type MenuItem = Schemas['PublicMenuItem'];
 export type MenuDish = Schemas['PublicDish'];
 export type MenuItemInput = Schemas['MenuItemInput'];

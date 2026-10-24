@@ -1,553 +1,317 @@
-from datetime import datetime, timedelta
+import datetime
 
-from flask import jsonify, request
-from flask_jwt_extended import get_jwt_identity, jwt_required, verify_jwt_in_request
+from flask import url_for
 from flask_smorest import Blueprint
 
 from ..extensions import db
-from ..models import AuditLog, Event, EventImage, User
-from ..schemas.common import ErrorSchema, MessageSchema
+from ..models import AuditLog, Event, EventImage, Restaurant
+from ..problems import Problem
+from ..schemas.common import FileUploadSchema
 from ..schemas.events import (
-    EventCreateSchema,
+    EventDuplicateSchema,
+    EventInputSchema,
+    EventListSchema,
+    EventPatchSchema,
+    EventQuerySchema,
     EventSchema,
-    EventUpdateSchema,
-    PublicEventsResponseSchema,
 )
-from ..security import get_client_ip
+from ..schemas.images import ImageListSchema, ImageOrderSchema, ImageSchema
+from ..security import limiter, public_limit
 from ..services.rich_text import sanitize_html
 from ..services.storage import storage
-from ..utils.time import paris_today
-from .helpers import (
-    accessible_restaurant_ids,
-    editor_required,
-    get_active_restaurant,
-    get_default_restaurant,
-    scoped_get,
-)
+from ..utils.time import as_utc, paris_today
+from .helpers import audit, editor_required, get_current_user, store_image
+from .scope import SESSION_OPTIONAL, finish_public_read, member_site, readable_site
 
 events_bp = Blueprint(
     'events', __name__,
-    description='Events — Public display and editor management'
+    description="A site's events: the published ones for anyone, drafts too for its editors",
 )
+events_bp.after_request(finish_public_read)
+
+EVENT_IMAGES_MAX = 6
 
 
-def _public_event(event: Event) -> dict:
-    """Serialise for the menu pages, which render the description as markup.
+def event_view(event, member: bool) -> dict:
+    view = {
+        'id': event.id,
+        'title': event.title,
+        'subtitle': event.subtitle,
+        # Sanitised again on the way out: rows written before the write path did
+        # it cannot be cleaned by a migration without losing their content.
+        'description': sanitize_html(event.description),
+        'color': event.color,
+        'event_date': event.event_date,
+        'images': [
+            {'url': image.url, 'order': image.order, **({'id': image.id} if member else {})}
+            for image in event.images.order_by(EventImage.order)
+        ],
+    }
+    if member:
+        view |= {
+            'status': event.status,
+            'visibility': event.visibility,
+            'created_at': as_utc(event.created_at),
+            'updated_at': as_utc(event.updated_at),
+        }
+    return view
 
-    Sanitising again on the way out covers the rows written before the write
-    path did it, which no migration can reach without losing their content.
-    """
-    data = event.to_dict(include_images=True)
-    data['description'] = sanitize_html(data['description'])
-    return data
+
+def _visible(restaurant: Restaurant, member: bool):
+    events = Event.query.filter(Event.restaurant_id == restaurant.id, Event.is_active)
+    if not member:
+        events = events.filter(Event.status == 'published')
+    return events
+
+
+def _site_event(restaurant: Restaurant, event_id: int, member: bool = True):
+    event = _visible(restaurant, member).filter(Event.id == event_id).first()
+    if event is None:
+        raise Problem(404, 'event_not_found', 'Événement introuvable.')
+    return event
+
+
+def _created(org: str, site: str, event) -> tuple[dict, int, dict]:
+    location = url_for('events.get_event', org=org, site=site, event_id=event.id)
+    return event_view(event, True), 201, {'Location': location}
 
 
 @events_bp.route('', methods=['GET'])
-@events_bp.doc(security=[])
-@events_bp.response(200, PublicEventsResponseSchema)
-def list_events():
-    """List events.
+@events_bp.doc(security=SESSION_OPTIONAL)
+@limiter.limit(public_limit)
+@events_bp.arguments(EventQuerySchema, location='query')
+@events_bp.response(200, EventListSchema)
+def list_events(query, org: str, site: str):
+    """Events in date order, soonest first.
 
-    - **Without authentication**: returns published, active events from today onward,
-      in display format (TV/mobile). Separates today's event from upcoming events.
-    - **With editor authentication**: returns all events (drafts included) with advanced filters.
-
-    Public query params: `restaurant_id`, `visibility` (tv|mobile|all), `limit`
-
-    Editor query params (ignored without auth):
-    `upcoming` (bool), `include_inactive` (bool), `status`
+    Anyone reads the published ones from today on. The site's editors read the
+    drafts too, and any range: without `from`, past events as well.
     """
-    restaurant_id = request.args.get('restaurant_id', type=int)
+    restaurant, member = readable_site(org, site)
+    events = _visible(restaurant, member)
+    start = query.get('start')
+    if not member:
+        start = max(start or paris_today(), paris_today())
+    if start:
+        events = events.filter(Event.event_date >= start)
+    if 'end' in query:
+        events = events.filter(Event.event_date <= query['end'])
+    if 'visibility' in query:
+        events = events.filter(Event.visibility.in_((query['visibility'], 'all')))
+    events = events.order_by(Event.event_date.asc(), Event.id.asc())
+    if 'limit' in query:
+        events = events.limit(query['limit'])
+    return {'items': [event_view(event, member) for event in events]}
 
-    is_editor = False
-    user = None
-    try:
-        verify_jwt_in_request(optional=True)
-        identity = get_jwt_identity()
-        if identity:
-            user = db.session.get(User, int(identity))
-            is_editor = user is not None and user.is_editor()
-    except Exception:
-        pass
 
-    if is_editor:
-        # Editor view: strictly limited to accessible restaurants.
-        allowed_ids = accessible_restaurant_ids(user)
-        if restaurant_id is None:
-            active = get_active_restaurant(user)
-            restaurant_id = active.id if active else None
-        if restaurant_id is None or restaurant_id not in allowed_ids:
-            return jsonify({'events': []}), 200
-    else:
-        # Anonymous public view: requested restaurant, else the default (single-tenant).
-        if not restaurant_id:
-            restaurant = get_default_restaurant()
-            if not restaurant:
-                return jsonify({
-                    'today_event': None,
-                    'upcoming_events': [],
-                    'events': [],
-                }), 200
-            restaurant_id = restaurant.id
-
-    if is_editor:
-        upcoming_only = request.args.get('upcoming', 'true').lower() == 'true'
-        include_inactive = request.args.get('include_inactive', 'false').lower() == 'true'
-        status_filter = request.args.get('status')
-
-        query = Event.query.filter_by(restaurant_id=restaurant_id)
-
-        if upcoming_only:
-            query = query.filter(Event.event_date >= paris_today())
-
-        if not include_inactive:
-            query = query.filter_by(is_active=True)
-
-        if status_filter in Event.VALID_STATUS:
-            query = query.filter_by(status=status_filter)
-
-        events = query.order_by(Event.event_date.asc()).limit(100).all()
-
-        return jsonify({'events': [event.to_dict() for event in events]}), 200
-
-    else:
-        visibility = request.args.get('visibility')
-        limit = request.args.get('limit', 5, type=int)
-
-        query = Event.query.filter(
-            Event.restaurant_id == restaurant_id,
-            Event.is_active,
-            Event.status == 'published',
-            Event.event_date >= paris_today(),
-        )
-
-        if visibility in ['tv', 'mobile']:
-            query = query.filter(
-                (Event.visibility == visibility) | (Event.visibility == 'all')
-            )
-
-        events = query.order_by(Event.event_date.asc()).limit(limit).all()
-
-        today = paris_today()
-        today_event = None
-        upcoming_events = []
-
-        for event in events:
-            if event.event_date == today:
-                today_event = _public_event(event)
-            else:
-                upcoming_events.append(_public_event(event))
-
-        return jsonify({
-            'today_event': today_event,
-            'upcoming_events': upcoming_events,
-            # For the clients that read the flat list.
-            'events': [_public_event(event) for event in events],
-        }), 200
+@events_bp.route('/<int:event_id>', methods=['GET'])
+@events_bp.doc(security=SESSION_OPTIONAL)
+@limiter.limit(public_limit)
+@events_bp.response(200, EventSchema)
+def get_event(org: str, site: str, event_id: int):
+    """One event: published for anyone, any for the site's editors."""
+    restaurant, member = readable_site(org, site)
+    return event_view(_site_event(restaurant, event_id, member), member)
 
 
 @events_bp.route('', methods=['POST'])
 @editor_required
-@events_bp.arguments(EventCreateSchema)
+@events_bp.arguments(EventInputSchema)
 @events_bp.response(201, EventSchema)
-@events_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
-def create_event(data):
-    """Create a new event."""
-    current_user_id = int(get_jwt_identity())
-    current_user = db.session.get(User, current_user_id)
-
-    title = data.get('title')
-    event_date_str = data.get('event_date')
-
-    if not title or not event_date_str:
-        return jsonify({'error': 'Titre et date requis'}), 400
-
-    try:
-        event_date = datetime.strptime(event_date_str, '%Y-%m-%d').date()
-    except ValueError:
-        return jsonify({'error': 'Format de date invalide (YYYY-MM-DD)'}), 400
-
-    active = get_active_restaurant(current_user)
-    restaurant_id = active.id if active else None
-    if not restaurant_id:
-        return jsonify({'error': 'Aucun restaurant associé à votre compte'}), 400
-
-    visibility = data.get('visibility', 'all')
-    if visibility not in Event.VALID_VISIBILITY:
-        return jsonify({'error': f'Visibilité invalide. Valeurs: {Event.VALID_VISIBILITY}'}), 400
-
-    status = data.get('status', 'draft')
-    if status not in Event.VALID_STATUS:
-        return jsonify({'error': f'Statut invalide. Valeurs: {Event.VALID_STATUS}'}), 400
-
-    color = data.get('color', '#3498DB')
-    if color and (not color.startswith('#') or len(color) != 7):
-        color = '#3498DB'
-
+def create_event(body, org: str, site: str):
+    """Add an event, a draft unless `status` says otherwise."""
+    restaurant = member_site(org, site)
     event = Event(
-        restaurant_id=restaurant_id,
-        title=title,
-        subtitle=data.get('subtitle'),
-        description=sanitize_html(data.get('description')),
-        color=color,
-        event_date=event_date,
-        status=status,
-        visibility=visibility,
-        created_by_id=current_user_id,
+        restaurant_id=restaurant.id,
+        title=body['title'],
+        subtitle=body.get('subtitle'),
+        description=sanitize_html(body.get('description')),
+        color=body['color'],
+        event_date=body['date'],
+        status=body['status'],
+        visibility=body['visibility'],
+        created_by_id=get_current_user().id,
     )
     db.session.add(event)
-
-    AuditLog.log(
-        action=AuditLog.ACTION_EVENT_CREATE,
-        user_id=current_user_id,
-        target_type='event',
-        details={'title': title, 'date': event_date_str},
-        ip_address=get_client_ip(),
+    db.session.flush()
+    audit(
+        AuditLog.ACTION_EVENT_CREATE, restaurant,
+        target_type='event', target_id=event.id,
+        details={'title': event.title, 'date': event.event_date.isoformat()},
     )
-
     db.session.commit()
-
-    return jsonify({'message': 'Événement créé', 'event': event.to_dict()}), 201
-
-
-@events_bp.route('/storage-status', methods=['GET'])
-@events_bp.response(200, MessageSchema)
-@jwt_required()
-def storage_status():
-    """Check whether S3 storage is configured."""
-    return jsonify({'configured': storage.is_configured}), 200
+    return _created(org, site, event)
 
 
-@events_bp.route('/<int:event_id>', methods=['GET'])
-@events_bp.response(200, EventSchema)
-@events_bp.alt_response(404, schema=ErrorSchema, description="Event not found")
+@events_bp.route('/<int:event_id>', methods=['PATCH'])
 @editor_required
-def get_event(event_id):
-    """Get an event by ID with its images."""
-    event = scoped_get(Event, event_id)
-    if not event:
-        return jsonify({'error': 'Événement non trouvé'}), 404
-    return jsonify({'event': event.to_dict()}), 200
-
-
-@events_bp.route('/<int:event_id>', methods=['PUT'])
-@editor_required
-@events_bp.arguments(EventUpdateSchema)
+@events_bp.arguments(EventPatchSchema)
 @events_bp.response(200, EventSchema)
-@events_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
-@events_bp.alt_response(404, schema=ErrorSchema, description="Event not found")
-def update_event(data, event_id):
-    """Update an existing event."""
-    current_user_id = int(get_jwt_identity())
-    event = scoped_get(Event, event_id)
-    if not event:
-        return jsonify({'error': 'Événement non trouvé'}), 404
-
-    if 'title' in data:
-        event.title = data['title']
-
-    if 'subtitle' in data:
-        event.subtitle = data['subtitle']
-
-    if 'description' in data:
-        event.description = sanitize_html(data['description'])
-
-    if 'color' in data:
-        color = data['color']
-        if color and color.startswith('#') and len(color) == 7:
-            event.color = color
-
-    if 'event_date' in data:
-        try:
-            new_date = datetime.strptime(data['event_date'], '%Y-%m-%d').date()
-            if new_date != event.event_date:
-                event.event_date = new_date
-                event.notified_7d = False
-                event.notified_1d = False
-        except ValueError:
-            return jsonify({'error': 'Format de date invalide (YYYY-MM-DD)'}), 400
-
-    if 'visibility' in data:
-        if data['visibility'] in Event.VALID_VISIBILITY:
-            event.visibility = data['visibility']
-        else:
-            return jsonify({'error': f'Visibilité invalide. Valeurs: {Event.VALID_VISIBILITY}'}), 400
-
-    if 'status' in data and data['status'] in Event.VALID_STATUS:
-        event.status = data['status']
-
-    if 'is_active' in data:
-        event.is_active = data['is_active']
-
-    AuditLog.log(
-        action=AuditLog.ACTION_EVENT_UPDATE,
-        user_id=current_user_id,
-        target_type='event',
-        target_id=event.id,
-        details={'changes': data},
-        ip_address=get_client_ip(),
+def patch_event(body, org: str, site: str, event_id: int):
+    """Change an event; a new date sends its reminders again."""
+    restaurant = member_site(org, site)
+    event = _site_event(restaurant, event_id)
+    for field in ('title', 'subtitle', 'color', 'visibility'):
+        if field in body:
+            setattr(event, field, body[field])
+    if 'description' in body:
+        event.description = sanitize_html(body['description'])
+    if 'date' in body and body['date'] != event.event_date:
+        event.event_date = body['date']
+        event.notified_7d = event.notified_1d = False
+    audit(
+        AuditLog.ACTION_EVENT_UPDATE, restaurant,
+        target_type='event', target_id=event.id, details={'updated_fields': sorted(body)},
     )
-
     db.session.commit()
-
-    return jsonify({'message': 'Événement mis à jour', 'event': event.to_dict()}), 200
+    return event_view(event, True)
 
 
 @events_bp.route('/<int:event_id>', methods=['DELETE'])
-@events_bp.response(200, MessageSchema)
-@events_bp.alt_response(404, schema=ErrorSchema, description="Event not found")
 @editor_required
-def delete_event(event_id):
-    """Delete an event and its S3 images."""
-    current_user_id = int(get_jwt_identity())
-    event = scoped_get(Event, event_id)
-    if not event:
-        return jsonify({'error': 'Événement non trouvé'}), 404
-
-    image_keys = [img.storage_key for img in event.images if img.storage_key]
-    if image_keys:
-        storage.delete_files(image_keys)
-
-    AuditLog.log(
-        action=AuditLog.ACTION_EVENT_DELETE,
-        user_id=current_user_id,
-        target_type='event',
-        target_id=event.id,
-        details={'title': event.title},
-        ip_address=get_client_ip(),
+@events_bp.response(204)
+def delete_event(org: str, site: str, event_id: int):
+    """Delete an event and its images."""
+    restaurant = member_site(org, site)
+    event = _site_event(restaurant, event_id)
+    keys = [image.storage_key for image in event.images if image.storage_key]
+    if keys:
+        storage.delete_files(keys)
+    audit(
+        AuditLog.ACTION_EVENT_DELETE, restaurant,
+        target_type='event', target_id=event.id, details={'title': event.title},
     )
-
     db.session.delete(event)
     db.session.commit()
 
-    return jsonify({'message': 'Événement supprimé'}), 200
-
 
 @events_bp.route('/<int:event_id>/publish', methods=['POST'])
-@events_bp.response(200, EventSchema)
-@events_bp.alt_response(404, schema=ErrorSchema, description="Event not found")
 @editor_required
-def publish_event(event_id):
-    """Publish an event (draft to published)."""
-    current_user_id = int(get_jwt_identity())
-    event = scoped_get(Event, event_id)
-    if not event:
-        return jsonify({'error': 'Événement non trouvé'}), 404
-
+@events_bp.response(200, EventSchema)
+def publish_event(org: str, site: str, event_id: int):
+    """Publish an event."""
+    restaurant = member_site(org, site)
+    event = _site_event(restaurant, event_id)
     event.status = 'published'
-
-    AuditLog.log(
-        action=AuditLog.ACTION_EVENT_UPDATE,
-        user_id=current_user_id,
-        target_type='event',
-        target_id=event.id,
-        details={'action': 'publish'},
-        ip_address=get_client_ip(),
+    audit(
+        AuditLog.ACTION_EVENT_UPDATE, restaurant,
+        target_type='event', target_id=event.id, details={'action': 'publish'},
     )
-
     db.session.commit()
-
-    return jsonify({'message': 'Événement publié', 'event': event.to_dict()}), 200
+    return event_view(event, True)
 
 
 @events_bp.route('/<int:event_id>/unpublish', methods=['POST'])
-@events_bp.response(200, EventSchema)
-@events_bp.alt_response(404, schema=ErrorSchema, description="Event not found")
 @editor_required
-def unpublish_event(event_id):
-    """Revert a published event to draft."""
-    event = scoped_get(Event, event_id)
-    if not event:
-        return jsonify({'error': 'Événement non trouvé'}), 404
-
+@events_bp.response(200, EventSchema)
+def unpublish_event(org: str, site: str, event_id: int):
+    """Take a published event back to draft."""
+    restaurant = member_site(org, site)
+    event = _site_event(restaurant, event_id)
+    if event.status != 'published':
+        raise Problem(409, 'event_not_published', "L'événement n'est pas publié.")
     event.status = 'draft'
+    audit(
+        AuditLog.ACTION_EVENT_UPDATE, restaurant,
+        target_type='event', target_id=event.id, details={'action': 'unpublish'},
+    )
     db.session.commit()
-
-    return jsonify({'message': 'Événement dépublié', 'event': event.to_dict()}), 200
+    return event_view(event, True)
 
 
 @events_bp.route('/<int:event_id>/duplicate', methods=['POST'])
-@events_bp.response(201, EventSchema)
-@events_bp.alt_response(404, schema=ErrorSchema, description="Event not found")
 @editor_required
-def duplicate_event(event_id):
-    """Duplicate an event (no images, draft status).
-
-    Optional JSON body: `{ "event_date": "YYYY-MM-DD" }`
-    If omitted, the date is shifted 7 days from the original.
-    """
-    current_user_id = int(get_jwt_identity())
-    event = scoped_get(Event, event_id)
-    if not event:
-        return jsonify({'error': 'Événement non trouvé'}), 404
-
-    data = request.get_json() or {}
-    new_date_str = data.get('event_date')
-
-    new_event = Event(
-        restaurant_id=event.restaurant_id,
-        title=f"{event.title} (copie)",
+@events_bp.arguments(EventDuplicateSchema)
+@events_bp.response(201, EventSchema)
+def duplicate_event(body, org: str, site: str, event_id: int):
+    """Copy an event, without its images, as a draft."""
+    restaurant = member_site(org, site)
+    event = _site_event(restaurant, event_id)
+    copy = Event(
+        restaurant_id=restaurant.id,
+        title=f'{event.title} (copie)'[:100],
         subtitle=event.subtitle,
         description=event.description,
         color=event.color,
-        event_date=(
-            datetime.strptime(new_date_str, '%Y-%m-%d').date()
-            if new_date_str
-            else event.event_date + timedelta(days=7)
-        ),
+        event_date=body.get('date', event.event_date + datetime.timedelta(days=7)),
         status='draft',
         visibility=event.visibility,
-        created_by_id=current_user_id,
+        created_by_id=get_current_user().id,
     )
-    db.session.add(new_event)
-
-    AuditLog.log(
-        action=AuditLog.ACTION_EVENT_CREATE,
-        user_id=current_user_id,
-        target_type='event',
-        details={'title': new_event.title, 'duplicated_from': event.id},
-        ip_address=get_client_ip(),
+    db.session.add(copy)
+    db.session.flush()
+    audit(
+        AuditLog.ACTION_EVENT_CREATE, restaurant,
+        target_type='event', target_id=copy.id,
+        details={'title': copy.title, 'duplicated_from': event.id},
     )
-
     db.session.commit()
-
-    return jsonify({'message': 'Événement dupliqué', 'event': new_event.to_dict()}), 201
+    return _created(org, site, copy)
 
 
 @events_bp.route('/<int:event_id>/images', methods=['POST'])
-@events_bp.response(201, EventSchema)
-@events_bp.alt_response(400, schema=ErrorSchema, description="Invalid file or quota exceeded")
-@events_bp.alt_response(404, schema=ErrorSchema, description="Event not found")
-@events_bp.alt_response(503, schema=ErrorSchema, description="S3 storage not configured")
 @editor_required
-def upload_event_image(event_id):
-    """Upload an image for an event.
-
-    Multipart/form-data request with `file` field.
-    Limit: 6 images per event, 5 MB per image.
-    Accepted formats: JPEG, PNG, WebP, HEIC (converted to JPEG).
-    """
-    event = scoped_get(Event, event_id)
-    if not event:
-        return jsonify({'error': 'Événement non trouvé'}), 404
-
-    if not storage.is_configured:
-        return jsonify({'error': 'Stockage S3 non configuré'}), 503
-
-    current_count = EventImage.query.filter_by(event_id=event_id).count()
-    if current_count >= 6:
-        return jsonify({'error': 'Maximum 6 images par événement'}), 400
-
-    file = request.files.get('file')
-    if not file:
-        return jsonify({'error': 'Aucun fichier envoyé'}), 400
-
-    is_valid, error_msg = storage.validate_image(file.filename, file.content_length)
-    if not is_valid:
-        return jsonify({'error': error_msg}), 400
-
-    file_data = file.read()
-    if len(file_data) > storage.MAX_FILE_SIZE:
-        return jsonify({'error': 'Fichier trop volumineux (max 5 MB)'}), 400
-
-    try:
-        file_data, filename, content_type = storage.process_image(
-            file_data, file.filename, file.content_type
+@events_bp.arguments(FileUploadSchema, location='files')
+@events_bp.response(201, ImageSchema)
+def add_event_image(files, org: str, site: str, event_id: int):
+    """Add an image to an event: JPEG, PNG, WebP or HEIC, stored as JPEG."""
+    restaurant = member_site(org, site)
+    event = _site_event(restaurant, event_id)
+    count = event.images.count()
+    if count >= EVENT_IMAGES_MAX:
+        raise Problem(
+            409, 'event_image_limit', f'Un événement porte {EVENT_IMAGES_MAX} images au plus.'
         )
-    except ValueError as err:
-        return jsonify({'error': str(err)}), 400
-
-    result = storage.upload_file(
-        file_data=file_data,
-        filename=filename,
-        prefix=f'events/{event_id}',
-        content_type=content_type,
-    )
-
-    if not result:
-        return jsonify({'error': "Erreur lors de l'upload"}), 500
-
+    stored, filename = store_image(files['file'], f'events/{event.id}')
     image = EventImage(
-        event_id=event_id,
-        storage_key=result['key'],
-        url=result['url'],
+        event_id=event.id,
+        storage_key=stored['key'],
+        url=stored['url'],
         filename=filename,
-        order=current_count,
+        order=count,
     )
     db.session.add(image)
     db.session.flush()
-
-    AuditLog.log(
-        action=AuditLog.ACTION_EVENT_IMAGE_UPLOAD,
-        user_id=int(get_jwt_identity()),
-        restaurant_id=event.restaurant_id,
-        target_type='event_image',
-        target_id=image.id,
-        ip_address=get_client_ip(),
+    audit(
+        AuditLog.ACTION_EVENT_IMAGE_UPLOAD, restaurant,
+        target_type='event_image', target_id=image.id,
     )
     db.session.commit()
-
-    return jsonify({'message': 'Image uploadée', 'image': image.to_dict()}), 201
+    return image
 
 
 @events_bp.route('/<int:event_id>/images/<int:image_id>', methods=['DELETE'])
-@events_bp.response(200, MessageSchema)
-@events_bp.alt_response(404, schema=ErrorSchema, description="Image not found")
 @editor_required
-def delete_event_image(event_id, image_id):
-    """Delete an event image from S3 storage and database."""
-    # First check the event belongs to the caller's tenant.
-    event = scoped_get(Event, event_id)
-    if not event:
-        return jsonify({'error': 'Événement non trouvé'}), 404
-    image = EventImage.query.filter_by(id=image_id, event_id=event_id).first()
-    if not image:
-        return jsonify({'error': 'Image non trouvée'}), 404
-
+@events_bp.response(204)
+def delete_event_image(org: str, site: str, event_id: int, image_id: int):
+    """Remove an image from an event."""
+    restaurant = member_site(org, site)
+    event = _site_event(restaurant, event_id)
+    image = EventImage.query.filter_by(id=image_id, event_id=event.id).first()
+    if image is None:
+        raise Problem(404, 'event_image_not_found', 'Image introuvable.')
     storage.delete_file(image.storage_key)
     db.session.delete(image)
-
-    AuditLog.log(
-        action=AuditLog.ACTION_EVENT_IMAGE_DELETE,
-        user_id=int(get_jwt_identity()),
-        restaurant_id=event.restaurant_id,
-        target_type='event_image',
-        target_id=image_id,
-        ip_address=get_client_ip(),
+    audit(
+        AuditLog.ACTION_EVENT_IMAGE_DELETE, restaurant,
+        target_type='event_image', target_id=image_id,
     )
     db.session.commit()
 
-    return jsonify({'message': 'Image supprimée'}), 200
 
-
-@events_bp.route('/<int:event_id>/images/reorder', methods=['PUT'])
-@events_bp.response(200, EventSchema)
-@events_bp.alt_response(400, schema=ErrorSchema, description="image_ids list required")
-@events_bp.alt_response(404, schema=ErrorSchema, description="Event not found")
+@events_bp.route('/<int:event_id>/images/order', methods=['PUT'])
 @editor_required
-def reorder_event_images(event_id):
-    """Reorder event images.
-
-    JSON body: `{ "image_ids": [3, 1, 2] }`
-    Array order defines the new display order.
-    """
-    event = scoped_get(Event, event_id)
-    if not event:
-        return jsonify({'error': 'Événement non trouvé'}), 404
-
-    data = request.get_json()
-    image_ids = data.get('image_ids', [])
-    if not image_ids:
-        return jsonify({'error': 'Liste image_ids requise'}), 400
-
-    for order, img_id in enumerate(image_ids):
-        image = EventImage.query.filter_by(id=img_id, event_id=event_id).first()
-        if image:
-            image.order = order
-
+@events_bp.arguments(ImageOrderSchema)
+@events_bp.response(200, ImageListSchema)
+def order_event_images(body, org: str, site: str, event_id: int):
+    """Put an event's images in a new order."""
+    event = _site_event(member_site(org, site), event_id)
+    images = {image.id: image for image in event.images}
+    if sorted(body['image_ids']) != sorted(images):
+        raise Problem(
+            422, 'image_order_invalid', "La liste doit reprendre chaque image de l'événement, une fois."
+        )
+    for order, image_id in enumerate(body['image_ids']):
+        images[image_id].order = order
     db.session.commit()
-
-    return jsonify({
-        'message': 'Images réordonnées',
-        'images': [img.to_dict() for img in event.images.order_by(EventImage.order)],
-    }), 200
+    return {'items': list(event.images.order_by(EventImage.order))}

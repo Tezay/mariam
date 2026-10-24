@@ -1,11 +1,10 @@
 """The dish catalog: CRUD, roles, isolation between sites."""
-from conftest import auth_headers, get_token, make_category, make_restaurant, make_user, site_path
+from conftest import auth_headers, get_token, make_category, make_restaurant, make_user, own_site, site_path
 
 
 def _dishes(client, token):
     """The catalog of the caller's own site."""
-    rid = client.get('/v1/settings', headers=auth_headers(token)).get_json()['restaurant']['id']
-    return f'{site_path(rid)}/dishes'
+    return f'{own_site(client, token)[1]}/dishes'
 
 
 def _category_for(client, token):
@@ -13,8 +12,7 @@ def _category_for(client, token):
     from app.extensions import db
     from app.models import MenuCategory
 
-    settings = client.get('/v1/settings', headers=auth_headers(token)).get_json()
-    rid = settings['restaurant']['id']
+    rid, _ = own_site(client, token)
     category = MenuCategory.query.filter_by(restaurant_id=rid).first()
     if category is None:
         category = MenuCategory(restaurant_id=rid, label='Plat', order=0)
@@ -310,8 +308,7 @@ class TestLeafCategoryRule:
         from app.extensions import db
         from app.models import MenuCategory
 
-        settings = client.get('/v1/settings', headers=auth_headers(token)).get_json()
-        rid = settings['restaurant']['id']
+        rid, _ = own_site(client, token)
         parent = MenuCategory(restaurant_id=rid, label='Plat principal', order=0)
         db.session.add(parent)
         db.session.commit()
@@ -323,7 +320,7 @@ class TestLeafCategoryRule:
         token = get_token(client)
         rid, parent_id = self._tree(client, token)
         child = client.post(
-            '/v1/settings/categories',
+            f'{own_site(client, token)[1]}/categories',
             json={'label': 'Viandes', 'parent_id': parent_id},
             headers=auth_headers(token),
         )
@@ -342,20 +339,20 @@ class TestLeafCategoryRule:
         _create_dish(client, token, name='Bœuf', category_id=parent_id)
 
         blocked = client.post(
-            '/v1/settings/categories',
+            f'{own_site(client, token)[1]}/categories',
             json={'label': 'Viandes', 'parent_id': parent_id},
             headers=auth_headers(token),
         )
         assert blocked.status_code == 409
-        assert blocked.get_json()['stranded_dishes'] == 1
+        assert blocked.get_json()['dish_count'] == 1
 
         moved = client.post(
-            '/v1/settings/categories',
+            f'{own_site(client, token)[1]}/categories',
             json={'label': 'Viandes', 'parent_id': parent_id, 'move_dishes': True},
             headers=auth_headers(token),
         )
         assert moved.status_code == 201
-        child_id = moved.get_json()['category']['id']
+        child_id = moved.get_json()['id']
         listed = client.get(f'{_dishes(client, token)}', headers=auth_headers(token)).get_json()['items']
         assert [dish['category_id'] for dish in listed if dish['name'] == 'Bœuf'] == [child_id]
 
@@ -367,11 +364,11 @@ class TestLeafCategoryRule:
         _create_dish(client, token, name='Bœuf', category_id=parent_id)
 
         res = client.delete(
-            f'/v1/settings/categories/{parent_id}', headers=auth_headers(token)
+            f'{own_site(client, token)[1]}/categories/{parent_id}', headers=auth_headers(token)
         )
 
         assert res.status_code == 409
-        assert res.get_json()['attached_dishes'] == 1
+        assert res.get_json()['dish_count'] == 1
 
 
 class TestBulkActions:
@@ -639,8 +636,7 @@ class TestNovelties:
 
         menu = Menu.query.filter_by(date=day).first()
         if menu is None:
-            settings = client.get('/v1/settings', headers=auth_headers(token)).get_json()
-            menu = Menu(restaurant_id=settings['restaurant']['id'], date=day, status='published')
+            menu = Menu(restaurant_id=own_site(client, token)[0], date=day, status='published')
             db.session.add(menu)
             db.session.commit()
         db.session.add(MenuItem(

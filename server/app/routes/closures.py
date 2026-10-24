@@ -1,250 +1,128 @@
-from flask import jsonify, request
-from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 from flask_smorest import Blueprint
 
 from ..extensions import db
-from ..models import AuditLog, ExceptionalClosure, User
+from ..models import AuditLog, ExceptionalClosure, Restaurant
+from ..problems import Problem
 from ..schemas.closures import (
-    ClosureCreateSchema,
+    ClosureInputSchema,
+    ClosureListSchema,
+    ClosurePatchSchema,
+    ClosureQuerySchema,
     ClosureSchema,
-    ClosureUpdateSchema,
-    PublicClosuresResponseSchema,
 )
-from ..schemas.common import ErrorSchema, MessageSchema
-from ..security import get_client_ip
-from ..utils.time import paris_today, parse_iso_date
-from .helpers import (
-    accessible_restaurant_ids,
-    editor_required,
-    get_active_restaurant,
-    get_default_restaurant,
-    scoped_get,
-)
+from ..security import limiter, public_limit
+from ..utils.time import paris_today
+from .helpers import audit, editor_required, get_current_user
+from .scope import SESSION_OPTIONAL, finish_public_read, member_site, readable_site
 
-closures_bp = Blueprint(
-    'closures', __name__,
-    description='Exceptional closures — Public display and editor management'
-)
+closures_bp = Blueprint('closures', __name__, description="A site's exceptional closures")
+closures_bp.after_request(finish_public_read)
+
+
+def _site_closure(restaurant: Restaurant, closure_id: int) -> ExceptionalClosure:
+    closure = ExceptionalClosure.query.filter_by(
+        id=closure_id, restaurant_id=restaurant.id, is_active=True
+    ).first()
+    if closure is None:
+        raise Problem(404, 'closure_not_found', 'Fermeture introuvable.')
+    return closure
 
 
 @closures_bp.route('', methods=['GET'])
-@closures_bp.doc(security=[])
-@closures_bp.response(200, PublicClosuresResponseSchema)
-def list_closures():
-    """List exceptional closures.
+@closures_bp.doc(security=SESSION_OPTIONAL)
+@limiter.limit(public_limit)
+@closures_bp.arguments(ClosureQuerySchema, location='query')
+@closures_bp.response(200, ClosureListSchema)
+def list_closures(query, org: str, site: str):
+    """Closures that overlap the range, soonest first.
 
-    - **Without authentication**: returns active closures from today onward,
-      split into current_closure (active today) and upcoming_closures.
-    - **With editor authentication**: returns all closures with filters.
-
-    Public query params: `restaurant_id`
-    Editor query params: `upcoming` (bool), `include_inactive` (bool)
+    Anyone reads those under way or to come. The site's editors read any range:
+    without `from`, past closures as well.
     """
-    restaurant_id = request.args.get('restaurant_id', type=int)
-
-    is_editor = False
-    user = None
-    try:
-        verify_jwt_in_request(optional=True)
-        identity = get_jwt_identity()
-        if identity:
-            user = db.session.get(User, int(identity))
-            is_editor = user is not None and user.is_editor()
-    except Exception:
-        pass
-
-    if is_editor:
-        allowed_ids = accessible_restaurant_ids(user)
-        if restaurant_id is None:
-            active = get_active_restaurant(user)
-            restaurant_id = active.id if active else None
-        if restaurant_id is None or restaurant_id not in allowed_ids:
-            return jsonify({'closures': []}), 200
-    else:
-        # Anonymous public view: requested restaurant, else the default (single-tenant).
-        if not restaurant_id:
-            restaurant = get_default_restaurant()
-            if not restaurant:
-                return jsonify({
-                    'current_closure': None,
-                    'upcoming_closures': [],
-                    'closures': [],
-                }), 200
-            restaurant_id = restaurant.id
-
-    today = paris_today()
-
-    if is_editor:
-        upcoming_only = request.args.get('upcoming', 'false').lower() == 'true'
-        include_inactive = request.args.get('include_inactive', 'false').lower() == 'true'
-
-        query = ExceptionalClosure.query.filter_by(restaurant_id=restaurant_id)
-
-        if upcoming_only:
-            query = query.filter(ExceptionalClosure.end_date >= today)
-
-        if not include_inactive:
-            query = query.filter_by(is_active=True)
-
-        closures = query.order_by(ExceptionalClosure.start_date.asc()).limit(200).all()
-
-        return jsonify({'closures': [c.to_dict(today) for c in closures]}), 200
-
-    else:
-        query = ExceptionalClosure.query.filter(
-            ExceptionalClosure.restaurant_id == restaurant_id,
-            ExceptionalClosure.is_active,
-            ExceptionalClosure.end_date >= today,
-        ).order_by(ExceptionalClosure.start_date.asc())
-
-        closures = query.all()
-
-        current_closure = None
-        upcoming_closures = []
-
-        for c in closures:
-            d = c.to_dict(today)
-            if c.start_date <= today <= c.end_date:
-                current_closure = d
-            else:
-                upcoming_closures.append(d)
-
-        return jsonify({
-            'current_closure': current_closure,
-            'upcoming_closures': upcoming_closures,
-            'closures': [c.to_dict(today) for c in closures],
-        }), 200
+    restaurant, member = readable_site(org, site)
+    closures = ExceptionalClosure.query.filter(
+        ExceptionalClosure.restaurant_id == restaurant.id, ExceptionalClosure.is_active
+    )
+    start = query.get('start')
+    if not member:
+        start = max(start or paris_today(), paris_today())
+    if start:
+        closures = closures.filter(ExceptionalClosure.end_date >= start)
+    if 'end' in query:
+        closures = closures.filter(ExceptionalClosure.start_date <= query['end'])
+    return {'items': closures.order_by(ExceptionalClosure.start_date.asc()).all()}
 
 
 @closures_bp.route('', methods=['POST'])
 @editor_required
-@closures_bp.arguments(ClosureCreateSchema)
+@closures_bp.arguments(ClosureInputSchema)
 @closures_bp.response(201, ClosureSchema)
-@closures_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
-def create_closure(data):
-    """Create a new exceptional closure."""
-    current_user_id = int(get_jwt_identity())
-    current_user = db.session.get(User, current_user_id)
-    today = paris_today()
-
-    start_date = parse_iso_date(data.get('start_date'))
-    end_date = parse_iso_date(data.get('end_date'))
-
-    if not start_date or not end_date:
-        return jsonify({'error': 'start_date et end_date sont requis (format YYYY-MM-DD)'}), 400
-
-    if end_date < start_date:
-        return jsonify({'error': 'end_date doit être >= start_date'}), 400
-
-    active = get_active_restaurant(current_user)
-    restaurant_id = active.id if active else None
-    if not restaurant_id:
-        return jsonify({'error': 'Aucun restaurant associé à votre compte'}), 400
-
+def create_closure(body, org: str, site: str):
+    """Close the site from one day to another, both included."""
+    restaurant = member_site(org, site)
     closure = ExceptionalClosure(
-        restaurant_id=restaurant_id,
-        start_date=start_date,
-        end_date=end_date,
-        reason=data.get('reason'),
-        description=data.get('description'),
-        created_by_id=current_user_id,
+        restaurant_id=restaurant.id,
+        start_date=body['start_date'],
+        end_date=body['end_date'],
+        reason=body.get('reason'),
+        description=body.get('description'),
+        created_by_id=get_current_user().id,
     )
     db.session.add(closure)
-
-    AuditLog.log(
-        action=AuditLog.ACTION_CLOSURE_CREATE,
-        user_id=current_user_id,
-        target_type='closure',
-        details={'start_date': str(start_date), 'end_date': str(end_date), 'reason': closure.reason},
-        ip_address=get_client_ip(),
+    db.session.flush()
+    audit(
+        AuditLog.ACTION_CLOSURE_CREATE, restaurant,
+        target_type='closure', target_id=closure.id,
+        details={
+            'start_date': closure.start_date.isoformat(),
+            'end_date': closure.end_date.isoformat(),
+            'reason': closure.reason,
+        },
     )
-
     db.session.commit()
+    return closure
 
-    return jsonify({'message': 'Fermeture créée', 'closure': closure.to_dict(today)}), 201
 
-
-@closures_bp.route('/<int:closure_id>', methods=['PUT'])
+@closures_bp.route('/<int:closure_id>', methods=['PATCH'])
 @editor_required
-@closures_bp.arguments(ClosureUpdateSchema)
+@closures_bp.arguments(ClosurePatchSchema)
 @closures_bp.response(200, ClosureSchema)
-@closures_bp.alt_response(400, schema=ErrorSchema, description="Invalid data")
-@closures_bp.alt_response(404, schema=ErrorSchema, description="Closure not found")
-def update_closure(data, closure_id):
-    """Update an existing exceptional closure."""
-    current_user_id = int(get_jwt_identity())
-    today = paris_today()
-    closure = scoped_get(ExceptionalClosure, closure_id)
-    if not closure:
-        return jsonify({'error': 'Fermeture non trouvée'}), 404
-
-    date_changed = False
-
-    if 'start_date' in data:
-        new_start = parse_iso_date(data['start_date'])
-        if not new_start:
-            return jsonify({'error': 'start_date invalide (format YYYY-MM-DD)'}), 400
-        if new_start != closure.start_date:
-            closure.start_date = new_start
-            date_changed = True
-
-    if 'end_date' in data:
-        new_end = parse_iso_date(data['end_date'])
-        if not new_end:
-            return jsonify({'error': 'end_date invalide (format YYYY-MM-DD)'}), 400
-        closure.end_date = new_end
-
-    if closure.end_date < closure.start_date:
-        return jsonify({'error': 'end_date doit être >= start_date'}), 400
-
-    if date_changed:
-        closure.notified_7d = False
-        closure.notified_1d = False
-
-    if 'reason' in data:
-        closure.reason = data['reason']
-
-    if 'description' in data:
-        closure.description = data['description']
-
-    if 'is_active' in data:
-        closure.is_active = data['is_active']
-
-    AuditLog.log(
-        action=AuditLog.ACTION_CLOSURE_UPDATE,
-        user_id=current_user_id,
-        target_type='closure',
-        target_id=closure.id,
-        details={'changes': {k: str(v) for k, v in data.items()}},
-        ip_address=get_client_ip(),
+def patch_closure(body, org: str, site: str, closure_id: int):
+    """Change a closure; a new start date sends its reminders again."""
+    restaurant = member_site(org, site)
+    closure = _site_closure(restaurant, closure_id)
+    start = body.get('start_date', closure.start_date)
+    end = body.get('end_date', closure.end_date)
+    if end < start:
+        raise Problem(
+            422, 'range_invalid', 'La fin précède le début.',
+            errors=[{'pointer': '/end_date', 'detail': 'La fin précède le début.'}],
+        )
+    if start != closure.start_date:
+        closure.notified_7d = closure.notified_1d = False
+    closure.start_date, closure.end_date = start, end
+    for field in ('reason', 'description'):
+        if field in body:
+            setattr(closure, field, body[field])
+    audit(
+        AuditLog.ACTION_CLOSURE_UPDATE, restaurant,
+        target_type='closure', target_id=closure.id, details={'updated_fields': sorted(body)},
     )
-
     db.session.commit()
-
-    return jsonify({'message': 'Fermeture mise à jour', 'closure': closure.to_dict(today)}), 200
+    return closure
 
 
 @closures_bp.route('/<int:closure_id>', methods=['DELETE'])
-@closures_bp.response(200, MessageSchema)
-@closures_bp.alt_response(404, schema=ErrorSchema, description="Closure not found")
 @editor_required
-def delete_closure(closure_id):
-    """Delete an exceptional closure."""
-    current_user_id = int(get_jwt_identity())
-    closure = scoped_get(ExceptionalClosure, closure_id)
-    if not closure:
-        return jsonify({'error': 'Fermeture non trouvée'}), 404
-
-    AuditLog.log(
-        action=AuditLog.ACTION_CLOSURE_DELETE,
-        user_id=current_user_id,
-        target_type='closure',
-        target_id=closure.id,
-        details={'start_date': str(closure.start_date), 'reason': closure.reason},
-        ip_address=get_client_ip(),
+@closures_bp.response(204)
+def delete_closure(org: str, site: str, closure_id: int):
+    """Delete a closure."""
+    restaurant = member_site(org, site)
+    closure = _site_closure(restaurant, closure_id)
+    audit(
+        AuditLog.ACTION_CLOSURE_DELETE, restaurant,
+        target_type='closure', target_id=closure.id,
+        details={'start_date': closure.start_date.isoformat(), 'reason': closure.reason},
     )
-
     db.session.delete(closure)
     db.session.commit()
-
-    return jsonify({'message': 'Fermeture supprimée'}), 200

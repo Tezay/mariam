@@ -14,12 +14,10 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import type { MenuCategoryPatch } from '@/lib/api/categories';
 
-export type CategoryPatch = Partial<{
-  label: string;
-  is_highlighted: boolean;
-  color_key: string | null;
-}>;
+export type CategoryPatch = MenuCategoryPatch;
+type ColorKey = NonNullable<MenuCategoryPatch['color_key']>;
 
 interface CategoryRowProps {
   category: MenuCategory;
@@ -139,7 +137,7 @@ function ActionButtons({ category, hasSubcategories, onUpdate, onDelete }: Actio
                   key={key}
                   type="button"
                   title={key}
-                  onClick={() => onUpdate(category.id, { color_key: key })}
+                  onClick={() => onUpdate(category.id, { color_key: key as ColorKey })}
                   className="flex h-8 w-8 items-center justify-center rounded-full transition-transform hover:scale-110"
                   style={{
                     backgroundColor: color.bg,

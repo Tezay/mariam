@@ -6,19 +6,20 @@ from flask_jwt_extended import get_jwt_identity, jwt_required, verify_jwt_in_req
 from flask_jwt_extended.exceptions import FreshTokenRequired
 
 from ..extensions import db
-from ..models import DishCatalog, Restaurant, User
+from ..models import AuditLog, DishCatalog, Restaurant, User
 from ..models.taxonomy import Certification, DietaryTag
 from ..problems import Problem
-from ..services.access import accessible_restaurant_ids
+from ..security import get_client_ip
+from ..services.storage import storage
+
+
+def _refuse_supervisor_writes(user) -> None:
+    if user.is_org_admin() and request.method != 'GET':
+        raise Problem(403, 'supervisor_read_only', 'Un superviseur ne peut pas modifier un site.')
 
 
 def editor_required(f):
-    """Editors and admins; a supervisor may read but never write site content.
-
-    A supervisor oversees every site of its organization, so it reaches these
-    routes, but running a site (menus, dishes, events, closures) stays with the
-    site's own team.
-    """
+    """Editors and admins of the site; a supervisor reads but never writes."""
     @wraps(f)
     @jwt_required()
     def decorated_function(*args, **kwargs):
@@ -26,10 +27,21 @@ def editor_required(f):
         user = db.session.get(User, current_user_id)
         if not user.is_editor():
             raise Problem(403, 'editor_required', 'Accès réservé aux éditeurs.')
-        if user.is_org_admin() and request.method != 'GET':
-            raise Problem(
-                403, 'supervisor_read_only', "Un superviseur ne peut pas modifier le contenu d'un site."
-            )
+        _refuse_supervisor_writes(user)
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def site_admin_required(f):
+    """Admins of the site; a supervisor reads but never writes."""
+    @wraps(f)
+    @jwt_required()
+    def decorated_function(*args, **kwargs):
+        current_user_id = int(get_jwt_identity())
+        user = db.session.get(User, current_user_id)
+        if not user.is_admin():
+            raise Problem(403, 'admin_required', 'Accès réservé aux administrateurs.')
+        _refuse_supervisor_writes(user)
         return f(*args, **kwargs)
     return decorated_function
 
@@ -126,40 +138,42 @@ def get_current_user():
     return db.session.get(User, int(get_jwt_identity()))
 
 
-def get_active_restaurant(user):
-    """Restaurant targeted by the current request.
+def audit(action: str, restaurant: Restaurant, **fields) -> None:
+    """An audit entry of the session's account, on one site."""
+    AuditLog.log(
+        action=action,
+        user_id=get_current_user().id,
+        restaurant_id=restaurant.id,
+        ip_address=get_client_ip(),
+        **fields,
+    )
 
-    An org_admin can act on any site of its organization by sending the
-    `X-Restaurant-Id` header (validated against its accessible sites). Any other
-    user acts on its own restaurant.
+
+def store_image(upload, prefix: str) -> tuple[dict, str]:
+    """Check, convert and store an uploaded image: its stored `key` and `url`, and
+    the name it was stored under.
     """
-    header = request.headers.get('X-Restaurant-Id')
-    if header:
-        try:
-            target = int(header)
-        except (TypeError, ValueError):
-            target = None
-        if target is not None and target in accessible_restaurant_ids(user):
-            return db.session.get(Restaurant, target)
-    return db.session.get(Restaurant, user.restaurant_id) if user.restaurant_id else None
-
-
-def scoped_get(model, resource_id):
-    """Return a model row by id only if it belongs to a restaurant accessible to
-    the current user, otherwise None.
-
-    The model must expose a `restaurant_id` column.
-    """
-    ids = accessible_restaurant_ids(get_current_user())
-    if not ids:
-        return None
-    return model.query.filter(
-        model.id == resource_id, model.restaurant_id.in_(ids)
-    ).first()
+    if not storage.is_configured:
+        raise Problem(503, 'storage_unavailable', "Le stockage des images n'est pas configuré.")
+    is_valid, error = storage.validate_image(upload.filename, upload.content_length)
+    if not is_valid:
+        raise Problem(422, 'image_invalid', error)
+    data = upload.read()
+    if len(data) > storage.MAX_FILE_SIZE:
+        raise Problem(422, 'image_invalid', 'Fichier trop volumineux (5 Mo au plus).')
+    try:
+        data, filename, content_type = storage.process_image(
+            data, upload.filename, upload.content_type or 'application/octet-stream'
+        )
+    except ValueError as err:
+        raise Problem(422, 'image_invalid', str(err)) from None
+    stored = storage.upload_file(data, filename, prefix=prefix, content_type=content_type)
+    if not stored:
+        raise Problem(502, 'storage_failed', "L'image n'a pas pu être enregistrée.")
+    return stored, filename
 
 
 def normalize_dish_name(name: str) -> str:
-    """Kept in step with normalizeDishName (client/src/pages/admin/catalogue/utils.ts)."""
     name = re.sub(r'\s+', ' ', name.strip())
     return name[0].upper() + name[1:] if name else name
 

@@ -1,7 +1,6 @@
 import { parisToday } from '../date-utils';
 import { api } from './client';
 import type { User } from './auth';
-import type { RestaurantSettings } from './restaurant';
 
 export interface UiPreferences {
   tour_done: boolean;
@@ -24,12 +23,6 @@ export interface PasswordResetLink {
   emailed: boolean;
   /** Only when the link could not be emailed. */
   reset_url: string | null;
-}
-
-export interface CalendarSettings {
-  show_public_holidays: boolean;
-  show_school_vacations: boolean;
-  school_vacation_zone: 'A' | 'B' | 'C' | null;
 }
 
 export const adminApi = {
@@ -117,32 +110,5 @@ export const adminApi = {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-  },
-
-  listRestaurants: async () => {
-    const response = await api.get('/restaurants');
-    return response.data.restaurants;
-  },
-
-  getSettings: async () => {
-    const response = await api.get('/settings');
-    return response.data.restaurant;
-  },
-
-  updateSettings: async (data: RestaurantSettings) => {
-    const response = await api.put('/settings', data);
-    return response.data.restaurant;
-  },
-
-  getCalendarSettings: async (): Promise<CalendarSettings> => {
-    const response = await api.get('/restaurant/calendar-settings');
-    return response.data as CalendarSettings;
-  },
-
-  updateCalendarSettings: async (
-    settings: Partial<CalendarSettings>
-  ): Promise<CalendarSettings> => {
-    const response = await api.put('/restaurant/calendar-settings', settings);
-    return response.data as CalendarSettings;
   },
 };

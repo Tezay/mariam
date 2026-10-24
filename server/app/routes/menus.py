@@ -9,11 +9,9 @@ from ..models.catalog import CategorySubstitution
 from ..models.category import MenuCategory
 from ..problems import Problem
 from ..schemas.common import FileUploadSchema
+from ..schemas.images import ImageListSchema, ImageOrderSchema, ImageSchema
 from ..schemas.menus import (
     MENU_IMAGES_MAX,
-    ImageOrderSchema,
-    MenuImageListSchema,
-    MenuImageSchema,
     MenuItemPatchSchema,
     MenuListSchema,
     MenuPatchSchema,
@@ -41,8 +39,8 @@ from ..services.votes import (
     vote_dish_groups,
     voting_open,
 )
-from ..utils.time import paris_today
-from .helpers import editor_required, get_current_user, get_or_create_dish
+from ..utils.time import as_utc, paris_today
+from .helpers import audit, editor_required, get_current_user, get_or_create_dish, store_image
 from .scope import SESSION_OPTIONAL, finish_public_read, member_site, public_site, readable_site
 
 menus_bp = Blueprint(
@@ -54,12 +52,6 @@ menus_bp.after_request(finish_public_read)
 
 def _menu_not_found() -> Problem:
     return Problem(404, 'menu_not_found', 'Menu introuvable.')
-
-
-def _as_utc(value: datetime.datetime | None) -> datetime.datetime | None:
-    if value is None or value.tzinfo is not None:
-        return value
-    return value.replace(tzinfo=UTC)
 
 
 def _category_tree(restaurant: Restaurant, items: list[MenuItem]) -> list[dict]:
@@ -116,8 +108,8 @@ def menu_view(menu, member: bool) -> dict:
     if member:
         view |= {
             'status': menu.status,
-            'published_at': _as_utc(menu.published_at),
-            'updated_at': _as_utc(menu.updated_at),
+            'published_at': as_utc(menu.published_at),
+            'updated_at': as_utc(menu.updated_at),
         }
     return view
 
@@ -127,16 +119,6 @@ def _site_menu(restaurant: Restaurant, date: datetime.date):
     if menu is None:
         raise _menu_not_found()
     return menu
-
-
-def _audit(action: str, restaurant: Restaurant, **fields) -> None:
-    AuditLog.log(
-        action=action,
-        user_id=get_current_user().id,
-        restaurant_id=restaurant.id,
-        ip_address=get_client_ip(),
-        **fields,
-    )
 
 
 def _check_categories(restaurant: Restaurant, items: list[dict]) -> None:
@@ -278,7 +260,7 @@ def put_menu(body, org: str, site: str, date: datetime.date):
         menu.published_by_id = None
 
     if is_new or menu.status == 'published':
-        _audit(
+        audit(
             AuditLog.ACTION_MENU_CREATE if is_new else AuditLog.ACTION_MENU_UPDATE,
             restaurant,
             target_type='menu',
@@ -310,7 +292,7 @@ def delete_menu(org: str, site: str, date: datetime.date):
     menu = _site_menu(restaurant, date)
     for image in list(menu.images):
         storage.delete_file(image.storage_key)
-    _audit(
+    audit(
         AuditLog.ACTION_MENU_UPDATE,
         restaurant,
         target_type='menu',
@@ -331,7 +313,7 @@ def publish_menu(org: str, site: str, date: datetime.date):
     if menu.items.count() == 0:
         raise Problem(409, 'menu_empty', 'Impossible de publier un menu vide.')
     mark_published(menu)
-    _audit(
+    audit(
         AuditLog.ACTION_MENU_PUBLISH,
         restaurant,
         target_type='menu',
@@ -352,7 +334,7 @@ def unpublish_menu(org: str, site: str, date: datetime.date):
     if menu.status != 'published':
         raise Problem(409, 'menu_not_published', "Le menu n'est pas publié.")
     menu.status = 'draft'
-    _audit(
+    audit(
         AuditLog.ACTION_MENU_UPDATE,
         restaurant,
         target_type='menu',
@@ -381,37 +363,17 @@ def patch_menu_item(body, org: str, site: str, date: datetime.date, item_id: int
 @menus_bp.route('/<date:date>/images', methods=['POST'])
 @editor_required
 @menus_bp.arguments(FileUploadSchema, location='files')
-@menus_bp.response(201, MenuImageSchema)
+@menus_bp.response(201, ImageSchema)
 def add_menu_image(files, org: str, site: str, date: datetime.date):
     """Add a photo to a menu: JPEG, PNG, WebP or HEIC, stored as JPEG."""
     restaurant = member_site(org, site)
     menu = _site_menu(restaurant, date)
-    if not storage.is_configured:
-        raise Problem(503, 'storage_unavailable', "Le stockage des images n'est pas configuré.")
     count = menu.images.count()
     if count >= MENU_IMAGES_MAX:
         raise Problem(
             409, 'menu_image_limit', f'Un menu porte {MENU_IMAGES_MAX} images au plus.'
         )
-
-    upload = files['file']
-    is_valid, error = storage.validate_image(upload.filename, upload.content_length)
-    if not is_valid:
-        raise Problem(422, 'image_invalid', error)
-    data = upload.read()
-    if len(data) > storage.MAX_FILE_SIZE:
-        raise Problem(422, 'image_invalid', 'Fichier trop volumineux (5 Mo au plus).')
-    try:
-        data, filename, content_type = storage.process_image(
-            data, upload.filename, upload.content_type
-        )
-    except ValueError as err:
-        raise Problem(422, 'image_invalid', str(err)) from None
-    stored = storage.upload_file(
-        file_data=data, filename=filename, prefix=f'menus/{menu.id}', content_type=content_type
-    )
-    if not stored:
-        raise Problem(502, 'storage_failed', "L'image n'a pas pu être enregistrée.")
+    stored, filename = store_image(files['file'], f'menus/{menu.id}')
 
     image = MenuImage(
         menu_id=menu.id,
@@ -422,7 +384,7 @@ def add_menu_image(files, org: str, site: str, date: datetime.date):
     )
     db.session.add(image)
     db.session.flush()
-    _audit(
+    audit(
         AuditLog.ACTION_MENU_IMAGE_UPLOAD,
         restaurant,
         target_type='menu_image',
@@ -444,7 +406,7 @@ def delete_menu_image(org: str, site: str, date: datetime.date, image_id: int):
         raise Problem(404, 'menu_image_not_found', 'Image introuvable.')
     storage.delete_file(image.storage_key)
     db.session.delete(image)
-    _audit(
+    audit(
         AuditLog.ACTION_MENU_IMAGE_DELETE,
         restaurant,
         target_type='menu_image',
@@ -456,7 +418,7 @@ def delete_menu_image(org: str, site: str, date: datetime.date, image_id: int):
 @menus_bp.route('/<date:date>/images/order', methods=['PUT'])
 @editor_required
 @menus_bp.arguments(ImageOrderSchema)
-@menus_bp.response(200, MenuImageListSchema)
+@menus_bp.response(200, ImageListSchema)
 def order_menu_images(body, org: str, site: str, date: datetime.date):
     """Put a menu's photos in a new order."""
     menu = _site_menu(member_site(org, site), date)

@@ -19,6 +19,13 @@ def utc_now_naive() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
+def as_utc(value: datetime | None) -> datetime | None:
+    """A datetime of a naive UTC column, made aware."""
+    if value is None or value.tzinfo is not None:
+        return value
+    return value.replace(tzinfo=UTC)
+
+
 def utc_naive_to_paris(value: datetime) -> datetime:
     """Stamp a naive-UTC column as Paris time before comparing it."""
     return value.replace(tzinfo=UTC).astimezone(PARIS_TZ)

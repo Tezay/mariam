@@ -3,11 +3,11 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { addDays, parisToday } from '@/lib/date-utils';
 import { categoriesApi } from '@/lib/api/categories';
-import { adminApi } from '@/lib/api/admin';
-import { ExceptionalClosure } from '@/lib/api/closures';
+import type { Closure } from '@/lib/api/closures';
 import { Event } from '@/lib/api/events';
 import type { MenuCategory } from '@/lib/api/categories';
-import type { CalendarSettings } from '@/lib/api/admin';
+import { sitesApi, type CalendarSettings } from '@/lib/api/sites';
+import { useSiteRef } from '@/contexts/SiteContext';
 import { InlineError } from '@/components/InlineError';
 import { getErrorType } from '@/lib/api/errors';
 import { CalendarToolbar, DesktopView, MobileView } from './CalendarToolbar';
@@ -100,6 +100,7 @@ function formatDayLabel(dateStr: string): string {
 }
 
 export function CalendarPage() {
+  const site = useSiteRef();
   const { user } = useAuth();
   const navigate = useNavigate();
   const canEdit = user?.role === 'admin' || user?.role === 'editor';
@@ -127,8 +128,8 @@ export function CalendarPage() {
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   useEffect(() => {
     categoriesApi
-      .list()
-      .then(({ categories: cats }) => {
+      .list(site)
+      .then((cats) => {
         const flat: MenuCategory[] = [];
         for (const cat of cats) {
           flat.push(cat);
@@ -137,7 +138,7 @@ export function CalendarPage() {
         setCategories(flat);
       })
       .catch(() => {});
-  }, []);
+  }, [site]);
 
   const [editorDirty, setEditorDirty] = useState(false);
   const [dirtyGuardAction, setDirtyGuardAction] = useState<{ fn: () => void } | null>(null);
@@ -210,11 +211,11 @@ export function CalendarPage() {
 
   const [calendarSettings, setCalendarSettings] = useState<CalendarSettings | undefined>(undefined);
   useEffect(() => {
-    adminApi
-      .getCalendarSettings()
+    sitesApi
+      .getCalendarSettings(site)
       .then(setCalendarSettings)
       .catch(() => {});
-  }, []);
+  }, [site]);
 
   const hasAutoSelectedRef = useRef(false);
   useEffect(() => {
@@ -336,7 +337,7 @@ export function CalendarPage() {
   }, []);
 
   const [closureEditorOpen, setClosureEditorOpen] = useState(false);
-  const [editingClosure, setEditingClosure] = useState<ExceptionalClosure | null>(null);
+  const [editingClosure, setEditingClosure] = useState<Closure | null>(null);
   const [closurePrefillDate, setClosurePrefillDate] = useState<string | undefined>(undefined);
 
   const openCreateClosure = useCallback((prefillDate?: string) => {

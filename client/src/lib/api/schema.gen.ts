@@ -4,240 +4,6 @@
  */
 
 export interface paths {
-    "/v1/settings/categories": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List all categories (with subcategories) for the active restaurant.
-         * @description Returns top-level categories in order, each with their subcategories nested.
-         *     Accessible to any authenticated user.
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MenuCategory"][];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        /**
-         * Create a new category or subcategory.
-         * @description Pass `parent_id` to create a subcategory (max 1 level deep).
-         *     Subcategories can only be created under top-level categories.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["MenuCategoryCreate"];
-                };
-            };
-            responses: {
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MenuCategory"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/settings/categories/reorder": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Reorder categories or subcategories.
-         * @description JSON body: `{ "items": [{"id": 1, "order": 0}, {"id": 2, "order": 1}] }`
-         */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["MenuCategoryReorder"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/settings/categories/{category_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                category_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        /** Update a category: label, order, or is_highlighted. */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    category_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["MenuCategoryUpdate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MenuCategory"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        post?: never;
-        /**
-         * Delete a category or subcategory.
-         * @description Forbidden if `is_protected=True`.
-         *     Cascades to subcategories and their menu items (FK cascade).
-         */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    category_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description Category is protected */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/auth/check-activation/{token}": {
         parameters: {
             query?: never;
@@ -2433,694 +2199,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List events.
-         * @description - **Without authentication**: returns published, active events from today onward,
-         *       in display format (TV/mobile). Separates today's event from upcoming events.
-         *     - **With editor authentication**: returns all events (drafts included) with advanced filters.
-         *
-         *     Public query params: `restaurant_id`, `visibility` (tv|mobile|all), `limit`
-         *
-         *     Editor query params (ignored without auth):
-         *     `upcoming` (bool), `include_inactive` (bool), `status`
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PublicEventsResponse"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        /** Create a new event. */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["EventCreate"];
-                };
-            };
-            responses: {
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Event"];
-                    };
-                };
-                /** @description Invalid data */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/events/storage-status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Check whether S3 storage is configured. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/events/{event_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                event_id: number;
-            };
-            cookie?: never;
-        };
-        /** Get an event by ID with its images. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    event_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Event"];
-                    };
-                };
-                /** @description Event not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        /** Update an existing event. */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    event_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["EventUpdate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Event"];
-                    };
-                };
-                /** @description Invalid data */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Event not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        post?: never;
-        /** Delete an event and its S3 images. */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    event_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description Event not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/events/{event_id}/publish": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                event_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Publish an event (draft to published). */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    event_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Event"];
-                    };
-                };
-                /** @description Event not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/events/{event_id}/unpublish": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                event_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Revert a published event to draft. */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    event_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Event"];
-                    };
-                };
-                /** @description Event not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/events/{event_id}/duplicate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                event_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Duplicate an event (no images, draft status).
-         * @description Optional JSON body: `{ "event_date": "YYYY-MM-DD" }`
-         *     If omitted, the date is shifted 7 days from the original.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    event_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Event"];
-                    };
-                };
-                /** @description Event not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/events/{event_id}/images": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                event_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Upload an image for an event.
-         * @description Multipart/form-data request with `file` field.
-         *     Limit: 6 images per event, 5 MB per image.
-         *     Accepted formats: JPEG, PNG, WebP, HEIC (converted to JPEG).
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    event_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Event"];
-                    };
-                };
-                /** @description Invalid file or quota exceeded */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Event not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description S3 storage not configured */
-                503: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/events/{event_id}/images/{image_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                event_id: number;
-                image_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete an event image from S3 storage and database. */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    event_id: number;
-                    image_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description Image not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/events/{event_id}/images/reorder": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                event_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Reorder event images.
-         * @description JSON body: `{ "image_ids": [3, 1, 2] }`
-         *     Array order defines the new display order.
-         */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    event_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Event"];
-                    };
-                };
-                /** @description image_ids list required */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Event not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Full settings for the active restaurant.
-         * @description Accessible to any authenticated user (editor or admin).
-         *     Includes complete configuration: service days, categories,
-         *     enabled dietary tags, certifications, etc.
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Restaurant"];
-                    };
-                };
-                /** @description No restaurant configured */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        /**
-         * Update the active restaurant's settings.
-         * @description Editable fields: `name`, `address`, `service_days`, `menu_categories`,
-         *     `dietary_tags` (list of IDs), `certifications` (list of IDs).
-         */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["RestaurantUpdate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Restaurant"];
-                    };
-                };
-                /** @description Invalid data */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description No restaurant configured */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/restaurants": {
         parameters: {
             query?: never;
@@ -3151,64 +2229,6 @@ export interface paths {
             };
         };
         put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/restaurant/calendar-settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Calendar settings of the active restaurant. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Restaurant"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        /** Update the calendar settings of the active restaurant (admin only). */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Restaurant"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
         post?: never;
         delete?: never;
         options?: never;
@@ -4478,182 +3498,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/closures": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List exceptional closures.
-         * @description - **Without authentication**: returns active closures from today onward,
-         *       split into current_closure (active today) and upcoming_closures.
-         *     - **With editor authentication**: returns all closures with filters.
-         *
-         *     Public query params: `restaurant_id`
-         *     Editor query params: `upcoming` (bool), `include_inactive` (bool)
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PublicClosuresResponse"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        /** Create a new exceptional closure. */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ClosureCreate"];
-                };
-            };
-            responses: {
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Closure"];
-                    };
-                };
-                /** @description Invalid data */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/closures/{closure_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                closure_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        /** Update an existing exceptional closure. */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    closure_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ClosureUpdate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Closure"];
-                    };
-                };
-                /** @description Invalid data */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Closure not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        post?: never;
-        /** Delete an exceptional closure. */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    closure_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description Closure not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/public/unsubscribe/{token}": {
         parameters: {
             query?: never;
@@ -5114,7 +3958,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["PublicSite"];
+                        "application/json": components["schemas"]["Site"];
                     };
                 };
                 default: components["responses"]["DEFAULT_ERROR"];
@@ -5125,27 +3969,14 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/orgs/{org}/sites/{site}/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                org: string;
-                site: string;
-            };
-            cookie?: never;
-        };
-        /** Published events from today on, soonest first. */
-        get: {
+        /**
+         * Change a site's details, hours, vote and labels.
+         * @description `tag_ids` and `certification_ids` name the labels the site uses, in place of
+         *     the defaults.
+         */
+        patch: {
             parameters: {
-                query?: {
-                    /** @description Only the events shown on that screen */
-                    visibility?: "tv" | "mobile";
-                    limit?: number;
-                };
+                query?: never;
                 header?: never;
                 path: {
                     org: string;
@@ -5153,7 +3984,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SitePatch"];
+                };
+            };
             responses: {
                 /** @description OK */
                 200: {
@@ -5161,22 +3996,16 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["PublicEventList"];
+                        "application/json": components["schemas"]["Site"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
                 default: components["responses"]["DEFAULT_ERROR"];
             };
         };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
         trace?: never;
     };
-    "/v1/orgs/{org}/sites/{site}/closures": {
+    "/v1/orgs/{org}/sites/{site}/calendar-settings": {
         parameters: {
             query?: never;
             header?: never;
@@ -5186,7 +4015,7 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Exceptional closures under way or to come, soonest first. */
+        /** What the site's calendar shows besides its menus: public and school holidays. */
         get: {
             parameters: {
                 query?: never;
@@ -5205,7 +4034,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["PublicClosureList"];
+                        "application/json": components["schemas"]["CalendarSettings"];
                     };
                 };
                 default: components["responses"]["DEFAULT_ERROR"];
@@ -5216,7 +4045,36 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Change what the site's calendar shows. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CalendarSettingsPatch"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CalendarSettings"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
         trace?: never;
     };
     "/v1/orgs/{org}/sites/{site}/menus": {
@@ -5596,7 +4454,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["MenuImage"];
+                        "application/json": components["schemas"]["Image"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
@@ -5690,7 +4548,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["MenuImageList"];
+                        "application/json": components["schemas"]["ImageList"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
@@ -6672,6 +5530,826 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/orgs/{org}/sites/{site}/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /** The site's categories in order, each with its subcategories. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MenuCategoryList"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        /**
+         * Add a category, or a subcategory under a top-level one.
+         * @description A category with subcategories carries no dish: the parent's dishes move into
+         *     the new subcategory with `move_dishes`, and are refused otherwise.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MenuCategoryInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MenuCategory"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/categories/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Put the categories of one level, top-level or under one parent, in a new order. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CategoryOrder"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MenuCategoryList"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/categories/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                category_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a category and its subcategories, once no dish is left in them. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    category_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Rename a category, highlight it or change its colour. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    category_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MenuCategoryPatch"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MenuCategory"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Events in date order, soonest first.
+         * @description Anyone reads the published ones from today on. The site's editors read the
+         *     drafts too, and any range: without `from`, past events as well.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Today, at the earliest, for anyone but the site's editors */
+                    from?: string;
+                    /** @description Included */
+                    to?: string;
+                    /** @description Only the events shown on that screen */
+                    visibility?: "tv" | "mobile";
+                    limit?: number;
+                };
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EventList"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        /** Add an event, a draft unless `status` says otherwise. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EventInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Event"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/events/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        /** One event: published for anyone, any for the site's editors. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    event_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Event"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        /** Delete an event and its images. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    event_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Change an event; a new date sends its reminders again. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    event_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EventPatch"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Event"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/events/{event_id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish an event. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    event_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Event"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/events/{event_id}/unpublish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Take a published event back to draft. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    event_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Event"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/events/{event_id}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Copy an event, without its images, as a draft. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    event_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EventDuplicate"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Event"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/events/{event_id}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add an image to an event: JPEG, PNG, WebP or HEIC, stored as JPEG. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    event_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": components["schemas"]["FileUpload"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Image"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/events/{event_id}/images/{image_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                event_id: number;
+                image_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove an image from an event. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    event_id: number;
+                    image_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/events/{event_id}/images/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Put an event's images in a new order. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    event_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ImageOrder"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ImageList"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/closures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Closures that overlap the range, soonest first.
+         * @description Anyone reads those under way or to come. The site's editors read any range:
+         *     without `from`, past closures as well.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Today, at the earliest, for anyone but the site's editors */
+                    from?: string;
+                    /** @description Included */
+                    to?: string;
+                };
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ClosureList"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        /** Close the site from one day to another, both included. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ClosureInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Closure"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/closures/{closure_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                closure_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a closure. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    closure_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Change a closure; a new start date sends its reminders again. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    closure_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ClosurePatch"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Closure"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        trace?: never;
+    };
     "/v1/devices": {
         parameters: {
             query?: never;
@@ -6744,47 +6422,6 @@ export interface components {
             previous_page?: number;
             next_page?: number;
         };
-        MenuCategory: {
-            readonly id?: number;
-            readonly restaurant_id?: number;
-            parent_id?: number | null;
-            label?: string;
-            order?: number;
-            readonly is_protected?: boolean;
-            is_highlighted?: boolean;
-            color_key?: string | null;
-            readonly subcategories?: components["schemas"]["MenuCategory"][];
-        };
-        MenuCategoryCreate: {
-            /** @default null */
-            parent_id?: number | null;
-            label: string;
-            /** @default 0 */
-            order?: number;
-            /** @default false */
-            move_dishes?: boolean;
-        };
-        Error: {
-            /** @description Error message */
-            error?: string;
-            /** @description Detailed error description */
-            message?: string;
-        };
-        MenuCategoryReorder: {
-            items: {
-                [key: string]: unknown;
-            }[];
-        };
-        Message: {
-            /** @description Success message */
-            message?: string;
-        };
-        MenuCategoryUpdate: {
-            label?: string;
-            order?: number;
-            is_highlighted?: boolean;
-            color_key?: string | null;
-        };
         InvalidLink: {
             valid: boolean;
             error: string;
@@ -6813,6 +6450,12 @@ export interface components {
             email: string;
             /** @description Display name: 2 to 50 letters, spaces, hyphens, apostrophes. */
             username: string;
+        };
+        Error: {
+            /** @description Error message */
+            error?: string;
+            /** @description Detailed error description */
+            message?: string;
         };
         Account: {
             id: number;
@@ -6958,6 +6601,10 @@ export interface components {
         PasskeyList: {
             passkeys: components["schemas"]["Passkey"][];
         };
+        Message: {
+            /** @description Success message */
+            message?: string;
+        };
         PasskeyRename: {
             /** @description At most 100 characters. */
             device_name: string;
@@ -7071,72 +6718,6 @@ export interface components {
             message: string;
             user: components["schemas"]["Account"];
         };
-        PublicEventsResponse: {
-            today_event?: {
-                [key: string]: unknown;
-            } | null;
-            upcoming_events?: {
-                [key: string]: unknown;
-            }[];
-            /** @description All events (backward compat) */
-            events?: {
-                [key: string]: unknown;
-            }[];
-        };
-        EventCreate: {
-            /** @description Event title */
-            title: string;
-            /** @description Event date (YYYY-MM-DD) */
-            event_date: string;
-            restaurant_id?: number;
-            subtitle?: string | null;
-            /** @description Markdown description */
-            description?: string | null;
-            /** @description Hex color code (e.g. '#3498DB') */
-            color?: string;
-            /** @description 'draft' or 'published' */
-            status?: string;
-            /** @description 'tv', 'mobile', or 'all' */
-            visibility?: string;
-        };
-        EventImage: {
-            id?: number;
-            url?: string;
-            filename?: string | null;
-            order?: number;
-        };
-        Event: {
-            readonly id?: number;
-            restaurant_id?: number;
-            title?: string;
-            subtitle?: string | null;
-            description?: string | null;
-            /** @description Hex color code (e.g. '#3498DB') */
-            color?: string;
-            /** @description Event date (YYYY-MM-DD) */
-            event_date?: string;
-            /** @description 'draft' or 'published' */
-            status?: string;
-            /** @description 'tv', 'mobile', or 'all' */
-            visibility?: string;
-            is_active?: boolean;
-            images?: components["schemas"]["EventImage"][];
-            readonly created_at?: string | null;
-            readonly updated_at?: string | null;
-        };
-        EventUpdate: {
-            title?: string;
-            subtitle?: string | null;
-            description?: string | null;
-            color?: string;
-            /** @description Event date (YYYY-MM-DD) */
-            event_date?: string;
-            /** @description 'draft' or 'published' */
-            status?: string;
-            /** @description 'tv', 'mobile', or 'all' */
-            visibility?: string;
-            is_active?: boolean;
-        };
         ServiceHoursDay: {
             open: string;
             close: string;
@@ -7180,33 +6761,6 @@ export interface components {
                 [key: string]: components["schemas"]["ServiceHoursDay"];
             };
             readonly config?: components["schemas"]["RestaurantConfig"];
-        };
-        RestaurantUpdate: {
-            name?: string;
-            is_active?: boolean;
-            address_label?: string | null;
-            address_lat?: number | null;
-            address_lon?: number | null;
-            email?: string | null;
-            phone?: string | null;
-            capacity?: number | null;
-            payment_methods?: string[] | null;
-            pmr_access?: boolean | null;
-            service_hours?: {
-                [key: string]: components["schemas"]["ServiceHoursDay"];
-            } | null;
-            service_days?: number[];
-            vote_enabled?: boolean;
-            vote_category_ids?: number[];
-            /** @enum {string} */
-            vote_icon_preset?: "thumbs" | "faces" | "stars";
-            menu_categories?: {
-                [key: string]: unknown;
-            }[];
-            /** @description List of tag IDs or tag objects with 'id' */
-            dietary_tags?: unknown[];
-            /** @description List of cert IDs or cert objects with 'id' */
-            certifications?: unknown[];
         };
         DietaryTag: {
             id: string;
@@ -7388,55 +6942,6 @@ export interface components {
             digest_day?: number;
             digest_hour?: number;
         };
-        PublicClosuresResponse: {
-            current_closure?: {
-                [key: string]: unknown;
-            } | null;
-            upcoming_closures?: {
-                [key: string]: unknown;
-            }[];
-            /** @description All closures (editor view) */
-            closures?: {
-                [key: string]: unknown;
-            }[];
-        };
-        ClosureCreate: {
-            /** @description Start date (YYYY-MM-DD) */
-            start_date: string;
-            /** @description End date (YYYY-MM-DD) */
-            end_date: string;
-            reason?: string | null;
-            description?: string | null;
-            restaurant_id?: number;
-        };
-        Closure: {
-            readonly id?: number;
-            restaurant_id?: number;
-            /** @description Start date (YYYY-MM-DD) */
-            start_date?: string;
-            /** @description End date (YYYY-MM-DD), equals start_date for single-day closure */
-            end_date?: string;
-            /** @description Short reason (e.g. 'Vacances scolaires') */
-            reason?: string | null;
-            /** @description Optional longer description */
-            description?: string | null;
-            is_active?: boolean;
-            /** @description True if today is within the closure range */
-            readonly is_current?: boolean;
-            readonly notified_7d?: boolean;
-            readonly notified_1d?: boolean;
-            readonly created_at?: string | null;
-            readonly updated_at?: string | null;
-        };
-        ClosureUpdate: {
-            /** @description Start date (YYYY-MM-DD) */
-            start_date?: string;
-            /** @description End date (YYYY-MM-DD) */
-            end_date?: string;
-            reason?: string | null;
-            description?: string | null;
-            is_active?: boolean;
-        };
         PublicOrg: {
             slug: string;
             name: string;
@@ -7459,7 +6964,7 @@ export interface components {
             /** Format: date */
             to: string;
         };
-        PublicSite: {
+        Site: {
             slug: string;
             name: string;
             logo_url?: string | null;
@@ -7470,7 +6975,7 @@ export interface components {
             phone?: string | null;
             /** @description Seats */
             capacity?: number | null;
-            payment_methods?: string[] | null;
+            payment_methods?: ("izly" | "cb" | "cash" | "ticket_restaurant")[] | null;
             /** @description None when unknown */
             pmr_access?: boolean | null;
             /** @description 0 is Monday */
@@ -7479,40 +6984,58 @@ export interface components {
                 [key: string]: components["schemas"]["ServiceHoursDay"];
             };
             vote_enabled: boolean;
-            vote_icon_preset: string;
+            /** @enum {string} */
+            vote_icon_preset: "thumbs" | "faces" | "stars";
             dietary_tags: components["schemas"]["DietaryTag"][];
             certifications: components["schemas"]["Certification"][];
             /** @description The dates whose published menus can be read */
             menu_window: components["schemas"]["MenuWindow"];
+            /** @description For the site's editors: the categories a vote names */
+            vote_category_ids?: number[];
         };
-        PublicImage: {
-            url: string;
-            order: number;
+        ServiceHoursInput: {
+            open: string;
+            close: string;
         };
-        PublicEvent: {
-            id: number;
-            title: string;
-            subtitle?: string | null;
-            description?: string | null;
-            color?: string | null;
-            /** Format: date */
-            date: string;
-            images: components["schemas"]["PublicImage"][];
+        SitePatch: {
+            name?: string;
+            address_label?: string | null;
+            address_lat?: number | null;
+            address_lon?: number | null;
+            /** Format: email */
+            email?: string | null;
+            phone?: string | null;
+            capacity?: number | null;
+            payment_methods?: ("izly" | "cb" | "cash" | "ticket_restaurant")[] | null;
+            /** @description None when unknown */
+            pmr_access?: boolean | null;
+            /** @description 0 is Monday */
+            service_days?: number[];
+            /** @description Replaces every day's hours; a day left out has none */
+            service_hours?: {
+                [key: string]: components["schemas"]["ServiceHoursInput"];
+            };
+            vote_enabled?: boolean;
+            /** @enum {string} */
+            vote_icon_preset?: "thumbs" | "faces" | "stars";
+            /** @description Categories of the site a vote names */
+            vote_category_ids?: number[];
+            /** @description The dietary tags the site uses */
+            tag_ids?: string[];
+            /** @description The certifications the site uses */
+            certification_ids?: string[];
         };
-        PublicEventList: {
-            items: components["schemas"]["PublicEvent"][];
+        CalendarSettings: {
+            show_public_holidays: boolean;
+            show_school_vacations: boolean;
+            /** @enum {string|null} */
+            school_vacation_zone: "A" | "B" | "C" | null;
         };
-        PublicClosure: {
-            id: number;
-            /** Format: date */
-            start_date: string;
-            /** Format: date */
-            end_date: string;
-            reason?: string | null;
-            description?: string | null;
-        };
-        PublicClosureList: {
-            items: components["schemas"]["PublicClosure"][];
+        CalendarSettingsPatch: {
+            show_public_holidays?: boolean;
+            show_school_vacations?: boolean;
+            /** @enum {string|null} */
+            school_vacation_zone?: "A" | "B" | "C" | null;
         };
         PublicDish: {
             id: number;
@@ -7537,7 +7060,7 @@ export interface components {
             items?: components["schemas"]["PublicMenuItem"][];
             subcategories?: components["schemas"]["PublicCategory"][];
         };
-        MenuImage: {
+        Image: {
             url: string;
             order: number;
             /** @description For the site's editors */
@@ -7552,7 +7075,7 @@ export interface components {
             date: string;
             chef_note?: string | null;
             categories: components["schemas"]["PublicCategory"][];
-            images: components["schemas"]["MenuImage"][];
+            images: components["schemas"]["Image"][];
             /** @description Dishes that may replace another, by category id */
             substitutions: {
                 [key: string]: components["schemas"]["PublicSubstitution"][];
@@ -7601,11 +7124,11 @@ export interface components {
             file: string;
         };
         ImageOrder: {
-            /** @description Every image of the menu, in their new order */
+            /** @description Every image, once, in the new order */
             image_ids: number[];
         };
-        MenuImageList: {
-            items: components["schemas"]["MenuImage"][];
+        ImageList: {
+            items: components["schemas"]["Image"][];
         };
         SubstitutesInput: {
             /** @description In order of preference */
@@ -7884,6 +7407,151 @@ export interface components {
         DishImportResult: {
             created_count: number;
             skipped_count: number;
+        };
+        MenuCategory: {
+            id: number;
+            parent_id: number | null;
+            label: string;
+            order: number;
+            /** @description It cannot be deleted */
+            is_protected: boolean;
+            is_highlighted: boolean;
+            /** @enum {string|null} */
+            color_key: "indigo" | "sky" | "mint" | "saffron" | "clay" | "lilac" | null;
+            /** @description On a top-level category */
+            subcategories?: components["schemas"]["MenuCategory"][];
+        };
+        MenuCategoryList: {
+            items: components["schemas"]["MenuCategory"][];
+        };
+        MenuCategoryInput: {
+            label: string;
+            /**
+             * @description A top-level category
+             * @default null
+             */
+            parent_id?: number | null;
+            /** @description After the others by default */
+            order?: number;
+            /**
+             * @description Move the parent's dishes into the new subcategory
+             * @default false
+             */
+            move_dishes?: boolean;
+        };
+        CategoryOrder: {
+            /** @description Every category of one level, once, in the new order */
+            category_ids: number[];
+        };
+        MenuCategoryPatch: {
+            label?: string;
+            is_highlighted?: boolean;
+            /** @enum {string|null} */
+            color_key?: "indigo" | "sky" | "mint" | "saffron" | "clay" | "lilac" | null;
+        };
+        Event: {
+            id: number;
+            title: string;
+            subtitle?: string | null;
+            description?: string | null;
+            color?: string | null;
+            /** Format: date */
+            date: string;
+            images: components["schemas"]["Image"][];
+            /**
+             * @description For the site's editors
+             * @enum {string}
+             */
+            status?: "draft" | "published";
+            /**
+             * @description For the site's editors
+             * @enum {string}
+             */
+            visibility?: "tv" | "mobile" | "all";
+            /**
+             * Format: date-time
+             * @description For the site's editors
+             */
+            created_at?: string | null;
+            /**
+             * Format: date-time
+             * @description For the site's editors
+             */
+            updated_at?: string | null;
+        };
+        EventList: {
+            items: components["schemas"]["Event"][];
+        };
+        EventInput: {
+            title: string;
+            subtitle?: string | null;
+            /** @description HTML, sanitized on write */
+            description?: string | null;
+            /** @default #3498DB */
+            color?: string;
+            /** Format: date */
+            date: string;
+            /**
+             * @default draft
+             * @enum {string}
+             */
+            status?: "draft" | "published";
+            /**
+             * @default all
+             * @enum {string}
+             */
+            visibility?: "tv" | "mobile" | "all";
+        };
+        EventPatch: {
+            title?: string;
+            subtitle?: string | null;
+            description?: string | null;
+            color?: string;
+            /** Format: date */
+            date?: string;
+            /** @enum {string} */
+            visibility?: "tv" | "mobile" | "all";
+        };
+        EventDuplicate: {
+            /**
+             * Format: date
+             * @description A week after the original by default
+             */
+            date?: string;
+        };
+        Closure: {
+            id: number;
+            /** Format: date */
+            start_date: string;
+            /**
+             * Format: date
+             * @description Included
+             */
+            end_date: string;
+            reason: string | null;
+            description: string | null;
+        };
+        ClosureList: {
+            items: components["schemas"]["Closure"][];
+        };
+        ClosureInput: {
+            /** Format: date */
+            start_date: string;
+            /**
+             * Format: date
+             * @description Included
+             */
+            end_date: string;
+            reason?: string | null;
+            description?: string | null;
+        };
+        ClosurePatch: {
+            /** Format: date */
+            start_date?: string;
+            /** Format: date */
+            end_date?: string;
+            reason?: string | null;
+            description?: string | null;
         };
         Device: {
             device_id: string;

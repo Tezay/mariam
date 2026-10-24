@@ -1,8 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { closuresApi } from '@/lib/api/closures';
 import { holidaysApi } from '@/lib/api/holidays';
-import type { ExceptionalClosure } from '@/lib/api/closures';
-import type { CalendarSettings } from '@/lib/api/admin';
+import type { Closure } from '@/lib/api/closures';
+import type { CalendarSettings } from '@/lib/api/sites';
 import { addDays, parisToday } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
 import type { CalendarData } from '../useCalendarData';
@@ -10,6 +10,7 @@ import type { DesktopView, MobileView } from '../CalendarToolbar';
 import { ClosureEditor } from '../closure/ClosureEditor';
 import { CLOSURE_HATCH_STYLE } from '../closure/closureStyle';
 import { DragMode, orderDates } from '../closure/closureDrag';
+import { useSiteRef } from '@/contexts/SiteContext';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -204,13 +205,14 @@ export function YearView({
   onNavigate,
   onReload,
 }: YearViewProps) {
+  const site = useSiteRef();
   const today = parisToday();
   const months = Array.from({ length: 12 }, (_, i) => i);
 
   const [drag, setDrag] = useState<DragMode | null>(null);
   const [mouseHasMoved, setMouseHasMoved] = useState(false);
   const [closureEditorOpen, setClosureEditorOpen] = useState(false);
-  const [editingClosure, setEditingClosure] = useState<ExceptionalClosure | null>(null);
+  const [editingClosure, setEditingClosure] = useState<Closure | null>(null);
   const [closurePrefill, setClosurePrefill] = useState<{ start: string; end: string } | null>(null);
   const [joursFeries, setJoursFeries] = useState<Record<string, string>>({});
   const [vacanceDates, setVacanceDates] = useState<Set<string>>(new Set());
@@ -314,13 +316,13 @@ export function YearView({
       const newEnd = handle === 'end' ? hover : closure.end_date;
       const [lo, hi] = orderDates(newStart, newEnd);
       try {
-        await closuresApi.update(closure.id, { start_date: lo, end_date: hi });
+        await closuresApi.update(site, closure.id, { start_date: lo, end_date: hi });
         onReload();
       } catch {
         /* ignore */
       }
     }
-  }, [drag, mouseHasMoved, data, canEdit, onNavigate, onReload]);
+  }, [site, drag, mouseHasMoved, data, canEdit, onNavigate, onReload]);
 
   useEffect(() => {
     const up = () => {

@@ -1,4 +1,5 @@
 import { Frown, Laugh, Smile, Star, ThumbsDown, ThumbsUp, type LucideIcon } from 'lucide-react';
+import type { VoteIconPreset } from '@/lib/api/sites';
 
 /**
  * The three rating levels and the icon sets that draw them, defined once for
@@ -29,7 +30,7 @@ interface RatingIcon {
 }
 
 export interface RatingPreset {
-  id: string;
+  id: VoteIconPreset;
   label: string;
   icons: Record<RatingValue, RatingIcon>;
 }

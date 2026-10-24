@@ -1,9 +1,9 @@
-import { ServiceHours } from '@/lib/api/restaurant';
+import type { PaymentMethod, ServiceHours, VoteIconPreset } from '@/lib/api/sites';
 import { parseSiteName, SITE_NAME_RULE } from '@/lib/site-name';
 
 export const DAY_NAMES = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
-export const PAYMENT_OPTIONS: { id: string; label: string }[] = [
+export const PAYMENT_OPTIONS: { id: PaymentMethod; label: string }[] = [
   { id: 'izly', label: 'Izly' },
   { id: 'cb', label: 'Carte bancaire' },
   { id: 'cash', label: 'Espèces' },
@@ -39,11 +39,11 @@ export interface RestaurantFormState {
   email: string;
   phone: string;
   capacity: string;
-  paymentMethods: string[];
+  paymentMethods: PaymentMethod[];
   pmrAccess: boolean | null;
   voteEnabled: boolean;
   voteCategoryIds: number[];
-  voteIconPreset: string;
+  voteIconPreset: VoteIconPreset;
 }
 
 export function serializeRestaurantState(s: RestaurantFormState): string {

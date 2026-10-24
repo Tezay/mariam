@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Copy, Plus } from 'lucide-react';
 import { closuresApi } from '@/lib/api/closures';
 import type { Event } from '@/lib/api/events';
-import type { ExceptionalClosure } from '@/lib/api/closures';
+import type { Closure } from '@/lib/api/closures';
 import type { MenuCategory } from '@/lib/api/categories';
 import { editorItems, type EditorItem } from '@/pages/admin/calendar/day/useMenuEditor';
 import { addDays, parisToday } from '@/lib/date-utils';
@@ -15,6 +15,7 @@ import { CLOSURE_HATCH_STYLE } from './closure/closureStyle';
 import { DragMode, orderDates } from './closure/closureDrag';
 import { ClosureEditor } from './closure/ClosureEditor';
 import { MenuCopyPopover } from './selection/MenuCopyPopover';
+import { useSiteRef } from '@/contexts/SiteContext';
 
 const FR_DAYS_SHORT = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -101,12 +102,13 @@ export function MonthView({
   onReload,
   onEditEvent,
 }: MonthViewProps) {
+  const site = useSiteRef();
   const today = parisToday();
 
   const [drag, setDrag] = useState<DragMode | null>(null);
   const [mouseHasMoved, setMouseHasMoved] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [editingClosure, setEditingClosure] = useState<ExceptionalClosure | null>(null);
+  const [editingClosure, setEditingClosure] = useState<Closure | null>(null);
   const [closurePrefill, setClosurePrefill] = useState<{ start: string; end: string } | null>(null);
   const [pendingRange, setPendingRange] = useState<{ start: string; end: string } | null>(null);
 
@@ -193,13 +195,13 @@ export function MonthView({
       const newEnd = handle === 'end' ? hover : closure.end_date;
       const [lo, hi] = orderDates(newStart, newEnd);
       try {
-        await closuresApi.update(closure.id, { start_date: lo, end_date: hi });
+        await closuresApi.update(site, closure.id, { start_date: lo, end_date: hi });
         onReload();
       } catch {
         /* The closure keeps its dates. */
       }
     }
-  }, [drag, mouseHasMoved, data, canEdit, onNavigate, onReload]);
+  }, [site, drag, mouseHasMoved, data, canEdit, onNavigate, onReload]);
 
   useEffect(() => {
     const up = () => {

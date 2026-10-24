@@ -1,4 +1,4 @@
-import type { PublicSite } from '@/lib/api/sites';
+import type { Site } from '@/lib/api/sites';
 import type { DisplayCategory, MenuData } from '../menu-types';
 
 type Day = Pick<MenuData, 'date' | 'menu'>;
@@ -34,7 +34,7 @@ export function menuDescription(siteName: string, orgName: string, today: Day | 
 export function restaurantJsonLd(
   siteName: string,
   url: string,
-  restaurant: Pick<PublicSite, 'logo_url' | 'address_label' | 'phone'> | null,
+  restaurant: Pick<Site, 'logo_url' | 'address_label' | 'phone'> | null,
   today: Day | null
 ): Record<string, unknown> {
   const data: Record<string, unknown> = {

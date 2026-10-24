@@ -1,7 +1,4 @@
-from marshmallow import EXCLUDE, Schema, fields, validate
-
-from ..models.menu_vote import VOTE_ICON_PRESETS
-from .common import SiteName
+from marshmallow import EXCLUDE, Schema, fields
 
 
 class ServiceHoursDaySchema(Schema):
@@ -51,35 +48,3 @@ class RestaurantSchema(Schema):
         dump_only=True,
     )
     config = fields.Nested(RestaurantConfigSchema, dump_only=True)
-
-
-class RestaurantUpdateSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-    name = SiteName()
-    is_active = fields.Bool()
-    # Address
-    address_label = fields.Str(allow_none=True)
-    address_lat = fields.Float(allow_none=True)
-    address_lon = fields.Float(allow_none=True)
-    # Contact
-    email = fields.Str(allow_none=True)
-    phone = fields.Str(allow_none=True)
-    capacity = fields.Int(allow_none=True)
-    # Payment & accessibility
-    payment_methods = fields.List(fields.Str(), allow_none=True)
-    pmr_access = fields.Bool(allow_none=True)
-    # Service hours: {"0": {"open": "11:30", "close": "14:00"}, ...}
-    service_hours = fields.Dict(
-        keys=fields.Str(),
-        values=fields.Nested(ServiceHoursDaySchema),
-        allow_none=True,
-    )
-    # Existing fields
-    service_days = fields.List(fields.Int())
-    vote_enabled = fields.Bool()
-    vote_category_ids = fields.List(fields.Int())
-    vote_icon_preset = fields.Str(validate=validate.OneOf(VOTE_ICON_PRESETS))
-    menu_categories = fields.List(fields.Dict())
-    dietary_tags = fields.List(fields.Raw(), metadata={'description': "List of tag IDs or tag objects with 'id'"})
-    certifications = fields.List(fields.Raw(), metadata={'description': "List of cert IDs or cert objects with 'id'"})

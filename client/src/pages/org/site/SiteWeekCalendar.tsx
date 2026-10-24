@@ -7,8 +7,8 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { SiteProvider } from '@/contexts/SiteContext';
-import { categoriesApi, type MenuCategory } from '@/lib/api/categories';
+import { SiteProvider, useSiteRef } from '@/contexts/SiteContext';
+import { categoriesApi } from '@/lib/api/categories';
 import type { SiteRef } from '@/lib/api/sites';
 import { addDays, parisToday } from '@/lib/date-utils';
 import { Button } from '@/components/ui/button';
@@ -27,25 +27,26 @@ function formatWeekLabel(monday: string): string {
   return `${format(monday, false)} – ${format(sunday, true)}`;
 }
 
-export function SiteWeekCalendar({ siteId, site }: { siteId: number; site: SiteRef }) {
+export function SiteWeekCalendar({ site }: { site: SiteRef }) {
   return (
     <SiteProvider site={site}>
-      <SiteWeek siteId={siteId} />
+      <SiteWeek />
     </SiteProvider>
   );
 }
 
-function SiteWeek({ siteId }: { siteId: number }) {
+function SiteWeek() {
+  const site = useSiteRef();
   const [weekOffset, setWeekOffset] = useState(0);
 
   const monday = useMemo(() => addDays(getMondayOf(parisToday()), weekOffset * 7), [weekOffset]);
   const sunday = useMemo(() => addDays(monday, 6), [monday]);
 
-  const { data, isLoading, serviceDays, reload } = useCalendarData(monday, sunday, siteId);
+  const { data, isLoading, serviceDays, reload } = useCalendarData(monday, sunday);
 
   const { data: categories = [] } = useQuery({
-    queryKey: ['site-categories', siteId],
-    queryFn: async () => (await categoriesApi.list(siteId)).categories as MenuCategory[],
+    queryKey: ['site-categories', site.org, site.site],
+    queryFn: () => categoriesApi.list(site),
     staleTime: 5 * 60_000,
   });
 

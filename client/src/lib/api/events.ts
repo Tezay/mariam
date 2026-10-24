@@ -1,99 +1,80 @@
-import { api } from './client';
+import { api, publicAxios, PUBLIC_API_TIMEOUT_MS, sitePath, type SiteRef } from './client';
+import type { components } from './schema.gen';
 
-export interface EventImage {
-  id: number;
-  event_id: number;
-  url: string;
-  filename?: string;
-  order: number;
+type Schemas = components['schemas'];
+
+export type Event = Schemas['Event'];
+export type EventImage = Schemas['Image'];
+export type EventInput = Schemas['EventInput'];
+export type EventPatch = Schemas['EventPatch'];
+/** An image as the site's editors read it, with its `id`. */
+export type StoredImage = EventImage & { id: number };
+
+export function storedImages(images: EventImage[]): StoredImage[] {
+  return images.filter((image): image is StoredImage => image.id !== undefined);
 }
 
-export interface Event {
-  id: number;
-  restaurant_id: number;
-  title: string;
-  subtitle?: string;
-  description?: string;
-  color?: string;
-  event_date: string;
-  status: 'draft' | 'published';
-  visibility: 'tv' | 'mobile' | 'all';
-  is_active: boolean;
-  images?: EventImage[];
-  created_at?: string;
-  updated_at?: string;
+export interface EventRange {
+  from?: string;
+  to?: string;
+}
+
+function eventsPath(ref: SiteRef): string {
+  return `${sitePath(ref)}/events`;
 }
 
 export const eventsApi = {
-  list: async (upcoming = true, restaurantId?: number, includeInactive = false) => {
-    const params: Record<string, string | number | boolean> = {
-      upcoming: String(upcoming),
-      include_inactive: String(includeInactive),
-    };
-    if (restaurantId) params.restaurant_id = restaurantId;
-    const response = await api.get('/events', { params });
-    return response.data.events as Event[];
+  /** Published events from today on, read without a session. */
+  listPublished: async (ref: SiteRef, visibility: 'mobile' | 'tv'): Promise<Event[]> =>
+    (
+      await publicAxios.get(eventsPath(ref), {
+        timeout: PUBLIC_API_TIMEOUT_MS,
+        params: { visibility },
+      })
+    ).data.items,
+
+  /** Drafts included; without `from`, past events as well. */
+  list: async (ref: SiteRef, range: EventRange = {}): Promise<Event[]> =>
+    (await api.get(eventsPath(ref), { params: range })).data.items,
+
+  get: async (ref: SiteRef, id: number): Promise<Event> =>
+    (await api.get(`${eventsPath(ref)}/${id}`)).data,
+
+  create: async (ref: SiteRef, event: EventInput): Promise<Event> =>
+    (await api.post(eventsPath(ref), event)).data,
+
+  update: async (ref: SiteRef, id: number, patch: EventPatch): Promise<Event> =>
+    (await api.patch(`${eventsPath(ref)}/${id}`, patch)).data,
+
+  remove: async (ref: SiteRef, id: number): Promise<void> => {
+    await api.delete(`${eventsPath(ref)}/${id}`);
   },
 
-  get: async (id: number) => {
-    const response = await api.get(`/events/${id}`);
-    return response.data.event as Event;
-  },
+  publish: async (ref: SiteRef, id: number): Promise<Event> =>
+    (await api.post(`${eventsPath(ref)}/${id}/publish`)).data,
 
-  create: async (event: Partial<Event>) => {
-    const response = await api.post('/events', event);
-    return response.data.event as Event;
-  },
+  unpublish: async (ref: SiteRef, id: number): Promise<Event> =>
+    (await api.post(`${eventsPath(ref)}/${id}/unpublish`)).data,
 
-  update: async (id: number, event: Partial<Event>) => {
-    const response = await api.put(`/events/${id}`, event);
-    return response.data.event as Event;
-  },
+  duplicate: async (ref: SiteRef, id: number, date?: string): Promise<Event> =>
+    (await api.post(`${eventsPath(ref)}/${id}/duplicate`, date ? { date } : {})).data,
 
-  delete: async (id: number) => {
-    await api.delete(`/events/${id}`);
-  },
-
-  publish: async (id: number) => {
-    const response = await api.post(`/events/${id}/publish`);
-    return response.data.event as Event;
-  },
-
-  unpublish: async (id: number) => {
-    const response = await api.post(`/events/${id}/unpublish`);
-    return response.data.event as Event;
-  },
-
-  duplicate: async (id: number, newDate?: string) => {
-    const response = await api.post(`/events/${id}/duplicate`, {
-      event_date: newDate,
-    });
-    return response.data.event as Event;
-  },
-
-  storageStatus: async () => {
-    const response = await api.get('/events/storage-status');
-    return response.data.configured as boolean;
-  },
-
-  uploadImage: async (eventId: number, file: File) => {
+  uploadImage: async (ref: SiteRef, eventId: number, file: File): Promise<EventImage> => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await api.post(`/events/${eventId}/images`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 30000,
-    });
-    return response.data.image as EventImage;
+    return (
+      await api.post(`${eventsPath(ref)}/${eventId}/images`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 30000,
+      })
+    ).data;
   },
 
-  deleteImage: async (eventId: number, imageId: number) => {
-    await api.delete(`/events/${eventId}/images/${imageId}`);
+  deleteImage: async (ref: SiteRef, eventId: number, imageId: number): Promise<void> => {
+    await api.delete(`${eventsPath(ref)}/${eventId}/images/${imageId}`);
   },
 
-  reorderImages: async (eventId: number, imageIds: number[]) => {
-    const response = await api.put(`/events/${eventId}/images/reorder`, {
-      image_ids: imageIds,
-    });
-    return response.data.images as EventImage[];
-  },
+  orderImages: async (ref: SiteRef, eventId: number, imageIds: number[]): Promise<EventImage[]> =>
+    (await api.put(`${eventsPath(ref)}/${eventId}/images/order`, { image_ids: imageIds })).data
+      .items,
 };

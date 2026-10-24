@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { publicMenuData } from '@/pages/public/public-menu-data';
 import type { Menu } from '@/lib/api/menus';
-import type { PublicClosure, PublicEvent, PublicSite } from '@/lib/api/sites';
+import type { Closure } from '@/lib/api/closures';
+import type { Event } from '@/lib/api/events';
+import type { Site } from '@/lib/api/sites';
 
 // Thursday 15 October 2026, 23:30 in Paris: still Thursday there, already
 // Friday in UTC.
@@ -17,18 +19,18 @@ const site = {
   dietary_tags: [],
   certifications: [],
   menu_window: { from: '2026-09-15', to: '2026-10-22' },
-} satisfies PublicSite;
+} satisfies Site;
 
 function menu(date: string): Menu {
   return { date, categories: [], images: [], substitutions: {} };
 }
 
-function event(id: number, date: string): PublicEvent {
+function event(id: number, date: string): Event {
   return { id, title: `Événement ${id}`, date, images: [] };
 }
 
-function closure(id: number, start_date: string, end_date: string): PublicClosure {
-  return { id, start_date, end_date };
+function closure(id: number, start_date: string, end_date: string): Closure {
+  return { id, start_date, end_date, reason: null, description: null };
 }
 
 describe('publicMenuData', () => {

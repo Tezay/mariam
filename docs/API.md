@@ -275,7 +275,7 @@ campus behind a single address rather than for one visitor.
 | `GET` | `/v1/orgs/{org}/sites/{site}` | A site: address, contact, hours, vote settings, the labels in use, `menu_window` |
 | `GET` | `/v1/orgs/{org}/sites/{site}/menus` | Published menus from `from` to `to`, both included (today to the window's end by default; 62 days at most) |
 | `GET` | `/v1/orgs/{org}/sites/{site}/menus/{date}` | The published menu of a day |
-| `GET` | `/v1/orgs/{org}/sites/{site}/events` | Published events from today on (`visibility` = `tv` or `mobile`, `limit` up to 20) |
+| `GET` | `/v1/orgs/{org}/sites/{site}/events` | Published events from today on (`visibility` = `tv` or `mobile`, `limit` up to 100); `{event_id}` for one |
 | `GET` | `/v1/orgs/{org}/sites/{site}/closures` | Exceptional closures under way or to come |
 | `GET` | `/v1/orgs/{org}/sites/{site}/menus/{date}/vote` | What the device in `Device-Id` may rate today, and its own vote |
 | `PUT` | `/v1/orgs/{org}/sites/{site}/menus/{date}/vote` | Rate today's meal: `rating` 1-3, optional `dish_ids` and `fingerprint`; `201` for the first vote, `200` for a change |
@@ -318,7 +318,6 @@ persisted; no address, user agent or per-visitor row reaches PostgreSQL.
 | `GET` | `/v1/notifications/vapid-public-key` | VAPID public key for push subscriptions |
 | `GET` | `/v1/holidays/{year}` | French public holidays of a year, from calendrier.api.gouv.fr |
 | `GET`/`POST` | `/v1/public/unsubscribe/<token>` | Turn the weekly digest off from the email; POST answers the one-click of mail clients |
-| `GET` | `/v1/events`, `/v1/closures` | Read anonymously by `?restaurant_id=`, until their domain moves under `/v1/orgs` |
 
 ---
 
@@ -369,37 +368,41 @@ answer `502 holidays_unavailable`. Both are cached for a day.
 
 ## Events
 
-Requires `editor` role or above. Unauthenticated requests to `GET /v1/events` only see published events.
+The `GET` routes of a site's events serve a session too: an editor of the site reads its
+drafts, past events without `from`, and the editors' fields (`status`, `visibility`,
+`created_at`, `updated_at`, the `id` of each image). Writes require the `editor` role on the
+site; a supervisor reads but never writes.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `/v1/events` | List events (drafts included when authenticated) |
-| `GET` | `/v1/events/storage-status` | S3 storage status |
-| `GET` | `/v1/events/<id>` | Event details |
-| `POST` | `/v1/events` | Create an event |
-| `PUT` | `/v1/events/<id>` | Update an event |
-| `DELETE` | `/v1/events/<id>` | Delete an event |
-| `POST` | `/v1/events/<id>/publish` | Publish an event |
-| `POST` | `/v1/events/<id>/unpublish` | Revert an event to draft |
-| `POST` | `/v1/events/<id>/duplicate` | Duplicate an event |
-| `POST` | `/v1/events/<id>/images` | Upload image (multipart/form-data) |
-| `DELETE` | `/v1/events/<id>/images/<img_id>` | Delete an image |
-| `PUT` | `/v1/events/<id>/images/reorder` | Reorder images |
+| `GET` | `S/events?from=&to=&visibility=&limit=` | Events in date order; anyone gets the published ones from today on |
+| `GET` | `S/events/{event_id}` | One event: published for anyone, any for the site's editors |
+| `POST` | `S/events` | Add an event (`title`, `date`, optional `subtitle`, `description`, `color` `#RRGGBB`, `status`, `visibility`); `201` and `Location` |
+| `PATCH` | `S/events/{event_id}` | Change an event; a new `date` sends its reminders again |
+| `DELETE` | `S/events/{event_id}` | Delete it and its images |
+| `POST` | `S/events/{event_id}/publish` | Publish |
+| `POST` | `S/events/{event_id}/unpublish` | Back to draft; `409 event_not_published` for a draft |
+| `POST` | `S/events/{event_id}/duplicate` | Copy as a draft, without images, a week later unless `date` says otherwise; `201` and `Location` |
+| `POST` | `S/events/{event_id}/images` | Add an image (multipart `file`), six per event |
+| `PUT` | `S/events/{event_id}/images/order` | New order of the images: every `image_ids`, once |
+| `DELETE` | `S/events/{event_id}/images/{image_id}` | Remove an image |
+
+A description is HTML, sanitised when written and again when read. Without storage
+configured, an image answers `503 storage_unavailable`.
 
 ---
 
 ## Exceptional Closures
 
-Requires `editor` role or above to write. Unauthenticated requests to
-`GET /v1/closures` only see active closures from today onward, split into
-`current_closure` and `upcoming_closures`.
+`GET S/closures?from=&to=` lists the closures that overlap the range, soonest first. Anyone
+gets those under way or to come; an editor of the site reads any range, past ones without
+`from`. Writes require the `editor` role on the site.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `/v1/closures` | List closures (filters: `restaurant_id`, `upcoming`, `include_inactive`) |
-| `POST` | `/v1/closures` | Create a closure |
-| `PUT` | `/v1/closures/<id>` | Update a closure |
-| `DELETE` | `/v1/closures/<id>` | Delete a closure |
+| `POST` | `S/closures` | Close the site from `start_date` to `end_date`, both included, with an optional `reason` and `description` |
+| `PATCH` | `S/closures/{closure_id}` | Change a closure; a new `start_date` sends its reminders again |
+| `DELETE` | `S/closures/{closure_id}` | Delete it |
 
 ---
 
@@ -518,9 +521,8 @@ Catalogue notes:
 ## Analytics
 
 Requires `admin` or `org_admin`. The scope is derived from the caller: a site
-admin gets its own site, an org director every site of its organization. The
-`X-Restaurant-Id` header is ignored here — directors narrow the scope with
-`site_ids` instead.
+admin gets its own site, an org director every site of its organization, which
+`site_ids` narrows.
 
 | Method | Route | Description |
 |--------|-------|-------------|
@@ -560,37 +562,43 @@ Notes:
 
 ---
 
-## Restaurant and Settings
+## Site settings
 
-| Method | Route | Auth | Description |
-|--------|-------|------|-------------|
-| `GET` | `/v1/settings` | editor+ | Full restaurant settings |
-| `PUT` | `/v1/settings` | admin | Update settings; `name` holds 1 to 50 characters and no web or email address |
-| `GET` | `/v1/restaurants` | admin | List the caller's restaurants |
-| `GET` | `/v1/restaurant/calendar-settings` | editor+ | Calendar display settings (public holidays, school vacations) |
-| `PUT` | `/v1/restaurant/calendar-settings` | editor+ | Update calendar display settings |
+A site's settings are its page: `GET S` serves the public fields to anyone and adds
+`vote_category_ids` for the site's editors. Changing them requires the `admin` role on the
+site; a supervisor reads but never writes.
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `PATCH` | `S` | Change the name, address, contact, capacity, payment methods, access, service days and hours, vote, and the labels in use (`tag_ids`, `certification_ids`) |
+| `GET` | `S/calendar-settings` | What the calendar shows besides menus: public holidays, school holidays and their zone |
+| `PATCH` | `S/calendar-settings` | Change them; `admin` role |
+| `GET` | `/v1/restaurants` | The sites an account reaches, for the supervisor's account list |
+
+Every value has its rule, refused with `422` otherwise: a name of 1 to 50 characters without
+a web or email address, service days from `0` (Monday) to `6`, hours as `HH:MM` with the close
+after the open, payment methods among `izly`, `cb`, `cash` and `ticket_restaurant`, vote
+categories of the site, known labels. `service_hours` replaces every day's hours.
 
 ---
 
 ## Categories
 
-Requires `admin` role.
+A site's menu categories: one level of subcategories at most, and only a category without
+subcategories carries dishes. Reading requires a session on the site, writing the `admin`
+role on it; a supervisor reads but never writes.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `/v1/settings/categories` | List all categories with subcategories |
-| `POST` | `/v1/settings/categories` | Create a category or subcategory |
-| `PUT` | `/v1/settings/categories/reorder` | Reorder categories |
-| `PUT` | `/v1/settings/categories/<id>` | Update a category |
-| `DELETE` | `/v1/settings/categories/<id>` | Delete a category |
+| `GET` | `S/categories` | The categories in order, each with its subcategories |
+| `POST` | `S/categories` | Add a category, or a subcategory with `parent_id` (a top-level category of the site); after the others unless `order` says otherwise; `201` |
+| `PATCH` | `S/categories/{category_id}` | Change its `label`, `is_highlighted` or `color_key` (`indigo`, `sky`, `mint`, `saffron`, `clay`, `lilac`) |
+| `PUT` | `S/categories/order` | New order of one level: every `category_ids` of the top level, or of one parent, once |
+| `DELETE` | `S/categories/{category_id}` | Delete it and its subcategories |
 
-Notes:
-
-- Only a leaf category carries dishes. Creating a subcategory under a category
-  that holds dishes answers 409 with `stranded_dishes`; repeat the call with
-  `move_dishes: true` to move them into the new subcategory.
-- Deletion answers 409 with `attached_dishes` when the category or one of its
-  descendants still holds dishes.
+A subcategory under a category that holds dishes, or the deletion of a category whose subtree
+holds some, answers `409 category_has_dishes` with `dish_count`; a subcategory takes the
+parent's dishes with `move_dishes: true`. A protected category answers `409 category_protected`.
 
 ---
 

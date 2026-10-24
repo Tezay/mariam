@@ -43,6 +43,7 @@ def _audit(user: User, details: dict) -> None:
 
 @auth_bp.route('/check-reset/<token>', methods=['GET'])
 @auth_bp.doc(security=[])
+@limiter.limit('10 per minute')
 @auth_bp.response(200, ResetLinkSchema)
 @auth_bp.alt_response(400, schema=InvalidLinkSchema, description='Link expired or already used.')
 @auth_bp.alt_response(404, schema=InvalidLinkSchema, description='Unknown link.')

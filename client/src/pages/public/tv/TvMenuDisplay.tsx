@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { trackPageView } from '@/lib/telemetry';
-import type { PublicClosure } from '@/lib/api/sites';
+import type { Closure } from '@/lib/api/closures';
 import { CertificationItem } from '@/lib/api/taxonomy';
 import { generateEventPalette } from '@/lib/color-utils';
 import { TagIcon } from '@/components/TagIcon';
@@ -316,7 +316,7 @@ function TvCategoryCard({
   );
 }
 
-function TvClosureDisplay({ closure }: { closure: PublicClosure }) {
+function TvClosureDisplay({ closure }: { closure: Closure }) {
   const fmt = (d: string) =>
     new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', {
       day: 'numeric',

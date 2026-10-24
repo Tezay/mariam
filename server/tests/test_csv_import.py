@@ -2,13 +2,12 @@
 import datetime
 import io
 
-from conftest import auth_headers, get_token, make_category, make_restaurant, make_user, site_path
+from conftest import auth_headers, get_token, make_category, make_restaurant, make_user, own_site
 
 
 def _site(client, token):
     """The address of the caller's own site."""
-    rid = client.get('/v1/settings', headers=auth_headers(token)).get_json()['restaurant']['id']
-    return site_path(rid)
+    return own_site(client, token)[1]
 
 
 def _upload_csv(client, token, content='Plat principal\nPoulet rôti, Riz pilaf\n'):
@@ -347,8 +346,7 @@ class TestCatalogExportRoundTrip:
         from app.models import MenuCategory
 
         token, csv_body = self._export(app, client)
-        settings = client.get('/v1/settings', headers=auth_headers(token)).get_json()
-        rid = settings['restaurant']['id']
+        rid, _ = own_site(client, token)
         target = make_category(app, rid, label='Tout venant')
 
         upload = _upload_catalog(client, token, csv_body, 'catalogue.csv').get_json()

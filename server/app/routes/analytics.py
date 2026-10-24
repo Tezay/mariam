@@ -1,9 +1,8 @@
 """Dashboard analytics for site admins and supervisors.
 
 Scope comes from the caller's accessible sites, so one endpoint serves a
-single-site admin and a supervisor of thirty sites without branching. The
-`X-Restaurant-Id` header is deliberately ignored here: a supervisor filters
-through `site_ids` instead of switching active site.
+single-site admin and a supervisor of thirty sites without branching; a
+supervisor narrows it with `site_ids`.
 """
 from flask import jsonify, request
 from flask_smorest import Blueprint

@@ -16,8 +16,9 @@ from flask_smorest import Blueprint
 from ..extensions import db
 from ..schemas.common import ErrorSchema
 from ..schemas.inbox import InboxPreferencesSchema, LiveAlertListSchema
+from ..services.access import accessible_restaurant_ids
 from ..services.alerts import live_alerts
-from .helpers import accessible_restaurant_ids, get_current_user
+from .helpers import get_current_user
 
 inbox_bp = Blueprint(
     'inbox', __name__,

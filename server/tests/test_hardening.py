@@ -2,10 +2,12 @@
 
 import pyotp
 import pytest
+from flask_limiter.util import get_qualified_name
 
 from app import create_app
 from app.extensions import db
 from app.models import Organization, User
+from app.security import limiter
 from conftest import TEST_PASSWORD, auth_headers, get_token, make_restaurant, make_user, probe_path
 from tests.auth_support import session_headers
 
@@ -141,6 +143,29 @@ class TestAuthenticationComesFirst:
 
         assert answers
         assert {route: status for route, status in answers.items() if status != 401} == {}
+
+
+class TestOpenRoutesAreLimited:
+    UNLIMITED = {
+        'health_check', 'health_ready', 'static',
+        'api-docs.openapi_json', 'api-docs.openapi_swagger_ui',
+    }
+
+    def test_a_route_open_to_anyone_declares_its_own_limit(self, app, client):
+        # Flask-Limiter files a route's limits under get_qualified_name(view); should
+        # that name change, every route reads as unlimited and this test fails.
+        unlimited = {
+            f'{method} {rule.rule}'
+            for rule in app.url_map.iter_rules()
+            if rule.endpoint not in self.UNLIMITED
+            and not limiter.limit_manager.decorated_limits(
+                get_qualified_name(app.view_functions[rule.endpoint])
+            )
+            for method in sorted(rule.methods - {'HEAD', 'OPTIONS'})
+            if client.open(probe_path(rule.rule), method=method, json=[]).status_code != 401
+        }
+
+        assert unlimited == set()
 
 
 class TestUnauthorizedSpeaksOfTheSession:
