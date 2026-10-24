@@ -326,6 +326,15 @@ def make_restaurant(app, name='RU Test', code='RU_TEST', organization_id=None):
     return restaurant.id
 
 
+def own_site(client, token) -> tuple[int, str]:
+    """The id and address of the caller's own site, as its profile names them."""
+    user = client.get('/v1/auth/me', headers=auth_headers(token)).get_json()['user']
+    return (
+        user['restaurant_id'],
+        f"/v1/orgs/{user['organization_slug']}/sites/{user['restaurant_slug']}",
+    )
+
+
 def site_path(restaurant_id: int) -> str:
     from app.models import Organization, Restaurant
     site = _db.session.get(Restaurant, restaurant_id)

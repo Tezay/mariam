@@ -10,10 +10,11 @@ from flask_smorest import Blueprint
 
 from ..extensions import db
 from ..models import Event, Menu, Restaurant, User
+from ..services.access import accessible_restaurant_ids
 from ..services.org_catalog import dish_group, pooled_dishes
 from ..services.service_calendar import closures_by_site, menu_status
 from ..utils.time import paris_today, utc_naive_to_paris
-from .helpers import accessible_restaurant_ids, get_current_user, org_admin_required
+from .helpers import get_current_user, org_admin_required
 
 org_bp = Blueprint('org', __name__, description='Supervision dashboard')
 

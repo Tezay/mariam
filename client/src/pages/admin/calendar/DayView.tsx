@@ -17,7 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { AdminDayDisplay } from './day/AdminDayDisplay';
 import type { CalendarData } from './useCalendarData';
-import type { ExceptionalClosure } from '@/lib/api/closures';
+import type { Closure } from '@/lib/api/closures';
 import { CLOSURE_HATCH_STYLE } from './closure/closureStyle';
 import { ClosureEditor } from './closure/ClosureEditor';
 
@@ -41,7 +41,7 @@ function getMondayOfWeek(dateStr: string): string {
 // ─── ClosureScreen ────────────────────────────────────────────────────────────
 
 interface ClosureScreenProps {
-  closure: ExceptionalClosure;
+  closure: Closure;
   canEdit: boolean;
   onReload: () => void;
 }

@@ -330,7 +330,7 @@ def _create_category_path(restaurant_id: int, path: str) -> int:
                     restaurant_id=restaurant_id,
                     parent_id=parent.id if parent else None,
                 ).count(),
-                color_key=_next_color(restaurant_id) if depth == 0 else None,
+                color_key=MenuCategory.next_color_key(restaurant_id) if depth == 0 else None,
             )
             db.session.add(existing)
             db.session.flush()
@@ -338,16 +338,6 @@ def _create_category_path(restaurant_id: int, path: str) -> int:
     if parent is None:
         raise CategoryMappingError('Chemin de catégorie vide')
     return parent.id
-
-
-def _next_color(restaurant_id: int) -> str:
-    palette = ['indigo', 'sky', 'mint', 'saffron', 'clay', 'lilac']
-    used = {
-        category.color_key
-        for category in MenuCategory.query.filter_by(restaurant_id=restaurant_id).all()
-        if category.color_key
-    }
-    return next((key for key in palette if key not in used), palette[0])
 
 
 def build_export_dishes(session, restaurant_id: int, mapping: dict, create: bool) -> list[dict]:

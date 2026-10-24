@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The vote's device token travels in the `Device-Id` header**, out of the addresses that access logs keep.
 - **A menu item goes to a category of its own site**; an item naming another site's category is refused.
 - **An import closes only on the site and kind it was opened for.**
+- **A site's settings refuse a value outside their rules**, such as an unknown label, instead of ignoring it.
+- **A supervisor reads a site's settings and categories but no longer changes them.**
+- **Every route open to anyone has its own rate limit**, activation and reset link checks included.
 
 ### Added
 
@@ -31,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A site's menus, dishes and imports under `/v1/orgs/{org}/sites/{site}`**: a menu by its date, read by anyone once published and by the site's editors as a draft too.
 - **`/v1/holidays/{year}` and `/v1/school-holidays/{year}`.**
 - **The profile names its site and organization by slug** (`restaurant_slug`, `organization_slug`).
+- **A site's settings, categories, events and closures under `/v1/orgs/{org}/sites/{site}`**, drafts included for its editors.
 
 ### Changed
 
@@ -42,6 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A menu is one tree of categories**, for its editors as for anyone: the flat `items` list is gone.
 - **A site always has an organization and a slug**: the migration refuses a site without them, so check production first.
 - **The generated client types make a field with a default optional** in a request body.
+- **A category comes after the others** unless told otherwise, and reordering takes one whole level at once.
+- **An event's editor always offers its images** and saves their order with the event; without storage, the upload says so.
 
 - **React Router 7** replaces `react-router-dom` 6; the current page stays visible while the next one loads.
 - **The frontend is built by React Router's framework mode**; the build needs Node 22 alongside Bun.
@@ -76,6 +82,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`GET /v1/menus/today`, `/v1/menus/tomorrow` and `/v1/restaurant`**, read anonymously by `restaurant_id` and unused.
 - **`/v1/menus`, `/v1/catalog` and `/v1/imports`**, which took the site from the session or `X-Restaurant-Id`; `/v1/menus/week` read any site anonymously by `restaurant_id`.
 - **Publishing a whole week at once**, which nothing called since the calendar lost its button.
+- **`/v1/settings`, `/v1/events`, `/v1/closures` and `/v1/restaurant/calendar-settings`**; the two lists read any site by `restaurant_id`.
+- **The `X-Restaurant-Id` header**: a site is named by its address.
+- **`GET /v1/events/storage-status`.**
+- **An event's or closure's `is_active`**, which no screen set; an inactive one stays hidden.
 
 ### Fixed
 
@@ -83,6 +93,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`/health/ready` through the proxy** reaches the API instead of the frontend.
 - **A menu import's preview names the days in French.**
 - **A chef's note over 300 characters is refused** rather than cut.
+- **An event with six images can swap one in a single save**, and images just added stay on screen.
 
 ## [0.19.0] - 2026-10-13
 

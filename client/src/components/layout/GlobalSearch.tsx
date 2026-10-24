@@ -170,8 +170,8 @@ export function GlobalSearch() {
 
       const [dishes, events, closures] = await Promise.allSettled([
         site ? dishesApi.list(site, { q: q.trim(), per_page: 5 }) : Promise.reject(),
-        eventsApi.list(false, undefined, false),
-        closuresApi.list(),
+        site ? eventsApi.list(site) : Promise.reject(),
+        site ? closuresApi.list(site) : Promise.reject(),
       ]);
 
       if (closures.status === 'fulfilled') {
@@ -200,7 +200,7 @@ export function GlobalSearch() {
         let eventCount = 0;
         for (const e of events.value) {
           if (fuzzyMatches(e.title, q) && eventCount < 3) {
-            next.push({ kind: 'event', id: e.id, label: e.title, date: e.event_date });
+            next.push({ kind: 'event', id: e.id, label: e.title, date: e.date });
             eventCount++;
           }
         }

@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSiteRef } from '@/contexts/SiteContext';
 import { dishesApi } from '@/lib/api/dishes';
 import { menusApi } from '@/lib/api/menus';
-import { restaurantApi } from '@/lib/api/restaurant';
+import { sitesApi, type SiteRef } from '@/lib/api/sites';
 import type { Menu } from '@/lib/api/menus';
 import type { MenuCategory } from '@/lib/api/categories';
 import type { DietaryTag, CertificationItem } from '@/lib/api/taxonomy';
@@ -24,12 +24,9 @@ import {
 
 const AUTOSAVE_DELAY_MS = 1500;
 
-async function fetchTagConfig(): Promise<TagConfig> {
-  const r = await restaurantApi.getMine();
-  return {
-    dietary_tags: r.config?.dietary_tags ?? [],
-    certifications: r.config?.certifications ?? [],
-  };
+async function fetchTagConfig(site: SiteRef): Promise<TagConfig> {
+  const own = await sitesApi.getOwn(site);
+  return { dietary_tags: own.dietary_tags, certifications: own.certifications };
 }
 
 export interface UseOnboardingStateOptions {
@@ -93,7 +90,7 @@ export function useOnboardingState({
         const [menu, dishes, config] = await Promise.all([
           menusApi.get(site, date).catch(() => null),
           dishesApi.listAll(site, { sort: 'usage' }).catch(() => [] as Dish[]),
-          fetchTagConfig().catch(() => ({ dietary_tags: [], certifications: [] })),
+          fetchTagConfig(site).catch(() => ({ dietary_tags: [], certifications: [] })),
         ]);
         if (cancelled) return;
         if (menu?.status === 'published') {

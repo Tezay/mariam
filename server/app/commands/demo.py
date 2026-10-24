@@ -77,7 +77,6 @@ _DEMO_SITES = [
 ]
 _DEMO_OPEN_TIME = '11:30'
 _DEMO_CLOSE_TIME = '14:00'
-_PALETTE = ['indigo', 'sky', 'mint', 'saffron', 'clay', 'lilac']
 
 
 def register_commands(app):
@@ -260,7 +259,7 @@ def _ensure_menu_categories(restaurant_id: int) -> dict:
                 restaurant_id=restaurant_id,
                 label=label,
                 order=cat_data['order'],
-                color_key=cat_data.get('color_key', _PALETTE[i % len(_PALETTE)]),
+                color_key=cat_data.get('color_key', MenuCategory.COLOR_KEYS[i % len(MenuCategory.COLOR_KEYS)]),
                 is_highlighted=cat_data.get('is_highlighted', False),
             )
             db.session.add(cat)

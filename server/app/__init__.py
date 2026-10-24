@@ -16,6 +16,7 @@ from .models import (
     EventImage,
     ImportSession,
     Menu,
+    MenuCategory,
     MenuItem,
     Organization,
     PushSubscription,
@@ -217,7 +218,7 @@ def create_app(config_class=None):
         app,
         origins=origins,
         supports_credentials=True,
-        allow_headers=['Content-Type', 'Authorization', 'X-Restaurant-Id'],
+        allow_headers=['Content-Type', 'Authorization'],
         methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
     )
 
@@ -254,9 +255,7 @@ def create_app(config_class=None):
     from .routes.taxonomy import taxonomy_bp
     from .routes.users import users_bp
 
-    api.register_blueprint(categories_bp,    url_prefix='/v1')
     api.register_blueprint(auth_bp,          url_prefix='/v1/auth')
-    api.register_blueprint(events_bp,        url_prefix='/v1/events')
     api.register_blueprint(restaurant_bp,    url_prefix='/v1')
     api.register_blueprint(taxonomy_bp,      url_prefix='/v1/taxonomy')
     api.register_blueprint(holidays_bp,      url_prefix='/v1')
@@ -264,7 +263,6 @@ def create_app(config_class=None):
     api.register_blueprint(audit_bp,         url_prefix='/v1/audit-logs')
     api.register_blueprint(notifications_bp, url_prefix='/v1/notifications')
     api.register_blueprint(inbox_bp,         url_prefix='/v1/inbox')
-    api.register_blueprint(closures_bp,      url_prefix='/v1/closures')
     api.register_blueprint(public_bp,        url_prefix='/v1/public')
     api.register_blueprint(org_bp,           url_prefix='/v1/org')
     api.register_blueprint(analytics_bp,     url_prefix='/v1/analytics')
@@ -274,6 +272,9 @@ def create_app(config_class=None):
     api.register_blueprint(menus_bp,         url_prefix='/v1/orgs/<org>/sites/<site>/menus')
     api.register_blueprint(dishes_bp,        url_prefix='/v1/orgs/<org>/sites/<site>/dishes')
     api.register_blueprint(imports_bp,       url_prefix='/v1/orgs/<org>/sites/<site>')
+    api.register_blueprint(categories_bp,    url_prefix='/v1/orgs/<org>/sites/<site>/categories')
+    api.register_blueprint(events_bp,        url_prefix='/v1/orgs/<org>/sites/<site>/events')
+    api.register_blueprint(closures_bp,      url_prefix='/v1/orgs/<org>/sites/<site>/closures')
     api.register_blueprint(devices_bp,       url_prefix='/v1/devices')
 
     @app.route('/health')
@@ -357,7 +358,6 @@ def create_app(config_class=None):
     @app.cli.command('init-restaurant')
     def init_restaurant():
         """Create a default restaurant and its categories, unless one exists."""
-        from .routes.restaurant import _create_default_categories
 
         existing = Restaurant.query.first()
         if existing:
@@ -380,7 +380,7 @@ def create_app(config_class=None):
         db.session.add(restaurant)
         db.session.flush()
 
-        _create_default_categories(restaurant.id)
+        MenuCategory.create_defaults(restaurant.id)
         db.session.commit()
 
         click.echo(f"Restaurant created: {restaurant.name} (id {restaurant.id})")
@@ -409,8 +409,6 @@ def create_app(config_class=None):
     @app.cli.command('seed-categories')
     def seed_categories_cmd():
         """Create the default categories of the active restaurant, if it has none."""
-        from .models.category import MenuCategory
-        from .routes.restaurant import _create_default_categories
 
         restaurant = Restaurant.query.filter_by(is_active=True).first()
         if not restaurant:
@@ -419,7 +417,7 @@ def create_app(config_class=None):
         if MenuCategory.query.filter_by(restaurant_id=restaurant.id).count() > 0:
             click.echo(f"{restaurant.name} already has categories, nothing to do.")
             return
-        _create_default_categories(restaurant.id)
+        MenuCategory.create_defaults(restaurant.id)
         db.session.commit()
         click.echo(f"Default categories created for {restaurant.name}")
 

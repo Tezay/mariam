@@ -1,9 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, X, ArrowLeft, ArrowRight, AlertCircle } from 'lucide-react';
-import type { EventImage } from '@/lib/api/events';
+import type { StoredImage } from '@/lib/api/events';
 
 interface ImageUploaderProps {
-  images: EventImage[];
+  images: StoredImage[];
   pendingFiles: File[];
   maxImages?: number;
   onFilesAdded: (files: File[]) => void;
@@ -126,11 +126,7 @@ export function ImageUploader({
               key={`server-${img.id}`}
               className="group relative aspect-square overflow-hidden rounded-lg border border-border bg-muted"
             >
-              <img
-                src={img.url}
-                alt={img.filename || 'Image'}
-                className="h-full w-full object-cover"
-              />
+              <img src={img.url} alt={`Image ${idx + 1}`} className="h-full w-full object-cover" />
               <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/30" />
               {!disabled && (
                 <>

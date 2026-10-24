@@ -4,6 +4,8 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { menusApi } from '@/lib/api/menus';
+import { closuresApi } from '@/lib/api/closures';
+import { eventsApi } from '@/lib/api/events';
 import { sitesApi } from '@/lib/api/sites';
 import { addDays, nowInstant, parisToday } from '@/lib/date-utils';
 import { publicMenuData } from './public-menu-data';
@@ -25,8 +27,8 @@ export function usePublicMenu(
       const [details, menus, events, closures] = await Promise.all([
         sitesApi.get(org, site),
         menusApi.listPublished({ org, site }, today, addDays(today, 1)),
-        sitesApi.events(org, site, mode),
-        sitesApi.closures(org, site),
+        eventsApi.listPublished({ org, site }, mode),
+        closuresApi.listPublished({ org, site }),
       ]);
       return publicMenuData({ site: details, menus, events, closures }, now);
     },

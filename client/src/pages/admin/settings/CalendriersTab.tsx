@@ -1,8 +1,9 @@
 /** The holiday display is saved with the page; the closures it creates are saved at once. */
 import { useState } from 'react';
 import { parisYear } from '@/lib/date-utils';
-import type { CalendarSettings } from '@/lib/api/admin';
+import { useSiteRef } from '@/contexts/SiteContext';
 import { closuresApi } from '@/lib/api/closures';
+import type { CalendarSettings } from '@/lib/api/sites';
 import { holidaysApi, type Holiday, type SchoolHoliday } from '@/lib/api/holidays';
 import { notify } from '@/lib/toast';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ import type { SettingsState } from './useSettingsState';
 import { Spinner } from '@/components/ui/spinner';
 
 export function CalendriersTab({ state }: { state: SettingsState }) {
+  const site = useSiteRef();
   const { calendarSettings: settings, setCalendarSettings } = state;
   const currentYear = parisYear();
 
@@ -80,7 +82,7 @@ export function CalendriersTab({ state }: { state: SettingsState }) {
       if (confirmTarget === 'feries' && feries) {
         const toCreate = feries.filter((f) => selectedFeries.has(f.date));
         for (const f of toCreate) {
-          await closuresApi.create({
+          await closuresApi.create(site, {
             start_date: f.date,
             end_date: f.date,
             reason: f.description,
@@ -91,7 +93,7 @@ export function CalendriersTab({ state }: { state: SettingsState }) {
       } else if (confirmTarget === 'vacances' && vacances) {
         const toCreate = vacances.filter((v) => selectedVacances.has(v.start_date));
         for (const v of toCreate) {
-          await closuresApi.create({
+          await closuresApi.create(site, {
             start_date: v.start_date,
             end_date: v.end_date,
             reason: v.description,

@@ -6,9 +6,14 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { notify } from '@/lib/toast';
 import { DEFAULT_PRESET_ID } from '@/features/rating/scale';
-import { adminApi, CalendarSettings } from '@/lib/api/admin';
-import { DietaryTag, CertificationItem } from '@/lib/api/taxonomy';
-import { ServiceHours, RestaurantWithConfig } from '@/lib/api/restaurant';
+import { useSiteRef } from '@/contexts/SiteContext';
+import {
+  sitesApi,
+  type CalendarSettings,
+  type PaymentMethod,
+  type ServiceHours,
+  type Site,
+} from '@/lib/api/sites';
 import {
   validateSiteName,
   validateEmail,
@@ -19,12 +24,34 @@ import {
 
 export type SaveOutcome = 'saved' | 'partial' | 'validation-error' | 'noop';
 
+function formOf(site: Site): RestaurantFormState {
+  return {
+    name: site.name,
+    serviceDays: site.service_days,
+    serviceHours: site.service_hours,
+    enabledTags: site.dietary_tags.map((tag) => tag.id),
+    enabledCerts: site.certifications.map((cert) => cert.id),
+    addressLabel: site.address_label ?? '',
+    addressLat: site.address_lat ?? null,
+    addressLon: site.address_lon ?? null,
+    email: site.email ?? '',
+    phone: site.phone ?? '',
+    capacity: site.capacity != null ? String(site.capacity) : '',
+    paymentMethods: site.payment_methods ?? ['izly', 'cb'],
+    pmrAccess: site.pmr_access ?? null,
+    voteEnabled: site.vote_enabled,
+    voteCategoryIds: site.vote_category_ids ?? [],
+    voteIconPreset: site.vote_icon_preset,
+  };
+}
+
 interface Snapshots {
   restaurant: string;
   calendar: string;
 }
 
 export function useSettingsState() {
+  const site = useSiteRef();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -44,7 +71,7 @@ export function useSettingsState() {
   const [phone, setPhone] = useState('');
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [capacity, setCapacity] = useState('');
-  const [paymentMethods, setPaymentMethods] = useState<string[]>(['izly', 'cb']);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(['izly', 'cb']);
   const [pmrAccess, setPmrAccess] = useState<boolean | null>(null);
 
   const [voteEnabled, setVoteEnabled] = useState(true);
@@ -53,6 +80,7 @@ export function useSettingsState() {
   const [calendarSettings, setCalendarSettings] = useState<CalendarSettings | null>(null);
 
   // State, not a ref: `hasChanges` is derived from these, and a ref mutation
+  // would not render again.
   const [baseline, setBaseline] = useState<Snapshots>({
     restaurant: '',
     calendar: '',
@@ -87,75 +115,44 @@ export function useSettingsState() {
     );
   }, [isLoading, baseline, restaurantSnapshot, calendarSnapshot, calendarSettings]);
 
+  const applyForm = useCallback((form: RestaurantFormState) => {
+    setName(form.name);
+    setServiceDays(form.serviceDays);
+    setServiceHours(form.serviceHours);
+    setEnabledTags(form.enabledTags);
+    setEnabledCerts(form.enabledCerts);
+    setAddressLabel(form.addressLabel);
+    setAddressLat(form.addressLat);
+    setAddressLon(form.addressLon);
+    setAddressConfirmed(!form.addressLabel || (form.addressLat != null && form.addressLon != null));
+    setEmail(form.email);
+    setPhone(form.phone);
+    setCapacity(form.capacity);
+    setPaymentMethods(form.paymentMethods);
+    setPmrAccess(form.pmrAccess);
+    setVoteEnabled(form.voteEnabled);
+    setVoteCategoryIds(form.voteCategoryIds);
+    setVoteIconPreset(form.voteIconPreset);
+  }, []);
+
   useEffect(() => {
     const load = async () => {
       try {
-        const [data, loadedCalendar] = await Promise.all([
-          adminApi.getSettings(),
-          adminApi.getCalendarSettings().catch(() => null),
+        const [own, loadedCalendar] = await Promise.all([
+          sitesApi.getOwn(site),
+          sitesApi.getCalendarSettings(site).catch(() => null),
         ]);
+        const form = formOf(own);
+        const hourValues = Object.values(form.serviceHours);
+        const allSame = hourValues.every(
+          (h) => h.open === hourValues[0].open && h.close === hourValues[0].close
+        );
 
-        const loadedName = data.name || '';
-        const loadedServiceDays = data.config?.service_days || [0, 1, 2, 3, 4];
-        const loadedServiceHours: ServiceHours = data.config?.service_hours || {};
-        const loadedTags = (data.config?.dietary_tags || []).map((t: DietaryTag) => t.id);
-        const loadedCerts = (data.config?.certifications || []).map((c: CertificationItem) => c.id);
-        const loadedAddressLabel = data.address_label || '';
-        const loadedEmail = data.email || '';
-        const loadedPhone = data.phone || '';
-        const loadedCapacity = data.capacity != null ? String(data.capacity) : '';
-        const loadedPayments = data.payment_methods || ['izly', 'cb'];
-        const loadedPmr = data.pmr_access ?? null;
-        const loadedLat = data.address_lat ?? null;
-        const loadedLon = data.address_lon ?? null;
-        const loadedVoteEnabled = data.config?.vote_enabled ?? true;
-        const loadedVoteCategories = data.config?.vote_category_ids ?? [];
-        const loadedVotePreset = data.config?.vote_icon_preset ?? DEFAULT_PRESET_ID;
-
-        const hourValues = Object.values(loadedServiceHours);
-        const allSame =
-          hourValues.length > 0 &&
-          hourValues.every((h) => h.open === hourValues[0].open && h.close === hourValues[0].close);
-
-        setName(loadedName);
-        setServiceDays(loadedServiceDays);
-        setServiceHours(loadedServiceHours);
-        setSameHoursForAll(hourValues.length === 0 || allSame);
-        setEnabledTags(loadedTags);
-        setEnabledCerts(loadedCerts);
-        setAddressLabel(loadedAddressLabel);
-        setAddressLat(loadedLat);
-        setAddressLon(loadedLon);
-        setAddressConfirmed(!loadedAddressLabel || (loadedLat != null && loadedLon != null));
-        setEmail(loadedEmail);
-        setPhone(loadedPhone);
-        setCapacity(loadedCapacity);
-        setPaymentMethods(loadedPayments);
-        setPmrAccess(loadedPmr);
-        setVoteEnabled(loadedVoteEnabled);
-        setVoteCategoryIds(loadedVoteCategories);
-        setVoteIconPreset(loadedVotePreset);
+        applyForm(form);
+        setSameHoursForAll(allSame);
         setCalendarSettings(loadedCalendar);
-
         setBaseline({
-          restaurant: serializeRestaurantState({
-            name: loadedName,
-            serviceDays: loadedServiceDays,
-            serviceHours: loadedServiceHours,
-            enabledTags: loadedTags,
-            enabledCerts: loadedCerts,
-            addressLabel: loadedAddressLabel,
-            addressLat: loadedLat,
-            addressLon: loadedLon,
-            email: loadedEmail,
-            phone: loadedPhone,
-            capacity: loadedCapacity,
-            paymentMethods: loadedPayments,
-            pmrAccess: loadedPmr,
-            voteEnabled: loadedVoteEnabled,
-            voteCategoryIds: loadedVoteCategories,
-            voteIconPreset: loadedVotePreset,
-          }),
+          restaurant: serializeRestaurantState(form),
           calendar: JSON.stringify(loadedCalendar),
         });
       } catch {
@@ -165,7 +162,7 @@ export function useSettingsState() {
       }
     };
     load();
-  }, []);
+  }, [site, applyForm]);
 
   const saveAll = useCallback(async (): Promise<SaveOutcome> => {
     const nErr = validateSiteName(name);
@@ -188,82 +185,28 @@ export function useSettingsState() {
     try {
       if (restaurantDirty) {
         try {
-          const saved = (await adminApi.updateSettings({
-            name,
-            service_days: serviceDays,
-            service_hours: serviceHours,
-            address_label: addressLabel || null,
-            address_lat: addressLat,
-            address_lon: addressLon,
-            email: email || null,
-            phone: phone || null,
-            capacity: capacity ? Number(capacity) : null,
-            payment_methods: paymentMethods,
-            pmr_access: pmrAccess,
-            dietary_tags: enabledTags,
-            certifications: enabledCerts,
-            vote_enabled: voteEnabled,
-            vote_category_ids: voteCategoryIds,
-            vote_icon_preset: voteIconPreset,
-          })) as RestaurantWithConfig;
-
-          const savedLabel = saved.address_label || '';
-          const savedLat = saved.address_lat ?? null;
-          const savedLon = saved.address_lon ?? null;
-          const savedEmail = saved.email || '';
-          const savedPhone = saved.phone || '';
-          const savedCapacity = saved.capacity != null ? String(saved.capacity) : '';
-          const savedPayments = saved.payment_methods || [];
-          const savedPmr = saved.pmr_access ?? null;
-          const savedDays = saved.config?.service_days ?? serviceDays;
-          const savedVoteEnabled = saved.config?.vote_enabled ?? voteEnabled;
-          const savedVoteCategories = saved.config?.vote_category_ids ?? voteCategoryIds;
-          const savedVotePreset = saved.config?.vote_icon_preset ?? voteIconPreset;
-          const savedHours = saved.config?.service_hours ?? serviceHours;
-          const savedTags = (saved.config?.dietary_tags || []).map((t: DietaryTag) => t.id);
-          const savedCerts = (saved.config?.certifications || []).map(
-            (c: CertificationItem) => c.id
+          const form = formOf(
+            await sitesApi.update(site, {
+              name,
+              service_days: serviceDays,
+              service_hours: serviceHours,
+              address_label: addressLabel || null,
+              address_lat: addressLat,
+              address_lon: addressLon,
+              email: email || null,
+              phone: phone || null,
+              capacity: capacity ? Number(capacity) : null,
+              payment_methods: paymentMethods,
+              pmr_access: pmrAccess,
+              tag_ids: enabledTags,
+              certification_ids: enabledCerts,
+              vote_enabled: voteEnabled,
+              vote_category_ids: voteCategoryIds,
+              vote_icon_preset: voteIconPreset,
+            })
           );
-
-          setName(saved.name || name);
-          setAddressLabel(savedLabel);
-          setAddressLat(savedLat);
-          setAddressLon(savedLon);
-          setAddressConfirmed(!savedLabel || (savedLat != null && savedLon != null));
-          setEmail(savedEmail);
-          setPhone(savedPhone);
-          setCapacity(savedCapacity);
-          setPaymentMethods(savedPayments);
-          setPmrAccess(savedPmr);
-          setServiceDays(savedDays);
-          setServiceHours(savedHours);
-          setEnabledTags(savedTags);
-          setEnabledCerts(savedCerts);
-          setVoteEnabled(savedVoteEnabled);
-          setVoteCategoryIds(savedVoteCategories);
-          setVoteIconPreset(savedVotePreset);
-
-          setBaseline((previous) => ({
-            ...previous,
-            restaurant: serializeRestaurantState({
-              name: saved.name || name,
-              serviceDays: savedDays,
-              serviceHours: savedHours,
-              enabledTags: savedTags,
-              enabledCerts: savedCerts,
-              voteEnabled: savedVoteEnabled,
-              voteCategoryIds: savedVoteCategories,
-              voteIconPreset: savedVotePreset,
-              addressLabel: savedLabel,
-              addressLat: savedLat,
-              addressLon: savedLon,
-              email: savedEmail,
-              phone: savedPhone,
-              capacity: savedCapacity,
-              paymentMethods: savedPayments,
-              pmrAccess: savedPmr,
-            }),
-          }));
+          applyForm(form);
+          setBaseline((previous) => ({ ...previous, restaurant: serializeRestaurantState(form) }));
         } catch {
           failures.push('paramètres du restaurant');
         }
@@ -271,7 +214,7 @@ export function useSettingsState() {
 
       if (calendarDirty && calendarSettings) {
         try {
-          const saved = await adminApi.updateCalendarSettings(calendarSettings);
+          const saved = await sitesApi.updateCalendarSettings(site, calendarSettings);
           setCalendarSettings(saved);
           setBaseline((previous) => ({ ...previous, calendar: JSON.stringify(saved) }));
         } catch {
@@ -289,6 +232,8 @@ export function useSettingsState() {
     notify.error(`Erreur lors de l'enregistrement : ${failures.join(', ')}`);
     return 'partial';
   }, [
+    site,
+    applyForm,
     email,
     phone,
     addressLabel,

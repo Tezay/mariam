@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Check, Info, SmilePlus } from 'lucide-react';
+import { useSiteRef } from '@/contexts/SiteContext';
 import { categoriesApi, type MenuCategory } from '@/lib/api/categories';
 import { getCategoryColor, type CategoryColor } from '@/lib/category-colors';
 import { RATING_LEVELS, RATING_PRESETS, ratingPreset } from '@/features/rating/scale';
@@ -16,6 +17,7 @@ function leavesOf(category: MenuCategory): MenuCategory[] {
 }
 
 export function SatisfactionTab({ state }: { state: SettingsState }) {
+  const site = useSiteRef();
   const {
     voteEnabled,
     setVoteEnabled,
@@ -28,10 +30,10 @@ export function SatisfactionTab({ state }: { state: SettingsState }) {
 
   useEffect(() => {
     categoriesApi
-      .list()
-      .then((res) => setCategories(res.categories ?? []))
+      .list(site)
+      .then(setCategories)
       .catch(() => setCategories([]));
-  }, []);
+  }, [site]);
 
   const toggle = (id: number) =>
     setVoteCategoryIds((previous) =>

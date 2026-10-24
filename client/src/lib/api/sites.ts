@@ -7,27 +7,30 @@ export type { SiteRef } from './client';
 
 export type PublicOrg = Schemas['PublicOrg'];
 export type PublicSiteSummary = Schemas['PublicSiteSummary'];
-export type PublicSite = Schemas['PublicSite'];
-export type PublicEvent = Schemas['PublicEvent'];
-export type PublicClosure = Schemas['PublicClosure'];
-
-const options = { timeout: PUBLIC_API_TIMEOUT_MS };
+export type Site = Schemas['Site'];
+export type SitePatch = Schemas['SitePatch'];
+export type ServiceHours = Site['service_hours'];
+export type PaymentMethod = NonNullable<Site['payment_methods']>[number];
+export type VoteIconPreset = Site['vote_icon_preset'];
+export type CalendarSettings = Schemas['CalendarSettings'];
+export type CalendarSettingsPatch = Schemas['CalendarSettingsPatch'];
 
 export const sitesApi = {
-  get: async (org: string, site: string): Promise<PublicSite> =>
-    (await publicAxios.get(sitePath({ org, site }), options)).data,
+  get: async (org: string, site: string): Promise<Site> =>
+    (await publicAxios.get(sitePath({ org, site }), { timeout: PUBLIC_API_TIMEOUT_MS })).data,
 
-  events: async (org: string, site: string, visibility: 'mobile' | 'tv'): Promise<PublicEvent[]> =>
-    (
-      await publicAxios.get(`${sitePath({ org, site })}/events`, {
-        ...options,
-        params: { visibility },
-      })
-    ).data.items,
+  /** The site as its editors read it, open or not, with the fields reserved to them. */
+  getOwn: async (ref: SiteRef): Promise<Site> => (await api.get(sitePath(ref))).data,
 
-  /** The site as its editors read it, open or not. */
-  getOwn: async (ref: SiteRef): Promise<PublicSite> => (await api.get(sitePath(ref))).data,
+  update: async (ref: SiteRef, patch: SitePatch): Promise<Site> =>
+    (await api.patch(sitePath(ref), patch)).data,
 
-  closures: async (org: string, site: string): Promise<PublicClosure[]> =>
-    (await publicAxios.get(`${sitePath({ org, site })}/closures`, options)).data.items,
+  getCalendarSettings: async (ref: SiteRef): Promise<CalendarSettings> =>
+    (await api.get(`${sitePath(ref)}/calendar-settings`)).data,
+
+  updateCalendarSettings: async (
+    ref: SiteRef,
+    patch: CalendarSettingsPatch
+  ): Promise<CalendarSettings> =>
+    (await api.patch(`${sitePath(ref)}/calendar-settings`, patch)).data,
 };

@@ -16,12 +16,13 @@ from app.models import (
     ActivationLink,
     Event,
     ExceptionalClosure,
+    MenuCategory,
     Organization,
     Restaurant,
     User,
 )
 from app.utils.time import paris_today
-from conftest import auth_headers, get_token, make_restaurant, make_user
+from conftest import auth_headers, get_token, make_restaurant, make_user, site_path
 from tests.auth_support import confirmed_headers, enable_totp, session_headers
 
 
@@ -77,69 +78,68 @@ class TestEventTenantIsolation:
         _, rid_b = _two_tenants()
         event_id = _make_event(rid_b)
         token_a = get_token(client, email='a@mariam.app')
-        assert client.get(f'/v1/events/{event_id}', headers=auth_headers(token_a)).status_code == 404
+        res = client.get(f'{site_path(rid_b)}/events/{event_id}', headers=auth_headers(token_a))
+        assert res.status_code == 404
 
     def test_cannot_update_other_tenant_event(self, app, client):
-        _, rid_b = _two_tenants()
+        rid_a, rid_b = _two_tenants()
         event_id = _make_event(rid_b)
-        token_a = get_token(client, email='a@mariam.app')
-        res = client.put(f'/v1/events/{event_id}',
-                         json={'title': 'hacked'}, headers=auth_headers(token_a))
-        assert res.status_code == 404
+        headers = auth_headers(get_token(client, email='a@mariam.app'))
+        for path in (site_path(rid_b), site_path(rid_a)):
+            res = client.patch(f'{path}/events/{event_id}', json={'title': 'hacked'}, headers=headers)
+            assert res.status_code == 404
         assert db.session.get(Event, event_id).title == 'Event'
 
     def test_cannot_delete_or_publish_other_tenant_event(self, app, client):
         _, rid_b = _two_tenants()
         event_id = _make_event(rid_b)
-        token_a = get_token(client, email='a@mariam.app')
-        assert client.delete(f'/v1/events/{event_id}', headers=auth_headers(token_a)).status_code == 404
-        assert client.post(f'/v1/events/{event_id}/publish', headers=auth_headers(token_a)).status_code == 404
+        headers = auth_headers(get_token(client, email='a@mariam.app'))
+        path = f'{site_path(rid_b)}/events/{event_id}'
+        assert client.delete(path, headers=headers).status_code == 404
+        assert client.post(f'{path}/publish', headers=headers).status_code == 404
         assert db.session.get(Event, event_id) is not None
 
     def test_cannot_delete_other_tenant_event_image(self, app, client):
         from app.models import EventImage
-        _, rid_b = _two_tenants()
+        rid_a, rid_b = _two_tenants()
         event_id = _make_event(rid_b)
         img = EventImage(event_id=event_id, storage_key='k', url='u', filename='f', order=0)
         db.session.add(img)
         db.session.commit()
         token_a = get_token(client, email='a@mariam.app')
-        res = client.delete(f'/v1/events/{event_id}/images/{img.id}',
+        res = client.delete(f'{site_path(rid_a)}/events/{event_id}/images/{img.id}',
                             headers=auth_headers(token_a))
         assert res.status_code == 404
-        assert db.session.get(EventImage, img.id) is not None  # not deleted
+        assert db.session.get(EventImage, img.id) is not None
 
     def test_create_event_ignores_body_restaurant_id(self, app, client):
         rid_a, rid_b = _two_tenants()
         token_a = get_token(client, email='a@mariam.app')
-        res = client.post('/v1/events',
-                          json={'title': 'At A', 'event_date': _today_iso(),
-                                'restaurant_id': rid_b},
+        res = client.post(f'{site_path(rid_a)}/events',
+                          json={'title': 'At A', 'date': _today_iso(), 'restaurant_id': rid_b},
                           headers=auth_headers(token_a))
         assert res.status_code == 201
-        created = Event.query.filter_by(title='At A').first()
-        assert created.restaurant_id == rid_a  # forced to the caller's restaurant
+        assert Event.query.filter_by(title='At A').one().restaurant_id == rid_a
 
 
 class TestClosureTenantIsolation:
     def _make_closure(self, restaurant_id):
         c = ExceptionalClosure(
-            restaurant_id=restaurant_id,
-            start_date=datetime.date.today(),
-            end_date=datetime.date.today(),
+            restaurant_id=restaurant_id, start_date=paris_today(), end_date=paris_today(),
         )
         db.session.add(c)
         db.session.commit()
         return c.id
 
     def test_cannot_update_or_delete_other_tenant_closure(self, app, client):
-        _, rid_b = _two_tenants()
+        rid_a, rid_b = _two_tenants()
         closure_id = self._make_closure(rid_b)
-        token_a = get_token(client, email='a@mariam.app')
-        assert client.put(f'/v1/closures/{closure_id}',
-                          json={'reason': 'x'}, headers=auth_headers(token_a)).status_code == 404
-        assert client.delete(f'/v1/closures/{closure_id}',
-                             headers=auth_headers(token_a)).status_code == 404
+        headers = auth_headers(get_token(client, email='a@mariam.app'))
+        for path in (site_path(rid_b), site_path(rid_a)):
+            url = f'{path}/closures/{closure_id}'
+            assert client.patch(url, json={'reason': 'x'}, headers=headers).status_code == 404
+            assert client.delete(url, headers=headers).status_code == 404
+        assert db.session.get(ExceptionalClosure, closure_id) is not None
 
 
 class TestUserTenantIsolation:
@@ -180,18 +180,16 @@ class TestUserTenantIsolation:
 
 
 class TestSettingsTenantIsolation:
-    """Regression of the P0 bug: update settings targeted the first active restaurant."""
-
-    def test_update_settings_targets_own_restaurant(self, app, client):
+    def test_a_site_admin_changes_its_own_site_only(self, app, client):
         rid_a, rid_b = _two_tenants()
-        name_b_before = db.session.get(Restaurant, rid_b).name
-        token_b = get_token(client, email='b@mariam.app')
-        res = client.put('/v1/settings', json={'name': 'Renamed by B'},
-                         headers=auth_headers(token_b))
-        assert res.status_code == 200
+        headers = auth_headers(get_token(client, email='b@mariam.app'))
+
+        assert client.patch(site_path(rid_b), json={'name': 'Renamed by B'},
+                            headers=headers).status_code == 200
+        assert client.patch(site_path(rid_a), json={'name': 'Taken by B'},
+                            headers=headers).status_code == 404
         assert db.session.get(Restaurant, rid_b).name == 'Renamed by B'
-        assert db.session.get(Restaurant, rid_a).name == 'RU A'  # A untouched
-        assert name_b_before != 'Renamed by B'
+        assert db.session.get(Restaurant, rid_a).name == 'RU A'
 
 
 class TestAuditTenantIsolation:
@@ -243,70 +241,39 @@ class TestFallbackRemoved:
 
 
 class TestOrgAdminScope:
-    """An org_admin can access every restaurant of its organization, and no further."""
+    """A supervisor reaches every site of its organization by its address, and no other."""
 
-    def test_org_admin_accesses_all_sites_of_org(self, app, client):
-        org = _make_org(slug='multi')
-        rid1 = make_restaurant(None, name='Site 1', code='S1')
-        rid2 = make_restaurant(None, name='Site 2', code='S2')
-        db.session.get(Restaurant, rid1).organization_id = org
-        db.session.get(Restaurant, rid2).organization_id = org
-        db.session.commit()
-        _make_user('director@mariam.app', 'org_admin', restaurant_id=rid1, organization_id=org)
-        _make_user('siteadmin@mariam.app', 'admin', restaurant_id=rid1, organization_id=org)
+    def _org_sites(self, slug, codes):
+        org = _make_org(slug=slug)
+        rids = [make_restaurant(None, name=code, code=code, organization_id=org) for code in codes]
+        _make_user('director@mariam.app', 'org_admin', restaurant_id=None, organization_id=org)
+        _make_user('siteadmin@mariam.app', 'admin', restaurant_id=rids[0], organization_id=org)
+        return rids
+
+    def test_org_admin_reads_the_drafts_of_every_site_of_its_org(self, app, client):
+        _, rid2 = self._org_sites('multi', ['S1', 'S2'])
         event_site2 = _make_event(rid2, title='On site 2')
+        url = f'{site_path(rid2)}/events/{event_site2}'
 
-        token_dir = get_token(client, email='director@mariam.app')
-        token_site = get_token(client, email='siteadmin@mariam.app')
-        # The director sees an event from another site of its org
-        assert client.get(f'/v1/events/{event_site2}', headers=auth_headers(token_dir)).status_code == 200
-        # The site-1 admin does not see the site-2 event
-        assert client.get(f'/v1/events/{event_site2}', headers=auth_headers(token_site)).status_code == 404
+        director = client.get(url, headers=auth_headers(get_token(client, email='director@mariam.app')))
+        site_admin = client.get(url, headers=auth_headers(get_token(client, email='siteadmin@mariam.app')))
 
+        assert director.get_json()['status'] == 'draft'
+        assert site_admin.status_code == 404
 
-class TestActiveRestaurant:
-    """An org_admin targets a specific site with the X-Restaurant-Id header,
-    validated against its organization."""
+    def test_a_site_of_another_org_shows_only_its_published_content(self, app, client):
+        self._org_sites('multi-b', ['BS1'])
+        outsider = make_restaurant(None, name='Outsider', code='BOUT', organization_id=_make_org(slug='other'))
+        _make_event(outsider, title='Theirs, published', status='published')
+        _make_event(outsider, title='Theirs, draft')
+        headers = auth_headers(get_token(client, email='director@mariam.app'))
 
-    def _org_two_sites(self, org_slug, codes):
-        org = _make_org(slug=org_slug)
-        rids = []
-        for code in codes:
-            rid = make_restaurant(None, name=code, code=code)
-            db.session.get(Restaurant, rid).organization_id = org
-            rids.append(rid)
-        db.session.commit()
-        _make_user('dir@mariam.app', 'org_admin', restaurant_id=rids[0], organization_id=org)
-        return org, rids
+        listed = client.get(f'{site_path(outsider)}/events', headers=headers).get_json()['items']
+        refused = client.patch(site_path(outsider), json={'name': 'Mine now'}, headers=headers)
 
-    def _titles(self, res):
-        return {event['title'] for event in res.get_json()['events']}
-
-    def test_header_targets_site_within_org(self, app, client):
-        _, (rid1, rid2) = self._org_two_sites('multi-a', ['AS1', 'AS2'])
-        _make_event(rid1, title='At S1', status='published')
-        _make_event(rid2, title='At S2', status='published')
-        token = get_token(client, email='dir@mariam.app')
-        res = client.get(
-            '/v1/events',
-            headers={**auth_headers(token), 'X-Restaurant-Id': str(rid2)},
-        )
-        assert res.status_code == 200
-        assert self._titles(res) == {'At S2'}
-
-    def test_header_outside_org_is_ignored(self, app, client):
-        _, (rid1,) = self._org_two_sites('multi-b', ['BS1'])
-        outsider = make_restaurant(None, name='Outsider', code='BOUT')  # no organization
-        _make_event(rid1, title='Mine', status='published')
-        _make_event(outsider, title='Theirs', status='published')
-        token = get_token(client, email='dir@mariam.app')
-        res = client.get(
-            '/v1/events',
-            headers={**auth_headers(token), 'X-Restaurant-Id': str(outsider)},
-        )
-        assert res.status_code == 200
-        # Out-of-org target ignored → falls back to the director's primary site.
-        assert self._titles(res) == {'Mine'}
+        assert [event['title'] for event in listed] == ['Theirs, published']
+        assert refused.status_code == 403
+        assert db.session.get(Restaurant, outsider).name == 'Outsider'
 
 
 class TestSupervisorManagesOnlyPeers:
@@ -447,18 +414,19 @@ class TestDirectorIsReadOnlyOnContent:
         self._director_and_site()
         token = get_token(client, email='ro@mariam.app')
         res = client.post(
-            '/v1/events',
-            json={'title': 'Nope', 'event_date': _today_iso()},
+            f'{site_path(Restaurant.query.one().id)}/events',
+            json={'title': 'Nope', 'date': _today_iso()},
             headers=auth_headers(token),
         )
         assert res.status_code == 403
+        assert res.get_json()['code'] == 'supervisor_read_only'
         assert Event.query.filter_by(title='Nope').first() is None
 
     def test_cannot_delete_an_event(self, app, client):
         rid = self._director_and_site('ro-org-2')
         event_id = _make_event(rid, title='Keep', status='published')
         token = get_token(client, email='ro@mariam.app')
-        res = client.delete(f'/v1/events/{event_id}', headers=auth_headers(token))
+        res = client.delete(f'{site_path(rid)}/events/{event_id}', headers=auth_headers(token))
         assert res.status_code == 403
         assert db.session.get(Event, event_id) is not None
 
@@ -473,13 +441,42 @@ class TestDirectorIsReadOnlyOnContent:
         assert res.status_code in (404, 405)
         assert Restaurant.query.filter_by(code='NEW_SITE').first() is None
 
+    def test_cannot_change_a_site_or_its_categories(self, app, client):
+        rid = self._director_and_site('ro-org-5')
+        category = MenuCategory(restaurant_id=rid, label='Plats', order=0)
+        db.session.add(category)
+        db.session.commit()
+        headers = auth_headers(get_token(client, email='ro@mariam.app'))
+        path = site_path(rid)
+
+        answers = [
+            client.patch(path, json={'name': 'Renommé'}, headers=headers),
+            client.patch(
+                f'{path}/calendar-settings', json={'show_school_vacations': True}, headers=headers
+            ),
+            client.post(f'{path}/categories', json={'label': 'Desserts'}, headers=headers),
+            client.put(
+                f'{path}/categories/order', json={'category_ids': [category.id]}, headers=headers
+            ),
+            client.patch(
+                f'{path}/categories/{category.id}', json={'label': 'Renommée'}, headers=headers
+            ),
+            client.delete(f'{path}/categories/{category.id}', headers=headers),
+        ]
+
+        assert [res.get_json()['code'] for res in answers] == ['supervisor_read_only'] * 6
+        assert db.session.get(Restaurant, rid).name == 'RO'
+        assert [c.label for c in MenuCategory.query.filter_by(restaurant_id=rid)] == ['Plats']
+        assert client.get(f'{path}/categories', headers=headers).status_code == 200
+        assert client.get(f'{path}/calendar-settings', headers=headers).status_code == 200
+
     def test_still_reads_site_content(self, app, client):
         rid = self._director_and_site('ro-org-3')
         _make_event(rid, title='Visible', status='published')
         token = get_token(client, email='ro@mariam.app')
-        res = client.get('/v1/events', headers=auth_headers(token))
+        res = client.get(f'{site_path(rid)}/events', headers=auth_headers(token))
         assert res.status_code == 200
-        assert 'Visible' in {event['title'] for event in res.get_json()['events']}
+        assert 'Visible' in {event['title'] for event in res.get_json()['items']}
 
 
 class TestOrgDashboard:
@@ -648,14 +645,6 @@ class TestAnalyticsScope:
         )
         assert res.status_code == 200
         assert res.get_json()['sites'] == []
-
-    def test_active_restaurant_header_does_not_narrow_the_director_scope(self, app, client):
-        org, rids = self._org_sites('an6', ['AN6A', 'AN6B'])
-        _make_user('dir6@mariam.app', 'org_admin', rids[0], org)
-        token = get_token(client, email='dir6@mariam.app')
-        headers = {**auth_headers(token), 'X-Restaurant-Id': str(rids[1])}
-        res = client.get('/v1/analytics/overview', headers=headers)
-        assert res.get_json()['scope']['site_count'] == 2
 
     def test_editor_is_forbidden(self, app, client):
         org, rids = self._org_sites('an7', ['AN7A'])

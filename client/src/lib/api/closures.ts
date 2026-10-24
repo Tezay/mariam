@@ -1,42 +1,37 @@
-import { api } from './client';
+import { api, publicAxios, PUBLIC_API_TIMEOUT_MS, sitePath, type SiteRef } from './client';
+import type { components } from './schema.gen';
 
-export interface ExceptionalClosure {
-  id: number;
-  restaurant_id: number;
-  start_date: string; // YYYY-MM-DD
-  end_date: string; // YYYY-MM-DD — equals start_date for single-day closure
-  reason?: string;
-  description?: string;
-  is_active: boolean;
-  is_current: boolean;
-  notified_7d: boolean;
-  notified_1d: boolean;
-  created_at?: string;
-  updated_at?: string;
+type Schemas = components['schemas'];
+
+export type Closure = Schemas['Closure'];
+export type ClosureInput = Schemas['ClosureInput'];
+export type ClosurePatch = Schemas['ClosurePatch'];
+
+export interface ClosureRange {
+  from?: string;
+  to?: string;
+}
+
+function closuresPath(ref: SiteRef): string {
+  return `${sitePath(ref)}/closures`;
 }
 
 export const closuresApi = {
-  list: async (upcoming = false, restaurantId?: number, includeInactive = false) => {
-    const params: Record<string, string | number | boolean> = {
-      upcoming: String(upcoming),
-      include_inactive: String(includeInactive),
-    };
-    if (restaurantId) params.restaurant_id = restaurantId;
-    const response = await api.get('/closures', { params });
-    return response.data.closures as ExceptionalClosure[];
-  },
+  /** Closures under way or to come, read without a session. */
+  listPublished: async (ref: SiteRef): Promise<Closure[]> =>
+    (await publicAxios.get(closuresPath(ref), { timeout: PUBLIC_API_TIMEOUT_MS })).data.items,
 
-  create: async (closure: Partial<ExceptionalClosure>) => {
-    const response = await api.post('/closures', closure);
-    return response.data.closure as ExceptionalClosure;
-  },
+  /** Those that overlap the range; without `from`, past ones as well. */
+  list: async (ref: SiteRef, range: ClosureRange = {}): Promise<Closure[]> =>
+    (await api.get(closuresPath(ref), { params: range })).data.items,
 
-  update: async (id: number, closure: Partial<ExceptionalClosure>) => {
-    const response = await api.put(`/closures/${id}`, closure);
-    return response.data.closure as ExceptionalClosure;
-  },
+  create: async (ref: SiteRef, closure: ClosureInput): Promise<Closure> =>
+    (await api.post(closuresPath(ref), closure)).data,
 
-  delete: async (id: number) => {
-    await api.delete(`/closures/${id}`);
+  update: async (ref: SiteRef, id: number, patch: ClosurePatch): Promise<Closure> =>
+    (await api.patch(`${closuresPath(ref)}/${id}`, patch)).data,
+
+  remove: async (ref: SiteRef, id: number): Promise<void> => {
+    await api.delete(`${closuresPath(ref)}/${id}`);
   },
 };

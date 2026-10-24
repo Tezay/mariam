@@ -5,7 +5,7 @@ import { menusApi, type Menu, type MenuItem } from '@/lib/api/menus';
 import { menuItems, withItem } from '@/lib/menu-tree';
 import { categoriesApi, MenuCategory } from '@/lib/api/categories';
 import { closuresApi } from '@/lib/api/closures';
-import { restaurantApi, ServiceHours } from '@/lib/api/restaurant';
+import { sitesApi, type ServiceHours } from '@/lib/api/sites';
 import { backendWeekday, isInServiceHours } from '@/lib/utils';
 import { formatParisTime, nowInstant, parisNow, parisToday } from '@/lib/date-utils';
 import { Button } from '@/components/ui/button';
@@ -299,22 +299,22 @@ export function ServicePage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [menuRes, catRes, restaurantRes, closuresRes] = await Promise.all([
+      const [menuRes, catRes, own, closuresRes] = await Promise.all([
         menusApi.get(site, today).catch(() => null),
-        categoriesApi.list().catch(() => ({ categories: [] })),
-        restaurantApi.getMine().catch(() => null),
-        closuresApi.list().catch(() => []),
+        categoriesApi.list(site).catch(() => []),
+        sitesApi.getOwn(site).catch(() => null),
+        closuresApi.list(site, { from: today, to: today }).catch(() => []),
       ]);
-      const serviceDays = restaurantRes?.config?.service_days ?? [0, 1, 2, 3, 4];
-      const current = closuresRes.find((c) => c.is_active && c.is_current);
+      const serviceDays = own?.service_days ?? [0, 1, 2, 3, 4];
+      const current = closuresRes[0];
       setClosure({
         closed: !serviceDays.includes(backendWeekday()) || !!current,
-        reason: current?.reason,
+        reason: current?.reason ?? undefined,
       });
       setMenu(menuRes ?? null);
       setChefNote(menuRes?.chef_note ?? '');
-      setCategories(catRes.categories ?? []);
-      setServiceHours(restaurantRes?.config?.service_hours ?? {});
+      setCategories(catRes);
+      setServiceHours(own?.service_hours ?? {});
       setLastUpdated(nowInstant());
     } finally {
       setLoading(false);

@@ -1,236 +1,173 @@
-from flask import jsonify
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import jwt_required
 from flask_smorest import Blueprint
 
 from ..extensions import db
-from ..models import AuditLog, DishCatalog, User
+from ..models import DishCatalog, Restaurant
 from ..models.category import MenuCategory
-from ..schemas.common import ErrorSchema, MessageSchema
-from ..schemas.menus import (
-    MenuCategoryCreateSchema,
-    MenuCategoryReorderSchema,
+from ..problems import Problem
+from ..schemas.categories import (
+    CategoryOrderSchema,
+    MenuCategoryInputSchema,
+    MenuCategoryListSchema,
+    MenuCategoryPatchSchema,
     MenuCategorySchema,
-    MenuCategoryUpdateSchema,
 )
-from ..security import get_client_ip
-from .helpers import admin_required, get_active_restaurant
+from .helpers import audit, site_admin_required
+from .scope import member_site
 
 categories_bp = Blueprint(
     'categories', __name__,
-    description='Menu categories — CRUD and ordering'
+    description="A site's menu categories, one level of subcategories at most",
 )
 
 
-def _get_restaurant(user):
-    return get_active_restaurant(user)
-
-
-@categories_bp.route('/settings/categories', methods=['GET'])
-@categories_bp.response(200, MenuCategorySchema(many=True))
-@jwt_required()
-def list_categories():
-    """List all categories (with subcategories) for the active restaurant.
-
-    Returns top-level categories in order, each with their subcategories nested.
-    Accessible to any authenticated user.
-    """
-    user = db.session.get(User, int(get_jwt_identity()))
-
-    restaurant = _get_restaurant(user)
-    if not restaurant:
-        return jsonify({'categories': []}), 200
-
+def category_tree(restaurant: Restaurant) -> dict:
     top_level = MenuCategory.query.filter_by(
         restaurant_id=restaurant.id, parent_id=None
-    ).order_by(MenuCategory.order).all()
+    ).order_by(MenuCategory.order)
+    return {'items': [category.to_dict() for category in top_level]}
 
-    return jsonify({'categories': [c.to_dict() for c in top_level]}), 200
+
+def _site_category(restaurant: Restaurant, category_id: int):
+    category = MenuCategory.query.filter_by(id=category_id, restaurant_id=restaurant.id).first()
+    if category is None:
+        raise Problem(404, 'category_not_found', 'Catégorie introuvable.')
+    return category
 
 
-@categories_bp.route('/settings/categories', methods=['POST'])
-@admin_required
-@categories_bp.arguments(MenuCategoryCreateSchema)
+def _has_dishes(category_ids: list[int]) -> Problem | None:
+    count = DishCatalog.query.filter(DishCatalog.category_id.in_(category_ids)).count()
+    if not count:
+        return None
+    return Problem(
+        409, 'category_has_dishes', 'Des plats sont rattachés à cette catégorie.', dish_count=count
+    )
+
+
+@categories_bp.route('', methods=['GET'])
+@jwt_required()
+@categories_bp.response(200, MenuCategoryListSchema)
+def list_categories(org: str, site: str):
+    """The site's categories in order, each with its subcategories."""
+    return category_tree(member_site(org, site))
+
+
+@categories_bp.route('', methods=['POST'])
+@site_admin_required
+@categories_bp.arguments(MenuCategoryInputSchema)
 @categories_bp.response(201, MenuCategorySchema)
-@categories_bp.alt_response(400, schema=ErrorSchema)
-@categories_bp.alt_response(404, schema=ErrorSchema)
-def create_category(data):
-    """Create a new category or subcategory.
+def create_category(body, org: str, site: str):
+    """Add a category, or a subcategory under a top-level one.
 
-    Pass `parent_id` to create a subcategory (max 1 level deep).
-    Subcategories can only be created under top-level categories.
+    A category with subcategories carries no dish: the parent's dishes move into
+    the new subcategory with `move_dishes`, and are refused otherwise.
     """
-    user = db.session.get(User, int(get_jwt_identity()))
-    restaurant = _get_restaurant(user)
-    if not restaurant:
-        return jsonify({'error': 'Aucun restaurant configuré'}), 404
-
-    parent_id = data.get('parent_id')
-    if parent_id is not None:
-        parent = MenuCategory.query.filter_by(
-            id=parent_id, restaurant_id=restaurant.id
-        ).first()
-        if not parent:
-            return jsonify({'error': 'Catégorie parente introuvable'}), 404
-        if parent.parent_id is not None:
-            return jsonify({'error': 'Imbrication limitée à 1 niveau'}), 400
-        # A category with subcategories carries no dish, so the ones already
-        # attached have to go somewhere before the first child appears.
-        stranded = DishCatalog.query.filter_by(category_id=parent.id).count()
-        if stranded and not data.get('move_dishes'):
-            return jsonify({
-                'error': 'Des plats sont rattachés à cette catégorie',
-                'stranded_dishes': stranded,
-            }), 409
-
-    label = (data.get('label') or '').strip()
+    restaurant = member_site(org, site)
+    label = body['label'].strip()
     if not label:
-        return jsonify({'error': 'Le nom est requis'}), 400
+        raise Problem(422, 'label_invalid', 'Le nom est requis.')
+    parent_id = body['parent_id']
+    if parent_id is not None:
+        parent = MenuCategory.query.filter_by(id=parent_id, restaurant_id=restaurant.id).first()
+        if parent is None or parent.parent_id is not None:
+            raise Problem(
+                422, 'category_invalid', 'Le parent doit être une catégorie de premier niveau du site.'
+            )
+        if not body['move_dishes'] and (refusal := _has_dishes([parent.id])):
+            raise refusal
 
-    # Auto-assign the first unused color from the palette (cyclic from indigo)
-    _palette = ['indigo', 'sky', 'mint', 'saffron', 'clay', 'lilac']
-    existing_colors = {
-        c.color_key for c in
-        MenuCategory.query.filter_by(restaurant_id=restaurant.id).all()
-        if c.color_key
-    }
-    auto_color = next((c for c in _palette if c not in existing_colors), _palette[0])
-
+    siblings = MenuCategory.query.filter_by(restaurant_id=restaurant.id, parent_id=parent_id)
     category = MenuCategory(
         restaurant_id=restaurant.id,
         parent_id=parent_id,
         label=label,
-        order=data.get('order', 0),
-        color_key=auto_color,
+        order=body.get('order', siblings.count()),
+        color_key=MenuCategory.next_color_key(restaurant.id),
     )
     db.session.add(category)
     db.session.flush()
-
-    if parent_id is not None and data.get('move_dishes'):
+    if parent_id is not None and body['move_dishes']:
         DishCatalog.query.filter_by(category_id=parent_id).update(
             {'category_id': category.id}, synchronize_session=False
         )
-
-    AuditLog.log(
-        action='category_create',
-        user_id=int(get_jwt_identity()),
-        target_type='menu_category',
+    audit(
+        'category_create', restaurant,
+        target_type='menu_category', target_id=category.id,
         details={'label': label, 'parent_id': parent_id},
-        ip_address=get_client_ip()
     )
-
     db.session.commit()
-    return jsonify({'category': category.to_dict()}), 201
+    return category.to_dict()
 
 
-@categories_bp.route('/settings/categories/reorder', methods=['PUT'])
-@admin_required
-@categories_bp.arguments(MenuCategoryReorderSchema)
-@categories_bp.response(200, MessageSchema)
-def reorder_categories(data):
-    """Reorder categories or subcategories.
-
-    JSON body: `{ "items": [{"id": 1, "order": 0}, {"id": 2, "order": 1}] }`
-    """
-    user = db.session.get(User, int(get_jwt_identity()))
-    restaurant = _get_restaurant(user)
-    if not restaurant:
-        return jsonify({'error': 'Aucun restaurant configuré'}), 404
-
-    for item in data.get('items', []):
-        cat = MenuCategory.query.filter_by(
-            id=item.get('id'), restaurant_id=restaurant.id
-        ).first()
-        if cat:
-            cat.order = item.get('order', cat.order)
-
+@categories_bp.route('/order', methods=['PUT'])
+@site_admin_required
+@categories_bp.arguments(CategoryOrderSchema)
+@categories_bp.response(200, MenuCategoryListSchema)
+def order_categories(body, org: str, site: str):
+    """Put the categories of one level, top-level or under one parent, in a new order."""
+    restaurant = member_site(org, site)
+    wanted = body['category_ids']
+    found = MenuCategory.query.filter(
+        MenuCategory.restaurant_id == restaurant.id, MenuCategory.id.in_(wanted)
+    ).all()
+    parents = {category.parent_id for category in found}
+    siblings = []
+    if len(parents) == 1:
+        siblings = MenuCategory.query.filter_by(
+            restaurant_id=restaurant.id, parent_id=parents.pop()
+        ).all()
+    if sorted(wanted) != sorted(category.id for category in siblings):
+        raise Problem(
+            422, 'category_order_invalid',
+            'La liste doit reprendre chaque catégorie d’un même niveau, une fois.',
+        )
+    by_id = {category.id: category for category in siblings}
+    for order, category_id in enumerate(wanted):
+        by_id[category_id].order = order
     db.session.commit()
-    return jsonify({'message': 'Ordre mis à jour'}), 200
+    return category_tree(restaurant)
 
 
-@categories_bp.route('/settings/categories/<int:category_id>', methods=['PUT'])
-@admin_required
-@categories_bp.arguments(MenuCategoryUpdateSchema)
+@categories_bp.route('/<int:category_id>', methods=['PATCH'])
+@site_admin_required
+@categories_bp.arguments(MenuCategoryPatchSchema)
 @categories_bp.response(200, MenuCategorySchema)
-@categories_bp.alt_response(404, schema=ErrorSchema)
-def update_category(data, category_id):
-    """Update a category: label, order, or is_highlighted."""
-    user = db.session.get(User, int(get_jwt_identity()))
-    restaurant = _get_restaurant(user)
-    if not restaurant:
-        return jsonify({'error': 'Aucun restaurant configuré'}), 404
-
-    category = MenuCategory.query.filter_by(
-        id=category_id, restaurant_id=restaurant.id
-    ).first()
-    if not category:
-        return jsonify({'error': 'Catégorie introuvable'}), 404
-
-    if 'label' in data:
-        category.label = data['label'].strip() or category.label
-    if 'order' in data:
-        category.order = data['order']
-    if 'is_highlighted' in data:
-        category.is_highlighted = data['is_highlighted']
-    if 'color_key' in data:
-        category.color_key = data.get('color_key')
-
-    AuditLog.log(
-        action='category_update',
-        user_id=int(get_jwt_identity()),
-        target_type='menu_category',
-        target_id=category_id,
-        details={'updated_fields': list(data.keys())},
-        ip_address=get_client_ip()
+def patch_category(body, org: str, site: str, category_id: int):
+    """Rename a category, highlight it or change its colour."""
+    restaurant = member_site(org, site)
+    category = _site_category(restaurant, category_id)
+    if 'label' in body:
+        label = body['label'].strip()
+        if not label:
+            raise Problem(422, 'label_invalid', 'Le nom est requis.')
+        category.label = label
+    for field in ('is_highlighted', 'color_key'):
+        if field in body:
+            setattr(category, field, body[field])
+    audit(
+        'category_update', restaurant,
+        target_type='menu_category', target_id=category.id,
+        details={'updated_fields': sorted(body)},
     )
-
     db.session.commit()
-    return jsonify({'category': category.to_dict()}), 200
+    return category.to_dict()
 
 
-@categories_bp.route('/settings/categories/<int:category_id>', methods=['DELETE'])
-@categories_bp.response(200, MessageSchema)
-@categories_bp.alt_response(403, schema=ErrorSchema, description="Category is protected")
-@categories_bp.alt_response(404, schema=ErrorSchema)
-@admin_required
-def delete_category(category_id):
-    """Delete a category or subcategory.
-
-    Forbidden if `is_protected=True`.
-    Cascades to subcategories and their menu items (FK cascade).
-    """
-    user = db.session.get(User, int(get_jwt_identity()))
-    restaurant = _get_restaurant(user)
-    if not restaurant:
-        return jsonify({'error': 'Aucun restaurant configuré'}), 404
-
-    category = MenuCategory.query.filter_by(
-        id=category_id, restaurant_id=restaurant.id
-    ).first()
-    if not category:
-        return jsonify({'error': 'Catégorie introuvable'}), 404
-
+@categories_bp.route('/<int:category_id>', methods=['DELETE'])
+@site_admin_required
+@categories_bp.response(204)
+def delete_category(org: str, site: str, category_id: int):
+    """Delete a category and its subcategories, once no dish is left in them."""
+    restaurant = member_site(org, site)
+    category = _site_category(restaurant, category_id)
     if category.is_protected:
-        return jsonify({'error': 'Cette catégorie ne peut pas être supprimée'}), 403
-
-    # Deleting cascades to subcategories, and a dish may not end up without a
-    # category, so the whole subtree has to be empty first.
-    subtree = [category.id, *(child.id for child in category.subcategories)]
-    attached = DishCatalog.query.filter(DishCatalog.category_id.in_(subtree)).count()
-    if attached:
-        return jsonify({
-            'error': 'Des plats sont rattachés à cette catégorie',
-            'attached_dishes': attached,
-        }), 409
-
-    AuditLog.log(
-        action='category_delete',
-        user_id=int(get_jwt_identity()),
-        target_type='menu_category',
-        target_id=category_id,
-        details={'label': category.label},
-        ip_address=get_client_ip()
+        raise Problem(409, 'category_protected', 'Cette catégorie ne peut pas être supprimée.')
+    # A dish may not end up without a category, so the whole subtree has to be empty.
+    if refusal := _has_dishes([category.id, *(child.id for child in category.subcategories)]):
+        raise refusal
+    audit(
+        'category_delete', restaurant,
+        target_type='menu_category', target_id=category.id, details={'label': category.label},
     )
-
     db.session.delete(category)
     db.session.commit()
-    return jsonify({'message': 'Catégorie supprimée'}), 200

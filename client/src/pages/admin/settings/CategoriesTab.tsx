@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { isAxiosError } from 'axios';
-import { categoriesApi, MenuCategory } from '@/lib/api/categories';
+import { useSiteRef } from '@/contexts/SiteContext';
+import { categoriesApi, type MenuCategory } from '@/lib/api/categories';
 import { notify } from '@/lib/toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -21,14 +22,15 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-ki
 import { CategoryRow, SortableCatList, CategoryPatch } from './CategoryComponents';
 import { Spinner } from '@/components/ui/spinner';
 
-/** The two refusals the server raises on the leaf rule, with what it counted. */
-function conflictCount(error: unknown, key: 'stranded_dishes' | 'attached_dishes'): number | null {
+/** The dishes the server counted when it refused to leave them without a category. */
+function dishCount(error: unknown): number | null {
   if (!isAxiosError(error) || error.response?.status !== 409) return null;
-  const count = (error.response.data as Record<string, unknown> | undefined)?.[key];
+  const count = (error.response.data as Record<string, unknown> | undefined)?.dish_count;
   return typeof count === 'number' ? count : null;
 }
 
 export function CategoriesTab() {
+  const site = useSiteRef();
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [catLoading, setCatLoading] = useState(true);
   const [deletingCategoryId, setDeletingCategoryId] = useState<number | null>(null);
@@ -37,14 +39,13 @@ export function CategoriesTab() {
   const loadCategories = useCallback(async () => {
     setCatLoading(true);
     try {
-      const { categories: cats } = await categoriesApi.list();
-      setCategories(cats);
+      setCategories(await categoriesApi.list(site));
     } catch {
       // The tab then shows no categories.
     } finally {
       setCatLoading(false);
     }
-  }, []);
+  }, [site]);
 
   useEffect(() => {
     loadCategories();
@@ -52,7 +53,7 @@ export function CategoriesTab() {
 
   const handleCategoryUpdate = async (id: number, data: CategoryPatch) => {
     try {
-      const updated = await categoriesApi.update(id, data);
+      const updated = await categoriesApi.update(site, id, data);
       setCategories((prev) =>
         prev.map((c) => {
           if (c.id === id) return { ...c, ...updated };
@@ -73,10 +74,10 @@ export function CategoriesTab() {
   const confirmCategoryDelete = async () => {
     if (!deletingCategoryId) return;
     try {
-      await categoriesApi.delete(deletingCategoryId);
+      await categoriesApi.remove(site, deletingCategoryId);
       await loadCategories();
     } catch (error) {
-      const attached = conflictCount(error, 'attached_dishes');
+      const attached = dishCount(error);
       if (attached) {
         notify.error(
           `${attached} plat${attached > 1 ? 's sont rattachés' : ' est rattaché'} à cette catégorie`,
@@ -91,15 +92,17 @@ export function CategoriesTab() {
   };
 
   const handleSubcategoryReorder = async (reordered: MenuCategory[]) => {
-    const orderItems = reordered.map((c, i) => ({ id: c.id, order: i }));
-    await categoriesApi.reorder(orderItems);
+    await categoriesApi.order(
+      site,
+      reordered.map((c) => c.id)
+    );
     await loadCategories();
     notify.success('Ordre mis à jour');
   };
 
   const handleAddCategory = async () => {
     try {
-      await categoriesApi.create({ label: 'Nouvelle catégorie', order: categories.length });
+      await categoriesApi.create(site, { label: 'Nouvelle catégorie', order: categories.length });
       await loadCategories();
     } catch {
       notify.error('Erreur lors de la création de la catégorie');
@@ -109,7 +112,7 @@ export function CategoriesTab() {
   const handleAddSubcategory = async (parentId: number, moveDishes = false) => {
     const parent = categories.find((c) => c.id === parentId);
     try {
-      await categoriesApi.create({
+      await categoriesApi.create(site, {
         label: 'Nouvelle sous-catégorie',
         order: parent?.subcategories?.length ?? 0,
         parent_id: parentId,
@@ -118,7 +121,7 @@ export function CategoriesTab() {
       setStranded(null);
       await loadCategories();
     } catch (error) {
-      const dishes = conflictCount(error, 'stranded_dishes');
+      const dishes = dishCount(error);
       if (dishes && parent) setStranded({ parent, dishes });
       else notify.error('Erreur lors de la création de la sous-catégorie');
     }
@@ -155,7 +158,10 @@ export function CategoriesTab() {
                   const rest = prev.filter((c) => c.parent_id !== null);
                   return [...reordered, ...rest];
                 });
-                await categoriesApi.reorder(reordered.map((c, i) => ({ id: c.id, order: i })));
+                await categoriesApi.order(
+                  site,
+                  reordered.map((c) => c.id)
+                );
                 await loadCategories();
                 notify.success('Ordre mis à jour');
               }}

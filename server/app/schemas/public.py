@@ -1,7 +1,9 @@
 """What an anonymous caller may read of an organization and its sites."""
 from marshmallow import EXCLUDE, Schema, ValidationError, fields, validate, validates_schema
 
+from ..data.site_profile import PAYMENT_METHODS
 from ..models import RATING_MAX, RATING_MIN
+from ..models.menu_vote import VOTE_ICON_PRESETS
 from ..services.menu_window import MAX_RANGE_DAYS
 from .restaurant import ServiceHoursDaySchema
 from .taxonomy import CertificationSchema, DietaryTagSchema
@@ -46,7 +48,9 @@ class PublicSiteSchema(Schema):
     email = fields.Str(allow_none=True)
     phone = fields.Str(allow_none=True)
     capacity = fields.Int(allow_none=True, metadata={'description': "Seats"})
-    payment_methods = fields.List(fields.Str(), allow_none=True)
+    payment_methods = fields.List(
+        fields.Str(validate=validate.OneOf(PAYMENT_METHODS)), allow_none=True
+    )
     pmr_access = fields.Bool(allow_none=True, metadata={'description': "None when unknown"})
     service_days = fields.List(
         fields.Int(), required=True, metadata={'description': "0 is Monday"}
@@ -55,7 +59,7 @@ class PublicSiteSchema(Schema):
         keys=fields.Str(), values=fields.Nested(ServiceHoursDaySchema), required=True
     )
     vote_enabled = fields.Bool(required=True)
-    vote_icon_preset = fields.Str(required=True)
+    vote_icon_preset = fields.Str(required=True, validate=validate.OneOf(VOTE_ICON_PRESETS))
     dietary_tags = fields.List(fields.Nested(DietaryTagSchema), required=True)
     certifications = fields.List(fields.Nested(CertificationSchema), required=True)
     menu_window = fields.Nested(
@@ -148,33 +152,6 @@ class PublicEventSchema(Schema):
     color = fields.Str(allow_none=True)
     date = fields.Date(attribute='event_date', required=True)
     images = fields.List(fields.Nested(PublicImageSchema), required=True)
-
-
-class PublicEventListSchema(Schema):
-    items = fields.List(fields.Nested(PublicEventSchema), required=True)
-
-
-class EventQuerySchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-
-    visibility = fields.Str(
-        validate=validate.OneOf(['tv', 'mobile']),
-        metadata={'description': "Only the events shown on that screen"},
-    )
-    limit = fields.Int(load_default=5, validate=validate.Range(min=1, max=20))
-
-
-class PublicClosureSchema(Schema):
-    id = fields.Int(required=True)
-    start_date = fields.Date(required=True)
-    end_date = fields.Date(required=True)
-    reason = fields.Str(allow_none=True)
-    description = fields.Str(allow_none=True)
-
-
-class PublicClosureListSchema(Schema):
-    items = fields.List(fields.Nested(PublicClosureSchema), required=True)
 
 
 class DeviceHeaderSchema(Schema):

@@ -12,8 +12,8 @@ from ..extensions import db
 from ..models import AuditLog, User
 from ..schemas.common import ErrorSchema
 from ..security import get_client_ip
+from ..services.access import accessible_restaurant_ids
 from .helpers import (
-    accessible_restaurant_ids,
     admin_required,
     get_current_user,
     step_up_required,

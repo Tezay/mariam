@@ -10,6 +10,7 @@ function category(id: number, label: string, extra: Partial<MenuCategory> = {}):
     order: 0,
     is_protected: false,
     is_highlighted: false,
+    color_key: null,
     ...extra,
   };
 }

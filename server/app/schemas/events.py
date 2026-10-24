@@ -1,68 +1,78 @@
-from marshmallow import EXCLUDE, Schema, fields
+from marshmallow import EXCLUDE, Schema, ValidationError, fields, validate, validates_schema
+
+from ..models import Event
+from .images import ImageSchema
+from .public import PublicEventSchema
+
+EDITORS = {'description': "For the site's editors"}
+TITLE = validate.Length(min=1, max=100)
+SUBTITLE = validate.Length(max=200)
+COLOR = validate.Regexp(r'^#[0-9A-Fa-f]{6}$', error='Une couleur au format #RRGGBB.')
+STATUS = validate.OneOf(Event.VALID_STATUS)
+VISIBILITY = validate.OneOf(Event.VALID_VISIBILITY)
 
 
-class EventImageSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-    id = fields.Int()
-    url = fields.Str()
-    filename = fields.Str(allow_none=True)
-    order = fields.Int()
-
-
-class EventSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-    id = fields.Int(dump_only=True)
-    restaurant_id = fields.Int()
-    title = fields.Str()
-    subtitle = fields.Str(allow_none=True)
-    description = fields.Str(allow_none=True)
-    color = fields.Str(metadata={'description': "Hex color code (e.g. '#3498DB')"})
-    event_date = fields.Str(metadata={'description': "Event date (YYYY-MM-DD)"})
-    status = fields.Str(metadata={'description': "'draft' or 'published'"})
-    visibility = fields.Str(metadata={'description': "'tv', 'mobile', or 'all'"})
-    is_active = fields.Bool()
-    images = fields.List(fields.Nested(EventImageSchema))
-    created_at = fields.Str(dump_only=True, allow_none=True)
-    updated_at = fields.Str(dump_only=True, allow_none=True)
+class EventSchema(PublicEventSchema):
+    """An event; the fields described as for the site's editors are absent for anyone else."""
+    status = fields.Str(validate=STATUS, metadata=EDITORS)
+    visibility = fields.Str(validate=VISIBILITY, metadata=EDITORS)
+    created_at = fields.DateTime(allow_none=True, metadata=EDITORS)
+    updated_at = fields.DateTime(allow_none=True, metadata=EDITORS)
+    images = fields.List(fields.Nested(ImageSchema), required=True)
 
 
 class EventListSchema(Schema):
+    items = fields.List(fields.Nested(EventSchema), required=True)
+
+
+class EventQuerySchema(Schema):
     class Meta:
         unknown = EXCLUDE
-    events = fields.List(fields.Nested(EventSchema))
+
+    start = fields.Date(
+        data_key='from',
+        metadata={'description': "Today, at the earliest, for anyone but the site's editors"},
+    )
+    end = fields.Date(data_key='to', metadata={'description': "Included"})
+    visibility = fields.Str(
+        validate=validate.OneOf(['tv', 'mobile']),
+        metadata={'description': "Only the events shown on that screen"},
+    )
+    limit = fields.Int(validate=validate.Range(min=1, max=100))
+
+    @validates_schema
+    def check_range(self, data, **kwargs):
+        if 'start' in data and 'end' in data and data['end'] < data['start']:
+            raise ValidationError('La fin précède le début.', 'to')
 
 
-class EventCreateSchema(Schema):
+class EventInputSchema(Schema):
     class Meta:
         unknown = EXCLUDE
-    title = fields.Str(required=True, metadata={'description': "Event title"})
-    event_date = fields.Str(required=True, metadata={'description': "Event date (YYYY-MM-DD)"})
-    restaurant_id = fields.Int()
-    subtitle = fields.Str(allow_none=True)
-    description = fields.Str(allow_none=True, metadata={'description': "Markdown description"})
-    color = fields.Str(metadata={'description': "Hex color code (e.g. '#3498DB')"})
-    status = fields.Str(metadata={'description': "'draft' or 'published'"})
-    visibility = fields.Str(metadata={'description': "'tv', 'mobile', or 'all'"})
+
+    title = fields.Str(required=True, validate=TITLE)
+    subtitle = fields.Str(allow_none=True, validate=SUBTITLE)
+    description = fields.Str(allow_none=True, metadata={'description': "HTML, sanitized on write"})
+    color = fields.Str(load_default='#3498DB', validate=COLOR)
+    date = fields.Date(required=True)
+    status = fields.Str(load_default='draft', validate=STATUS)
+    visibility = fields.Str(load_default='all', validate=VISIBILITY)
 
 
-class EventUpdateSchema(Schema):
+class EventPatchSchema(Schema):
     class Meta:
         unknown = EXCLUDE
-    title = fields.Str()
-    subtitle = fields.Str(allow_none=True)
+
+    title = fields.Str(validate=TITLE)
+    subtitle = fields.Str(allow_none=True, validate=SUBTITLE)
     description = fields.Str(allow_none=True)
-    color = fields.Str()
-    event_date = fields.Str(metadata={'description': "Event date (YYYY-MM-DD)"})
-    status = fields.Str(metadata={'description': "'draft' or 'published'"})
-    visibility = fields.Str(metadata={'description': "'tv', 'mobile', or 'all'"})
-    is_active = fields.Bool()
+    color = fields.Str(validate=COLOR)
+    date = fields.Date()
+    visibility = fields.Str(validate=VISIBILITY)
 
 
-class PublicEventsResponseSchema(Schema):
+class EventDuplicateSchema(Schema):
     class Meta:
         unknown = EXCLUDE
-    today_event = fields.Dict(allow_none=True)
-    upcoming_events = fields.List(fields.Dict())
-    events = fields.List(fields.Dict(), metadata={'description': "All events (backward compat)"})
+
+    date = fields.Date(metadata={'description': "A week after the original by default"})

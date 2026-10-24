@@ -17,6 +17,7 @@ from ..schemas.users import (
     UserUpdateSchema,
 )
 from ..security import get_client_ip, spend
+from ..services.access import accessible_restaurant_ids
 from ..services.account import (
     SecurityEvent,
     notify_invitation,
@@ -26,7 +27,6 @@ from ..services.account import (
 )
 from ..utils.urls import frontend_base_url
 from .helpers import (
-    accessible_restaurant_ids,
     admin_required,
     get_current_user,
     paginated_response,

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router';
 import { trackPageView } from '@/lib/telemetry';
 import { Zap, CalendarOff } from 'lucide-react';
-import type { PublicClosure } from '@/lib/api/sites';
+import type { Closure } from '@/lib/api/closures';
 import { jsDayToMariamDay, getNextOpeningDate } from '@/lib/service-utils';
 import { parisToday, addDays, parisDayOfWeek } from '@/lib/date-utils';
 import { useNow } from '@/lib/use-now';
@@ -18,7 +18,7 @@ import { MobileVoteCard } from './MobileVoteCard';
 import { PublicShell } from '../PublicShell';
 import type { MenuItemData, PublicMenuData } from '../menu-types';
 
-function ActiveClosureMessage({ closure }: { closure: PublicClosure }) {
+function ActiveClosureMessage({ closure }: { closure: Closure }) {
   const formatRange = (start: string, end: string) => {
     const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long' };
     const fmt = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', opts);
@@ -49,7 +49,7 @@ const CLOSURE_WINDOW_DAYS = 14;
 const CLOSURE_MAX_COUNT = 5;
 
 /** The list arrives sorted by start_date. */
-function filterUpcomingClosures(closures: PublicClosure[], now: Date): PublicClosure[] {
+function filterUpcomingClosures(closures: Closure[], now: Date): Closure[] {
   const cutoff = addDays(parisToday(now), CLOSURE_WINDOW_DAYS);
   return closures.filter((c) => c.start_date <= cutoff).slice(0, CLOSURE_MAX_COUNT);
 }

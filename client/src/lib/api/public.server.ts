@@ -1,6 +1,8 @@
 import type { SitePage } from '@/pages/public/menu-types';
 import type { Menu } from './menus';
-import type { PublicClosure, PublicEvent, PublicOrg, PublicSite, PublicSiteSummary } from './sites';
+import type { Closure } from './closures';
+import type { Event } from './events';
+import type { PublicOrg, PublicSiteSummary, Site } from './sites';
 
 type Env = Record<string, string | undefined>;
 
@@ -80,10 +82,10 @@ export async function fetchSitePage(
 ): Promise<SitePage | null> {
   const path = `/orgs/${encodeURIComponent(org)}/sites/${encodeURIComponent(slug)}`;
   const [site, menus, events, closures] = await Promise.all([
-    getJson<PublicSite>(request, path),
+    getJson<Site>(request, path),
     getJson<{ items: Menu[] }>(request, `${path}/menus?from=${from}&to=${to}`),
-    getJson<{ items: PublicEvent[] }>(request, `${path}/events?visibility=mobile`),
-    getJson<{ items: PublicClosure[] }>(request, `${path}/closures`),
+    getJson<{ items: Event[] }>(request, `${path}/events?visibility=mobile`),
+    getJson<{ items: Closure[] }>(request, `${path}/closures`),
   ]);
   if (!site) return null;
   return {

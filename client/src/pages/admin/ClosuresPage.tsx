@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { closuresApi, ExceptionalClosure } from '@/lib/api/closures';
+import { closuresApi, type Closure } from '@/lib/api/closures';
 import { notify } from '@/lib/toast';
 import { parisNow, parisToday } from '@/lib/date-utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,6 +32,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
+import { useSiteRef } from '@/contexts/SiteContext';
 
 interface ClosureFormData {
   isSingleDay: boolean;
@@ -83,11 +84,12 @@ function formatDateRange(start: string, end: string): string {
 }
 
 export function ClosuresPage() {
+  const site = useSiteRef();
   const { user } = useAuth();
   const canEdit = user?.role === 'admin' || user?.role === 'editor';
   const today = parisToday();
 
-  const [closures, setClosures] = useState<ExceptionalClosure[]>([]);
+  const [closures, setClosures] = useState<Closure[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
 
@@ -96,7 +98,7 @@ export function ClosuresPage() {
   const [calMonth, setCalMonth] = useState(now.getMonth());
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingClosure, setEditingClosure] = useState<ExceptionalClosure | null>(null);
+  const [editingClosure, setEditingClosure] = useState<Closure | null>(null);
   const [form, setForm] = useState<ClosureFormData>(EMPTY_FORM);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -106,14 +108,14 @@ export function ClosuresPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const all = await closuresApi.list(false, undefined, true);
+      const all = await closuresApi.list(site);
       setClosures(all);
     } catch (err) {
       setError(err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [site]);
 
   useEffect(() => {
     loadClosures();
@@ -132,7 +134,7 @@ export function ClosuresPage() {
   );
 
   const getClosuresForDay = useCallback(
-    (dayNum: number): ExceptionalClosure[] => {
+    (dayNum: number): Closure[] => {
       const dateStr = toISO(calYear, calMonth, dayNum);
       return closures.filter((c) => c.start_date <= dateStr && c.end_date >= dateStr);
     },
@@ -159,7 +161,7 @@ export function ClosuresPage() {
     setIsDialogOpen(true);
   };
 
-  const openEdit = (closure: ExceptionalClosure) => {
+  const openEdit = (closure: Closure) => {
     setEditingClosure(closure);
     setForm({
       isSingleDay: closure.start_date === closure.end_date,
@@ -203,9 +205,9 @@ export function ClosuresPage() {
     };
     try {
       if (editingClosure) {
-        await closuresApi.update(editingClosure.id, payload);
+        await closuresApi.update(site, editingClosure.id, payload);
       } else {
-        await closuresApi.create(payload);
+        await closuresApi.create(site, payload);
       }
       closeDialog();
       await loadClosures();
@@ -218,7 +220,7 @@ export function ClosuresPage() {
 
   const handleDelete = async (id: number) => {
     try {
-      await closuresApi.delete(id);
+      await closuresApi.remove(site, id);
       await loadClosures();
     } catch {
       notify.error('Impossible de supprimer la fermeture');
@@ -391,11 +393,6 @@ export function ClosuresPage() {
                             {isCurrent && (
                               <Badge className="shrink-0 bg-red-500 text-xs text-white">
                                 EN COURS
-                              </Badge>
-                            )}
-                            {!closure.is_active && (
-                              <Badge variant="secondary" className="shrink-0 text-xs">
-                                Inactive
                               </Badge>
                             )}
                           </div>

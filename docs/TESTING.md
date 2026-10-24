@@ -42,11 +42,11 @@ One file per domain in `server/tests/`, grouped roughly as:
 | Area | Files |
 |---|---|
 | Authentication and hardening | `test_auth.py`, `test_auth_<module>.py` (one per module of `routes/auth/`), `test_crypto.py`, `test_hardening.py` |
-| Menus and catalogue | `test_menus.py`, `test_categories.py`, `test_catalog.py`, `test_csv_import.py`, `test_holidays.py` |
-| Public surface | `test_public_resources.py`, `test_domains.py`, `test_public_menu.py` |
+| Site content | `test_menus.py`, `test_categories.py`, `test_catalog.py`, `test_csv_import.py`, `test_events.py`, `test_closures.py`, `test_holidays.py` |
+| Public surface | `test_public_resources.py`, `test_domains.py` |
 | Analytics | `test_analytics_stats.py`, `test_telemetry.py`, `test_votes.py` |
 | Organization | `test_org_catalog.py`, `test_alerts.py`, `test_email_digest.py` |
-| Cross-cutting | `test_tenant_isolation.py`, `test_retention.py`, `test_inbox.py`, `test_users.py`, `test_restaurant.py`, `test_storage.py` |
+| Cross-cutting | `test_tenant_isolation.py`, `test_retention.py`, `test_inbox.py`, `test_users.py`, `test_site_settings.py`, `test_storage.py` |
 
 `test_tenant_isolation.py` is the one to extend whenever an endpoint is added: every route that
 resolves a scope belongs there.

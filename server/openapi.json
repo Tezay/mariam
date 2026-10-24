@@ -5,224 +5,6 @@
     }
   ],
   "paths": {
-    "/v1/settings/categories": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MenuCategory"
-                  }
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "List all categories (with subcategories) for the active restaurant.",
-        "description": "Returns top-level categories in order, each with their subcategories nested.\nAccessible to any authenticated user.",
-        "tags": [
-          "categories"
-        ]
-      },
-      "post": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MenuCategory"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MenuCategoryCreate"
-              }
-            }
-          }
-        },
-        "summary": "Create a new category or subcategory.",
-        "description": "Pass `parent_id` to create a subcategory (max 1 level deep).\nSubcategories can only be created under top-level categories.",
-        "tags": [
-          "categories"
-        ]
-      }
-    },
-    "/v1/settings/categories/reorder": {
-      "put": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MenuCategoryReorder"
-              }
-            }
-          }
-        },
-        "summary": "Reorder categories or subcategories.",
-        "description": "JSON body: `{ \"items\": [{\"id\": 1, \"order\": 0}, {\"id\": 2, \"order\": 1}] }`",
-        "tags": [
-          "categories"
-        ]
-      }
-    },
-    "/v1/settings/categories/{category_id}": {
-      "put": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MenuCategory"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MenuCategoryUpdate"
-              }
-            }
-          }
-        },
-        "summary": "Update a category: label, order, or is_highlighted.",
-        "tags": [
-          "categories"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "category_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ],
-      "delete": {
-        "responses": {
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Category is protected",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Delete a category or subcategory.",
-        "description": "Forbidden if `is_protected=True`.\nCascades to subcategories and their menu items (FK cascade).",
-        "tags": [
-          "categories"
-        ]
-      }
-    },
     "/v1/auth/check-activation/{token}": {
       "get": {
         "responses": {
@@ -2190,622 +1972,6 @@
         ]
       }
     },
-    "/v1/events": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicEventsResponse"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "List events.",
-        "description": "- **Without authentication**: returns published, active events from today onward,\n  in display format (TV/mobile). Separates today's event from upcoming events.\n- **With editor authentication**: returns all events (drafts included) with advanced filters.\n\nPublic query params: `restaurant_id`, `visibility` (tv|mobile|all), `limit`\n\nEditor query params (ignored without auth):\n`upcoming` (bool), `include_inactive` (bool), `status`",
-        "tags": [
-          "events"
-        ],
-        "security": []
-      },
-      "post": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "400": {
-            "description": "Invalid data",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Event"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EventCreate"
-              }
-            }
-          }
-        },
-        "summary": "Create a new event.",
-        "tags": [
-          "events"
-        ]
-      }
-    },
-    "/v1/events/storage-status": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Check whether S3 storage is configured.",
-        "tags": [
-          "events"
-        ]
-      }
-    },
-    "/v1/events/{event_id}": {
-      "get": {
-        "responses": {
-          "404": {
-            "description": "Event not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Event"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Get an event by ID with its images.",
-        "tags": [
-          "events"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "event_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ],
-      "put": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "404": {
-            "description": "Event not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid data",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Event"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EventUpdate"
-              }
-            }
-          }
-        },
-        "summary": "Update an existing event.",
-        "tags": [
-          "events"
-        ]
-      },
-      "delete": {
-        "responses": {
-          "404": {
-            "description": "Event not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Delete an event and its S3 images.",
-        "tags": [
-          "events"
-        ]
-      }
-    },
-    "/v1/events/{event_id}/publish": {
-      "post": {
-        "responses": {
-          "404": {
-            "description": "Event not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Event"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Publish an event (draft to published).",
-        "tags": [
-          "events"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "event_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/events/{event_id}/unpublish": {
-      "post": {
-        "responses": {
-          "404": {
-            "description": "Event not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Event"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Revert a published event to draft.",
-        "tags": [
-          "events"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "event_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/events/{event_id}/duplicate": {
-      "post": {
-        "responses": {
-          "404": {
-            "description": "Event not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Event"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Duplicate an event (no images, draft status).",
-        "description": "Optional JSON body: `{ \"event_date\": \"YYYY-MM-DD\" }`\nIf omitted, the date is shifted 7 days from the original.",
-        "tags": [
-          "events"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "event_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/events/{event_id}/images": {
-      "post": {
-        "responses": {
-          "503": {
-            "description": "S3 storage not configured",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Event not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid file or quota exceeded",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Event"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Upload an image for an event.",
-        "description": "Multipart/form-data request with `file` field.\nLimit: 6 images per event, 5 MB per image.\nAccepted formats: JPEG, PNG, WebP, HEIC (converted to JPEG).",
-        "tags": [
-          "events"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "event_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/events/{event_id}/images/{image_id}": {
-      "delete": {
-        "responses": {
-          "404": {
-            "description": "Image not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Delete an event image from S3 storage and database.",
-        "tags": [
-          "events"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "event_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        },
-        {
-          "in": "path",
-          "name": "image_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/events/{event_id}/images/reorder": {
-      "put": {
-        "responses": {
-          "404": {
-            "description": "Event not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "image_ids list required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Event"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Reorder event images.",
-        "description": "JSON body: `{ \"image_ids\": [3, 1, 2] }`\nArray order defines the new display order.",
-        "tags": [
-          "events"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "event_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/settings": {
-      "get": {
-        "responses": {
-          "404": {
-            "description": "No restaurant configured",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Restaurant"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Full settings for the active restaurant.",
-        "description": "Accessible to any authenticated user (editor or admin).\nIncludes complete configuration: service days, categories,\nenabled dietary tags, certifications, etc.",
-        "tags": [
-          "restaurant"
-        ]
-      },
-      "put": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "404": {
-            "description": "No restaurant configured",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid data",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Restaurant"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RestaurantUpdate"
-              }
-            }
-          }
-        },
-        "summary": "Update the active restaurant's settings.",
-        "description": "Editable fields: `name`, `address`, `service_days`, `menu_categories`,\n`dietary_tags` (list of IDs), `certifications` (list of IDs).",
-        "tags": [
-          "restaurant"
-        ]
-      }
-    },
     "/v1/restaurants": {
       "get": {
         "responses": {
@@ -2827,50 +1993,6 @@
           }
         },
         "summary": "List restaurants of the caller's organization (admin only).",
-        "tags": [
-          "restaurant"
-        ]
-      }
-    },
-    "/v1/restaurant/calendar-settings": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Restaurant"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Calendar settings of the active restaurant.",
-        "tags": [
-          "restaurant"
-        ]
-      },
-      "put": {
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Restaurant"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Update the calendar settings of the active restaurant (admin only).",
         "tags": [
           "restaurant"
         ]
@@ -3955,173 +3077,6 @@
         ]
       }
     },
-    "/v1/closures": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicClosuresResponse"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "List exceptional closures.",
-        "description": "- **Without authentication**: returns active closures from today onward,\n  split into current_closure (active today) and upcoming_closures.\n- **With editor authentication**: returns all closures with filters.\n\nPublic query params: `restaurant_id`\nEditor query params: `upcoming` (bool), `include_inactive` (bool)",
-        "tags": [
-          "closures"
-        ],
-        "security": []
-      },
-      "post": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "400": {
-            "description": "Invalid data",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Closure"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ClosureCreate"
-              }
-            }
-          }
-        },
-        "summary": "Create a new exceptional closure.",
-        "tags": [
-          "closures"
-        ]
-      }
-    },
-    "/v1/closures/{closure_id}": {
-      "put": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "404": {
-            "description": "Closure not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid data",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Closure"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ClosureUpdate"
-              }
-            }
-          }
-        },
-        "summary": "Update an existing exceptional closure.",
-        "tags": [
-          "closures"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "closure_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ],
-      "delete": {
-        "responses": {
-          "404": {
-            "description": "Closure not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Delete an exceptional closure.",
-        "tags": [
-          "closures"
-        ]
-      }
-    },
     "/v1/public/unsubscribe/{token}": {
       "get": {
         "responses": {
@@ -4396,7 +3351,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PublicSite"
+                  "$ref": "#/components/schemas/Site"
                 }
               }
             }
@@ -4436,36 +3391,8 @@
             "minLength": 1
           }
         }
-      ]
-    },
-    "/v1/orgs/{org}/sites/{site}/events": {
-      "get": {
-        "parameters": [
-          {
-            "in": "query",
-            "name": "visibility",
-            "description": "Only the events shown on that screen",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "tv",
-                "mobile"
-              ]
-            },
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "schema": {
-              "type": "integer",
-              "default": 5,
-              "minimum": 1,
-              "maximum": 20
-            },
-            "required": false
-          }
-        ],
+      ],
+      "patch": {
         "responses": {
           "422": {
             "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
@@ -4475,7 +3402,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PublicEventList"
+                  "$ref": "#/components/schemas/Site"
                 }
               }
             }
@@ -4484,34 +3411,24 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Published events from today on, soonest first.",
-        "tags": [
-          "sites"
-        ],
-        "security": []
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "org",
+        "requestBody": {
           "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SitePatch"
+              }
+            }
           }
         },
-        {
-          "in": "path",
-          "name": "site",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      ]
+        "summary": "Change a site's details, hours, vote and labels.",
+        "description": "`tag_ids` and `certification_ids` name the labels the site uses, in place of\nthe defaults.",
+        "tags": [
+          "sites"
+        ]
+      }
     },
-    "/v1/orgs/{org}/sites/{site}/closures": {
+    "/v1/orgs/{org}/sites/{site}/calendar-settings": {
       "get": {
         "responses": {
           "200": {
@@ -4519,7 +3436,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PublicClosureList"
+                  "$ref": "#/components/schemas/CalendarSettings"
                 }
               }
             }
@@ -4528,11 +3445,10 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Exceptional closures under way or to come, soonest first.",
+        "summary": "What the site's calendar shows besides its menus: public and school holidays.",
         "tags": [
           "sites"
-        ],
-        "security": []
+        ]
       },
       "parameters": [
         {
@@ -4553,7 +3469,41 @@
             "minLength": 1
           }
         }
-      ]
+      ],
+      "patch": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarSettings"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalendarSettingsPatch"
+              }
+            }
+          }
+        },
+        "summary": "Change what the site's calendar shows.",
+        "tags": [
+          "sites"
+        ]
+      }
     },
     "/v1/orgs/{org}/sites/{site}/menus": {
       "get": {
@@ -4970,7 +3920,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MenuImage"
+                  "$ref": "#/components/schemas/Image"
                 }
               }
             }
@@ -5089,7 +4039,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MenuImageList"
+                  "$ref": "#/components/schemas/ImageList"
                 }
               }
             }
@@ -6468,6 +5418,998 @@
         }
       ]
     },
+    "/v1/orgs/{org}/sites/{site}/categories": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenuCategoryList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The site's categories in order, each with its subcategories.",
+        "tags": [
+          "categories"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ],
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenuCategory"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MenuCategoryInput"
+              }
+            }
+          }
+        },
+        "summary": "Add a category, or a subcategory under a top-level one.",
+        "description": "A category with subcategories carries no dish: the parent's dishes move into\nthe new subcategory with `move_dishes`, and are refused otherwise.",
+        "tags": [
+          "categories"
+        ]
+      }
+    },
+    "/v1/orgs/{org}/sites/{site}/categories/order": {
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenuCategoryList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryOrder"
+              }
+            }
+          }
+        },
+        "summary": "Put the categories of one level, top-level or under one parent, in a new order.",
+        "tags": [
+          "categories"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/categories/{category_id}": {
+      "patch": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenuCategory"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MenuCategoryPatch"
+              }
+            }
+          }
+        },
+        "summary": "Rename a category, highlight it or change its colour.",
+        "tags": [
+          "categories"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "category_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ],
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Delete a category and its subcategories, once no dish is left in them.",
+        "tags": [
+          "categories"
+        ]
+      }
+    },
+    "/v1/orgs/{org}/sites/{site}/events": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "description": "Today, at the earliest, for anyone but the site's editors",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "description": "Included",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "visibility",
+            "description": "Only the events shown on that screen",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "tv",
+                "mobile"
+              ]
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Events in date order, soonest first.",
+        "description": "Anyone reads the published ones from today on. The site's editors read the\ndrafts too, and any range: without `from`, past events as well.",
+        "tags": [
+          "events"
+        ],
+        "security": [
+          {},
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ],
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventInput"
+              }
+            }
+          }
+        },
+        "summary": "Add an event, a draft unless `status` says otherwise.",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/v1/orgs/{org}/sites/{site}/events/{event_id}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "One event: published for anyone, any for the site's editors.",
+        "tags": [
+          "events"
+        ],
+        "security": [
+          {},
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "event_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ],
+      "patch": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventPatch"
+              }
+            }
+          }
+        },
+        "summary": "Change an event; a new date sends its reminders again.",
+        "tags": [
+          "events"
+        ]
+      },
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Delete an event and its images.",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/v1/orgs/{org}/sites/{site}/events/{event_id}/publish": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Publish an event.",
+        "tags": [
+          "events"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "event_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/events/{event_id}/unpublish": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Take a published event back to draft.",
+        "tags": [
+          "events"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "event_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/events/{event_id}/duplicate": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventDuplicate"
+              }
+            }
+          }
+        },
+        "summary": "Copy an event, without its images, as a draft.",
+        "tags": [
+          "events"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "event_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/events/{event_id}/images": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Image"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/FileUpload"
+              }
+            }
+          }
+        },
+        "summary": "Add an image to an event: JPEG, PNG, WebP or HEIC, stored as JPEG.",
+        "tags": [
+          "events"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "event_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/events/{event_id}/images/{image_id}": {
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Remove an image from an event.",
+        "tags": [
+          "events"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "event_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        {
+          "in": "path",
+          "name": "image_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/events/{event_id}/images/order": {
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageOrder"
+              }
+            }
+          }
+        },
+        "summary": "Put an event's images in a new order.",
+        "tags": [
+          "events"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "event_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/closures": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "description": "Today, at the earliest, for anyone but the site's editors",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "description": "Included",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClosureList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Closures that overlap the range, soonest first.",
+        "description": "Anyone reads those under way or to come. The site's editors read any range:\nwithout `from`, past closures as well.",
+        "tags": [
+          "closures"
+        ],
+        "security": [
+          {},
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ],
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Closure"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClosureInput"
+              }
+            }
+          }
+        },
+        "summary": "Close the site from one day to another, both included.",
+        "tags": [
+          "closures"
+        ]
+      }
+    },
+    "/v1/orgs/{org}/sites/{site}/closures/{closure_id}": {
+      "patch": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Closure"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClosurePatch"
+              }
+            }
+          }
+        },
+        "summary": "Change a closure; a new start date sends its reminders again.",
+        "tags": [
+          "closures"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "closure_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ],
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Delete a closure.",
+        "tags": [
+          "closures"
+        ]
+      }
+    },
     "/v1/devices": {
       "post": {
         "responses": {
@@ -6500,20 +6442,12 @@
   },
   "tags": [
     {
-      "name": "categories",
-      "description": "Menu categories \u2014 CRUD and ordering"
-    },
-    {
       "name": "auth",
       "description": "Sign-in, second factors, passwords and sessions."
     },
     {
-      "name": "events",
-      "description": "Events \u2014 Public display and editor management"
-    },
-    {
       "name": "restaurant",
-      "description": "Restaurant \u2014 Public info, settings and management"
+      "description": "The sites an account reaches"
     },
     {
       "name": "taxonomy",
@@ -6540,10 +6474,6 @@
       "description": "In-app alerts, computed on demand, and their per-account preferences"
     },
     {
-      "name": "closures",
-      "description": "Exceptional closures \u2014 Public display and editor management"
-    },
-    {
       "name": "public",
       "description": "Links sent by email"
     },
@@ -6565,7 +6495,7 @@
     },
     {
       "name": "sites",
-      "description": "A site, its events and closures"
+      "description": "A site: its public page and its settings"
     },
     {
       "name": "menus",
@@ -6578,6 +6508,18 @@
     {
       "name": "imports",
       "description": "Menus and dishes loaded from a CSV or Excel file: send it, preview, confirm"
+    },
+    {
+      "name": "categories",
+      "description": "A site's menu categories, one level of subcategories at most"
+    },
+    {
+      "name": "events",
+      "description": "A site's events: the published ones for anyone, drafts too for its editors"
+    },
+    {
+      "name": "closures",
+      "description": "A site's exceptional closures"
     },
     {
       "name": "devices",
@@ -6667,126 +6609,6 @@
         },
         "additionalProperties": false
       },
-      "MenuCategory": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "readOnly": true
-          },
-          "restaurant_id": {
-            "type": "integer",
-            "readOnly": true
-          },
-          "parent_id": {
-            "type": "integer",
-            "nullable": true
-          },
-          "label": {
-            "type": "string"
-          },
-          "order": {
-            "type": "integer"
-          },
-          "is_protected": {
-            "type": "boolean",
-            "readOnly": true
-          },
-          "is_highlighted": {
-            "type": "boolean"
-          },
-          "color_key": {
-            "type": "string",
-            "nullable": true
-          },
-          "subcategories": {
-            "type": "array",
-            "readOnly": true,
-            "items": {
-              "$ref": "#/components/schemas/MenuCategory"
-            }
-          }
-        }
-      },
-      "MenuCategoryCreate": {
-        "type": "object",
-        "properties": {
-          "parent_id": {
-            "type": "integer",
-            "default": null,
-            "nullable": true
-          },
-          "label": {
-            "type": "string"
-          },
-          "order": {
-            "type": "integer",
-            "default": 0
-          },
-          "move_dishes": {
-            "type": "boolean",
-            "default": false
-          }
-        },
-        "required": [
-          "label"
-        ]
-      },
-      "Error": {
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "string",
-            "description": "Error message"
-          },
-          "message": {
-            "type": "string",
-            "description": "Detailed error description"
-          }
-        }
-      },
-      "MenuCategoryReorder": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          }
-        },
-        "required": [
-          "items"
-        ]
-      },
-      "Message": {
-        "type": "object",
-        "properties": {
-          "message": {
-            "type": "string",
-            "description": "Success message"
-          }
-        }
-      },
-      "MenuCategoryUpdate": {
-        "type": "object",
-        "properties": {
-          "label": {
-            "type": "string"
-          },
-          "order": {
-            "type": "integer"
-          },
-          "is_highlighted": {
-            "type": "boolean"
-          },
-          "color_key": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
       "InvalidLink": {
         "type": "object",
         "properties": {
@@ -6870,6 +6692,19 @@
           "token",
           "username"
         ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message"
+          },
+          "message": {
+            "type": "string",
+            "description": "Detailed error description"
+          }
+        }
       },
       "Account": {
         "type": "object",
@@ -7302,6 +7137,15 @@
         ],
         "additionalProperties": false
       },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Success message"
+          }
+        }
+      },
       "PasskeyRename": {
         "type": "object",
         "properties": {
@@ -7646,182 +7490,6 @@
         ],
         "additionalProperties": false
       },
-      "PublicEventsResponse": {
-        "type": "object",
-        "properties": {
-          "today_event": {
-            "type": "object",
-            "additionalProperties": {},
-            "nullable": true
-          },
-          "upcoming_events": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          },
-          "events": {
-            "type": "array",
-            "description": "All events (backward compat)",
-            "items": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          }
-        }
-      },
-      "EventCreate": {
-        "type": "object",
-        "properties": {
-          "title": {
-            "type": "string",
-            "description": "Event title"
-          },
-          "event_date": {
-            "type": "string",
-            "description": "Event date (YYYY-MM-DD)"
-          },
-          "restaurant_id": {
-            "type": "integer"
-          },
-          "subtitle": {
-            "type": "string",
-            "nullable": true
-          },
-          "description": {
-            "type": "string",
-            "description": "Markdown description",
-            "nullable": true
-          },
-          "color": {
-            "type": "string",
-            "description": "Hex color code (e.g. '#3498DB')"
-          },
-          "status": {
-            "type": "string",
-            "description": "'draft' or 'published'"
-          },
-          "visibility": {
-            "type": "string",
-            "description": "'tv', 'mobile', or 'all'"
-          }
-        },
-        "required": [
-          "event_date",
-          "title"
-        ]
-      },
-      "EventImage": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer"
-          },
-          "url": {
-            "type": "string"
-          },
-          "filename": {
-            "type": "string",
-            "nullable": true
-          },
-          "order": {
-            "type": "integer"
-          }
-        }
-      },
-      "Event": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "readOnly": true
-          },
-          "restaurant_id": {
-            "type": "integer"
-          },
-          "title": {
-            "type": "string"
-          },
-          "subtitle": {
-            "type": "string",
-            "nullable": true
-          },
-          "description": {
-            "type": "string",
-            "nullable": true
-          },
-          "color": {
-            "type": "string",
-            "description": "Hex color code (e.g. '#3498DB')"
-          },
-          "event_date": {
-            "type": "string",
-            "description": "Event date (YYYY-MM-DD)"
-          },
-          "status": {
-            "type": "string",
-            "description": "'draft' or 'published'"
-          },
-          "visibility": {
-            "type": "string",
-            "description": "'tv', 'mobile', or 'all'"
-          },
-          "is_active": {
-            "type": "boolean"
-          },
-          "images": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/EventImage"
-            }
-          },
-          "created_at": {
-            "type": "string",
-            "readOnly": true,
-            "nullable": true
-          },
-          "updated_at": {
-            "type": "string",
-            "readOnly": true,
-            "nullable": true
-          }
-        }
-      },
-      "EventUpdate": {
-        "type": "object",
-        "properties": {
-          "title": {
-            "type": "string"
-          },
-          "subtitle": {
-            "type": "string",
-            "nullable": true
-          },
-          "description": {
-            "type": "string",
-            "nullable": true
-          },
-          "color": {
-            "type": "string"
-          },
-          "event_date": {
-            "type": "string",
-            "description": "Event date (YYYY-MM-DD)"
-          },
-          "status": {
-            "type": "string",
-            "description": "'draft' or 'published'"
-          },
-          "visibility": {
-            "type": "string",
-            "description": "'tv', 'mobile', or 'all'"
-          },
-          "is_active": {
-            "type": "boolean"
-          }
-        }
-      },
       "ServiceHoursDay": {
         "type": "object",
         "properties": {
@@ -7950,99 +7618,6 @@
                 "$ref": "#/components/schemas/RestaurantConfig"
               }
             ]
-          }
-        }
-      },
-      "RestaurantUpdate": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "is_active": {
-            "type": "boolean"
-          },
-          "address_label": {
-            "type": "string",
-            "nullable": true
-          },
-          "address_lat": {
-            "type": "number",
-            "nullable": true
-          },
-          "address_lon": {
-            "type": "number",
-            "nullable": true
-          },
-          "email": {
-            "type": "string",
-            "nullable": true
-          },
-          "phone": {
-            "type": "string",
-            "nullable": true
-          },
-          "capacity": {
-            "type": "integer",
-            "nullable": true
-          },
-          "payment_methods": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "nullable": true
-          },
-          "pmr_access": {
-            "type": "boolean",
-            "nullable": true
-          },
-          "service_hours": {
-            "type": "object",
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ServiceHoursDay"
-            },
-            "nullable": true
-          },
-          "service_days": {
-            "type": "array",
-            "items": {
-              "type": "integer"
-            }
-          },
-          "vote_enabled": {
-            "type": "boolean"
-          },
-          "vote_category_ids": {
-            "type": "array",
-            "items": {
-              "type": "integer"
-            }
-          },
-          "vote_icon_preset": {
-            "type": "string",
-            "enum": [
-              "thumbs",
-              "faces",
-              "stars"
-            ]
-          },
-          "menu_categories": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          },
-          "dietary_tags": {
-            "type": "array",
-            "description": "List of tag IDs or tag objects with 'id'",
-            "items": {}
-          },
-          "certifications": {
-            "type": "array",
-            "description": "List of cert IDs or cert objects with 'id'",
-            "items": {}
           }
         }
       },
@@ -8614,139 +8189,6 @@
           }
         }
       },
-      "PublicClosuresResponse": {
-        "type": "object",
-        "properties": {
-          "current_closure": {
-            "type": "object",
-            "additionalProperties": {},
-            "nullable": true
-          },
-          "upcoming_closures": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          },
-          "closures": {
-            "type": "array",
-            "description": "All closures (editor view)",
-            "items": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          }
-        }
-      },
-      "ClosureCreate": {
-        "type": "object",
-        "properties": {
-          "start_date": {
-            "type": "string",
-            "description": "Start date (YYYY-MM-DD)"
-          },
-          "end_date": {
-            "type": "string",
-            "description": "End date (YYYY-MM-DD)"
-          },
-          "reason": {
-            "type": "string",
-            "nullable": true
-          },
-          "description": {
-            "type": "string",
-            "nullable": true
-          },
-          "restaurant_id": {
-            "type": "integer"
-          }
-        },
-        "required": [
-          "end_date",
-          "start_date"
-        ]
-      },
-      "Closure": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "readOnly": true
-          },
-          "restaurant_id": {
-            "type": "integer"
-          },
-          "start_date": {
-            "type": "string",
-            "description": "Start date (YYYY-MM-DD)"
-          },
-          "end_date": {
-            "type": "string",
-            "description": "End date (YYYY-MM-DD), equals start_date for single-day closure"
-          },
-          "reason": {
-            "type": "string",
-            "description": "Short reason (e.g. 'Vacances scolaires')",
-            "nullable": true
-          },
-          "description": {
-            "type": "string",
-            "description": "Optional longer description",
-            "nullable": true
-          },
-          "is_active": {
-            "type": "boolean"
-          },
-          "is_current": {
-            "type": "boolean",
-            "readOnly": true,
-            "description": "True if today is within the closure range"
-          },
-          "notified_7d": {
-            "type": "boolean",
-            "readOnly": true
-          },
-          "notified_1d": {
-            "type": "boolean",
-            "readOnly": true
-          },
-          "created_at": {
-            "type": "string",
-            "readOnly": true,
-            "nullable": true
-          },
-          "updated_at": {
-            "type": "string",
-            "readOnly": true,
-            "nullable": true
-          }
-        }
-      },
-      "ClosureUpdate": {
-        "type": "object",
-        "properties": {
-          "start_date": {
-            "type": "string",
-            "description": "Start date (YYYY-MM-DD)"
-          },
-          "end_date": {
-            "type": "string",
-            "description": "End date (YYYY-MM-DD)"
-          },
-          "reason": {
-            "type": "string",
-            "nullable": true
-          },
-          "description": {
-            "type": "string",
-            "nullable": true
-          },
-          "is_active": {
-            "type": "boolean"
-          }
-        }
-      },
       "PublicOrg": {
         "type": "object",
         "properties": {
@@ -8832,7 +8274,7 @@
         ],
         "additionalProperties": false
       },
-      "PublicSite": {
+      "Site": {
         "type": "object",
         "properties": {
           "slug": {
@@ -8873,7 +8315,13 @@
           "payment_methods": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "izly",
+                "cb",
+                "cash",
+                "ticket_restaurant"
+              ]
             },
             "nullable": true
           },
@@ -8899,7 +8347,12 @@
             "type": "boolean"
           },
           "vote_icon_preset": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "thumbs",
+              "faces",
+              "stars"
+            ]
           },
           "dietary_tags": {
             "type": "array",
@@ -8920,6 +8373,13 @@
                 "$ref": "#/components/schemas/MenuWindow"
               }
             ]
+          },
+          "vote_category_ids": {
+            "type": "array",
+            "description": "For the site's editors: the categories a vote names",
+            "items": {
+              "type": "integer"
+            }
           }
         },
         "required": [
@@ -8935,121 +8395,177 @@
         ],
         "additionalProperties": false
       },
-      "PublicImage": {
+      "ServiceHoursInput": {
         "type": "object",
         "properties": {
-          "url": {
+          "open": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "close": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          }
+        },
+        "required": [
+          "close",
+          "open"
+        ]
+      },
+      "SitePatch": {
+        "type": "object",
+        "properties": {
+          "name": {
             "type": "string"
           },
-          "order": {
-            "type": "integer"
-          }
-        },
-        "required": [
-          "order",
-          "url"
-        ],
-        "additionalProperties": false
-      },
-      "PublicEvent": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer"
-          },
-          "title": {
-            "type": "string"
-          },
-          "subtitle": {
+          "address_label": {
             "type": "string",
+            "maxLength": 300,
             "nullable": true
           },
-          "description": {
-            "type": "string",
+          "address_lat": {
+            "type": "number",
+            "minimum": -90.0,
+            "maximum": 90.0,
             "nullable": true
           },
-          "color": {
-            "type": "string",
+          "address_lon": {
+            "type": "number",
+            "minimum": -180.0,
+            "maximum": 180.0,
             "nullable": true
           },
-          "date": {
+          "email": {
             "type": "string",
-            "format": "date"
+            "format": "email",
+            "maxLength": 150,
+            "nullable": true
           },
-          "images": {
+          "phone": {
+            "type": "string",
+            "maxLength": 30,
+            "nullable": true
+          },
+          "capacity": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "payment_methods": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PublicImage"
-            }
-          }
-        },
-        "required": [
-          "date",
-          "id",
-          "images",
-          "title"
-        ],
-        "additionalProperties": false
-      },
-      "PublicEventList": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PublicEvent"
-            }
-          }
-        },
-        "required": [
-          "items"
-        ],
-        "additionalProperties": false
-      },
-      "PublicClosure": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer"
-          },
-          "start_date": {
-            "type": "string",
-            "format": "date"
-          },
-          "end_date": {
-            "type": "string",
-            "format": "date"
-          },
-          "reason": {
-            "type": "string",
+              "type": "string",
+              "enum": [
+                "izly",
+                "cb",
+                "cash",
+                "ticket_restaurant"
+              ]
+            },
             "nullable": true
           },
-          "description": {
+          "pmr_access": {
+            "type": "boolean",
+            "description": "None when unknown",
+            "nullable": true
+          },
+          "service_days": {
+            "type": "array",
+            "description": "0 is Monday",
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 6
+            }
+          },
+          "service_hours": {
+            "type": "object",
+            "description": "Replaces every day's hours; a day left out has none",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ServiceHoursInput"
+            }
+          },
+          "vote_enabled": {
+            "type": "boolean"
+          },
+          "vote_icon_preset": {
             "type": "string",
+            "enum": [
+              "thumbs",
+              "faces",
+              "stars"
+            ]
+          },
+          "vote_category_ids": {
+            "type": "array",
+            "description": "Categories of the site a vote names",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "tag_ids": {
+            "type": "array",
+            "description": "The dietary tags the site uses",
+            "items": {
+              "type": "string"
+            }
+          },
+          "certification_ids": {
+            "type": "array",
+            "description": "The certifications the site uses",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CalendarSettings": {
+        "type": "object",
+        "properties": {
+          "show_public_holidays": {
+            "type": "boolean"
+          },
+          "show_school_vacations": {
+            "type": "boolean"
+          },
+          "school_vacation_zone": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C",
+              null
+            ],
             "nullable": true
           }
         },
         "required": [
-          "end_date",
-          "id",
-          "start_date"
+          "school_vacation_zone",
+          "show_public_holidays",
+          "show_school_vacations"
         ],
         "additionalProperties": false
       },
-      "PublicClosureList": {
+      "CalendarSettingsPatch": {
         "type": "object",
         "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PublicClosure"
-            }
+          "show_public_holidays": {
+            "type": "boolean"
+          },
+          "show_school_vacations": {
+            "type": "boolean"
+          },
+          "school_vacation_zone": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C",
+              null
+            ],
+            "nullable": true
           }
-        },
-        "required": [
-          "items"
-        ],
-        "additionalProperties": false
+        }
       },
       "PublicDish": {
         "type": "object",
@@ -9153,7 +8669,7 @@
         ],
         "additionalProperties": false
       },
-      "MenuImage": {
+      "Image": {
         "type": "object",
         "properties": {
           "url": {
@@ -9209,7 +8725,7 @@
           "images": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/MenuImage"
+              "$ref": "#/components/schemas/Image"
             }
           },
           "substitutions": {
@@ -9367,7 +8883,7 @@
         "properties": {
           "image_ids": {
             "type": "array",
-            "description": "Every image of the menu, in their new order",
+            "description": "Every image, once, in the new order",
             "items": {
               "type": "integer"
             }
@@ -9377,13 +8893,13 @@
           "image_ids"
         ]
       },
-      "MenuImageList": {
+      "ImageList": {
         "type": "object",
         "properties": {
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/MenuImage"
+              "$ref": "#/components/schemas/Image"
             }
           }
         },
@@ -10467,6 +9983,421 @@
           "skipped_count"
         ],
         "additionalProperties": false
+      },
+      "MenuCategory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "parent_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "label": {
+            "type": "string"
+          },
+          "order": {
+            "type": "integer"
+          },
+          "is_protected": {
+            "type": "boolean",
+            "description": "It cannot be deleted"
+          },
+          "is_highlighted": {
+            "type": "boolean"
+          },
+          "color_key": {
+            "type": "string",
+            "enum": [
+              "indigo",
+              "sky",
+              "mint",
+              "saffron",
+              "clay",
+              "lilac",
+              null
+            ],
+            "nullable": true
+          },
+          "subcategories": {
+            "type": "array",
+            "description": "On a top-level category",
+            "items": {
+              "$ref": "#/components/schemas/MenuCategory"
+            }
+          }
+        },
+        "required": [
+          "color_key",
+          "id",
+          "is_highlighted",
+          "is_protected",
+          "label",
+          "order",
+          "parent_id"
+        ],
+        "additionalProperties": false
+      },
+      "MenuCategoryList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MenuCategory"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "MenuCategoryInput": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "parent_id": {
+            "type": "integer",
+            "default": null,
+            "description": "A top-level category",
+            "nullable": true
+          },
+          "order": {
+            "type": "integer",
+            "description": "After the others by default"
+          },
+          "move_dishes": {
+            "type": "boolean",
+            "default": false,
+            "description": "Move the parent's dishes into the new subcategory"
+          }
+        },
+        "required": [
+          "label"
+        ]
+      },
+      "CategoryOrder": {
+        "type": "object",
+        "properties": {
+          "category_ids": {
+            "type": "array",
+            "description": "Every category of one level, once, in the new order",
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "required": [
+          "category_ids"
+        ]
+      },
+      "MenuCategoryPatch": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "is_highlighted": {
+            "type": "boolean"
+          },
+          "color_key": {
+            "type": "string",
+            "enum": [
+              "indigo",
+              "sky",
+              "mint",
+              "saffron",
+              "clay",
+              "lilac",
+              null
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "Event": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Image"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published"
+            ],
+            "description": "For the site's editors"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "tv",
+              "mobile",
+              "all"
+            ],
+            "description": "For the site's editors"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "For the site's editors",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "For the site's editors",
+            "nullable": true
+          }
+        },
+        "required": [
+          "date",
+          "id",
+          "images",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "EventList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "EventInput": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "subtitle": {
+            "type": "string",
+            "maxLength": 200,
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "HTML, sanitized on write",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "default": "#3498DB",
+            "pattern": "^#[0-9A-Fa-f]{6}$"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "default": "draft",
+            "enum": [
+              "draft",
+              "published"
+            ]
+          },
+          "visibility": {
+            "type": "string",
+            "default": "all",
+            "enum": [
+              "tv",
+              "mobile",
+              "all"
+            ]
+          }
+        },
+        "required": [
+          "date",
+          "title"
+        ]
+      },
+      "EventPatch": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "subtitle": {
+            "type": "string",
+            "maxLength": 200,
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "tv",
+              "mobile",
+              "all"
+            ]
+          }
+        }
+      },
+      "EventDuplicate": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "A week after the original by default"
+          }
+        }
+      },
+      "Closure": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Included"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "description",
+          "end_date",
+          "id",
+          "reason",
+          "start_date"
+        ],
+        "additionalProperties": false
+      },
+      "ClosureList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Closure"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "ClosureInput": {
+        "type": "object",
+        "properties": {
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Included"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 100,
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "end_date",
+          "start_date"
+        ]
+      },
+      "ClosurePatch": {
+        "type": "object",
+        "properties": {
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 100,
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "Device": {
         "type": "object",

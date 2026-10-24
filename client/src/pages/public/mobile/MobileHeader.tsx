@@ -3,7 +3,7 @@ import { ChevronDown, ChevronUp, Phone, Mail, Users, Accessibility, Bell } from 
 import { useNavigate } from 'react-router';
 import { getServiceStatus, groupConsecutiveHours } from '@/lib/service-utils';
 import type { RestaurantPublic } from '../menu-types';
-import type { PublicClosure } from '@/lib/api/sites';
+import type { Closure } from '@/lib/api/closures';
 
 const PAYMENT_CONFIG: Record<string, { src: string; label: string }> = {
   izly: { src: '/payments/izly.svg', label: 'Izly' },
@@ -24,7 +24,7 @@ function ServiceStatusDot({ color }: { color: 'green' | 'amber' | 'gray' | 'red'
 
 interface MobileHeaderProps {
   restaurant: RestaurantPublic;
-  activeClosure?: PublicClosure | null;
+  activeClosure?: Closure | null;
   now: Date;
 }
 

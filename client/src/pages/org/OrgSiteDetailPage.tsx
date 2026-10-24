@@ -118,10 +118,7 @@ export function OrgSiteDetailPage() {
 
       <div className="mt-8">
         {user?.organization_slug && site.slug && (
-          <SiteWeekCalendar
-            siteId={site.id}
-            site={{ org: user.organization_slug, site: site.slug }}
-          />
+          <SiteWeekCalendar site={{ org: user.organization_slug, site: site.slug }} />
         )}
       </div>
 

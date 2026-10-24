@@ -1,7 +1,7 @@
 from marshmallow import EXCLUDE, Schema, fields, validate
 
+from .images import ImageSchema
 from .public import (
-    PublicImageSchema,
     PublicMenuSchema,
     PublicSubstitutionSchema,
 )
@@ -9,49 +9,6 @@ from .public import (
 CHEF_NOTE_MAX = 300
 MENU_IMAGES_MAX = 6
 SUBSTITUTES_MAX = 3
-
-
-class MenuCategorySchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-    id = fields.Int(dump_only=True)
-    restaurant_id = fields.Int(dump_only=True)
-    parent_id = fields.Int(allow_none=True)
-    label = fields.Str()
-    order = fields.Int()
-    is_protected = fields.Bool(dump_only=True)
-    is_highlighted = fields.Bool()
-    color_key = fields.Str(allow_none=True)
-    subcategories = fields.List(fields.Nested(lambda: MenuCategorySchema()), dump_only=True)
-
-
-class MenuCategoryCreateSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-    parent_id = fields.Int(allow_none=True, load_default=None)
-    label = fields.Str(required=True)
-    order = fields.Int(load_default=0)
-    move_dishes = fields.Bool(load_default=False)
-
-
-class MenuCategoryUpdateSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-    label = fields.Str()
-    order = fields.Int()
-    is_highlighted = fields.Bool()
-    color_key = fields.Str(allow_none=True)
-
-
-class MenuCategoryReorderSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-    # [{"id": 1, "order": 0}, ...]
-    items = fields.List(fields.Dict(), required=True)
-
-
-class MenuImageSchema(PublicImageSchema):
-    id = fields.Int(metadata={'description': "For the site's editors"})
 
 
 class MenuSchema(PublicMenuSchema):
@@ -64,7 +21,7 @@ class MenuSchema(PublicMenuSchema):
         allow_none=True, metadata={'description': "For the site's editors"}
     )
     updated_at = fields.DateTime(allow_none=True, metadata={'description': "For the site's editors"})
-    images = fields.List(fields.Nested(MenuImageSchema), required=True)
+    images = fields.List(fields.Nested(ImageSchema), required=True)
 
 
 class MenuListSchema(Schema):
@@ -108,20 +65,6 @@ class MenuItemPatchSchema(Schema):
     class Meta:
         unknown = EXCLUDE
     is_out_of_stock = fields.Bool(required=True)
-
-
-class ImageOrderSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-    image_ids = fields.List(
-        fields.Int(),
-        required=True,
-        metadata={'description': "Every image of the menu, in their new order"},
-    )
-
-
-class MenuImageListSchema(Schema):
-    items = fields.List(fields.Nested(MenuImageSchema), required=True)
 
 
 class SubstitutesInputSchema(Schema):

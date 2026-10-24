@@ -76,6 +76,7 @@ def _already_enrolled():
 
 @auth_bp.route('/check-activation/<token>', methods=['GET'])
 @auth_bp.doc(security=[])
+@limiter.limit('10 per minute')
 @auth_bp.response(200, ActivationLinkSchema)
 @auth_bp.alt_response(
     400, schema=InvalidLinkSchema, description='Link expired, revoked or already used.'

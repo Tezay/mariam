@@ -1,46 +1,56 @@
-from marshmallow import EXCLUDE, Schema, fields
+from marshmallow import EXCLUDE, Schema, ValidationError, fields, validate, validates_schema
+
+REASON = validate.Length(max=100)
 
 
 class ClosureSchema(Schema):
+    id = fields.Int(required=True)
+    start_date = fields.Date(required=True)
+    end_date = fields.Date(required=True, metadata={'description': "Included"})
+    reason = fields.Str(allow_none=True, required=True)
+    description = fields.Str(allow_none=True, required=True)
+
+
+class ClosureListSchema(Schema):
+    items = fields.List(fields.Nested(ClosureSchema), required=True)
+
+
+class ClosureQuerySchema(Schema):
     class Meta:
         unknown = EXCLUDE
-    id            = fields.Int(dump_only=True)
-    restaurant_id = fields.Int()
-    start_date    = fields.Str(metadata={'description': "Start date (YYYY-MM-DD)"})
-    end_date      = fields.Str(metadata={'description': "End date (YYYY-MM-DD), equals start_date for single-day closure"})
-    reason        = fields.Str(allow_none=True, metadata={'description': "Short reason (e.g. 'Vacances scolaires')"})
-    description   = fields.Str(allow_none=True, metadata={'description': "Optional longer description"})
-    is_active     = fields.Bool()
-    is_current    = fields.Bool(dump_only=True, metadata={'description': "True if today is within the closure range"})
-    notified_7d   = fields.Bool(dump_only=True)
-    notified_1d   = fields.Bool(dump_only=True)
-    created_at    = fields.Str(dump_only=True, allow_none=True)
-    updated_at    = fields.Str(dump_only=True, allow_none=True)
+
+    start = fields.Date(
+        data_key='from',
+        metadata={'description': "Today, at the earliest, for anyone but the site's editors"},
+    )
+    end = fields.Date(data_key='to', metadata={'description': "Included"})
+
+    @validates_schema
+    def check_range(self, data, **kwargs):
+        if 'start' in data and 'end' in data and data['end'] < data['start']:
+            raise ValidationError('La fin précède le début.', 'to')
 
 
-class ClosureCreateSchema(Schema):
+class ClosureInputSchema(Schema):
     class Meta:
         unknown = EXCLUDE
-    start_date    = fields.Str(required=True, metadata={'description': "Start date (YYYY-MM-DD)"})
-    end_date      = fields.Str(required=True, metadata={'description': "End date (YYYY-MM-DD)"})
-    reason        = fields.Str(allow_none=True)
-    description   = fields.Str(allow_none=True)
-    restaurant_id = fields.Int()
 
-
-class ClosureUpdateSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-    start_date  = fields.Str(metadata={'description': "Start date (YYYY-MM-DD)"})
-    end_date    = fields.Str(metadata={'description': "End date (YYYY-MM-DD)"})
-    reason      = fields.Str(allow_none=True)
+    start_date = fields.Date(required=True)
+    end_date = fields.Date(required=True, metadata={'description': "Included"})
+    reason = fields.Str(allow_none=True, validate=REASON)
     description = fields.Str(allow_none=True)
-    is_active   = fields.Bool()
+
+    @validates_schema
+    def check_range(self, data, **kwargs):
+        if data['end_date'] < data['start_date']:
+            raise ValidationError('La fin précède le début.', 'end_date')
 
 
-class PublicClosuresResponseSchema(Schema):
+class ClosurePatchSchema(Schema):
     class Meta:
         unknown = EXCLUDE
-    current_closure   = fields.Dict(allow_none=True)
-    upcoming_closures = fields.List(fields.Dict())
-    closures          = fields.List(fields.Dict(), metadata={'description': "All closures (editor view)"})
+
+    start_date = fields.Date()
+    end_date = fields.Date()
+    reason = fields.Str(allow_none=True, validate=REASON)
+    description = fields.Str(allow_none=True)

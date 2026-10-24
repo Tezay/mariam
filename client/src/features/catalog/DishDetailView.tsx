@@ -97,11 +97,11 @@ export function DishDetailView({ dishId }: { dishId: number }) {
     queryKey: ['catalogue-meta'],
     queryFn: async () => {
       const [catData, taxonomy] = await Promise.all([
-        categoriesApi.list(),
+        categoriesApi.list(site),
         publicApi.getTaxonomy(),
       ]);
       return {
-        categories: catData.categories,
+        categories: catData,
         allTags: taxonomy.dietary_tag_categories.flatMap((group) => group.tags),
         allCerts: taxonomy.certification_categories.flatMap((group) => group.certifications),
       };

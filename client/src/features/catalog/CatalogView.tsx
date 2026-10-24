@@ -70,11 +70,11 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
     queryKey: ['catalogue-meta'],
     queryFn: async () => {
       const [catData, taxonomy] = await Promise.all([
-        categoriesApi.list(),
+        site ? categoriesApi.list(site) : Promise.resolve([]),
         publicApi.getTaxonomy(),
       ]);
       return {
-        categories: catData.categories,
+        categories: catData,
         allTags: taxonomy.dietary_tag_categories.flatMap((group) => group.tags),
         allCerts: taxonomy.certification_categories.flatMap((group) => group.certifications),
       };
