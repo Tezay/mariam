@@ -7,7 +7,7 @@ from app.models import Passkey, User
 from app.services import email_service
 from app.services.account import SecurityEvent, notify_security_event
 from app.services.email_service import Kind
-from conftest import TEST_PASSWORD, make_user
+from conftest import TEST_PASSWORD, make_user, site_path
 from tests.auth_support import (
     confirmed_headers,
     enable_totp,
@@ -178,12 +178,12 @@ class TestResetByAnAdministrator:
         admin = make_user(app)
         target = self._target(app)
 
-        res = client.post(
-            f'/v1/users/{target}/reset-mfa',
+        res = client.delete(
+            f'{site_path(db.session.get(User, target).restaurant_id)}/members/{target}/second-factors',
             headers={**confirmed_headers(client, admin), **BROWSER},
         )
 
-        assert res.status_code == 200
+        assert res.status_code == 204
         message, body = _alert(smtp)
         assert (message['To'], message['Subject']) == ('target@mariam.app', self.SUBJECT)
         assert 'Chrome' not in body and '81.56.12.34' not in body

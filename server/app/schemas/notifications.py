@@ -8,6 +8,8 @@ from ..utils.push_endpoint import is_push_service_url
 # RFC 8291: a P-256 point of 65 bytes and a secret of 16, in base64url.
 _P256DH = re.compile(r'[A-Za-z0-9_-]{87}=?')
 _AUTH = re.compile(r'[A-Za-z0-9_-]{22}(?:==)?')
+TIME = validate.Regexp(r'^([01]\d|2[0-3]):[0-5]\d$', error='Une heure au format HH:MM.')
+PLATFORMS = ('ios', 'android', 'desktop')
 
 
 def _push_service(url: str) -> None:
@@ -22,40 +24,41 @@ def _shaped(shape: re.Pattern[str]) -> Callable[[str], None]:
     return check
 
 
-class NotificationPreferencesSchema(Schema):
+class PushKeySchema(Schema):
+    public_key = fields.Str(required=True, metadata={'description': "VAPID, for PushManager.subscribe"})
+
+
+class PushPreferencesSchema(Schema):
     class Meta:
         unknown = EXCLUDE
+
     notify_today_menu = fields.Bool()
-    notify_today_menu_time = fields.Str(metadata={'description': "Time HH:MM"})
+    notify_today_menu_time = fields.Str(validate=TIME, metadata={'description': "Paris time"})
     notify_tomorrow_menu = fields.Bool()
-    notify_tomorrow_menu_time = fields.Str(metadata={'description': "Time HH:MM"})
+    notify_tomorrow_menu_time = fields.Str(validate=TIME, metadata={'description': "Paris time"})
     notify_events = fields.Bool()
 
 
 class PushKeysSchema(Schema):
     class Meta:
         unknown = EXCLUDE
+
     p256dh = fields.Str(required=True, validate=_shaped(_P256DH))
     auth = fields.Str(required=True, validate=_shaped(_AUTH))
 
 
-class SubscriptionEndpointSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-    endpoint = fields.Str(
-        required=True, validate=_push_service, metadata={'description': "Push subscription endpoint URL"}
-    )
-
-
-class BrowserSubscriptionSchema(SubscriptionEndpointSchema):
+class PushSubscriptionInputSchema(PushPreferencesSchema):
+    endpoint = fields.Str(required=True, validate=_push_service)
     keys = fields.Nested(PushKeysSchema, required=True)
+    platform = fields.Str(allow_none=True, validate=validate.OneOf(PLATFORMS))
 
 
-class SubscribeSchema(BrowserSubscriptionSchema):
-    preferences = fields.Nested(NotificationPreferencesSchema)
-    platform = fields.Str(allow_none=True, validate=validate.OneOf(('ios', 'android', 'desktop')))
-    restaurant_id = fields.Int(allow_none=True)
-
-
-class PreferencesUpdateSchema(SubscriptionEndpointSchema):
-    preferences = fields.Nested(NotificationPreferencesSchema, required=True)
+class PushSubscriptionSchema(Schema):
+    id = fields.Str(required=True, metadata={'description': "SHA-256 of the endpoint, in base64url"})
+    notify_today_menu = fields.Bool(required=True)
+    notify_today_menu_time = fields.Str(required=True)
+    notify_tomorrow_menu = fields.Bool(required=True)
+    notify_tomorrow_menu_time = fields.Str(required=True)
+    notify_events = fields.Bool(required=True)
+    platform = fields.Str(required=True, allow_none=True)
+    created_at = fields.DateTime(required=True)

@@ -6,7 +6,7 @@ type Schemas = components['schemas'];
 export type { SiteRef } from './client';
 
 export type PublicOrg = Schemas['PublicOrg'];
-export type PublicSiteSummary = Schemas['PublicSiteSummary'];
+export type PublicSiteSummary = Pick<Schemas['OrgSite'], 'slug' | 'name' | 'logo_url'>;
 export type Site = Schemas['Site'];
 export type SitePatch = Schemas['SitePatch'];
 export type ServiceHours = Site['service_hours'];

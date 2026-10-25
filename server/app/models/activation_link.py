@@ -104,19 +104,6 @@ class ActivationLink(db.Model):
     def revoke(self):
         self.revoked_at = utc_now_naive()
 
-    def to_dict(self):
-        """Carries the token, which is enough to use the link: for its inviter only."""
-        author = self.created_by
-        return {
-            'id': self.id,
-            'token': self.token,
-            'email': self.email,
-            'role': self.role,
-            'expires_at': self.expires_at.isoformat(),
-            'emailed': self.emailed,
-            'created_by_name': (author.username or author.email) if author else None,
-        }
-    
     def __repr__(self):
         status = 'used' if self.used_at else ('expired' if not self.is_valid() else 'active')
         return f'<ActivationLink {self.link_type} - {status}>'

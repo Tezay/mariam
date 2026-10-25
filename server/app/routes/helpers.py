@@ -1,7 +1,7 @@
 import re
 from functools import wraps
 
-from flask import jsonify, request
+from flask import request
 from flask_jwt_extended import get_jwt_identity, jwt_required, verify_jwt_in_request
 from flask_jwt_extended.exceptions import FreshTokenRequired
 
@@ -13,9 +13,14 @@ from ..security import get_client_ip
 from ..services.storage import storage
 
 
-def _refuse_supervisor_writes(user) -> None:
-    if user.is_org_admin() and request.method != 'GET':
+def refuse_supervisor(user) -> None:
+    if user.is_org_admin():
         raise Problem(403, 'supervisor_read_only', 'Un superviseur ne peut pas modifier un site.')
+
+
+def _refuse_supervisor_writes(user) -> None:
+    if request.method != 'GET':
+        refuse_supervisor(user)
 
 
 def editor_required(f):
@@ -120,16 +125,6 @@ def step_up_once_enrolled(f):
     return decorated_function
 
 
-def get_default_restaurant():
-    """Return the first active restaurant.
-
-    Only for resolving which restaurant to display to an anonymous public
-    visitor (single-tenant). NEVER use it as a fallback on an authenticated
-    path: the tenant must always come from the current user.
-    """
-    return Restaurant.query.filter_by(is_active=True).first()
-
-
 def get_current_user():
     """The account of the session, on a route that asks for one.
 
@@ -138,12 +133,12 @@ def get_current_user():
     return db.session.get(User, int(get_jwt_identity()))
 
 
-def audit(action: str, restaurant: Restaurant, **fields) -> None:
-    """An audit entry of the session's account, on one site."""
+def audit(action: str, restaurant: Restaurant | None, **fields) -> None:
+    """An audit entry of the session's account, on one site or on none."""
     AuditLog.log(
         action=action,
         user_id=get_current_user().id,
-        restaurant_id=restaurant.id,
+        restaurant_id=restaurant.id if restaurant else None,
         ip_address=get_client_ip(),
         **fields,
     )
@@ -216,25 +211,3 @@ def get_or_create_dish(restaurant_id: int, item_data: dict) -> 'DishCatalog | No
     db.session.add(dish)
     db.session.flush()
     return dish
-
-
-def paginated_response(query, items_key, serialize, default_per_page=50):
-    """JSON envelope for a list endpoint: full list by default, DB-side paginated
-    when ``?page=`` is present.
-
-    Backward-compatible: without ``page`` the shape stays ``{items_key: [...]}``;
-    with it, ``total``/``page``/``per_page``/``has_more`` are added. ``per_page``
-    is capped at 200.
-    """
-    page = request.args.get('page', type=int)
-    if page is None:
-        return jsonify({items_key: [serialize(o) for o in query.all()]}), 200
-    per_page = min(request.args.get('per_page', default_per_page, type=int), 200)
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-    return jsonify({
-        items_key: [serialize(o) for o in pagination.items],
-        'total': pagination.total,
-        'page': page,
-        'per_page': per_page,
-        'has_more': pagination.has_next,
-    }), 200

@@ -1,28 +1,9 @@
-import { parisToday } from '../date-utils';
 import { api } from './client';
-import type { User } from './auth';
 
 export interface UiPreferences {
   tour_done: boolean;
   tour_catalog_done: boolean;
   tour_stats_done: boolean;
-}
-
-export interface Invitation {
-  id: number;
-  token: string;
-  /** Suggested by the inviter; the invitee may enter another. */
-  email: string | null;
-  role: User['role'];
-  expires_at: string;
-  created_by_name: string | null;
-  emailed: boolean;
-}
-
-export interface PasswordResetLink {
-  emailed: boolean;
-  /** Only when the link could not be emailed. */
-  reset_url: string | null;
 }
 
 export const adminApi = {
@@ -34,81 +15,5 @@ export const adminApi = {
   updateUiPreferences: async (prefs: Partial<UiPreferences>): Promise<UiPreferences> => {
     const response = await api.put('/users/me/ui-preferences', prefs);
     return response.data as UiPreferences;
-  },
-
-  listUsers: async () => {
-    const response = await api.get('/users');
-    return response.data.users;
-  },
-
-  updateUser: async (id: number, data: Partial<User>) => {
-    const response = await api.put(`/users/${id}`, data);
-    return response.data.user;
-  },
-
-  deleteUser: async (id: number) => {
-    await api.delete(`/users/${id}`);
-  },
-
-  resetUserMfa: async (id: number) => {
-    await api.post(`/users/${id}/reset-mfa`);
-  },
-
-  sendPasswordReset: async (id: number): Promise<PasswordResetLink> => {
-    const response = await api.post(`/users/${id}/reset-password`);
-    return response.data;
-  },
-
-  createInvitation: async (role: User['role'], email?: string): Promise<Invitation> => {
-    const response = await api.post('/users/invite', {
-      role,
-      email,
-      send_email: Boolean(email),
-    });
-    return response.data.invitation;
-  },
-
-  listInvitations: async (): Promise<Invitation[]> => {
-    const response = await api.get('/users/invitations');
-    return response.data.invitations;
-  },
-
-  revokeInvitation: async (id: number) => {
-    await api.delete(`/users/invitations/${id}`);
-  },
-
-  getAuditLogs: async (params?: {
-    page?: number;
-    per_page?: number;
-    action?: string;
-    user_id?: number;
-    restaurant_id?: number;
-    start_date?: string;
-    end_date?: string;
-  }) => {
-    const response = await api.get('/audit-logs', { params });
-    return response.data;
-  },
-
-  exportAuditLogs: async (params?: {
-    action?: string;
-    user_id?: number;
-    start_date?: string;
-    end_date?: string;
-  }) => {
-    const response = await api.get('/audit-logs/export', {
-      params,
-      responseType: 'blob',
-    });
-
-    const blob = new Blob([response.data], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `audit_logs_${parisToday()}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
   },
 };

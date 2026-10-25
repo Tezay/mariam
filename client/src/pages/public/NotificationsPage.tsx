@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
+import type { SiteRef } from '@/lib/api/client';
 import { usePwaInstall } from '@/contexts/PwaInstallContext';
 import { Logo } from '@/components/Logo';
 import {
@@ -209,6 +210,12 @@ function PwaInstallSuggestion({ onInstall }: { onInstall: () => void }) {
 
 export function NotificationsPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [org, siteSlug] = [searchParams.get('org'), searchParams.get('site')];
+  const site = useMemo<SiteRef | null>(
+    () => (org && siteSlug ? { org, site: siteSlug } : null),
+    [org, siteSlug]
+  );
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -223,10 +230,15 @@ export function NotificationsPage() {
 
   useEffect(() => {
     async function init() {
+      if (!site) {
+        setIsLoading(false);
+        return;
+      }
       try {
         const subscription = await getExistingSubscription();
         if (subscription) {
-          const serverPrefs = await getServerPreferences();
+          // A subscription that follows another site is kept: subscribing here moves it.
+          const serverPrefs = await getServerPreferences(site);
           if (serverPrefs) {
             setIsSubscribed(true);
             setPrefs({
@@ -236,9 +248,6 @@ export function NotificationsPage() {
               notify_tomorrow_menu_time: serverPrefs.notify_tomorrow_menu_time,
               notify_events: serverPrefs.notify_events,
             });
-          } else {
-            // The server no longer knows it: drop it from the browser too.
-            await subscription.unsubscribe();
           }
         }
       } catch {
@@ -248,7 +257,7 @@ export function NotificationsPage() {
       }
     }
     init();
-  }, []);
+  }, [site]);
 
   useEffect(() => {
     if (successMessage) {
@@ -258,9 +267,10 @@ export function NotificationsPage() {
   }, [successMessage]);
 
   const handleSubscribe = useCallback(async () => {
+    if (!site) return;
     setError(null);
     setIsSaving(true);
-    const result = await subscribeToPush(prefs);
+    const result = await subscribeToPush(prefs, site);
     setIsSaving(false);
     if (result.success) {
       setIsSubscribed(true);
@@ -269,12 +279,13 @@ export function NotificationsPage() {
     } else {
       setError(result.error || 'Erreur inconnue');
     }
-  }, [prefs]);
+  }, [prefs, site]);
 
   const handleUnsubscribe = useCallback(async () => {
+    if (!site) return;
     setError(null);
     setIsSaving(true);
-    const result = await unsubscribeFromPush();
+    const result = await unsubscribeFromPush(site);
     setIsSaving(false);
     if (result.success) {
       setIsSubscribed(false);
@@ -284,15 +295,15 @@ export function NotificationsPage() {
     } else {
       setError(result.error || 'Erreur inconnue');
     }
-  }, []);
+  }, [site]);
 
   const handleSavePrefs = useCallback(
     async (newPrefs: NotificationPreferences) => {
       setPrefs(newPrefs);
-      if (!isSubscribed) return;
+      if (!isSubscribed || !site) return;
 
       setIsSaving(true);
-      const result = await updatePreferences(newPrefs);
+      const result = await updatePreferences(newPrefs, site);
       setIsSaving(false);
       if (result.success) {
         setSuccessMessage('Préférences enregistrées.');
@@ -300,13 +311,14 @@ export function NotificationsPage() {
         setError(result.error || 'Erreur de sauvegarde');
       }
     },
-    [isSubscribed]
+    [isSubscribed, site]
   );
 
   const handleTest = useCallback(async () => {
+    if (!site) return;
     setIsTesting(true);
     setTestSent(false);
-    const result = await sendTestNotification();
+    const result = await sendTestNotification(site);
     setIsTesting(false);
     if (result.success) {
       setTestSent(true);
@@ -314,7 +326,7 @@ export function NotificationsPage() {
     } else {
       setError(result.error || 'Erreur lors du test');
     }
-  }, []);
+  }, [site]);
 
   const handleInstallPwa = useCallback(async () => {
     const outcome = await triggerPwaInstall();
@@ -332,7 +344,7 @@ export function NotificationsPage() {
     <div className="min-h-screen bg-gray-50 [color-scheme:light]">
       <header className="flex items-center gap-3 bg-mariam-blue p-4 text-white">
         <button
-          onClick={() => navigate('/menu')}
+          onClick={() => navigate(site ? `/${site.site}/menu` : '/')}
           className="rounded-lg p-1 transition-colors hover:bg-white/10"
           aria-label="Retour au menu"
         >
@@ -360,6 +372,19 @@ export function NotificationsPage() {
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-mariam-blue" />
           </div>
+        ) : !site ? (
+          <InfoCard icon={<Bell className="h-5 w-5" />} title="Choisissez votre restaurant">
+            <p>
+              Les notifications sont propres à chaque restaurant. Ouvrez le menu du vôtre, puis
+              touchez « Notifications ».
+            </p>
+            <button
+              onClick={() => navigate('/')}
+              className="mt-2 flex items-center gap-1 text-sm font-medium text-mariam-blue hover:underline"
+            >
+              Voir les restaurants <ChevronRight className="h-3 w-3" />
+            </button>
+          </InfoCard>
         ) : needsPwa ? (
           <PwaInstallGuide />
         ) : !isSecure ? (

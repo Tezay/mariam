@@ -2199,43 +2199,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/restaurants": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List restaurants of the caller's organization (admin only). */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Restaurant"][];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/taxonomy": {
         parameters: {
             query?: never;
@@ -2370,519 +2333,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/users/invite": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create an invitation link for a new user.
-         * @description Requires a confirmed session. Returns a token to send to the invitee so they
-         *     can set up their account and MFA via `/activate/<token>`. The email is optional
-         *     and pre-fills the activation form, where the invitee may enter another. With
-         *     `send_email` the invitation is also emailed to it, twenty times a day at most
-         *     for one administrator; the invitation's `emailed` tells whether it left.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["Invite"];
-                };
-            };
-            responses: {
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["InvitationCreated"];
-                    };
-                };
-                /** @description Invalid role */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Identity confirmation required, or role out of scope */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Suggested email already in use */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/users/invitations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List the pending invitations the caller manages (50 most recent). */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Invitation"][];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/users/invitations/{invitation_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                invitation_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Revoke a pending invitation: its link stops working at once. */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    invitation_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description No such pending invitation */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/users": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List users of the caller's tenant (admin only).
-         * @description A site admin never sees supervisors; an org_admin sees everyone
-         *     in its organization.
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["UserAdmin"][];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/users/{user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        /** Get user details. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    user_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["UserAdmin"];
-                    };
-                };
-                /** @description User not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        /** Update a user (role, active status, restaurant). */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    user_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["UserUpdate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["UserAdmin"];
-                    };
-                };
-                /** @description Invalid update */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Rescue account cannot be modified */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description User not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        post?: never;
-        /** Delete a user. */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    user_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description Cannot delete your own account */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Identity confirmation required, or rescue account */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description User not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/users/{user_id}/reset-mfa": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Remove a user's second factor.
-         * @description Drops TOTP and passkeys and ends the user's sessions. The account stays
-         *     active: it signs in with its password and enrols a new method.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    user_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description Cannot reset your own account */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Identity confirmation required, or rescue account */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description User not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/users/{user_id}/reset-password": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Send a user a link to choose a new password.
-         * @description The link goes to the account's address and is returned only when it could
-         *     not be emailed. It serves once, for 72 hours, and replaces the pending ones;
-         *     the reset page still asks for the account's second factor.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    user_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PasswordResetLink"];
-                    };
-                };
-                /** @description Cannot reset your own account */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Identity confirmation required, or rescue account */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description User not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Account disabled, or without a second factor */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/users/me/ui-preferences": {
         parameters: {
             query?: never;
@@ -2953,411 +2403,6 @@ export interface paths {
             };
         };
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/audit-logs/export": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * CSV export of audit logs (max 10,000 rows).
-         * @description Requires a confirmed session.
-         *
-         *     Accepts the same query params as `GET /v1/audit-logs`:
-         *     `action`, `user_id`, `start_date`, `end_date`.
-         *
-         *     Returns a CSV file with columns:
-         *     ID, Date, User, Action, Target, IP, Details.
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Identity confirmation required, or access denied */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/audit-logs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Paginated audit log list.
-         * @description Requires the administrator to have MFA enabled.
-         *
-         *     Query params:
-         *     - `page` — Page number (default 1)
-         *     - `per_page` — Entries per page (default 50, max 100)
-         *     - `action` — Filter by action type
-         *     - `user_id` — Filter by user
-         *     - `start_date` — Start date (ISO format)
-         *     - `end_date` — End date (ISO format)
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description MFA not enabled or access denied */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/notifications/vapid-public-key": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Return the VAPID public key for initializing Web Push in the browser. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description VAPID not configured */
-                503: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/notifications/subscribe": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Register or update a push subscription.
-         * @description Expected body:
-         *     ```json
-         *     {
-         *       "endpoint": "https://fcm.googleapis.com/...",
-         *       "keys": { "p256dh": "...", "auth": "..." },
-         *       "preferences": {
-         *         "notify_today_menu": true,
-         *         "notify_today_menu_time": "11:00",
-         *         "notify_tomorrow_menu": false,
-         *         "notify_tomorrow_menu_time": "19:00",
-         *         "notify_events": true
-         *       },
-         *       "platform": "android",
-         *       "restaurant_id": 1
-         *     }
-         *     ```
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["Subscribe"];
-                };
-            };
-            responses: {
-                /** @description Subscription updated */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description Unknown or inactive restaurant */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/notifications/preferences": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get the notification preferences for a subscription by endpoint. */
-        get: {
-            parameters: {
-                query: {
-                    /** @description Push subscription endpoint URL */
-                    endpoint: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description Subscription not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        /** Update the notification preferences for an existing subscription. */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["PreferencesUpdate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description Subscription not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/notifications/unsubscribe": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Remove a push subscription. */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["SubscriptionEndpoint"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description Subscription not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/notifications/test": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Send a test push notification to the subscriber. */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["BrowserSubscription"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                /** @description VAPID send failure */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
         delete?: never;
         options?: never;
         head?: never;
@@ -3498,7 +2543,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/public/unsubscribe/{token}": {
+    "/v1/weekly-emails/{token}/unsubscribe": {
         parameters: {
             query?: never;
             header?: never;
@@ -3507,30 +2552,12 @@ export interface paths {
             };
             cookie?: never;
         };
-        /**
-         * Turn the weekly digest off from the email itself.
-         * @description POST answers the one-click of mail clients (RFC 8058); GET renders a page
-         *     for the footer link, so neither needs a session.
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    token: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
+        get?: never;
         put?: never;
         /**
-         * Turn the weekly digest off from the email itself.
-         * @description POST answers the one-click of mail clients (RFC 8058); GET renders a page
-         *     for the footer link, so neither needs a session.
+         * Stop the weekly email of the account the email's token names.
+         * @description The one-click target of mail clients (RFC 8058), whose body is ignored, and
+         *     of the page the email's own link opens.
          */
         post: {
             parameters: {
@@ -3543,6 +2570,13 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
                 default: components["responses"]["DEFAULT_ERROR"];
             };
         };
@@ -3552,14 +2586,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/org/sites": {
+    "/v1/push-key": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Overview of every site of the caller's organization, with key metrics. */
+        /** The server's public key, which the browser subscribes with. */
         get: {
             parameters: {
                 query?: never;
@@ -3569,6 +2603,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PushKey"];
+                    };
+                };
                 default: components["responses"]["DEFAULT_ERROR"];
             };
         };
@@ -3580,171 +2623,185 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/org/catalog": {
+    "/v1/orgs/{org}/sites/{site}/push-subscriptions/{subscription_id}": {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                org: string;
+                site: string;
+                subscription_id: string;
+            };
             cookie?: never;
+        };
+        /** A subscription's preferences; one that follows another site is not found here. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    subscription_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PushSubscription"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
         };
         /**
-         * Dishes served across the organization, pooled by normalised name.
-         * @description Query params: `q`, `sort` (usage | sites | name | photos), `page`, `per_page`.
+         * Subscribe a browser to the site's notifications.
+         * @description `subscription_id` is the fingerprint of `endpoint`. A subscription follows
+         *     one site: subscribing on another site moves it there. Preferences left out
+         *     take their default.
          */
-        get: {
+        put: {
             parameters: {
                 query?: never;
                 header?: never;
-                path?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    subscription_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PushSubscriptionInput"];
+                };
+            };
+            responses: {
+                /** @description The subscription replaced, or moved here */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PushSubscription"];
+                    };
+                };
+                /** @description The browser's first subscription */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PushSubscription"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        post?: never;
+        /** Unsubscribe a browser. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    subscription_id: string;
+                };
                 cookie?: never;
             };
             requestBody?: never;
             responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
                 default: components["responses"]["DEFAULT_ERROR"];
             };
         };
-        put?: never;
-        post?: never;
-        delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Change a subscription's preferences. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    subscription_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PushPreferences"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PushSubscription"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
         trace?: never;
     };
-    "/v1/org/catalog/group": {
+    "/v1/orgs/{org}/sites/{site}/push-subscriptions/{subscription_id}/test": {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                org: string;
+                site: string;
+                subscription_id: string;
+            };
             cookie?: never;
         };
-        /** One pooled dish: the organization-wide aggregate and each site's figures. */
-        get: {
+        get?: never;
+        put?: never;
+        /** Send a test notification to the subscribed browser. */
+        post: {
             parameters: {
                 query?: never;
                 header?: never;
-                path?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    subscription_id: string;
+                };
                 cookie?: never;
             };
             requestBody?: never;
             responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
                 default: components["responses"]["DEFAULT_ERROR"];
             };
         };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/analytics/overview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Headline KPIs, trend and per-site table for the period. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/analytics/publications": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Publication compliance, punctuality and content completeness per site. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/analytics/traffic": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Public-page consultation over the period, per day, site, hour and page kind. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/analytics/satisfaction": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Menu ratings over the period, per day, site and dish. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3847,7 +2904,11 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** The organization's active sites, by name. */
+        /**
+         * The organization's sites, by name.
+         * @description Anyone reads the active ones. Its supervisors read them all, closed ones
+         *     included, with their figures.
+         */
         get: {
             parameters: {
                 query?: never;
@@ -3865,7 +2926,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["PublicSiteList"];
+                        "application/json": components["schemas"]["OrgSiteList"];
                     };
                 };
                 default: components["responses"]["DEFAULT_ERROR"];
@@ -3920,6 +2981,1369 @@ export interface paths {
                 default: components["responses"]["DEFAULT_ERROR"];
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /** The site's accounts, newest first. */
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    per_page?: number;
+                };
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MemberList"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete an account, from a confirmed session. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    user_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Change an account's role, or turn it off: its sessions end at once. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    user_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MemberPatch"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Member"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/members/{user_id}/second-factors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove an account's second factors and end its sessions, from a confirmed session.
+         * @description The account stays active: it signs in with its password and sets up a new one.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    user_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/members/{user_id}/password-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send an account a link to choose a new password, from a confirmed session.
+         * @description The link goes to the account's address, and comes back only when it could
+         *     not be emailed. It serves once, for 72 hours, and replaces the pending ones;
+         *     the reset page still asks for the account's second factor.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    user_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PasswordReset"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /** The site's pending invitations, the 50 latest, for its own admins. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvitationList"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        /**
+         * Invite someone to the site, from a confirmed session.
+         * @description The link's token creates the account at `/activate/<token>`. With
+         *     `send_email` it is also emailed to `email`, twenty times a day at most for
+         *     one administrator; `emailed` tells whether it left.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SiteInvitationInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Invitation"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/invitations/{invitation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                invitation_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke a pending invitation: its link stops working at once. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    invitation_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        /** Every account of the organization, its supervisors and its sites', newest first. */
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    per_page?: number;
+                };
+                header?: never;
+                path: {
+                    org: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MemberList"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a supervisor's account, from a confirmed session. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    user_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Turn a supervisor's account off or on; its sessions end at once. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    user_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SupervisorPatch"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Member"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        trace?: never;
+    };
+    "/v1/orgs/{org}/members/{user_id}/second-factors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a supervisor's second factors and end its sessions, from a confirmed session. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    user_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/members/{user_id}/password-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a supervisor a link to choose a new password, from a confirmed session. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    user_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PasswordReset"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        /** The pending invitations of supervisors, the 50 latest. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvitationList"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        /** Invite a supervisor, from a confirmed session; as for a site, `send_email` emails it. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SupervisorInvitationInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Invitation"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/invitations/{invitation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                invitation_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke a supervisor's pending invitation. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    invitation_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /** The site's audit log, newest first, for an account with a second factor. */
+        get: {
+            parameters: {
+                query?: {
+                    action?: string;
+                    /** @description The account that acted */
+                    user_id?: number;
+                    /** @description In Paris time */
+                    from?: string;
+                    /** @description Included */
+                    to?: string;
+                    page?: number;
+                    per_page?: number;
+                };
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuditLogList"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/audit-logs/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /** The site's audit log as a CSV file, from a confirmed session. */
+        get: {
+            parameters: {
+                query?: {
+                    action?: string;
+                    /** @description The account that acted */
+                    user_id?: number;
+                    /** @description In Paris time */
+                    from?: string;
+                    /** @description Included */
+                    to?: string;
+                };
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Comma-separated, at most 10,000 rows: ID, Date, User, Action, Target, IP, Details */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/csv": string;
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        /** The organization's audit log, its sites' and its supervisors', newest first. */
+        get: {
+            parameters: {
+                query?: {
+                    action?: string;
+                    /** @description The account that acted */
+                    user_id?: number;
+                    /** @description In Paris time */
+                    from?: string;
+                    /** @description Included */
+                    to?: string;
+                    page?: number;
+                    per_page?: number;
+                    /** @description Only the entries of this site */
+                    site?: string;
+                };
+                header?: never;
+                path: {
+                    org: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuditLogList"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/audit-logs/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        /** The organization's audit log as a CSV file, from a confirmed session. */
+        get: {
+            parameters: {
+                query?: {
+                    action?: string;
+                    /** @description The account that acted */
+                    user_id?: number;
+                    /** @description In Paris time */
+                    from?: string;
+                    /** @description Included */
+                    to?: string;
+                    /** @description Only the entries of this site */
+                    site?: string;
+                };
+                header?: never;
+                path: {
+                    org: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Comma-separated, at most 10,000 rows: ID, Date, User, Action, Target, IP, Details */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/csv": string;
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/analytics/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /** Headline figures and trend of the site over the period. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description In place of `period` */
+                    from?: string;
+                    /** @description Included; today at the latest */
+                    to?: string;
+                    /** @description The days up to `to`, without `from` */
+                    period?: "1d" | "7d" | "30d" | "90d";
+                };
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OverviewReport"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/analytics/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /** How on time and how complete the site's menus were. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description In place of `period` */
+                    from?: string;
+                    /** @description Included; today at the latest */
+                    to?: string;
+                    /** @description The days up to `to`, without `from` */
+                    period?: "1d" | "7d" | "30d" | "90d";
+                };
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublicationsReport"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/analytics/traffic": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /** Views of the site's public pages, per day, hour and page. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description In place of `period` */
+                    from?: string;
+                    /** @description Included; today at the latest */
+                    to?: string;
+                    /** @description The days up to `to`, without `from` */
+                    period?: "1d" | "7d" | "30d" | "90d";
+                };
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TrafficReport"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/analytics/satisfaction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /** The site's menu ratings, per day and per dish. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description In place of `period` */
+                    from?: string;
+                    /** @description Included; today at the latest */
+                    to?: string;
+                    /** @description The days up to `to`, without `from` */
+                    period?: "1d" | "7d" | "30d" | "90d";
+                    /** @description Votes a dish needs to be ranked */
+                    min_votes?: number;
+                };
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SatisfactionReport"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/analytics/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        /** Headline figures, trend and per-site table of the organization. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description In place of `period` */
+                    from?: string;
+                    /** @description Included; today at the latest */
+                    to?: string;
+                    /** @description The days up to `to`, without `from` */
+                    period?: "1d" | "7d" | "30d" | "90d";
+                    /** @description Comma-separated slugs; those outside the organization are left out */
+                    sites?: string;
+                };
+                header?: never;
+                path: {
+                    org: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OverviewReport"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/analytics/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        /** How on time and how complete the menus of each site were. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description In place of `period` */
+                    from?: string;
+                    /** @description Included; today at the latest */
+                    to?: string;
+                    /** @description The days up to `to`, without `from` */
+                    period?: "1d" | "7d" | "30d" | "90d";
+                    /** @description Comma-separated slugs; those outside the organization are left out */
+                    sites?: string;
+                };
+                header?: never;
+                path: {
+                    org: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublicationsReport"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/analytics/traffic": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        /** Views of the public pages, per day, site, hour and page. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description In place of `period` */
+                    from?: string;
+                    /** @description Included; today at the latest */
+                    to?: string;
+                    /** @description The days up to `to`, without `from` */
+                    period?: "1d" | "7d" | "30d" | "90d";
+                    /** @description Comma-separated slugs; those outside the organization are left out */
+                    sites?: string;
+                };
+                header?: never;
+                path: {
+                    org: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TrafficReport"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/analytics/satisfaction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        /** Menu ratings, per day, site and dish. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description In place of `period` */
+                    from?: string;
+                    /** @description Included; today at the latest */
+                    to?: string;
+                    /** @description The days up to `to`, without `from` */
+                    period?: "1d" | "7d" | "30d" | "90d";
+                    /** @description Votes a dish needs to be ranked */
+                    min_votes?: number;
+                    /** @description Comma-separated slugs; those outside the organization are left out */
+                    sites?: string;
+                };
+                header?: never;
+                path: {
+                    org: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SatisfactionReport"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/dish-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        /** The groups, one page at a time; the `Link` header gives the others. */
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    per_page?: number;
+                    /** @description Part of the name */
+                    q?: string;
+                    sort?: "usage" | "sites" | "name" | "photos" | "score";
+                    /** @description A to Z for a name, best first for a measure, by default */
+                    order?: "asc" | "desc";
+                    period?: "all" | "7d" | "30d" | "90d" | "12m";
+                };
+                header?: never;
+                path: {
+                    org: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OrgDishGroupList"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/dish-groups/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        /** One group, with each site's own figures; `name` is its `normalized_name`, encoded. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    name: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OrgDishGroup"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6718,50 +7142,6 @@ export interface components {
             message: string;
             user: components["schemas"]["Account"];
         };
-        ServiceHoursDay: {
-            open: string;
-            close: string;
-        };
-        RestaurantConfig: {
-            /** @description Active service days (0=Monday, 6=Sunday) */
-            service_days?: number[];
-            /** @description Opening hours per day index {'0': {open, close}, ...} */
-            service_hours?: {
-                [key: string]: components["schemas"]["ServiceHoursDay"];
-            };
-            /** @description Menu category definitions */
-            menu_categories?: {
-                [key: string]: unknown;
-            }[];
-            /** @description Available dietary tags */
-            dietary_tags?: {
-                [key: string]: unknown;
-            }[];
-            /** @description Available certifications */
-            certifications?: {
-                [key: string]: unknown;
-            }[];
-        };
-        Restaurant: {
-            readonly id?: number;
-            name?: string;
-            /** @description Unique restaurant code */
-            code?: string;
-            logo_url?: string | null;
-            is_active?: boolean;
-            address_label?: string | null;
-            address_lat?: number | null;
-            address_lon?: number | null;
-            email?: string | null;
-            phone?: string | null;
-            capacity?: number | null;
-            payment_methods?: string[] | null;
-            pmr_access?: boolean | null;
-            readonly service_hours?: {
-                [key: string]: components["schemas"]["ServiceHoursDay"];
-            };
-            readonly config?: components["schemas"]["RestaurantConfig"];
-        };
         DietaryTag: {
             id: string;
             label: string;
@@ -6819,102 +7199,10 @@ export interface components {
         SchoolHolidayList: {
             items: components["schemas"]["SchoolHoliday"][];
         };
-        Invite: {
-            /**
-             * Format: email
-             * @description Suggested address; the invitee may enter another at activation
-             * @default null
-             */
-            email?: string | null;
-            /** @description Role: 'admin', 'editor', or 'reader' */
-            role?: string;
-            /**
-             * @description Email the invitation to `email` as well
-             * @default false
-             */
-            send_email?: boolean;
-        };
-        Invitation: {
-            id?: number;
-            token?: string;
-            /** Format: email */
-            email?: string | null;
-            role?: string;
-            expires_at?: string;
-            /** @description Whether the invitation was emailed to `email` */
-            emailed?: boolean;
-            created_by_name?: string | null;
-        };
-        InvitationCreated: {
-            message?: string;
-            invitation?: components["schemas"]["Invitation"];
-        };
-        UserAdmin: {
-            readonly id?: number;
-            /** Format: email */
-            email?: string;
-            username?: string | null;
-            /** @description 'admin', 'editor', or 'reader' */
-            role?: string;
-            mfa_enabled?: boolean;
-            is_active?: boolean;
-            restaurant_id?: number | null;
-            readonly created_at?: string;
-            readonly last_login?: string | null;
-        };
-        UserUpdate: {
-            /** @description 'admin', 'editor', or 'reader' */
-            role?: string;
-            is_active?: boolean;
-            restaurant_id?: number | null;
-        };
-        PasswordResetLink: {
-            message?: string;
-            /** @description Whether the link reached the account's address */
-            emailed?: boolean;
-            /** @description The link, only when it could not be emailed */
-            reset_url?: string | null;
-        };
         UiPreferences: {
             tour_done?: boolean;
             tour_catalog_done?: boolean;
             tour_stats_done?: boolean;
-        };
-        PushKeys: {
-            p256dh: string;
-            auth: string;
-        };
-        NotificationPreferences: {
-            notify_today_menu?: boolean;
-            /** @description Time HH:MM */
-            notify_today_menu_time?: string;
-            notify_tomorrow_menu?: boolean;
-            /** @description Time HH:MM */
-            notify_tomorrow_menu_time?: string;
-            notify_events?: boolean;
-        };
-        Subscribe: {
-            /** @description Push subscription endpoint URL */
-            endpoint: string;
-            keys: components["schemas"]["PushKeys"];
-            preferences?: components["schemas"]["NotificationPreferences"];
-            /** @enum {string|null} */
-            platform?: "ios" | "android" | "desktop" | null;
-            restaurant_id?: number | null;
-        };
-        PreferencesUpdate: {
-            /** @description Push subscription endpoint URL */
-            endpoint: string;
-            preferences: components["schemas"]["NotificationPreferences"];
-        };
-        SubscriptionEndpoint: {
-            /** @description Push subscription endpoint URL */
-            endpoint: string;
-        };
-        BrowserSubscription: {
-            /** @description Push subscription endpoint URL */
-            endpoint: string;
-            keys: components["schemas"]["PushKeys"];
         };
         LiveAlert: {
             key?: string;
@@ -6942,6 +7230,48 @@ export interface components {
             digest_day?: number;
             digest_hour?: number;
         };
+        PushKey: {
+            /** @description VAPID, for PushManager.subscribe */
+            public_key: string;
+        };
+        PushKeys: {
+            p256dh: string;
+            auth: string;
+        };
+        PushSubscriptionInput: {
+            notify_today_menu?: boolean;
+            /** @description Paris time */
+            notify_today_menu_time?: string;
+            notify_tomorrow_menu?: boolean;
+            /** @description Paris time */
+            notify_tomorrow_menu_time?: string;
+            notify_events?: boolean;
+            endpoint: string;
+            keys: components["schemas"]["PushKeys"];
+            /** @enum {string|null} */
+            platform?: "ios" | "android" | "desktop" | null;
+        };
+        PushSubscription: {
+            /** @description SHA-256 of the endpoint, in base64url */
+            id: string;
+            notify_today_menu: boolean;
+            notify_today_menu_time: string;
+            notify_tomorrow_menu: boolean;
+            notify_tomorrow_menu_time: string;
+            notify_events: boolean;
+            platform: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        PushPreferences: {
+            notify_today_menu?: boolean;
+            /** @description Paris time */
+            notify_today_menu_time?: string;
+            notify_tomorrow_menu?: boolean;
+            /** @description Paris time */
+            notify_tomorrow_menu_time?: string;
+            notify_events?: boolean;
+        };
         PublicOrg: {
             slug: string;
             name: string;
@@ -6950,13 +7280,401 @@ export interface components {
             host: string;
             organization: components["schemas"]["PublicOrg"];
         };
-        PublicSiteSummary: {
+        OrgSite: {
             slug: string;
             name: string;
             logo_url?: string | null;
+            /** @description For the organization's supervisors */
+            is_active?: boolean;
+            /** @description For the organization's supervisors */
+            member_count?: number;
+            /**
+             * @description For the organization's supervisors
+             * @enum {string}
+             */
+            today_menu_status?: "published" | "draft" | "missing" | "closed";
+            /** @description For the organization's supervisors */
+            upcoming_events?: number;
+            /**
+             * Format: date-time
+             * @description For the organization's supervisors
+             */
+            last_published_at?: string | null;
         };
-        PublicSiteList: {
-            items: components["schemas"]["PublicSiteSummary"][];
+        OrgSiteList: {
+            items: components["schemas"]["OrgSite"][];
+        };
+        MemberSite: {
+            slug: string;
+            name: string;
+        };
+        Member: {
+            id: number;
+            /** Format: email */
+            email: string;
+            /** @description Display name */
+            username: string | null;
+            /** @enum {string} */
+            role: "org_admin" | "admin" | "editor" | "reader";
+            is_active: boolean;
+            /** @description An authenticator app is set up */
+            mfa_enabled: boolean;
+            passkeys_count: number;
+            is_rescue_account: boolean;
+            /** @description None for a supervisor */
+            site: components["schemas"]["MemberSite"] | (Record<string, never> | null);
+            /** Format: date-time */
+            created_at: string | null;
+            /** Format: date-time */
+            last_login: string | null;
+        };
+        MemberList: {
+            items: components["schemas"]["Member"][];
+            total_count: number;
+        };
+        MemberPatch: {
+            /** @enum {string} */
+            role?: "admin" | "editor" | "reader";
+            /** @description False ends the account's sessions */
+            is_active?: boolean;
+        };
+        PasswordReset: {
+            /** @description Whether the link reached the account's address */
+            emailed: boolean;
+            /** @description The link, only when it could not be emailed */
+            reset_url: string | null;
+        };
+        Invitation: {
+            id: number;
+            /** @description Enough to create the account */
+            token: string;
+            /**
+             * Format: email
+             * @description Suggested by the inviter; the invitee may enter another
+             */
+            email: string | null;
+            /** @enum {string} */
+            role: "org_admin" | "admin" | "editor" | "reader";
+            /** Format: date-time */
+            expires_at: string;
+            /** @description Whether it was emailed to `email` */
+            emailed: boolean;
+            created_by_name: string | null;
+        };
+        InvitationList: {
+            items: components["schemas"]["Invitation"][];
+        };
+        SiteInvitationInput: {
+            /**
+             * Format: email
+             * @description Suggested address; the invitee may enter another at activation
+             * @default null
+             */
+            email?: string | null;
+            /**
+             * @description Email the invitation to `email` as well
+             * @default false
+             */
+            send_email?: boolean;
+            /**
+             * @default editor
+             * @enum {string}
+             */
+            role?: "admin" | "editor" | "reader";
+        };
+        SupervisorPatch: {
+            /** @description False ends the account's sessions */
+            is_active?: boolean;
+        };
+        SupervisorInvitationInput: {
+            /**
+             * Format: email
+             * @description Suggested address; the invitee may enter another at activation
+             * @default null
+             */
+            email?: string | null;
+            /**
+             * @description Email the invitation to `email` as well
+             * @default false
+             */
+            send_email?: boolean;
+        };
+        AuditLog: {
+            id: number;
+            user_id: number | null;
+            user_email: string | null;
+            /** @description The site's slug */
+            site: string | null;
+            action: string;
+            target_type: string | null;
+            target_id: number | null;
+            details: {
+                [key: string]: unknown;
+            } | null;
+            ip_address: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        AuditLogList: {
+            items: components["schemas"]["AuditLog"][];
+            total_count: number;
+        };
+        Period: {
+            /** Format: date */
+            start: string;
+            /** Format: date */
+            end: string;
+            days: number;
+        };
+        OverviewScope: {
+            site_count: number;
+        };
+        SiteCount: {
+            total: number;
+            active: number;
+        };
+        Metric: {
+            value: number | null;
+            previous: number | null;
+            delta: number | null;
+            delta_pct: number | null;
+        };
+        Completeness: {
+            categories_filled_rate: number | null;
+            photo_rate: number | null;
+            chef_note_rate: number | null;
+        };
+        Kpis: {
+            sites: components["schemas"]["SiteCount"];
+            publication_rate: components["schemas"]["Metric"];
+            punctuality_rate: components["schemas"]["Metric"];
+            avg_lead_time_hours: components["schemas"]["Metric"];
+            completeness: components["schemas"]["Completeness"];
+            views: components["schemas"]["Metric"];
+            unique_visitors: components["schemas"]["Metric"];
+            satisfaction: components["schemas"]["Metric"];
+            participation_rate: components["schemas"]["Metric"];
+        };
+        TrendPoint: {
+            /** Format: date */
+            date: string;
+            published_sites: number;
+            views: number | null;
+            unique_visitors: number | null;
+            score: number | null;
+        };
+        OverviewSite: {
+            site: string;
+            name: string;
+            is_active: boolean;
+            publication_rate: number | null;
+            punctuality_rate: number | null;
+            /** Format: date-time */
+            last_published_at: string | null;
+            views: number | null;
+            views_sparkline: number[] | null;
+            score: number | null;
+            votes: number | null;
+        };
+        DishRow: {
+            dish_id: number;
+            name: string;
+            site: string;
+            site_name: string;
+            votes: number;
+            score: number;
+        };
+        OverviewReport: {
+            period: components["schemas"]["Period"];
+            scope: components["schemas"]["OverviewScope"];
+            kpis: components["schemas"]["Kpis"];
+            trend: components["schemas"]["TrendPoint"][];
+            sites: components["schemas"]["OverviewSite"][];
+            top_dishes: components["schemas"]["DishRow"][];
+            flop_dishes: components["schemas"]["DishRow"][];
+        };
+        PublicationSummary: {
+            publication_rate: number | null;
+            punctuality_rate: number | null;
+            avg_lead_time_hours: number | null;
+            completeness: components["schemas"]["Completeness"];
+        };
+        PublicationSite: {
+            categories_filled_rate: number | null;
+            photo_rate: number | null;
+            chef_note_rate: number | null;
+            site: string;
+            name: string;
+            publication_rate: number | null;
+            punctuality_rate: number | null;
+            avg_lead_time_hours: number | null;
+        };
+        PublicationDay: {
+            /** Format: date */
+            date: string;
+            /** @enum {string} */
+            status: "published_on_time" | "published_late" | "draft" | "missing" | "closed";
+        };
+        PublicationMatrixRow: {
+            site: string;
+            name: string;
+            days: components["schemas"]["PublicationDay"][];
+        };
+        PublicationsReport: {
+            summary: components["schemas"]["PublicationSummary"];
+            sites: components["schemas"]["PublicationSite"][];
+            /** @description The last 30 days, whatever the period */
+            matrix: components["schemas"]["PublicationMatrixRow"][];
+        };
+        TrafficPoint: {
+            /** Format: date */
+            date: string;
+            views: number;
+            unique_visitors: number;
+        };
+        TrafficSite: {
+            site: string;
+            name: string;
+            views: number;
+            unique_visitors: number;
+            delta_pct: number | null;
+            sparkline: number[];
+        };
+        PageKindViews: {
+            page_kind: string;
+            views: number;
+        };
+        HourViews: {
+            hour: number;
+            views: number;
+        };
+        TrafficTotals: {
+            views: number;
+            unique_visitors: number;
+            org_root_views: number;
+        };
+        TrafficReport: {
+            /** @enum {string} */
+            granularity: "day" | "hour";
+            series: components["schemas"]["TrafficPoint"][];
+            by_site: components["schemas"]["TrafficSite"][];
+            by_page_kind: components["schemas"]["PageKindViews"][];
+            hour_profile: components["schemas"]["HourViews"][];
+            totals: components["schemas"]["TrafficTotals"];
+        };
+        Distribution: {
+            1: number;
+            2: number;
+            3: number;
+        };
+        SatisfactionSummary: {
+            score: number | null;
+            delta: number | null;
+            votes: number;
+            participation_rate: number | null;
+            distribution: components["schemas"]["Distribution"];
+        };
+        PresetRow: {
+            preset: string;
+            votes: number;
+            score: number | null;
+        };
+        SatisfactionPoint: {
+            /**
+             * Format: date
+             * @description By day
+             */
+            date?: string;
+            /** @description By hour, for a single day */
+            hour?: number;
+            votes: number;
+            score: number | null;
+        };
+        SatisfactionSite: {
+            site: string;
+            name: string;
+            votes: number;
+            score: number | null;
+            participation_rate: number | null;
+            delta: number | null;
+        };
+        VoteSettings: {
+            site_count: number;
+            sites_with_vote: number;
+            /** @description None when the sites do not all offer the same one */
+            icon_preset: string | null;
+            /** @description For a single site only */
+            dish_question: boolean | null;
+        };
+        SatisfactionReport: {
+            summary: components["schemas"]["SatisfactionSummary"];
+            /** @enum {string} */
+            granularity: "day" | "hour";
+            by_preset: components["schemas"]["PresetRow"][];
+            series: components["schemas"]["SatisfactionPoint"][];
+            by_site: components["schemas"]["SatisfactionSite"][];
+            top_dishes: components["schemas"]["DishRow"][];
+            flop_dishes: components["schemas"]["DishRow"][];
+            settings: components["schemas"]["VoteSettings"];
+        };
+        OrgDishGroupSite: {
+            site: string;
+            site_name: string;
+            /** @description The dish, in the site's catalog */
+            dish_id: number;
+            has_image: boolean;
+        };
+        OrgDishGroupSummary: {
+            /** @description The group's address */
+            normalized_name: string;
+            display_name: string;
+            image_url: string | null;
+            site_count: number;
+            photo_count: number;
+            usage_count: number;
+            votes: number;
+            score: number | null;
+            sites: components["schemas"]["OrgDishGroupSite"][];
+        };
+        OrgDishGroupList: {
+            items: components["schemas"]["OrgDishGroupSummary"][];
+            total_count: number;
+        };
+        OrgDishGroupSiteFigures: {
+            site: string;
+            site_name: string;
+            /** @description The dish, in the site's catalog */
+            dish_id: number;
+            has_image: boolean;
+            usage_count: number;
+            votes: number;
+            score: number | null;
+        };
+        RatingPoint: {
+            /** Format: date */
+            date: string;
+            votes: number;
+            score: number;
+        };
+        OrgDishGroup: {
+            /** @description The group's address */
+            normalized_name: string;
+            display_name: string;
+            image_url: string | null;
+            site_count: number;
+            photo_count: number;
+            usage_count: number;
+            votes: number;
+            score: number | null;
+            sites: components["schemas"]["OrgDishGroupSiteFigures"][];
+            distribution: components["schemas"]["Distribution"];
+            series: components["schemas"]["RatingPoint"][];
+        };
+        ServiceHoursDay: {
+            /** @description HH:MM */
+            open: string;
+            /** @description HH:MM */
+            close: string;
         };
         MenuWindow: {
             /** Format: date */
@@ -7202,11 +7920,6 @@ export interface components {
              */
             week: string;
             count: number;
-        };
-        Distribution: {
-            1: number;
-            2: number;
-            3: number;
         };
         RatingDay: {
             /** Format: date */

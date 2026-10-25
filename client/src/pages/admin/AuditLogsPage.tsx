@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { isAxiosError } from 'axios';
-import { adminApi } from '@/lib/api/admin';
-import { restaurantApi, type AdminSite } from '@/lib/api/restaurant';
+import { auditApi, type AuditLog, type AuditScope } from '@/lib/api/audit';
 import { notify } from '@/lib/toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOptionalSiteRef } from '@/contexts/SiteContext';
+import { useOrgSites } from '@/features/analytics/hooks/useAnalyticsQueries';
+import { useOrgRef } from '@/hooks/useOrgRef';
 import { useStepUp } from '@/hooks/useStepUp';
 import { accountPathForRole } from '@/lib/dashboard-routes';
 import { Button } from '@/components/ui/button';
@@ -31,25 +33,7 @@ import {
 } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
 
-interface AuditLog {
-  id: number;
-  user_id: number | null;
-  user_email: string | null;
-  action: string;
-  target_type: string | null;
-  target_id: number | null;
-  details: Record<string, unknown> | null;
-  ip_address: string | null;
-  created_at: string;
-}
-
-interface AuditLogsResponse {
-  logs: AuditLog[];
-  total: number;
-  page: number;
-  per_page: number;
-  pages: number;
-}
+const PER_PAGE = 50;
 
 const ACTION_LABELS: Record<string, string> = {
   login: 'Connexion',
@@ -104,9 +88,16 @@ export function AuditLogsPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [mfaRequired, setMfaRequired] = useState(false);
-  const [sites, setSites] = useState<AdminSite[]>([]);
   const [siteFilter, setSiteFilter] = useState('');
   const isOrgScope = user?.role === 'org_admin';
+  const orgSlug = useOrgRef()?.org;
+  const site = useOptionalSiteRef();
+  const [siteOrg, siteSlug] = [site?.org, site?.site];
+  const scope = useMemo<AuditScope | null>(() => {
+    if (isOrgScope) return orgSlug ? { org: orgSlug } : null;
+    return siteOrg && siteSlug ? { org: siteOrg, site: siteSlug } : null;
+  }, [isOrgScope, orgSlug, siteOrg, siteSlug]);
+  const { data: sites = [] } = useOrgSites(isOrgScope);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedDetails, setSelectedDetails] = useState<Record<string, unknown> | null>(null);
 
@@ -118,21 +109,22 @@ export function AuditLogsPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const loadLogs = async () => {
+    if (!scope) return;
     setIsLoading(true);
     try {
-      const response: AuditLogsResponse = await adminApi.getAuditLogs({
+      const response = await auditApi.list(scope, {
         page,
-        per_page: 50,
+        per_page: PER_PAGE,
         action: actionFilter || undefined,
-        restaurant_id: siteFilter ? Number(siteFilter) : undefined,
+        site: siteFilter || undefined,
       });
 
-      setLogs(response.logs);
-      setTotal(response.total);
-      setTotalPages(response.pages);
+      setLogs(response.items);
+      setTotal(response.total_count);
+      setTotalPages(Math.max(1, Math.ceil(response.total_count / PER_PAGE)));
       setMfaRequired(false);
     } catch (error) {
-      if (isAxiosError(error) && error.response?.data?.error === 'MFA_REQUIRED') {
+      if (isAxiosError(error) && error.response?.data?.code === 'second_factor_required') {
         setMfaRequired(true);
       }
     } finally {
@@ -143,15 +135,7 @@ export function AuditLogsPage() {
   useEffect(() => {
     loadLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, actionFilter, siteFilter]);
-
-  useEffect(() => {
-    if (!isOrgScope) return;
-    restaurantApi
-      .list()
-      .then(setSites)
-      .catch(() => {});
-  }, [isOrgScope]);
+  }, [scope, page, actionFilter, siteFilter]);
 
   const handleExport = async () => {
     const confirmed = await confirmIdentity({
@@ -164,8 +148,10 @@ export function AuditLogsPage() {
 
     setIsExporting(true);
     try {
-      await adminApi.exportAuditLogs({
+      if (!scope) return;
+      await auditApi.export(scope, {
         action: actionFilter || undefined,
+        site: siteFilter || undefined,
       });
     } catch {
       notify.error("Erreur lors de l'export CSV");
@@ -264,9 +250,9 @@ export function AuditLogsPage() {
                   className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <option value="">Tous les sites</option>
-                  {sites.map((site) => (
-                    <option key={site.id} value={site.id}>
-                      {site.name}
+                  {sites.map((option) => (
+                    <option key={option.slug} value={option.slug}>
+                      {option.name}
                     </option>
                   ))}
                 </select>

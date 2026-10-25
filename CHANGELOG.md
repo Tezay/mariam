@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A site's settings refuse a value outside their rules**, such as an unknown label, instead of ignoring it.
 - **A supervisor reads a site's settings and categories but no longer changes them.**
 - **Every route open to anyone has its own rate limit**, activation and reset link checks included.
+- **A push subscription is named by its endpoint's fingerprint**: the endpoint stays out of addresses and logs.
+- **Opening the weekly email's unsubscribe link unsubscribes no one**: the page asks for a click.
 
 ### Added
 
@@ -35,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`/v1/holidays/{year}` and `/v1/school-holidays/{year}`.**
 - **The profile names its site and organization by slug** (`restaurant_slug`, `organization_slug`).
 - **A site's settings, categories, events and closures under `/v1/orgs/{org}/sites/{site}`**, drafts included for its editors.
+- **Accounts, invitations, audit log and analytics under the site or the organization**, which also serves its pooled dishes.
+- **`/unsubscribe/<token>`**, the page the weekly email links to.
 
 ### Changed
 
@@ -78,7 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`BACKUP_INTERVAL_SECONDS` and `BACKUP_RETENTION_DAYS`**: retention belongs to the bucket's lifecycle rules.
 - **`deploy/scripts/install.sh`, `init.sh` and `run.sh`**, and `PORT`: `docs/INSTALL.md` gives the compose commands.
 - **The proxy's own rate limits**: the API's are the only ones.
-- **The `/v1/public/` routes**, replaced by `/v1/orgs`; `<site>/week` served any published week, without bound. The unsubscribe link stays.
+- **The `/v1/public/` routes**, replaced by `/v1/orgs`; `<site>/week` served any published week, without bound.
 - **`GET /v1/menus/today`, `/v1/menus/tomorrow` and `/v1/restaurant`**, read anonymously by `restaurant_id` and unused.
 - **`/v1/menus`, `/v1/catalog` and `/v1/imports`**, which took the site from the session or `X-Restaurant-Id`; `/v1/menus/week` read any site anonymously by `restaurant_id`.
 - **Publishing a whole week at once**, which nothing called since the calendar lost its button.
@@ -86,6 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The `X-Restaurant-Id` header**: a site is named by its address.
 - **`GET /v1/events/storage-status`.**
 - **An event's or closure's `is_active`**, which no screen set; an inactive one stays hidden.
+- **`/v1/users`, `/v1/audit-logs`, `/v1/analytics`, `/v1/org`, `/v1/restaurants` and `/v1/notifications`**, scoped by the session.
+- **Site ids**: the API and the supervisor's screens name a site by its slug.
 
 ### Fixed
 
@@ -94,6 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A menu import's preview names the days in French.**
 - **A chef's note over 300 characters is refused** rather than cut.
 - **An event with six images can swap one in a single save**, and images just added stay on screen.
+- **A visitor subscribes to the notifications of the site they browse**, not to the instance's first site.
+- **The supervisors' own actions appear in the organization's audit log.**
 
 ## [0.19.0] - 2026-10-13
 

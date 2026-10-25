@@ -1,12 +1,16 @@
 from flask import request
 from flask_smorest import Blueprint
 
-from ..models import PAGE_KINDS, Organization, Restaurant
+from ..extensions import db
+from ..models import PAGE_KINDS, Event, Menu, Organization, Restaurant, User
 from ..models.telemetry import ORG_PAGE_KINDS
-from ..schemas.public import PublicOrgSchema, PublicSiteListSchema
+from ..schemas.orgs import OrgSiteListSchema
+from ..schemas.public import PublicOrgSchema
 from ..security import get_client_ip, limiter, public_limit
+from ..services.service_calendar import closures_by_site, menu_status
 from ..services.telemetry import beacon_origin_allowed, record_page_view
-from .scope import finish_public_read, public_org
+from ..utils.time import as_utc, paris_today
+from .scope import SESSION_OPTIONAL, finish_public_read, public_org, readable_org
 
 orgs_bp = Blueprint('orgs', __name__, description='Organizations and their sites')
 orgs_bp.after_request(finish_public_read)
@@ -21,19 +25,68 @@ def get_org(org: str):
     return public_org(org)
 
 
-@orgs_bp.route('/<org>/sites', methods=['GET'])
-@orgs_bp.doc(security=[])
-@limiter.limit(public_limit)
-@orgs_bp.response(200, PublicSiteListSchema)
-def list_sites(org: str):
-    """The organization's active sites, by name."""
-    organization = public_org(org)
-    sites = (
-        Restaurant.query.filter_by(organization_id=organization.id, is_active=True)
-        .order_by(Restaurant.name)
-        .all()
+def supervised_sites(sites: list) -> list[dict]:
+    """The sites with what a supervisor checks first: today's menu, events, accounts."""
+    ids = [site.id for site in sites]
+    today = paris_today()
+    member_counts = dict(
+        db.session.query(User.restaurant_id, db.func.count(User.id))
+        .filter(User.restaurant_id.in_(ids), User.role != User.ROLE_ORG_ADMIN)
+        .group_by(User.restaurant_id)
     )
-    return {'items': sites}
+    menus_today = {
+        menu.restaurant_id: menu
+        for menu in Menu.query.filter(Menu.restaurant_id.in_(ids), Menu.date == today)
+    }
+    closures = closures_by_site(ids, today, today)
+    upcoming_events = dict(
+        db.session.query(Event.restaurant_id, db.func.count(Event.id))
+        .filter(
+            Event.restaurant_id.in_(ids),
+            Event.is_active,
+            Event.status == 'published',
+            Event.event_date >= today,
+        )
+        .group_by(Event.restaurant_id)
+    )
+    last_published = dict(
+        db.session.query(Menu.restaurant_id, db.func.max(Menu.published_at))
+        .filter(Menu.restaurant_id.in_(ids), Menu.status == 'published')
+        .group_by(Menu.restaurant_id)
+    )
+    return [{
+        'slug': site.slug,
+        'name': site.name,
+        'logo_url': site.logo_url,
+        'is_active': site.is_active,
+        'member_count': member_counts.get(site.id, 0),
+        'today_menu_status': menu_status(
+            site, today, menus_today.get(site.id), closures.get(site.id, [])
+        ),
+        'upcoming_events': upcoming_events.get(site.id, 0),
+        'last_published_at': as_utc(last_published.get(site.id)),
+    } for site in sites]
+
+
+@orgs_bp.route('/<org>/sites', methods=['GET'])
+@orgs_bp.doc(security=SESSION_OPTIONAL)
+@limiter.limit(public_limit)
+@orgs_bp.response(200, OrgSiteListSchema)
+def list_sites(org: str):
+    """The organization's sites, by name.
+
+    Anyone reads the active ones. Its supervisors read them all, closed ones
+    included, with their figures.
+    """
+    organization, supervisor = readable_org(org)
+    sites = Restaurant.query.filter_by(organization_id=organization.id)
+    if supervisor:
+        return {'items': supervised_sites(sites.order_by(Restaurant.name).all())}
+    # Plain values: the schema would read the supervisors' fields off the model too.
+    return {'items': [
+        {'slug': site.slug, 'name': site.name, 'logo_url': site.logo_url}
+        for site in sites.filter_by(is_active=True).order_by(Restaurant.name)
+    ]}
 
 
 @orgs_bp.route('/<org>/page-views', methods=['POST'])

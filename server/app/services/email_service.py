@@ -162,7 +162,15 @@ def user_from_token(token: str) -> User | None:
 
 
 def unsubscribe_url(user_id: int) -> str:
-    return f'{api_base_url()}/public/unsubscribe/{unsubscribe_token(user_id)}'
+    """The one-click action of `List-Unsubscribe` (RFC 8058), posted by the mail client."""
+    return f'{api_base_url()}/weekly-emails/{unsubscribe_token(user_id)}/unsubscribe'
+
+
+def unsubscribe_page_url(user_id: int) -> str:
+    """The page the email's own link opens: a button, so that a scanner that follows
+    links unsubscribes no one.
+    """
+    return f'{frontend_base_url()}/unsubscribe/{unsubscribe_token(user_id)}'
 
 
 # ── Weekly digest ────────────────────────────────────────────────────────────
@@ -430,7 +438,7 @@ def build_digest(
         'alerts': [f'{alert["title"]} : {alert["body"]}' for alert in alerts],
         'url': _base_url() + ('/org' if supervisor else '/admin/stats'),
         'settings_url': _account_url(user),
-        'unsubscribe_url': unsubscribe_url(user.id),
+        'unsubscribe_url': unsubscribe_page_url(user.id),
         'silent_notice': silent_notice,
         'supervisor': supervisor,
         'calendar_url': _base_url() + '/admin/calendar',
@@ -518,7 +526,7 @@ def _build_reopening(user, sites: list[Restaurant], closures: ClosureRanges, tod
         supervisor=supervisor,
         url=_base_url() + ('/org' if supervisor else '/admin/calendar'),
         settings_url=_account_url(user),
-        unsubscribe_url=unsubscribe_url(user.id),
+        unsubscribe_url=unsubscribe_page_url(user.id),
     )
 
 

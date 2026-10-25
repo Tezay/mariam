@@ -2,23 +2,16 @@
  * Director view: the organization's sites as a clean list; each row opens the
  * site detail. Read-only — opening or closing a site goes through Mariam.
  */
-import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { Building2, ChevronRight } from 'lucide-react';
-import { orgApi, type OrgSite } from '@/lib/api/org';
+import { useOrgSites } from '@/features/analytics/hooks/useAnalyticsQueries';
 import { PageHeader, StatusPill } from './ui';
 import { AddSiteButton } from './AddSiteButton';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 
 export function OrgSitesPage() {
-  const [sites, setSites] = useState<OrgSite[] | null>(null);
-
-  useEffect(() => {
-    orgApi
-      .getSites()
-      .then(setSites)
-      .catch(() => setSites([]));
-  }, []);
+  const { data, isError } = useOrgSites();
+  const sites = isError ? [] : (data ?? null);
 
   return (
     <div>
@@ -41,8 +34,8 @@ export function OrgSitesPage() {
         <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
           {sites.map((s) => (
             <Link
-              key={s.id}
-              to={`/org/sites/${s.id}`}
+              key={s.slug}
+              to={`/org/sites/${s.slug}`}
               className="flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/40"
             >
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -51,7 +44,7 @@ export function OrgSitesPage() {
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium text-foreground">{s.name}</div>
                 <div className="truncate text-xs text-muted-foreground">
-                  /{s.slug} · {s.user_count} compte{s.user_count > 1 ? 's' : ''} ·{' '}
+                  /{s.slug} · {s.member_count} compte{s.member_count > 1 ? 's' : ''} ·{' '}
                   {s.upcoming_events} événement{s.upcoming_events > 1 ? 's' : ''}
                 </div>
               </div>

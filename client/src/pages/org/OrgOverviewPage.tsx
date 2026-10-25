@@ -105,31 +105,31 @@ const COLUMNS: DataTableColumn<OverviewRow>[] = [
 
 export function OrgOverviewPage() {
   const navigate = useNavigate();
-  const { filters, query, setPeriod, setCustomRange, setSiteIds } = useAnalyticsFilters();
+  const { filters, query, setPeriod, setCustomRange, setSites } = useAnalyticsFilters();
   const { data: overview, isLoading } = useAnalyticsOverview(query);
   const { data: orgSites } = useOrgSites();
 
-  const sitesById = useMemo(() => {
-    const map = new Map<number, OrgSite>();
-    (orgSites ?? []).forEach((site) => map.set(site.id, site));
+  const sitesBySlug = useMemo(() => {
+    const map = new Map<string, OrgSite>();
+    (orgSites ?? []).forEach((site) => map.set(site.slug, site));
     return map;
   }, [orgSites]);
 
   const rows = useMemo<OverviewRow[]>(
     () =>
       (overview?.sites ?? []).map((site) => {
-        const orgSite = sitesById.get(site.site_id);
+        const orgSite = sitesBySlug.get(site.site);
         return {
           ...site,
           todayStatus: orgSite?.today_menu_status ?? 'missing',
-          userCount: orgSite?.user_count ?? 0,
+          userCount: orgSite?.member_count ?? 0,
         };
       }),
-    [overview, sitesById]
+    [overview, sitesBySlug]
   );
 
   const siteOptions = useMemo(
-    () => (orgSites ?? []).map((site) => ({ id: site.id, name: site.name })),
+    () => (orgSites ?? []).map((site) => ({ slug: site.slug, name: site.name })),
     [orgSites]
   );
 
@@ -163,7 +163,7 @@ export function OrgOverviewPage() {
               onPeriodChange={setPeriod}
               onCustomRange={setCustomRange}
             />
-            <SitePicker sites={siteOptions} selected={filters.siteIds} onChange={setSiteIds} />
+            <SitePicker sites={siteOptions} selected={filters.sites} onChange={setSites} />
           </div>
         }
       />
@@ -258,10 +258,10 @@ export function OrgOverviewPage() {
         <DataTable
           rows={rows}
           columns={COLUMNS}
-          rowKey={(row) => row.site_id}
+          rowKey={(row) => row.site}
           defaultSortKey="publication_rate"
           loading={isLoading}
-          onRowClick={(row) => navigate(`/org/sites/${row.site_id}`)}
+          onRowClick={(row) => navigate(`/org/sites/${row.site}`)}
           emptyState={
             <EmptyState
               icon={Building2}

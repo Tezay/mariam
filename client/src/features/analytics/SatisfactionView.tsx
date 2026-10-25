@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { AlertTriangle, MessageSquareHeart, SmilePlus, Users, Utensils } from 'lucide-react';
 import type { SatisfactionDishRow, SatisfactionSiteRow } from '@/lib/api/analytics';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { DataTable, type DataTableColumn } from '@/components/dashboard/DataTable';
 import { RATING_LEVELS, nearestLevel, ratingPreset } from '@/features/rating/scale';
@@ -22,9 +22,7 @@ const THIN_EVIDENCE = 20;
 
 interface SatisfactionViewProps {
   sites?: SiteOption[];
-  /** Pins the view to one site, for the supervisor's drill-down. */
-  siteId?: number;
-  onSiteClick?: (siteId: number) => void;
+  onSiteClick?: (site: string) => void;
   onDishClick?: (dish: SatisfactionDishRow) => void;
 }
 
@@ -111,18 +109,10 @@ function DishList({
   );
 }
 
-export function SatisfactionView({
-  sites = [],
-  siteId,
-  onSiteClick,
-  onDishClick,
-}: SatisfactionViewProps) {
-  const { filters, query, setPeriod, setCustomRange, setSiteIds } = useAnalyticsFilters();
-  const scopedQuery = useMemo(
-    () => (siteId ? { ...query, siteIds: [siteId] } : query),
-    [query, siteId]
-  );
-  const { data, isLoading, isError } = useAnalyticsSatisfaction(scopedQuery);
+export function SatisfactionView({ sites = [], onSiteClick, onDishClick }: SatisfactionViewProps) {
+  const { user } = useAuth();
+  const { filters, query, setPeriod, setCustomRange, setSites } = useAnalyticsFilters();
+  const { data, isLoading, isError } = useAnalyticsSatisfaction(query);
 
   const summary = data?.summary;
   const settings = data?.settings;
@@ -132,9 +122,8 @@ export function SatisfactionView({
   const voteOff =
     settings !== undefined && settings.site_count > 0 && settings.sites_with_vote === 0;
   const silentSites = settings ? settings.site_count - settings.sites_with_vote : 0;
-  // A single site reached without a drill-down is the admin's own: only there
-  // does a link to the settings lead somewhere the reader can act.
-  const ownSite = settings?.site_count === 1 && siteId === undefined;
+  // Only a site's own admin can act on a link to its settings.
+  const ownSite = settings?.site_count === 1 && user?.role === 'admin';
   const dishEmpty =
     settings?.dish_question === false
       ? "La question du plat n'est pas posée : aucune catégorie n'est cochée dans les réglages."
@@ -150,7 +139,7 @@ export function SatisfactionView({
           onPeriodChange={setPeriod}
           onCustomRange={setCustomRange}
         />
-        {!siteId && <SitePicker sites={sites} selected={filters.siteIds} onChange={setSiteIds} />}
+        <SitePicker sites={sites} selected={filters.sites} onChange={setSites} />
       </div>
 
       {isError ? (
@@ -312,10 +301,10 @@ export function SatisfactionView({
                   <DataTable
                     rows={data.by_site}
                     columns={COLUMNS}
-                    rowKey={(row) => row.site_id}
+                    rowKey={(row) => row.site}
                     defaultSortKey="score"
                     minWidthClassName="min-w-[520px]"
-                    onRowClick={onSiteClick ? (row) => onSiteClick(row.site_id) : undefined}
+                    onRowClick={onSiteClick ? (row) => onSiteClick(row.site) : undefined}
                   />
                 </section>
               )}

@@ -7,6 +7,7 @@ const PRIVATE_PATHS = [
   '/activate',
   '/reset-password',
   '/notifications',
+  '/unsubscribe',
 ];
 
 export function robotsTxt(origin: string): string {

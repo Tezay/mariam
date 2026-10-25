@@ -3,23 +3,24 @@
  * Read-only — a site's name and activation are contract matters handled by
  * Mariam, not by the organization's supervisor.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router';
 import { ArrowLeft, Building2, Users, CalendarClock, CheckCircle2 } from 'lucide-react';
-import { orgApi, type OrgSite } from '@/lib/api/org';
-import { adminApi } from '@/lib/api/admin';
-import { type User } from '@/lib/api/auth';
+import { membersApi, type Member } from '@/lib/api/members';
+import type { SiteRef } from '@/lib/api/client';
+import { SiteProvider } from '@/contexts/SiteContext';
+import { useOrgSites } from '@/features/analytics/hooks/useAnalyticsQueries';
+import { useOrgRef } from '@/hooks/useOrgRef';
 import { StatTile, StatusPill, PrimaryButton } from './ui';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { RoleBadge } from '@/components/dashboard/RoleBadge';
 import { menuStatusLabel } from '@/lib/menu-status';
 import { DataTable, type DataTableColumn } from '@/components/dashboard/DataTable';
-import { useAuth } from '@/contexts/AuthContext';
 import { SiteWeekCalendar } from './site/SiteWeekCalendar';
 import { TrafficView } from '@/features/analytics/TrafficView';
 import { SatisfactionView } from '@/features/analytics/SatisfactionView';
 
-const SITE_USER_COLUMNS: DataTableColumn<User>[] = [
+const SITE_USER_COLUMNS: DataTableColumn<Member>[] = [
   {
     key: 'email',
     header: 'Email',
@@ -41,28 +42,26 @@ const SITE_USER_COLUMNS: DataTableColumn<User>[] = [
 ];
 
 export function OrgSiteDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
-  const siteId = Number(id);
-  const [site, setSite] = useState<OrgSite | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { site: slug } = useParams<{ site: string }>();
+  const org = useOrgRef()?.org;
+  const { data: sites, isPending } = useOrgSites();
+  const site = sites?.find((candidate) => candidate.slug === slug) ?? null;
+  const ref = useMemo<SiteRef | null>(
+    () => (org && slug ? { org, site: slug } : null),
+    [org, slug]
+  );
+  const [users, setUsers] = useState<Member[]>([]);
 
-  const load = () => {
-    setLoading(true);
-    Promise.all([orgApi.getSites(), adminApi.listUsers()])
-      .then(([sites, allUsers]: [OrgSite[], User[]]) => {
-        const s = sites.find((x) => x.id === siteId) ?? null;
-        setSite(s);
-        setUsers(allUsers.filter((u) => u.restaurant_id === siteId));
-      })
-      .catch(() => setSite(null))
-      .finally(() => setLoading(false));
-  };
-  useEffect(load, [siteId]);
+  useEffect(() => {
+    if (!ref) return;
+    membersApi
+      .list(ref)
+      .then(setUsers)
+      .catch(() => setUsers([]));
+  }, [ref]);
 
-  if (loading) return <p className="text-sm text-muted-foreground">Chargement…</p>;
-  if (!site) {
+  if (isPending) return <p className="text-sm text-muted-foreground">Chargement…</p>;
+  if (!site || !ref) {
     return (
       <EmptyState
         icon={Building2}
@@ -97,7 +96,7 @@ export function OrgSiteDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-        <StatTile label="Comptes" value={site.user_count} icon={Users} />
+        <StatTile label="Comptes" value={site.member_count} icon={Users} />
         <StatTile label="Événements à venir" value={site.upcoming_events} icon={CalendarClock} />
         <StatTile
           label="Menu du jour"
@@ -106,20 +105,20 @@ export function OrgSiteDetailPage() {
         />
       </div>
 
-      <div className="mt-8">
-        <h2 className="mb-3 text-sm font-medium text-foreground">Consultations du menu</h2>
-        <TrafficView siteId={site.id} />
-      </div>
+      <SiteProvider site={ref}>
+        <div className="mt-8">
+          <h2 className="mb-3 text-sm font-medium text-foreground">Consultations du menu</h2>
+          <TrafficView />
+        </div>
+
+        <div className="mt-8">
+          <h2 className="mb-3 text-sm font-medium text-foreground">Satisfaction</h2>
+          <SatisfactionView />
+        </div>
+      </SiteProvider>
 
       <div className="mt-8">
-        <h2 className="mb-3 text-sm font-medium text-foreground">Satisfaction</h2>
-        <SatisfactionView siteId={site.id} />
-      </div>
-
-      <div className="mt-8">
-        {user?.organization_slug && site.slug && (
-          <SiteWeekCalendar site={{ org: user.organization_slug, site: site.slug }} />
-        )}
+        <SiteWeekCalendar site={ref} />
       </div>
 
       <div className="mt-8">
@@ -134,8 +133,8 @@ export function OrgSiteDetailPage() {
           emptyState={
             <EmptyState
               icon={Users}
-              title="Aucun utilisateur"
-              description="Invitez un gestionnaire à ce site depuis la page Utilisateurs."
+              title="Aucun compte"
+              description="Les comptes de ce site sont invités par son administrateur."
             />
           }
         />

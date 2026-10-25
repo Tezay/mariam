@@ -6,7 +6,7 @@ RESERVED_SLUGS = frozenset({
     'menu', 'admin', 'login', 'logout', 'notifications', 'activate',
     'reset-password', 'setup', 'install', 'api', 'v1', 'public', 'org',
     'assets', 'static', 'health', 'robots', 'sitemap', 'docs', 'www',
-    'tv', 'privacy', 'healthz',
+    'tv', 'privacy', 'healthz', 'unsubscribe',
 })
 
 _SLUG_RE = re.compile(r'^[a-z0-9]+(?:-[a-z0-9]+)*$')

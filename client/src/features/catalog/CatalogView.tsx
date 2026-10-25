@@ -8,6 +8,7 @@ import { orgApi, type OrgCatalogSort } from '@/lib/api/org';
 import { publicApi } from '@/lib/api/public';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { useOptionalSiteRef } from '@/contexts/SiteContext';
+import { useOrgRef } from '@/hooks/useOrgRef';
 import { useDebounce } from '@/hooks/useDebounce';
 import { downloadBlob } from '@/lib/download';
 import { notify } from '@/lib/toast';
@@ -40,6 +41,7 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
   const isOrg = scope === 'org';
   // The site scope renders inside the site's pages, which provide it.
   const site = useOptionalSiteRef();
+  const org = useOrgRef();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { filters, patch, activeCount, clear } = useCatalogFilters('usage');
@@ -122,9 +124,9 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
   });
 
   const orgQuery = useInfiniteQuery({
-    queryKey: ['org', 'catalog', query, filters.sort, filters.order, filters.period],
+    queryKey: ['org', 'catalog', org, query, filters.sort, filters.order, filters.period],
     queryFn: ({ pageParam }) =>
-      orgApi.getCatalog({
+      orgApi.getCatalog(org!, {
         ...shared,
         q: query,
         sort: filters.sort as OrgCatalogSort,
@@ -132,15 +134,16 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
         per_page: PAGE_SIZE,
       }),
     initialPageParam: 1,
-    getNextPageParam: (last, pages) => (last.has_more ? pages.length + 1 : undefined),
-    enabled: isOrg,
+    getNextPageParam: (last, pages) =>
+      pages.length * PAGE_SIZE < last.total_count ? pages.length + 1 : undefined,
+    enabled: isOrg && org !== null,
   });
 
   const active = isOrg ? orgQuery : siteQuery;
   const rows: CatalogRow[] = isOrg
-    ? (orgQuery.data?.pages ?? []).flatMap((page) => page.dishes.map(rowFromPooled))
+    ? (orgQuery.data?.pages ?? []).flatMap((page) => page.items.map(rowFromPooled))
     : (siteQuery.data?.pages ?? []).flatMap((page) => page.items.map(rowFromDish));
-  const total = isOrg ? orgQuery.data?.pages[0]?.total : siteQuery.data?.pages[0]?.total_count;
+  const total = (isOrg ? orgQuery : siteQuery).data?.pages[0]?.total_count;
 
   const { fetchNextPage, hasNextPage, isFetchingNextPage } = active;
   useEffect(() => {
@@ -216,6 +219,7 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
   const selectedKeys = selected ? [...selected] : [];
   // An org row keys on a pooled name, not on a dish id: no bulk action there.
   const bulk = useBulkActions({
+    site: isOrg ? null : site,
     ids: isOrg ? [] : selectedKeys.map(Number),
     categories: meta?.categories ?? [],
     allTags: meta?.allTags ?? [],
@@ -293,7 +297,7 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
     </div>
   );
 
-  const withMenu = (
+  const withMenu = bulk && (
     <DishContextMenu
       count={selectedKeys.length}
       targetName={contextKey ? (rows.find((row) => row.key === contextKey)?.name ?? null) : null}
@@ -342,14 +346,14 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
         empty
       ) : (
         <>
-          {isOrg ? list : withMenu}
+          {withMenu ?? list}
 
           <div ref={sentinel} aria-hidden className="h-px" />
           {isFetchingNextPage && <DishCardsSkeleton count={3} />}
         </>
       )}
 
-      {selected && (
+      {selected && bulk && (
         <BulkBar
           count={selected.size}
           actions={bulk}
@@ -363,7 +367,7 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
 
       {!isOrg && (
         <>
-          {bulk.dialogs}
+          {bulk?.dialogs}
           <DishCreateDialog
             open={createOpen}
             categories={meta?.categories ?? []}

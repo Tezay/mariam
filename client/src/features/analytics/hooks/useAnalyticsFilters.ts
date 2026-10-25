@@ -27,7 +27,7 @@ export interface AnalyticsFilters {
   period: PeriodKey;
   start?: string;
   end?: string;
-  siteIds: number[];
+  sites: string[];
 }
 
 function isPreset(value: string | null): value is PresetPeriod {
@@ -45,16 +45,13 @@ export function useAnalyticsFilters() {
     const end = searchParams.get('end');
     const isCustom = Boolean(start && end && ISO_DATE.test(start) && ISO_DATE.test(end));
     const period = searchParams.get('period');
-    const siteIds = (searchParams.get('sites') ?? '')
-      .split(',')
-      .map(Number)
-      .filter((id) => Number.isInteger(id) && id > 0);
+    const sites = (searchParams.get('sites') ?? '').split(',').filter(Boolean);
 
     return {
       period: isCustom ? 'custom' : isPreset(period) ? period : DEFAULT_PERIOD,
       start: isCustom ? start! : undefined,
       end: isCustom ? end! : undefined,
-      siteIds,
+      sites,
     };
   }, [searchParams]);
 
@@ -94,10 +91,10 @@ export function useAnalyticsFilters() {
     [update]
   );
 
-  const setSiteIds = useCallback(
-    (ids: number[]) => {
+  const setSites = useCallback(
+    (slugs: string[]) => {
       update((params) => {
-        if (ids.length) params.set('sites', ids.join(','));
+        if (slugs.length) params.set('sites', slugs.join(','));
         else params.delete('sites');
       });
     },
@@ -109,10 +106,10 @@ export function useAnalyticsFilters() {
       period: filters.period === 'custom' ? undefined : filters.period,
       start: filters.start,
       end: filters.end,
-      siteIds: filters.siteIds,
+      sites: filters.sites,
     }),
     [filters]
   );
 
-  return { filters, query, setPeriod, setCustomRange, setSiteIds };
+  return { filters, query, setPeriod, setCustomRange, setSites };
 }

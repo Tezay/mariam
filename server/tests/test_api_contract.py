@@ -9,22 +9,6 @@ METHODS = ('get', 'post', 'put', 'patch', 'delete')
 
 _ARGUMENT = re.compile(r'<(?:(\w+)(?:\([^)]*\))?:)?(\w+)>')
 
-# Operations that predate the rule; each leaves this list as its domain is
-# reworked, and the list goes with the last of them.
-PENDING = frozenset({
-    'GET /v1/analytics/overview',
-    'GET /v1/analytics/publications',
-    'GET /v1/analytics/satisfaction',
-    'GET /v1/analytics/traffic',
-    'GET /v1/audit-logs',
-    'GET /v1/audit-logs/export',
-    'GET /v1/org/catalog',
-    'GET /v1/org/catalog/group',
-    'GET /v1/org/sites',
-    'GET /v1/public/unsubscribe/{token}',
-    'POST /v1/public/unsubscribe/{token}',
-})
-
 
 def _documents_success(operation):
     return any(
@@ -43,8 +27,7 @@ def test_every_operation_documents_what_it_answers(client):
         if method in METHODS and not _documents_success(operation)
     }
 
-    assert undocumented - PENDING == set(), 'declare a response schema for these'
-    assert PENDING - undocumented == set(), 'documented or gone: take these off PENDING'
+    assert undocumented == set(), 'declare a response schema for these'
 
 
 def test_the_documented_security_is_the_one_applied(app, client):

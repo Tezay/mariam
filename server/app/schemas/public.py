@@ -5,12 +5,16 @@ from ..data.site_profile import PAYMENT_METHODS
 from ..models import RATING_MAX, RATING_MIN
 from ..models.menu_vote import VOTE_ICON_PRESETS
 from ..services.menu_window import MAX_RANGE_DAYS
-from .restaurant import ServiceHoursDaySchema
 from .taxonomy import CertificationSchema, DietaryTagSchema
 
 # Long enough for a SHA-256 hex digest, and a bound on what an anonymous caller
 # can push into the Redis key space.
 FINGERPRINT_MAX = 128
+
+
+class ServiceHoursDaySchema(Schema):
+    open = fields.Str(required=True, metadata={'description': "HH:MM"})
+    close = fields.Str(required=True, metadata={'description': "HH:MM"})
 
 
 class PublicOrgSchema(Schema):
@@ -27,10 +31,6 @@ class PublicSiteSummarySchema(Schema):
     slug = fields.Str(required=True)
     name = fields.Str(required=True)
     logo_url = fields.Str(allow_none=True)
-
-
-class PublicSiteListSchema(Schema):
-    items = fields.List(fields.Nested(PublicSiteSummarySchema), required=True)
 
 
 class MenuWindowSchema(Schema):

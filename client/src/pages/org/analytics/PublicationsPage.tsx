@@ -9,7 +9,7 @@ export function OrgPublicationsPage() {
   const { data: orgSites } = useOrgSites();
 
   const sites = useMemo(
-    () => (orgSites ?? []).map((site) => ({ id: site.id, name: site.name })),
+    () => (orgSites ?? []).map((site) => ({ slug: site.slug, name: site.name })),
     [orgSites]
   );
 
@@ -19,7 +19,7 @@ export function OrgPublicationsPage() {
         title="Publications"
         description="Régularité de publication, ponctualité et complétude des menus."
       />
-      <PublicationsView sites={sites} onSiteClick={(siteId) => navigate(`/org/sites/${siteId}`)} />
+      <PublicationsView sites={sites} onSiteClick={(site) => navigate(`/org/sites/${site}`)} />
     </div>
   );
 }

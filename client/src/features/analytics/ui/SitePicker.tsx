@@ -5,14 +5,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 export interface SiteOption {
-  id: number;
+  slug: string;
   name: string;
 }
 
 interface SitePickerProps {
   sites: SiteOption[];
-  selected: number[];
-  onChange: (ids: number[]) => void;
+  selected: string[];
+  onChange: (slugs: string[]) => void;
 }
 
 /**
@@ -22,15 +22,15 @@ interface SitePickerProps {
 export function SitePicker({ sites, selected, onChange }: SitePickerProps) {
   if (sites.length < 2) return null;
 
-  const toggle = (id: number) => {
-    onChange(selected.includes(id) ? selected.filter((v) => v !== id) : [...selected, id]);
+  const toggle = (slug: string) => {
+    onChange(selected.includes(slug) ? selected.filter((v) => v !== slug) : [...selected, slug]);
   };
 
   const label =
     selected.length === 0
       ? `Tous les sites (${sites.length})`
       : selected.length === 1
-        ? (sites.find((s) => s.id === selected[0])?.name ?? '1 site')
+        ? (sites.find((s) => s.slug === selected[0])?.name ?? '1 site')
         : `${selected.length} sites`;
 
   return (
@@ -66,12 +66,12 @@ export function SitePicker({ sites, selected, onChange }: SitePickerProps) {
         <ScrollArea className="max-h-72">
           <ul className="p-1">
             {sites.map((site) => {
-              const isSelected = selected.includes(site.id);
+              const isSelected = selected.includes(site.slug);
               return (
-                <li key={site.id}>
+                <li key={site.slug}>
                   <button
                     type="button"
-                    onClick={() => toggle(site.id)}
+                    onClick={() => toggle(site.slug)}
                     aria-pressed={isSelected}
                     className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-muted"
                   >

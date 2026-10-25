@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router';
 import { getServiceStatus, groupConsecutiveHours } from '@/lib/service-utils';
 import type { RestaurantPublic } from '../menu-types';
 import type { Closure } from '@/lib/api/closures';
+import type { SiteRef } from '@/lib/api/client';
 
 const PAYMENT_CONFIG: Record<string, { src: string; label: string }> = {
   izly: { src: '/payments/izly.svg', label: 'Izly' },
@@ -23,15 +24,17 @@ function ServiceStatusDot({ color }: { color: 'green' | 'amber' | 'gray' | 'red'
 }
 
 interface MobileHeaderProps {
+  site: SiteRef;
   restaurant: RestaurantPublic;
   activeClosure?: Closure | null;
   now: Date;
 }
 
-export function MobileHeader({ restaurant, activeClosure, now }: MobileHeaderProps) {
+export function MobileHeader({ site, restaurant, activeClosure, now }: MobileHeaderProps) {
   const [expanded, setExpanded] = useState(false);
 
   const navigate = useNavigate();
+  const openNotifications = () => navigate(`/notifications?${new URLSearchParams({ ...site })}`);
 
   const serviceDays = restaurant.config?.service_days ?? [];
   const serviceHours = restaurant.service_hours ?? {};
@@ -86,7 +89,7 @@ export function MobileHeader({ restaurant, activeClosure, now }: MobileHeaderPro
         <button
           onClick={(e) => {
             e.stopPropagation();
-            navigate('/notifications');
+            openNotifications();
           }}
           className="shrink-0 rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100"
           aria-label="Notifications"
@@ -185,7 +188,7 @@ export function MobileHeader({ restaurant, activeClosure, now }: MobileHeaderPro
 
             <button
               type="button"
-              onClick={() => navigate('/notifications')}
+              onClick={openNotifications}
               className={`flex items-center justify-center gap-2 rounded-xl bg-mariam-blue/10 px-4 py-2.5 text-sm font-semibold text-mariam-blue ${!(restaurant.phone || restaurant.email) ? 'w-full' : 'shrink-0'}`}
             >
               <Bell className="h-4 w-4 shrink-0" />

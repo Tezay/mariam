@@ -1,7 +1,17 @@
+import base64
+import hashlib
 from datetime import time
 
 from ..extensions import db
 from ..utils.time import utc_now_naive
+
+
+def endpoint_fingerprint(endpoint: str) -> str:
+    """SHA-256 of the endpoint in base64url: the subscription's address, which the
+    browser computes as well and which, unlike the endpoint, lets no one push.
+    """
+    digest = hashlib.sha256(endpoint.encode()).digest()
+    return base64.urlsafe_b64encode(digest).rstrip(b'=').decode()
 
 
 class PushSubscription(db.Model):
@@ -13,6 +23,7 @@ class PushSubscription(db.Model):
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=False)
 
     endpoint = db.Column(db.Text, nullable=False, unique=True, index=True)
+    endpoint_sha256 = db.Column(db.String(43), unique=True, nullable=True)
     p256dh = db.Column(db.Text, nullable=False)
     auth = db.Column(db.Text, nullable=False)
 
@@ -30,20 +41,6 @@ class PushSubscription(db.Model):
     last_notified_at = db.Column(db.DateTime, nullable=True)
 
     restaurant = db.relationship('Restaurant', backref=db.backref('push_subscriptions', lazy='dynamic'))
-
-    def to_dict(self):
-        """Leaves out the keys, which let anyone push to this browser."""
-        return {
-            'id': self.id,
-            'restaurant_id': self.restaurant_id,
-            'notify_today_menu': self.notify_today_menu,
-            'notify_today_menu_time': self.notify_today_menu_time.strftime('%H:%M') if self.notify_today_menu_time else '11:00',
-            'notify_tomorrow_menu': self.notify_tomorrow_menu,
-            'notify_tomorrow_menu_time': self.notify_tomorrow_menu_time.strftime('%H:%M') if self.notify_tomorrow_menu_time else '19:00',
-            'notify_events': self.notify_events,
-            'platform': self.platform,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-        }
 
     def get_subscription_info(self):
         """In the shape pywebpush expects."""

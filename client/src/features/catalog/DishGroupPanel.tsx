@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Check, Minus } from 'lucide-react';
+import { useOrgRef } from '@/hooks/useOrgRef';
 import { orgApi } from '@/lib/api/org';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,10 +16,11 @@ export function DishGroupPanel({
   normalizedName: string | null;
   onClose: () => void;
 }) {
+  const org = useOrgRef();
   const { data: group, isPending } = useQuery({
-    queryKey: ['org', 'catalog', 'group', normalizedName],
-    queryFn: () => orgApi.getCatalogGroup(normalizedName as string),
-    enabled: normalizedName !== null,
+    queryKey: ['org', 'catalog', 'group', org, normalizedName],
+    queryFn: () => orgApi.getCatalogGroup(org!, normalizedName as string),
+    enabled: org !== null && normalizedName !== null,
   });
 
   const trend = (group?.series ?? []).filter((point) => point.votes > 0);

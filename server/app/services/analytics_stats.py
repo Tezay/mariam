@@ -1,4 +1,4 @@
-"""Aggregates behind /v1/analytics, shared by the site and org dashboards.
+"""Aggregates behind the analytics routes, shared by the site and org dashboards.
 
 Every query groups by site so their number stays constant as sites are added.
 """
@@ -7,8 +7,6 @@ import json
 import os
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-
-from flask import request
 
 from ..extensions import db
 from ..models import (
@@ -25,8 +23,7 @@ from ..models import (
     menu_vote_dishes,
 )
 from ..models.telemetry import ORG_PAGE_KINDS
-from ..utils.time import PARIS_TZ, paris_today, parse_iso_date, utc_naive_to_paris
-from .access import accessible_restaurant_ids
+from ..utils.time import PARIS_TZ, paris_today, utc_naive_to_paris
 from .redis_client import get_redis
 from .service_calendar import closures_by_site
 from .telemetry import live_uniques
@@ -65,34 +62,22 @@ class Scope:
         )
 
 
-def resolve_scope(user) -> Scope:
-    """Build the request scope, intersecting `site_ids` with what the user may read.
+def resolve_scope(site_ids, query: dict) -> Scope:
+    """The period of a validated query (`start`, `end`, `period`) over these sites.
 
-    Ids outside the caller's reach are dropped silently: a director filtering on
-    a foreign site gets that site's data omitted, never a 403.
+    An end in the future reads as today, and a start after it as that day.
     """
-    accessible = accessible_restaurant_ids(user)
-    requested = request.args.get('site_ids', '')
-    if requested:
-        wanted = {int(part) for part in requested.split(',') if part.strip().isdigit()}
-        site_ids = sorted(accessible & wanted)
-    else:
-        site_ids = sorted(accessible)
-
     today = paris_today()
-    end = min(parse_iso_date(request.args.get('end')) or today, today)
-    start = parse_iso_date(request.args.get('start'))
+    end = min(query.get('end') or today, today)
+    start = query.get('start')
     if start is None:
-        span = PERIODS.get(request.args.get('period', DEFAULT_PERIOD), PERIODS[DEFAULT_PERIOD])
-        start = end - timedelta(days=span - 1)
+        start = end - timedelta(days=PERIODS[query.get('period', DEFAULT_PERIOD)] - 1)
     start = min(start, end)
-    if (end - start).days + 1 > MAX_RANGE_DAYS:
-        start = end - timedelta(days=MAX_RANGE_DAYS - 1)
 
     span = (end - start).days + 1
     prev_end = start - timedelta(days=1)
     return Scope(
-        site_ids=site_ids,
+        site_ids=sorted(site_ids),
         start=start,
         end=end,
         prev_start=prev_end - timedelta(days=span - 1),
@@ -390,6 +375,7 @@ def publication_stats(scope: Scope, include_matrix: bool = True) -> dict:
         completeness = counters.completeness()
         site_rows.append({
             'site_id': site.id,
+            'site': site.slug,
             'name': site.name,
             'publication_rate': counters.publication_rate,
             'punctuality_rate': counters.punctuality_rate,
@@ -437,7 +423,7 @@ def status_matrix(sites, site_ids) -> list[dict]:
                 status = 'draft' if menu is not None else 'missing'
             days.append({'date': day.isoformat(), 'status': status})
             day += timedelta(days=1)
-        matrix.append({'site_id': site.id, 'name': site.name, 'days': days})
+        matrix.append({'site_id': site.id, 'site': site.slug, 'name': site.name, 'days': days})
     return matrix
 
 
@@ -495,6 +481,7 @@ def overview(scope: Scope, organization_id=None) -> dict:
         published_at = last_published.get(site.id)
         site_rows.append({
             'site_id': site.id,
+            'site': site.slug,
             'name': site.name,
             'is_active': site.is_active,
             'publication_rate': rates.get('publication_rate'),
@@ -714,6 +701,7 @@ def traffic_stats(scope: Scope, organization_id=None) -> dict:
         before = previous_by_site.get(site.id, 0)
         by_site.append({
             'site_id': site.id,
+            'site': site.slug,
             'name': site.name,
             'views': current,
             'unique_visitors': uniques_by_site.get(site.id, 0),
@@ -819,6 +807,7 @@ def satisfaction_stats(scope: Scope, min_votes: int = DEFAULT_MIN_DISH_VOTES) ->
             DishCatalog.id,
             DishCatalog.name,
             Restaurant.id,
+            Restaurant.slug,
             Restaurant.name,
             db.func.count(MenuVote.id),
             db.func.avg(MenuVote.rating),
@@ -831,7 +820,7 @@ def satisfaction_stats(scope: Scope, min_votes: int = DEFAULT_MIN_DISH_VOTES) ->
             MenuVote.date >= scope.start,
             MenuVote.date <= scope.end,
         )
-        .group_by(DishCatalog.id, DishCatalog.name, Restaurant.id, Restaurant.name)
+        .group_by(DishCatalog.id, DishCatalog.name, Restaurant.id, Restaurant.slug, Restaurant.name)
         .having(db.func.count(MenuVote.id) >= min_votes)
         .all()
     )
@@ -840,11 +829,12 @@ def satisfaction_stats(scope: Scope, min_votes: int = DEFAULT_MIN_DISH_VOTES) ->
             'dish_id': dish_id,
             'name': name,
             'site_id': site_id,
+            'site': site_slug,
             'site_name': site_name,
             'votes': int(count),
             'score': round(float(average), 2),
         }
-        for dish_id, name, site_id, site_name, count, average in dish_rows
+        for dish_id, name, site_id, site_slug, site_name, count, average in dish_rows
     ]
     ranked = sorted(dishes, key=lambda row: row['score'], reverse=True)
 
@@ -892,6 +882,7 @@ def satisfaction_stats(scope: Scope, min_votes: int = DEFAULT_MIN_DISH_VOTES) ->
         site_uniques = uniques_by_site.get(site.id, 0)
         site_rows.append({
             'site_id': site.id,
+            'site': site.slug,
             'name': site.name,
             'votes': count,
             'score': current_score,

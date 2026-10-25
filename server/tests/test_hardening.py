@@ -1,4 +1,4 @@
-"""Backend hardening tests: opt-in pagination, auth hardening and the production guard."""
+"""Backend hardening tests: auth hardening, rate limits, headers and the production guard."""
 
 import pyotp
 import pytest
@@ -10,36 +10,6 @@ from app.models import Organization, User
 from app.security import limiter
 from conftest import TEST_PASSWORD, auth_headers, get_token, make_restaurant, make_user, probe_path
 from tests.auth_support import session_headers
-
-
-class TestPagination:
-    def test_users_default_shape_unchanged(self, app, client):
-        make_user(None, email='padmin@mariam.app', role='admin')
-        make_user(None, email='u1@mariam.app', role='editor')
-        token = get_token(client, email='padmin@mariam.app')
-
-        body = client.get('/v1/users', headers=auth_headers(token)).get_json()
-        assert 'users' in body
-        assert 'total' not in body  # no pagination fields without ?page=
-
-    def test_users_opt_in_pagination(self, app, client):
-        make_user(None, email='padmin@mariam.app', role='admin')
-        make_user(None, email='u1@mariam.app', role='editor')
-        make_user(None, email='u2@mariam.app', role='editor')
-        token = get_token(client, email='padmin@mariam.app')
-
-        body = client.get('/v1/users?page=1&per_page=1', headers=auth_headers(token)).get_json()
-        assert body['page'] == 1
-        assert body['per_page'] == 1
-        assert body['total'] >= 3
-        assert len(body['users']) == 1
-        assert body['has_more'] is True
-
-    def test_per_page_capped(self, app, client):
-        make_user(None, email='padmin@mariam.app', role='admin')
-        token = get_token(client, email='padmin@mariam.app')
-        body = client.get('/v1/users?page=1&per_page=9999', headers=auth_headers(token)).get_json()
-        assert body['per_page'] == 200
 
 
 class TestLoginHardening:
@@ -104,11 +74,11 @@ class TestAuthenticationComesFirst:
         'auth.passkey_reset_password_begin',
         'auth.passkey_reset_password_complete',
         'auth.session_transfer_validate',
-        'notifications.subscribe',
-        'notifications.unsubscribe',
-        'notifications.update_preferences',
-        'notifications.send_test',
-        'public.unsubscribe',
+        'push.put_subscription',
+        'push.patch_subscription',
+        'push.delete_subscription',
+        'push.test_subscription',
+        'weekly_emails.unsubscribe',
         'menus.put_vote',
         'devices.create_device',
         'orgs.record_view',
@@ -222,14 +192,6 @@ class TestResponseHeaders:
         assert res.status_code == 200
         assert f'{swagger_ui}swagger-ui-bundle.js' in res.get_data(as_text=True)
         assert f"script-src {swagger_ui} 'unsafe-inline'" in res.headers['Content-Security-Policy']
-
-    def test_the_unsubscribe_page_keeps_its_inline_styles_and_runs_no_script(self, client):
-        res = client.get('/v1/public/unsubscribe/MQ.forged-signature')
-
-        policy = res.headers['Content-Security-Policy']
-        assert res.status_code == 200
-        assert "style-src 'unsafe-inline'" in policy
-        assert 'script-src' not in policy
 
 
 class TestProductionGuard:

@@ -1972,32 +1972,6 @@
         ]
       }
     },
-    "/v1/restaurants": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Restaurant"
-                  }
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "List restaurants of the caller's organization (admin only).",
-        "tags": [
-          "restaurant"
-        ]
-      }
-    },
     "/v1/taxonomy": {
       "get": {
         "responses": {
@@ -2111,469 +2085,6 @@
         }
       ]
     },
-    "/v1/users/invite": {
-      "post": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "409": {
-            "description": "Suggested email already in use",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Identity confirmation required, or role out of scope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid role",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InvitationCreated"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Invite"
-              }
-            }
-          }
-        },
-        "summary": "Create an invitation link for a new user.",
-        "description": "Requires a confirmed session. Returns a token to send to the invitee so they\ncan set up their account and MFA via `/activate/<token>`. The email is optional\nand pre-fills the activation form, where the invitee may enter another. With\n`send_email` the invitation is also emailed to it, twenty times a day at most\nfor one administrator; the invitation's `emailed` tells whether it left.",
-        "tags": [
-          "users"
-        ]
-      }
-    },
-    "/v1/users/invitations": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Invitation"
-                  }
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "List the pending invitations the caller manages (50 most recent).",
-        "tags": [
-          "users"
-        ]
-      }
-    },
-    "/v1/users/invitations/{invitation_id}": {
-      "delete": {
-        "responses": {
-          "404": {
-            "description": "No such pending invitation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Revoke a pending invitation: its link stops working at once.",
-        "tags": [
-          "users"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "invitation_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/users": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/UserAdmin"
-                  }
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "List users of the caller's tenant (admin only).",
-        "description": "A site admin never sees supervisors; an org_admin sees everyone\nin its organization.",
-        "tags": [
-          "users"
-        ]
-      }
-    },
-    "/v1/users/{user_id}": {
-      "get": {
-        "responses": {
-          "404": {
-            "description": "User not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserAdmin"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Get user details.",
-        "tags": [
-          "users"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "user_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ],
-      "put": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "404": {
-            "description": "User not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Rescue account cannot be modified",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid update",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserAdmin"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserUpdate"
-              }
-            }
-          }
-        },
-        "summary": "Update a user (role, active status, restaurant).",
-        "tags": [
-          "users"
-        ]
-      },
-      "delete": {
-        "responses": {
-          "404": {
-            "description": "User not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Identity confirmation required, or rescue account",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Cannot delete your own account",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Delete a user.",
-        "tags": [
-          "users"
-        ]
-      }
-    },
-    "/v1/users/{user_id}/reset-mfa": {
-      "post": {
-        "responses": {
-          "404": {
-            "description": "User not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Identity confirmation required, or rescue account",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Cannot reset your own account",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Remove a user's second factor.",
-        "description": "Drops TOTP and passkeys and ends the user's sessions. The account stays\nactive: it signs in with its password and enrols a new method.",
-        "tags": [
-          "users"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "user_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/users/{user_id}/reset-password": {
-      "post": {
-        "responses": {
-          "409": {
-            "description": "Account disabled, or without a second factor",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "User not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Identity confirmation required, or rescue account",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Cannot reset your own account",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PasswordResetLink"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Send a user a link to choose a new password.",
-        "description": "The link goes to the account's address and is returned only when it could\nnot be emailed. It serves once, for 72 hours, and replaces the pending ones;\nthe reset page still asks for the account's second factor.",
-        "tags": [
-          "users"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "user_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
     "/v1/users/me/ui-preferences": {
       "get": {
         "responses": {
@@ -2636,333 +2147,6 @@
         "tags": [
           "users"
         ]
-      }
-    },
-    "/v1/audit-logs/export": {
-      "get": {
-        "responses": {
-          "403": {
-            "description": "Identity confirmation required, or access denied",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "CSV export of audit logs (max 10,000 rows).",
-        "description": "Requires a confirmed session.\n\nAccepts the same query params as `GET /v1/audit-logs`:\n`action`, `user_id`, `start_date`, `end_date`.\n\nReturns a CSV file with columns:\nID, Date, User, Action, Target, IP, Details.",
-        "tags": [
-          "audit"
-        ]
-      }
-    },
-    "/v1/audit-logs": {
-      "get": {
-        "responses": {
-          "403": {
-            "description": "MFA not enabled or access denied",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Paginated audit log list.",
-        "description": "Requires the administrator to have MFA enabled.\n\nQuery params:\n- `page` \u2014 Page number (default 1)\n- `per_page` \u2014 Entries per page (default 50, max 100)\n- `action` \u2014 Filter by action type\n- `user_id` \u2014 Filter by user\n- `start_date` \u2014 Start date (ISO format)\n- `end_date` \u2014 End date (ISO format)",
-        "tags": [
-          "audit"
-        ]
-      }
-    },
-    "/v1/notifications/vapid-public-key": {
-      "get": {
-        "responses": {
-          "503": {
-            "description": "VAPID not configured",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Return the VAPID public key for initializing Web Push in the browser.",
-        "tags": [
-          "notifications"
-        ],
-        "security": []
-      }
-    },
-    "/v1/notifications/subscribe": {
-      "post": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "404": {
-            "description": "Unknown or inactive restaurant",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Subscription updated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Subscribe"
-              }
-            }
-          }
-        },
-        "summary": "Register or update a push subscription.",
-        "description": "Expected body:\n```json\n{\n  \"endpoint\": \"https://fcm.googleapis.com/...\",\n  \"keys\": { \"p256dh\": \"...\", \"auth\": \"...\" },\n  \"preferences\": {\n    \"notify_today_menu\": true,\n    \"notify_today_menu_time\": \"11:00\",\n    \"notify_tomorrow_menu\": false,\n    \"notify_tomorrow_menu_time\": \"19:00\",\n    \"notify_events\": true\n  },\n  \"platform\": \"android\",\n  \"restaurant_id\": 1\n}\n```",
-        "tags": [
-          "notifications"
-        ],
-        "security": []
-      }
-    },
-    "/v1/notifications/preferences": {
-      "get": {
-        "parameters": [
-          {
-            "in": "query",
-            "name": "endpoint",
-            "description": "Push subscription endpoint URL",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "404": {
-            "description": "Subscription not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Get the notification preferences for a subscription by endpoint.",
-        "tags": [
-          "notifications"
-        ],
-        "security": []
-      },
-      "put": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "404": {
-            "description": "Subscription not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PreferencesUpdate"
-              }
-            }
-          }
-        },
-        "summary": "Update the notification preferences for an existing subscription.",
-        "tags": [
-          "notifications"
-        ],
-        "security": []
-      }
-    },
-    "/v1/notifications/unsubscribe": {
-      "delete": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "404": {
-            "description": "Subscription not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SubscriptionEndpoint"
-              }
-            }
-          }
-        },
-        "summary": "Remove a push subscription.",
-        "tags": [
-          "notifications"
-        ],
-        "security": []
-      }
-    },
-    "/v1/notifications/test": {
-      "post": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "500": {
-            "description": "VAPID send failure",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BrowserSubscription"
-              }
-            }
-          }
-        },
-        "summary": "Send a test push notification to the subscriber.",
-        "tags": [
-          "notifications"
-        ],
-        "security": []
       }
     },
     "/v1/inbox/live-alerts": {
@@ -3077,30 +2261,20 @@
         ]
       }
     },
-    "/v1/public/unsubscribe/{token}": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Turn the weekly digest off from the email itself.",
-        "description": "POST answers the one-click of mail clients (RFC 8058); GET renders a page\nfor the footer link, so neither needs a session.",
-        "tags": [
-          "public"
-        ],
-        "security": []
-      },
+    "/v1/weekly-emails/{token}/unsubscribe": {
       "post": {
         "responses": {
+          "204": {
+            "description": "No Content"
+          },
           "default": {
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Turn the weekly digest off from the email itself.",
-        "description": "POST answers the one-click of mail clients (RFC 8058); GET renders a page\nfor the footer link, so neither needs a session.",
+        "summary": "Stop the weekly email of the account the email's token names.",
+        "description": "The one-click target of mail clients (RFC 8058), whose body is ignored, and\nof the page the email's own link opens.",
         "tags": [
-          "public"
+          "weekly_emails"
         ],
         "security": []
       },
@@ -3116,97 +2290,224 @@
         }
       ]
     },
-    "/v1/org/sites": {
+    "/v1/push-key": {
       "get": {
         "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushKey"
+                }
+              }
+            }
+          },
           "default": {
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Overview of every site of the caller's organization, with key metrics.",
+        "summary": "The server's public key, which the browser subscribes with.",
         "tags": [
-          "org"
-        ]
+          "push"
+        ],
+        "security": []
       }
     },
-    "/v1/org/catalog": {
-      "get": {
+    "/v1/orgs/{org}/sites/{site}/push-subscriptions/{subscription_id}": {
+      "put": {
         "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "201": {
+            "description": "The browser's first subscription",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushSubscription"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "The subscription replaced, or moved here",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushSubscription"
+                }
+              }
+            }
+          },
           "default": {
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Dishes served across the organization, pooled by normalised name.",
-        "description": "Query params: `q`, `sort` (usage | sites | name | photos), `page`, `per_page`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscriptionInput"
+              }
+            }
+          }
+        },
+        "summary": "Subscribe a browser to the site's notifications.",
+        "description": "`subscription_id` is the fingerprint of `endpoint`. A subscription follows\none site: subscribing on another site moves it there. Preferences left out\ntake their default.",
         "tags": [
-          "org"
-        ]
+          "push"
+        ],
+        "security": []
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "subscription_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ],
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushSubscription"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "A subscription's preferences; one that follows another site is not found here.",
+        "tags": [
+          "push"
+        ],
+        "security": []
+      },
+      "patch": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushSubscription"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushPreferences"
+              }
+            }
+          }
+        },
+        "summary": "Change a subscription's preferences.",
+        "tags": [
+          "push"
+        ],
+        "security": []
+      },
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Unsubscribe a browser.",
+        "tags": [
+          "push"
+        ],
+        "security": []
       }
     },
-    "/v1/org/catalog/group": {
-      "get": {
+    "/v1/orgs/{org}/sites/{site}/push-subscriptions/{subscription_id}/test": {
+      "post": {
         "responses": {
+          "204": {
+            "description": "No Content"
+          },
           "default": {
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "One pooled dish: the organization-wide aggregate and each site's figures.",
+        "summary": "Send a test notification to the subscribed browser.",
         "tags": [
-          "org"
-        ]
-      }
-    },
-    "/v1/analytics/overview": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
+          "push"
+        ],
+        "security": []
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
           }
         },
-        "summary": "Headline KPIs, trend and per-site table for the period.",
-        "tags": [
-          "analytics"
-        ]
-      }
-    },
-    "/v1/analytics/publications": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
           }
         },
-        "summary": "Publication compliance, punctuality and content completeness per site.",
-        "tags": [
-          "analytics"
-        ]
-      }
-    },
-    "/v1/analytics/traffic": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
+        {
+          "in": "path",
+          "name": "subscription_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
           }
-        },
-        "summary": "Public-page consultation over the period, per day, site, hour and page kind.",
-        "tags": [
-          "analytics"
-        ]
-      }
-    },
-    "/v1/analytics/satisfaction": {
-      "get": {
-        "responses": {
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Menu ratings over the period, per day, site and dish.",
-        "tags": [
-          "analytics"
-        ]
-      }
+        }
+      ]
     },
     "/v1/domains/{host}": {
       "get": {
@@ -3287,7 +2588,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PublicSiteList"
+                  "$ref": "#/components/schemas/OrgSiteList"
                 }
               }
             }
@@ -3296,11 +2597,17 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "The organization's active sites, by name.",
+        "summary": "The organization's sites, by name.",
+        "description": "Anyone reads the active ones. Its supervisors read them all, closed ones\nincluded, with their figures.",
         "tags": [
           "orgs"
         ],
-        "security": []
+        "security": [
+          {},
+          {
+            "bearer": []
+          }
+        ]
       },
       "parameters": [
         {
@@ -3339,6 +2646,1922 @@
           "schema": {
             "type": "string",
             "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/members": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 200
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The site's accounts, newest first.",
+        "tags": [
+          "members"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/members/{user_id}": {
+      "patch": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Member"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberPatch"
+              }
+            }
+          }
+        },
+        "summary": "Change an account's role, or turn it off: its sessions end at once.",
+        "tags": [
+          "members"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "user_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ],
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Delete an account, from a confirmed session.",
+        "tags": [
+          "members"
+        ]
+      }
+    },
+    "/v1/orgs/{org}/sites/{site}/members/{user_id}/second-factors": {
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Remove an account's second factors and end its sessions, from a confirmed session.",
+        "description": "The account stays active: it signs in with its password and sets up a new one.",
+        "tags": [
+          "members"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "user_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/members/{user_id}/password-reset": {
+      "post": {
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordReset"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Send an account a link to choose a new password, from a confirmed session.",
+        "description": "The link goes to the account's address, and comes back only when it could\nnot be emailed. It serves once, for 72 hours, and replaces the pending ones;\nthe reset page still asks for the account's second factor.",
+        "tags": [
+          "members"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "user_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/invitations": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The site's pending invitations, the 50 latest, for its own admins.",
+        "tags": [
+          "members"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ],
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invitation"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteInvitationInput"
+              }
+            }
+          }
+        },
+        "summary": "Invite someone to the site, from a confirmed session.",
+        "description": "The link's token creates the account at `/activate/<token>`. With\n`send_email` it is also emailed to `email`, twenty times a day at most for\none administrator; `emailed` tells whether it left.",
+        "tags": [
+          "members"
+        ]
+      }
+    },
+    "/v1/orgs/{org}/sites/{site}/invitations/{invitation_id}": {
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Revoke a pending invitation: its link stops working at once.",
+        "tags": [
+          "members"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "invitation_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/members": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 200
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Every account of the organization, its supervisors and its sites', newest first.",
+        "tags": [
+          "members"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/members/{user_id}": {
+      "patch": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Member"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupervisorPatch"
+              }
+            }
+          }
+        },
+        "summary": "Turn a supervisor's account off or on; its sessions end at once.",
+        "tags": [
+          "members"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "user_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ],
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Delete a supervisor's account, from a confirmed session.",
+        "tags": [
+          "members"
+        ]
+      }
+    },
+    "/v1/orgs/{org}/members/{user_id}/second-factors": {
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Remove a supervisor's second factors and end its sessions, from a confirmed session.",
+        "tags": [
+          "members"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "user_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/members/{user_id}/password-reset": {
+      "post": {
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordReset"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Send a supervisor a link to choose a new password, from a confirmed session.",
+        "tags": [
+          "members"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "user_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/invitations": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The pending invitations of supervisors, the 50 latest.",
+        "tags": [
+          "members"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ],
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invitation"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupervisorInvitationInput"
+              }
+            }
+          }
+        },
+        "summary": "Invite a supervisor, from a confirmed session; as for a site, `send_email` emails it.",
+        "tags": [
+          "members"
+        ]
+      }
+    },
+    "/v1/orgs/{org}/invitations/{invitation_id}": {
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Revoke a supervisor's pending invitation.",
+        "tags": [
+          "members"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "invitation_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/audit-logs": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "action",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "description": "The account that acted",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "description": "In Paris time",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "description": "Included",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 100
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditLogList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The site's audit log, newest first, for an account with a second factor.",
+        "tags": [
+          "audit"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/audit-logs/export": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "action",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "description": "The account that acted",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "description": "In Paris time",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "description": "Included",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "Comma-separated, at most 10,000 rows: ID, Date, User, Action, Target, IP, Details",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The site's audit log as a CSV file, from a confirmed session.",
+        "tags": [
+          "audit"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/audit-logs": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "action",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "description": "The account that acted",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "description": "In Paris time",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "description": "Included",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 100
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "site",
+            "description": "Only the entries of this site",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditLogList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The organization's audit log, its sites' and its supervisors', newest first.",
+        "tags": [
+          "audit"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/audit-logs/export": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "action",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "description": "The account that acted",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "description": "In Paris time",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "description": "Included",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "site",
+            "description": "Only the entries of this site",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "Comma-separated, at most 10,000 rows: ID, Date, User, Action, Target, IP, Details",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The organization's audit log as a CSV file, from a confirmed session.",
+        "tags": [
+          "audit"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/analytics/overview": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "description": "In place of `period`",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "description": "Included; today at the latest",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "description": "The days up to `to`, without `from`",
+            "schema": {
+              "type": "string",
+              "default": "30d",
+              "enum": [
+                "1d",
+                "7d",
+                "30d",
+                "90d"
+              ]
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewReport"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Headline figures and trend of the site over the period.",
+        "tags": [
+          "analytics"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/analytics/publications": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "description": "In place of `period`",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "description": "Included; today at the latest",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "description": "The days up to `to`, without `from`",
+            "schema": {
+              "type": "string",
+              "default": "30d",
+              "enum": [
+                "1d",
+                "7d",
+                "30d",
+                "90d"
+              ]
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationsReport"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "How on time and how complete the site's menus were.",
+        "tags": [
+          "analytics"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/analytics/traffic": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "description": "In place of `period`",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "description": "Included; today at the latest",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "description": "The days up to `to`, without `from`",
+            "schema": {
+              "type": "string",
+              "default": "30d",
+              "enum": [
+                "1d",
+                "7d",
+                "30d",
+                "90d"
+              ]
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrafficReport"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Views of the site's public pages, per day, hour and page.",
+        "tags": [
+          "analytics"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/analytics/satisfaction": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "description": "In place of `period`",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "description": "Included; today at the latest",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "description": "The days up to `to`, without `from`",
+            "schema": {
+              "type": "string",
+              "default": "30d",
+              "enum": [
+                "1d",
+                "7d",
+                "30d",
+                "90d"
+              ]
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "min_votes",
+            "description": "Votes a dish needs to be ranked",
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "minimum": 1
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SatisfactionReport"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The site's menu ratings, per day and per dish.",
+        "tags": [
+          "analytics"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/analytics/overview": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "description": "In place of `period`",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "description": "Included; today at the latest",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "description": "The days up to `to`, without `from`",
+            "schema": {
+              "type": "string",
+              "default": "30d",
+              "enum": [
+                "1d",
+                "7d",
+                "30d",
+                "90d"
+              ]
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "sites",
+            "description": "Comma-separated slugs; those outside the organization are left out",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewReport"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Headline figures, trend and per-site table of the organization.",
+        "tags": [
+          "analytics"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/analytics/publications": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "description": "In place of `period`",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "description": "Included; today at the latest",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "description": "The days up to `to`, without `from`",
+            "schema": {
+              "type": "string",
+              "default": "30d",
+              "enum": [
+                "1d",
+                "7d",
+                "30d",
+                "90d"
+              ]
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "sites",
+            "description": "Comma-separated slugs; those outside the organization are left out",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationsReport"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "How on time and how complete the menus of each site were.",
+        "tags": [
+          "analytics"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/analytics/traffic": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "description": "In place of `period`",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "description": "Included; today at the latest",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "description": "The days up to `to`, without `from`",
+            "schema": {
+              "type": "string",
+              "default": "30d",
+              "enum": [
+                "1d",
+                "7d",
+                "30d",
+                "90d"
+              ]
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "sites",
+            "description": "Comma-separated slugs; those outside the organization are left out",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrafficReport"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Views of the public pages, per day, site, hour and page.",
+        "tags": [
+          "analytics"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/analytics/satisfaction": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "description": "In place of `period`",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "description": "Included; today at the latest",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "description": "The days up to `to`, without `from`",
+            "schema": {
+              "type": "string",
+              "default": "30d",
+              "enum": [
+                "1d",
+                "7d",
+                "30d",
+                "90d"
+              ]
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "min_votes",
+            "description": "Votes a dish needs to be ranked",
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "minimum": 1
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "sites",
+            "description": "Comma-separated slugs; those outside the organization are left out",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SatisfactionReport"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Menu ratings, per day, site and dish.",
+        "tags": [
+          "analytics"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/dish-groups": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "schema": {
+              "type": "integer",
+              "default": 24,
+              "minimum": 1,
+              "maximum": 200
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "description": "Part of the name",
+            "schema": {
+              "type": "string",
+              "default": ""
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string",
+              "default": "usage",
+              "enum": [
+                "usage",
+                "sites",
+                "name",
+                "photos",
+                "score"
+              ]
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "order",
+            "description": "A to Z for a name, best first for a measure, by default",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "enum": [
+                "all",
+                "7d",
+                "30d",
+                "90d",
+                "12m"
+              ]
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgDishGroupList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The groups, one page at a time; the `Link` header gives the others.",
+        "tags": [
+          "dish_groups"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/dish-groups/{name}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgDishGroup"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "One group, with each site's own figures; `name` is its `normalized_name`, encoded.",
+        "tags": [
+          "dish_groups"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
           }
         }
       ]
@@ -6446,10 +7669,6 @@
       "description": "Sign-in, second factors, passwords and sessions."
     },
     {
-      "name": "restaurant",
-      "description": "The sites an account reaches"
-    },
-    {
       "name": "taxonomy",
       "description": "Taxonomy \u2014 Dietary tag and certification catalog"
     },
@@ -6459,31 +7678,19 @@
     },
     {
       "name": "users",
-      "description": "Users \u2014 Account and invitation management (admin)"
-    },
-    {
-      "name": "audit",
-      "description": "Audit log \u2014 Admin action history (MFA required)"
-    },
-    {
-      "name": "notifications",
-      "description": "Push notifications \u2014 Web Push subscriptions (VAPID)"
+      "description": "The signed-in account's interface state"
     },
     {
       "name": "inbox",
       "description": "In-app alerts, computed on demand, and their per-account preferences"
     },
     {
-      "name": "public",
-      "description": "Links sent by email"
+      "name": "weekly_emails",
+      "description": "The weekly email: the summary or the reopening notice"
     },
     {
-      "name": "org",
-      "description": "Supervision dashboard"
-    },
-    {
-      "name": "analytics",
-      "description": "Dashboard analytics"
+      "name": "push",
+      "description": "Web Push: a visitor's notifications of a site's menus and events"
     },
     {
       "name": "domains",
@@ -6492,6 +7699,22 @@
     {
       "name": "orgs",
       "description": "Organizations and their sites"
+    },
+    {
+      "name": "members",
+      "description": "Accounts and invitations, of a site or of the organization's supervisors"
+    },
+    {
+      "name": "audit",
+      "description": "Who did what, on a site or across an organization; read with a second factor"
+    },
+    {
+      "name": "analytics",
+      "description": "Publication, traffic and rating reports, of a site or of an organization"
+    },
+    {
+      "name": "dish_groups",
+      "description": "The same dish across the sites of an organization, by its normalized name"
     },
     {
       "name": "sites",
@@ -7490,137 +8713,6 @@
         ],
         "additionalProperties": false
       },
-      "ServiceHoursDay": {
-        "type": "object",
-        "properties": {
-          "open": {
-            "type": "string"
-          },
-          "close": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "close",
-          "open"
-        ]
-      },
-      "RestaurantConfig": {
-        "type": "object",
-        "properties": {
-          "service_days": {
-            "type": "array",
-            "description": "Active service days (0=Monday, 6=Sunday)",
-            "items": {
-              "type": "integer"
-            }
-          },
-          "service_hours": {
-            "type": "object",
-            "description": "Opening hours per day index {'0': {open, close}, ...}",
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ServiceHoursDay"
-            }
-          },
-          "menu_categories": {
-            "type": "array",
-            "description": "Menu category definitions",
-            "items": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          },
-          "dietary_tags": {
-            "type": "array",
-            "description": "Available dietary tags",
-            "items": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          },
-          "certifications": {
-            "type": "array",
-            "description": "Available certifications",
-            "items": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          }
-        }
-      },
-      "Restaurant": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "readOnly": true
-          },
-          "name": {
-            "type": "string"
-          },
-          "code": {
-            "type": "string",
-            "description": "Unique restaurant code"
-          },
-          "logo_url": {
-            "type": "string",
-            "nullable": true
-          },
-          "is_active": {
-            "type": "boolean"
-          },
-          "address_label": {
-            "type": "string",
-            "nullable": true
-          },
-          "address_lat": {
-            "type": "number",
-            "nullable": true
-          },
-          "address_lon": {
-            "type": "number",
-            "nullable": true
-          },
-          "email": {
-            "type": "string",
-            "nullable": true
-          },
-          "phone": {
-            "type": "string",
-            "nullable": true
-          },
-          "capacity": {
-            "type": "integer",
-            "nullable": true
-          },
-          "payment_methods": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "nullable": true
-          },
-          "pmr_access": {
-            "type": "boolean",
-            "nullable": true
-          },
-          "service_hours": {
-            "type": "object",
-            "readOnly": true,
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ServiceHoursDay"
-            }
-          },
-          "config": {
-            "readOnly": true,
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RestaurantConfig"
-              }
-            ]
-          }
-        }
-      },
       "DietaryTag": {
         "type": "object",
         "properties": {
@@ -7838,141 +8930,6 @@
         ],
         "additionalProperties": false
       },
-      "Invite": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "format": "email",
-            "default": null,
-            "description": "Suggested address; the invitee may enter another at activation",
-            "nullable": true
-          },
-          "role": {
-            "type": "string",
-            "description": "Role: 'admin', 'editor', or 'reader'"
-          },
-          "send_email": {
-            "type": "boolean",
-            "default": false,
-            "description": "Email the invitation to `email` as well"
-          }
-        }
-      },
-      "Invitation": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer"
-          },
-          "token": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string",
-            "format": "email",
-            "nullable": true
-          },
-          "role": {
-            "type": "string"
-          },
-          "expires_at": {
-            "type": "string"
-          },
-          "emailed": {
-            "type": "boolean",
-            "description": "Whether the invitation was emailed to `email`"
-          },
-          "created_by_name": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
-      "InvitationCreated": {
-        "type": "object",
-        "properties": {
-          "message": {
-            "type": "string"
-          },
-          "invitation": {
-            "$ref": "#/components/schemas/Invitation"
-          }
-        }
-      },
-      "UserAdmin": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "readOnly": true
-          },
-          "email": {
-            "type": "string",
-            "format": "email"
-          },
-          "username": {
-            "type": "string",
-            "nullable": true
-          },
-          "role": {
-            "type": "string",
-            "description": "'admin', 'editor', or 'reader'"
-          },
-          "mfa_enabled": {
-            "type": "boolean"
-          },
-          "is_active": {
-            "type": "boolean"
-          },
-          "restaurant_id": {
-            "type": "integer",
-            "nullable": true
-          },
-          "created_at": {
-            "type": "string",
-            "readOnly": true
-          },
-          "last_login": {
-            "type": "string",
-            "readOnly": true,
-            "nullable": true
-          }
-        }
-      },
-      "UserUpdate": {
-        "type": "object",
-        "properties": {
-          "role": {
-            "type": "string",
-            "description": "'admin', 'editor', or 'reader'"
-          },
-          "is_active": {
-            "type": "boolean"
-          },
-          "restaurant_id": {
-            "type": "integer",
-            "nullable": true
-          }
-        }
-      },
-      "PasswordResetLink": {
-        "type": "object",
-        "properties": {
-          "message": {
-            "type": "string"
-          },
-          "emailed": {
-            "type": "boolean",
-            "description": "Whether the link reached the account's address"
-          },
-          "reset_url": {
-            "type": "string",
-            "description": "The link, only when it could not be emailed",
-            "nullable": true
-          }
-        }
-      },
       "UiPreferences": {
         "type": "object",
         "properties": {
@@ -7986,120 +8943,6 @@
             "type": "boolean"
           }
         }
-      },
-      "PushKeys": {
-        "type": "object",
-        "properties": {
-          "p256dh": {
-            "type": "string"
-          },
-          "auth": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "auth",
-          "p256dh"
-        ]
-      },
-      "NotificationPreferences": {
-        "type": "object",
-        "properties": {
-          "notify_today_menu": {
-            "type": "boolean"
-          },
-          "notify_today_menu_time": {
-            "type": "string",
-            "description": "Time HH:MM"
-          },
-          "notify_tomorrow_menu": {
-            "type": "boolean"
-          },
-          "notify_tomorrow_menu_time": {
-            "type": "string",
-            "description": "Time HH:MM"
-          },
-          "notify_events": {
-            "type": "boolean"
-          }
-        }
-      },
-      "Subscribe": {
-        "type": "object",
-        "properties": {
-          "endpoint": {
-            "type": "string",
-            "description": "Push subscription endpoint URL"
-          },
-          "keys": {
-            "$ref": "#/components/schemas/PushKeys"
-          },
-          "preferences": {
-            "$ref": "#/components/schemas/NotificationPreferences"
-          },
-          "platform": {
-            "type": "string",
-            "enum": [
-              "ios",
-              "android",
-              "desktop",
-              null
-            ],
-            "nullable": true
-          },
-          "restaurant_id": {
-            "type": "integer",
-            "nullable": true
-          }
-        },
-        "required": [
-          "endpoint",
-          "keys"
-        ]
-      },
-      "PreferencesUpdate": {
-        "type": "object",
-        "properties": {
-          "endpoint": {
-            "type": "string",
-            "description": "Push subscription endpoint URL"
-          },
-          "preferences": {
-            "$ref": "#/components/schemas/NotificationPreferences"
-          }
-        },
-        "required": [
-          "endpoint",
-          "preferences"
-        ]
-      },
-      "SubscriptionEndpoint": {
-        "type": "object",
-        "properties": {
-          "endpoint": {
-            "type": "string",
-            "description": "Push subscription endpoint URL"
-          }
-        },
-        "required": [
-          "endpoint"
-        ]
-      },
-      "BrowserSubscription": {
-        "type": "object",
-        "properties": {
-          "endpoint": {
-            "type": "string",
-            "description": "Push subscription endpoint URL"
-          },
-          "keys": {
-            "$ref": "#/components/schemas/PushKeys"
-          }
-        },
-        "required": [
-          "endpoint",
-          "keys"
-        ]
       },
       "LiveAlert": {
         "type": "object",
@@ -8189,6 +9032,145 @@
           }
         }
       },
+      "PushKey": {
+        "type": "object",
+        "properties": {
+          "public_key": {
+            "type": "string",
+            "description": "VAPID, for PushManager.subscribe"
+          }
+        },
+        "required": [
+          "public_key"
+        ],
+        "additionalProperties": false
+      },
+      "PushKeys": {
+        "type": "object",
+        "properties": {
+          "p256dh": {
+            "type": "string"
+          },
+          "auth": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "auth",
+          "p256dh"
+        ]
+      },
+      "PushSubscriptionInput": {
+        "type": "object",
+        "properties": {
+          "notify_today_menu": {
+            "type": "boolean"
+          },
+          "notify_today_menu_time": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "description": "Paris time"
+          },
+          "notify_tomorrow_menu": {
+            "type": "boolean"
+          },
+          "notify_tomorrow_menu_time": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "description": "Paris time"
+          },
+          "notify_events": {
+            "type": "boolean"
+          },
+          "endpoint": {
+            "type": "string"
+          },
+          "keys": {
+            "$ref": "#/components/schemas/PushKeys"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "ios",
+              "android",
+              "desktop",
+              null
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "endpoint",
+          "keys"
+        ]
+      },
+      "PushSubscription": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "SHA-256 of the endpoint, in base64url"
+          },
+          "notify_today_menu": {
+            "type": "boolean"
+          },
+          "notify_today_menu_time": {
+            "type": "string"
+          },
+          "notify_tomorrow_menu": {
+            "type": "boolean"
+          },
+          "notify_tomorrow_menu_time": {
+            "type": "string"
+          },
+          "notify_events": {
+            "type": "boolean"
+          },
+          "platform": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "created_at",
+          "id",
+          "notify_events",
+          "notify_today_menu",
+          "notify_today_menu_time",
+          "notify_tomorrow_menu",
+          "notify_tomorrow_menu_time",
+          "platform"
+        ],
+        "additionalProperties": false
+      },
+      "PushPreferences": {
+        "type": "object",
+        "properties": {
+          "notify_today_menu": {
+            "type": "boolean"
+          },
+          "notify_today_menu_time": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "description": "Paris time"
+          },
+          "notify_tomorrow_menu": {
+            "type": "boolean"
+          },
+          "notify_tomorrow_menu_time": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "description": "Paris time"
+          },
+          "notify_events": {
+            "type": "boolean"
+          }
+        }
+      },
       "PublicOrg": {
         "type": "object",
         "properties": {
@@ -8221,7 +9203,7 @@
         ],
         "additionalProperties": false
       },
-      "PublicSiteSummary": {
+      "OrgSite": {
         "type": "object",
         "properties": {
           "slug": {
@@ -8233,6 +9215,34 @@
           "logo_url": {
             "type": "string",
             "nullable": true
+          },
+          "is_active": {
+            "type": "boolean",
+            "description": "For the organization's supervisors"
+          },
+          "member_count": {
+            "type": "integer",
+            "description": "For the organization's supervisors"
+          },
+          "today_menu_status": {
+            "type": "string",
+            "enum": [
+              "published",
+              "draft",
+              "missing",
+              "closed"
+            ],
+            "description": "For the organization's supervisors"
+          },
+          "upcoming_events": {
+            "type": "integer",
+            "description": "For the organization's supervisors"
+          },
+          "last_published_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "For the organization's supervisors",
+            "nullable": true
           }
         },
         "required": [
@@ -8241,18 +9251,1429 @@
         ],
         "additionalProperties": false
       },
-      "PublicSiteList": {
+      "OrgSiteList": {
         "type": "object",
         "properties": {
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PublicSiteSummary"
+              "$ref": "#/components/schemas/OrgSite"
             }
           }
         },
         "required": [
           "items"
+        ],
+        "additionalProperties": false
+      },
+      "MemberSite": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug"
+        ],
+        "additionalProperties": false
+      },
+      "Member": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "username": {
+            "type": "string",
+            "description": "Display name",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "org_admin",
+              "admin",
+              "editor",
+              "reader"
+            ]
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "mfa_enabled": {
+            "type": "boolean",
+            "description": "An authenticator app is set up"
+          },
+          "passkeys_count": {
+            "type": "integer"
+          },
+          "is_rescue_account": {
+            "type": "boolean"
+          },
+          "site": {
+            "description": "None for a supervisor",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberSite"
+              },
+              {
+                "type": "object",
+                "nullable": true
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "last_login": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "created_at",
+          "email",
+          "id",
+          "is_active",
+          "is_rescue_account",
+          "last_login",
+          "mfa_enabled",
+          "passkeys_count",
+          "role",
+          "site",
+          "username"
+        ],
+        "additionalProperties": false
+      },
+      "MemberList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Member"
+            }
+          },
+          "total_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total_count"
+        ],
+        "additionalProperties": false
+      },
+      "MemberPatch": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "editor",
+              "reader"
+            ]
+          },
+          "is_active": {
+            "type": "boolean",
+            "description": "False ends the account's sessions"
+          }
+        }
+      },
+      "PasswordReset": {
+        "type": "object",
+        "properties": {
+          "emailed": {
+            "type": "boolean",
+            "description": "Whether the link reached the account's address"
+          },
+          "reset_url": {
+            "type": "string",
+            "description": "The link, only when it could not be emailed",
+            "nullable": true
+          }
+        },
+        "required": [
+          "emailed",
+          "reset_url"
+        ],
+        "additionalProperties": false
+      },
+      "Invitation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "token": {
+            "type": "string",
+            "description": "Enough to create the account"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Suggested by the inviter; the invitee may enter another",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "org_admin",
+              "admin",
+              "editor",
+              "reader"
+            ]
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "emailed": {
+            "type": "boolean",
+            "description": "Whether it was emailed to `email`"
+          },
+          "created_by_name": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "created_by_name",
+          "email",
+          "emailed",
+          "expires_at",
+          "id",
+          "role",
+          "token"
+        ],
+        "additionalProperties": false
+      },
+      "InvitationList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Invitation"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "SiteInvitationInput": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "default": null,
+            "description": "Suggested address; the invitee may enter another at activation",
+            "nullable": true
+          },
+          "send_email": {
+            "type": "boolean",
+            "default": false,
+            "description": "Email the invitation to `email` as well"
+          },
+          "role": {
+            "type": "string",
+            "default": "editor",
+            "enum": [
+              "admin",
+              "editor",
+              "reader"
+            ]
+          }
+        }
+      },
+      "SupervisorPatch": {
+        "type": "object",
+        "properties": {
+          "is_active": {
+            "type": "boolean",
+            "description": "False ends the account's sessions"
+          }
+        }
+      },
+      "SupervisorInvitationInput": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "default": null,
+            "description": "Suggested address; the invitee may enter another at activation",
+            "nullable": true
+          },
+          "send_email": {
+            "type": "boolean",
+            "default": false,
+            "description": "Email the invitation to `email` as well"
+          }
+        }
+      },
+      "AuditLog": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "user_email": {
+            "type": "string",
+            "nullable": true
+          },
+          "site": {
+            "type": "string",
+            "description": "The site's slug",
+            "nullable": true
+          },
+          "action": {
+            "type": "string"
+          },
+          "target_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "target_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": {},
+            "nullable": true
+          },
+          "ip_address": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "action",
+          "created_at",
+          "details",
+          "id",
+          "ip_address",
+          "site",
+          "target_id",
+          "target_type",
+          "user_email",
+          "user_id"
+        ],
+        "additionalProperties": false
+      },
+      "AuditLogList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditLog"
+            }
+          },
+          "total_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total_count"
+        ],
+        "additionalProperties": false
+      },
+      "Period": {
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date"
+          },
+          "end": {
+            "type": "string",
+            "format": "date"
+          },
+          "days": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "days",
+          "end",
+          "start"
+        ],
+        "additionalProperties": false
+      },
+      "OverviewScope": {
+        "type": "object",
+        "properties": {
+          "site_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "site_count"
+        ],
+        "additionalProperties": false
+      },
+      "SiteCount": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "active": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "active",
+          "total"
+        ],
+        "additionalProperties": false
+      },
+      "Metric": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "number",
+            "nullable": true
+          },
+          "previous": {
+            "type": "number",
+            "nullable": true
+          },
+          "delta": {
+            "type": "number",
+            "nullable": true
+          },
+          "delta_pct": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "delta",
+          "delta_pct",
+          "previous",
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "Completeness": {
+        "type": "object",
+        "properties": {
+          "categories_filled_rate": {
+            "type": "number",
+            "nullable": true
+          },
+          "photo_rate": {
+            "type": "number",
+            "nullable": true
+          },
+          "chef_note_rate": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "categories_filled_rate",
+          "chef_note_rate",
+          "photo_rate"
+        ],
+        "additionalProperties": false
+      },
+      "Kpis": {
+        "type": "object",
+        "properties": {
+          "sites": {
+            "$ref": "#/components/schemas/SiteCount"
+          },
+          "publication_rate": {
+            "$ref": "#/components/schemas/Metric"
+          },
+          "punctuality_rate": {
+            "$ref": "#/components/schemas/Metric"
+          },
+          "avg_lead_time_hours": {
+            "$ref": "#/components/schemas/Metric"
+          },
+          "completeness": {
+            "$ref": "#/components/schemas/Completeness"
+          },
+          "views": {
+            "$ref": "#/components/schemas/Metric"
+          },
+          "unique_visitors": {
+            "$ref": "#/components/schemas/Metric"
+          },
+          "satisfaction": {
+            "$ref": "#/components/schemas/Metric"
+          },
+          "participation_rate": {
+            "$ref": "#/components/schemas/Metric"
+          }
+        },
+        "required": [
+          "avg_lead_time_hours",
+          "completeness",
+          "participation_rate",
+          "publication_rate",
+          "punctuality_rate",
+          "satisfaction",
+          "sites",
+          "unique_visitors",
+          "views"
+        ],
+        "additionalProperties": false
+      },
+      "TrendPoint": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "published_sites": {
+            "type": "integer"
+          },
+          "views": {
+            "type": "integer",
+            "nullable": true
+          },
+          "unique_visitors": {
+            "type": "integer",
+            "nullable": true
+          },
+          "score": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "date",
+          "published_sites",
+          "score",
+          "unique_visitors",
+          "views"
+        ],
+        "additionalProperties": false
+      },
+      "OverviewSite": {
+        "type": "object",
+        "properties": {
+          "site": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "publication_rate": {
+            "type": "number",
+            "nullable": true
+          },
+          "punctuality_rate": {
+            "type": "number",
+            "nullable": true
+          },
+          "last_published_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "views": {
+            "type": "integer",
+            "nullable": true
+          },
+          "views_sparkline": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "nullable": true
+          },
+          "score": {
+            "type": "number",
+            "nullable": true
+          },
+          "votes": {
+            "type": "integer",
+            "nullable": true
+          }
+        },
+        "required": [
+          "is_active",
+          "last_published_at",
+          "name",
+          "publication_rate",
+          "punctuality_rate",
+          "score",
+          "site",
+          "views",
+          "views_sparkline",
+          "votes"
+        ],
+        "additionalProperties": false
+      },
+      "DishRow": {
+        "type": "object",
+        "properties": {
+          "dish_id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "site": {
+            "type": "string"
+          },
+          "site_name": {
+            "type": "string"
+          },
+          "votes": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dish_id",
+          "name",
+          "score",
+          "site",
+          "site_name",
+          "votes"
+        ],
+        "additionalProperties": false
+      },
+      "OverviewReport": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/OverviewScope"
+          },
+          "kpis": {
+            "$ref": "#/components/schemas/Kpis"
+          },
+          "trend": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrendPoint"
+            }
+          },
+          "sites": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OverviewSite"
+            }
+          },
+          "top_dishes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DishRow"
+            }
+          },
+          "flop_dishes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DishRow"
+            }
+          }
+        },
+        "required": [
+          "flop_dishes",
+          "kpis",
+          "period",
+          "scope",
+          "sites",
+          "top_dishes",
+          "trend"
+        ],
+        "additionalProperties": false
+      },
+      "PublicationSummary": {
+        "type": "object",
+        "properties": {
+          "publication_rate": {
+            "type": "number",
+            "nullable": true
+          },
+          "punctuality_rate": {
+            "type": "number",
+            "nullable": true
+          },
+          "avg_lead_time_hours": {
+            "type": "number",
+            "nullable": true
+          },
+          "completeness": {
+            "$ref": "#/components/schemas/Completeness"
+          }
+        },
+        "required": [
+          "avg_lead_time_hours",
+          "completeness",
+          "publication_rate",
+          "punctuality_rate"
+        ],
+        "additionalProperties": false
+      },
+      "PublicationSite": {
+        "type": "object",
+        "properties": {
+          "categories_filled_rate": {
+            "type": "number",
+            "nullable": true
+          },
+          "photo_rate": {
+            "type": "number",
+            "nullable": true
+          },
+          "chef_note_rate": {
+            "type": "number",
+            "nullable": true
+          },
+          "site": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "publication_rate": {
+            "type": "number",
+            "nullable": true
+          },
+          "punctuality_rate": {
+            "type": "number",
+            "nullable": true
+          },
+          "avg_lead_time_hours": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "avg_lead_time_hours",
+          "categories_filled_rate",
+          "chef_note_rate",
+          "name",
+          "photo_rate",
+          "publication_rate",
+          "punctuality_rate",
+          "site"
+        ],
+        "additionalProperties": false
+      },
+      "PublicationDay": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "published_on_time",
+              "published_late",
+              "draft",
+              "missing",
+              "closed"
+            ]
+          }
+        },
+        "required": [
+          "date",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "PublicationMatrixRow": {
+        "type": "object",
+        "properties": {
+          "site": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicationDay"
+            }
+          }
+        },
+        "required": [
+          "days",
+          "name",
+          "site"
+        ],
+        "additionalProperties": false
+      },
+      "PublicationsReport": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "$ref": "#/components/schemas/PublicationSummary"
+          },
+          "sites": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicationSite"
+            }
+          },
+          "matrix": {
+            "type": "array",
+            "description": "The last 30 days, whatever the period",
+            "items": {
+              "$ref": "#/components/schemas/PublicationMatrixRow"
+            }
+          }
+        },
+        "required": [
+          "matrix",
+          "sites",
+          "summary"
+        ],
+        "additionalProperties": false
+      },
+      "TrafficPoint": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "views": {
+            "type": "integer"
+          },
+          "unique_visitors": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "unique_visitors",
+          "views"
+        ],
+        "additionalProperties": false
+      },
+      "TrafficSite": {
+        "type": "object",
+        "properties": {
+          "site": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "views": {
+            "type": "integer"
+          },
+          "unique_visitors": {
+            "type": "integer"
+          },
+          "delta_pct": {
+            "type": "number",
+            "nullable": true
+          },
+          "sparkline": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "required": [
+          "delta_pct",
+          "name",
+          "site",
+          "sparkline",
+          "unique_visitors",
+          "views"
+        ],
+        "additionalProperties": false
+      },
+      "PageKindViews": {
+        "type": "object",
+        "properties": {
+          "page_kind": {
+            "type": "string"
+          },
+          "views": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page_kind",
+          "views"
+        ],
+        "additionalProperties": false
+      },
+      "HourViews": {
+        "type": "object",
+        "properties": {
+          "hour": {
+            "type": "integer"
+          },
+          "views": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "hour",
+          "views"
+        ],
+        "additionalProperties": false
+      },
+      "TrafficTotals": {
+        "type": "object",
+        "properties": {
+          "views": {
+            "type": "integer"
+          },
+          "unique_visitors": {
+            "type": "integer"
+          },
+          "org_root_views": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "org_root_views",
+          "unique_visitors",
+          "views"
+        ],
+        "additionalProperties": false
+      },
+      "TrafficReport": {
+        "type": "object",
+        "properties": {
+          "granularity": {
+            "type": "string",
+            "enum": [
+              "day",
+              "hour"
+            ]
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrafficPoint"
+            }
+          },
+          "by_site": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrafficSite"
+            }
+          },
+          "by_page_kind": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PageKindViews"
+            }
+          },
+          "hour_profile": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HourViews"
+            }
+          },
+          "totals": {
+            "$ref": "#/components/schemas/TrafficTotals"
+          }
+        },
+        "required": [
+          "by_page_kind",
+          "by_site",
+          "granularity",
+          "hour_profile",
+          "series",
+          "totals"
+        ],
+        "additionalProperties": false
+      },
+      "Distribution": {
+        "type": "object",
+        "properties": {
+          "1": {
+            "type": "integer"
+          },
+          "2": {
+            "type": "integer"
+          },
+          "3": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "1",
+          "2",
+          "3"
+        ],
+        "additionalProperties": false
+      },
+      "SatisfactionSummary": {
+        "type": "object",
+        "properties": {
+          "score": {
+            "type": "number",
+            "nullable": true
+          },
+          "delta": {
+            "type": "number",
+            "nullable": true
+          },
+          "votes": {
+            "type": "integer"
+          },
+          "participation_rate": {
+            "type": "number",
+            "nullable": true
+          },
+          "distribution": {
+            "$ref": "#/components/schemas/Distribution"
+          }
+        },
+        "required": [
+          "delta",
+          "distribution",
+          "participation_rate",
+          "score",
+          "votes"
+        ],
+        "additionalProperties": false
+      },
+      "PresetRow": {
+        "type": "object",
+        "properties": {
+          "preset": {
+            "type": "string"
+          },
+          "votes": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "preset",
+          "score",
+          "votes"
+        ],
+        "additionalProperties": false
+      },
+      "SatisfactionPoint": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "By day"
+          },
+          "hour": {
+            "type": "integer",
+            "description": "By hour, for a single day"
+          },
+          "votes": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "score",
+          "votes"
+        ],
+        "additionalProperties": false
+      },
+      "SatisfactionSite": {
+        "type": "object",
+        "properties": {
+          "site": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "votes": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "number",
+            "nullable": true
+          },
+          "participation_rate": {
+            "type": "number",
+            "nullable": true
+          },
+          "delta": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "delta",
+          "name",
+          "participation_rate",
+          "score",
+          "site",
+          "votes"
+        ],
+        "additionalProperties": false
+      },
+      "VoteSettings": {
+        "type": "object",
+        "properties": {
+          "site_count": {
+            "type": "integer"
+          },
+          "sites_with_vote": {
+            "type": "integer"
+          },
+          "icon_preset": {
+            "type": "string",
+            "description": "None when the sites do not all offer the same one",
+            "nullable": true
+          },
+          "dish_question": {
+            "type": "boolean",
+            "description": "For a single site only",
+            "nullable": true
+          }
+        },
+        "required": [
+          "dish_question",
+          "icon_preset",
+          "site_count",
+          "sites_with_vote"
+        ],
+        "additionalProperties": false
+      },
+      "SatisfactionReport": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "$ref": "#/components/schemas/SatisfactionSummary"
+          },
+          "granularity": {
+            "type": "string",
+            "enum": [
+              "day",
+              "hour"
+            ]
+          },
+          "by_preset": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PresetRow"
+            }
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SatisfactionPoint"
+            }
+          },
+          "by_site": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SatisfactionSite"
+            }
+          },
+          "top_dishes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DishRow"
+            }
+          },
+          "flop_dishes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DishRow"
+            }
+          },
+          "settings": {
+            "$ref": "#/components/schemas/VoteSettings"
+          }
+        },
+        "required": [
+          "by_preset",
+          "by_site",
+          "flop_dishes",
+          "granularity",
+          "series",
+          "settings",
+          "summary",
+          "top_dishes"
+        ],
+        "additionalProperties": false
+      },
+      "OrgDishGroupSite": {
+        "type": "object",
+        "properties": {
+          "site": {
+            "type": "string"
+          },
+          "site_name": {
+            "type": "string"
+          },
+          "dish_id": {
+            "type": "integer",
+            "description": "The dish, in the site's catalog"
+          },
+          "has_image": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "dish_id",
+          "has_image",
+          "site",
+          "site_name"
+        ],
+        "additionalProperties": false
+      },
+      "OrgDishGroupSummary": {
+        "type": "object",
+        "properties": {
+          "normalized_name": {
+            "type": "string",
+            "description": "The group's address"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "site_count": {
+            "type": "integer"
+          },
+          "photo_count": {
+            "type": "integer"
+          },
+          "usage_count": {
+            "type": "integer"
+          },
+          "votes": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "number",
+            "nullable": true
+          },
+          "sites": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrgDishGroupSite"
+            }
+          }
+        },
+        "required": [
+          "display_name",
+          "image_url",
+          "normalized_name",
+          "photo_count",
+          "score",
+          "site_count",
+          "sites",
+          "usage_count",
+          "votes"
+        ],
+        "additionalProperties": false
+      },
+      "OrgDishGroupList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrgDishGroupSummary"
+            }
+          },
+          "total_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total_count"
+        ],
+        "additionalProperties": false
+      },
+      "OrgDishGroupSiteFigures": {
+        "type": "object",
+        "properties": {
+          "site": {
+            "type": "string"
+          },
+          "site_name": {
+            "type": "string"
+          },
+          "dish_id": {
+            "type": "integer",
+            "description": "The dish, in the site's catalog"
+          },
+          "has_image": {
+            "type": "boolean"
+          },
+          "usage_count": {
+            "type": "integer"
+          },
+          "votes": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "dish_id",
+          "has_image",
+          "score",
+          "site",
+          "site_name",
+          "usage_count",
+          "votes"
+        ],
+        "additionalProperties": false
+      },
+      "RatingPoint": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "votes": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "date",
+          "score",
+          "votes"
+        ],
+        "additionalProperties": false
+      },
+      "OrgDishGroup": {
+        "type": "object",
+        "properties": {
+          "normalized_name": {
+            "type": "string",
+            "description": "The group's address"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "site_count": {
+            "type": "integer"
+          },
+          "photo_count": {
+            "type": "integer"
+          },
+          "usage_count": {
+            "type": "integer"
+          },
+          "votes": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "number",
+            "nullable": true
+          },
+          "sites": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrgDishGroupSiteFigures"
+            }
+          },
+          "distribution": {
+            "$ref": "#/components/schemas/Distribution"
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RatingPoint"
+            }
+          }
+        },
+        "required": [
+          "display_name",
+          "distribution",
+          "image_url",
+          "normalized_name",
+          "photo_count",
+          "score",
+          "series",
+          "site_count",
+          "sites",
+          "usage_count",
+          "votes"
+        ],
+        "additionalProperties": false
+      },
+      "ServiceHoursDay": {
+        "type": "object",
+        "properties": {
+          "open": {
+            "type": "string",
+            "description": "HH:MM"
+          },
+          "close": {
+            "type": "string",
+            "description": "HH:MM"
+          }
+        },
+        "required": [
+          "close",
+          "open"
         ],
         "additionalProperties": false
       },
@@ -9216,26 +11637,6 @@
         "required": [
           "count",
           "week"
-        ],
-        "additionalProperties": false
-      },
-      "Distribution": {
-        "type": "object",
-        "properties": {
-          "1": {
-            "type": "integer"
-          },
-          "2": {
-            "type": "integer"
-          },
-          "3": {
-            "type": "integer"
-          }
-        },
-        "required": [
-          "1",
-          "2",
-          "3"
         ],
         "additionalProperties": false
       },

@@ -1,5 +1,4 @@
 import json
-from datetime import UTC
 
 from ..extensions import db
 from ..utils.time import utc_now_naive
@@ -88,19 +87,6 @@ class AuditLog(db.Model):
             except json.JSONDecodeError:
                 return None
         return None
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'user_email': self.user.email if self.user else None,
-            'action': self.action,
-            'target_type': self.target_type,
-            'target_id': self.target_id,
-            'details': self.get_details(),
-            'ip_address': self.ip_address,
-            'created_at': self.created_at.replace(tzinfo=UTC).isoformat() if self.created_at else None
-        }
     
     def __repr__(self):
         return f'<AuditLog {self.action} by user {self.user_id}>'

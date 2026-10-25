@@ -24,11 +24,6 @@ def configure_security_headers(app: Flask) -> None:
             f"style-src {swagger_ui} 'unsafe-inline'; img-src 'self' data:; "
             "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'"
         ),
-        # Styled inline, like an email, and without a script.
-        'public.unsubscribe': (
-            "default-src 'none'; style-src 'unsafe-inline'; "
-            "frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
-        ),
     }
 
     @app.after_request
