@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { AlertTriangle, Clock, Eye, MonitorPlay, TrendingUp, Users } from 'lucide-react';
 import type { TrafficSiteRow } from '@/lib/api/analytics';
 import { EmptyState } from '@/components/dashboard/EmptyState';
@@ -15,9 +14,7 @@ import { formatNumber, formatRelative, plural, PLACEHOLDER } from './format';
 
 interface TrafficViewProps {
   sites?: SiteOption[];
-  /** Pins the view to one site, for the supervisor's drill-down. */
-  siteId?: number;
-  onSiteClick?: (siteId: number) => void;
+  onSiteClick?: (site: string) => void;
 }
 
 const COLUMNS: DataTableColumn<TrafficSiteRow>[] = [
@@ -68,13 +65,9 @@ function peakHourLabel(profile: { hour: number; views: number }[]): string {
   return `${String(peak.hour).padStart(2, '0')}h – ${String((peak.hour + 1) % 24).padStart(2, '0')}h`;
 }
 
-export function TrafficView({ sites = [], siteId, onSiteClick }: TrafficViewProps) {
-  const { filters, query, setPeriod, setCustomRange, setSiteIds } = useAnalyticsFilters();
-  const scopedQuery = useMemo(
-    () => (siteId ? { ...query, siteIds: [siteId] } : query),
-    [query, siteId]
-  );
-  const { data, isLoading, isError } = useAnalyticsTraffic(scopedQuery);
+export function TrafficView({ sites = [], onSiteClick }: TrafficViewProps) {
+  const { filters, query, setPeriod, setCustomRange, setSites } = useAnalyticsFilters();
+  const { data, isLoading, isError } = useAnalyticsTraffic(query);
 
   const totals = data?.totals;
   const screenViews = data?.by_page_kind.find((row) => row.page_kind === 'tv')?.views ?? 0;
@@ -91,7 +84,7 @@ export function TrafficView({ sites = [], siteId, onSiteClick }: TrafficViewProp
           onPeriodChange={setPeriod}
           onCustomRange={setCustomRange}
         />
-        {!siteId && <SitePicker sites={sites} selected={filters.siteIds} onChange={setSiteIds} />}
+        <SitePicker sites={sites} selected={filters.sites} onChange={setSites} />
       </div>
 
       {isError ? (
@@ -174,10 +167,10 @@ export function TrafficView({ sites = [], siteId, onSiteClick }: TrafficViewProp
                   <DataTable
                     rows={data.by_site}
                     columns={COLUMNS}
-                    rowKey={(row) => row.site_id}
+                    rowKey={(row) => row.site}
                     defaultSortKey="views"
                     minWidthClassName="min-w-[520px]"
-                    onRowClick={onSiteClick ? (row) => onSiteClick(row.site_id) : undefined}
+                    onRowClick={onSiteClick ? (row) => onSiteClick(row.site) : undefined}
                   />
                 </section>
               )}

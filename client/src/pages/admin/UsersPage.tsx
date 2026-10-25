@@ -1,11 +1,17 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
-import { adminApi, type Invitation } from '@/lib/api/admin';
-import { restaurantApi, AdminSite } from '@/lib/api/restaurant';
+import {
+  invitationsApi,
+  membersApi,
+  type Invitation,
+  type Member,
+  type MembersScope,
+} from '@/lib/api/members';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import { EMAIL_RULE, canonicalEmail } from '@/lib/email-address';
-import { User } from '@/lib/api/auth';
 import { notify } from '@/lib/toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOptionalSiteRef } from '@/contexts/SiteContext';
+import { useOrgRef } from '@/hooks/useOrgRef';
 import { ROLES, SITE_ROLES } from '@/lib/roles';
 import { RoleBadge } from '@/components/dashboard/RoleBadge';
 import { Button } from '@/components/ui/button';
@@ -66,42 +72,46 @@ function DeliveryIcon({ emailed }: { emailed: boolean }) {
   );
 }
 
-// The API sends UTC without an offset.
 const expiryDate = (expiresAt: string) =>
-  new Date(`${expiresAt}Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+  new Date(expiresAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
 
 export function UsersPage() {
   const { user: currentUser } = useAuth();
   const confirmIdentity = useStepUp();
   const isOrgScope = currentUser?.role === 'org_admin';
-  const [users, setUsers] = useState<User[]>([]);
-  const [sites, setSites] = useState<AdminSite[]>([]);
+  const orgSlug = useOrgRef()?.org;
+  const site = useOptionalSiteRef();
+  const [siteOrg, siteSlug] = [site?.org, site?.site];
+  const scope = useMemo<MembersScope | null>(() => {
+    if (isOrgScope) return orgSlug ? { org: orgSlug } : null;
+    return siteOrg && siteSlug ? { org: siteOrg, site: siteSlug } : null;
+  }, [isOrgScope, orgSlug, siteOrg, siteSlug]);
+  const [users, setUsers] = useState<Member[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<Member | null>(null);
   const [revokingInvitation, setRevokingInvitation] = useState<Invitation | null>(null);
-  const [resettingPassword, setResettingPassword] = useState<User | null>(null);
+  const [resettingPassword, setResettingPassword] = useState<Member | null>(null);
   const [resetLink, setResetLink] = useState<{ name: string; url: string } | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
+    if (!scope) return;
     setIsLoading(true);
     try {
-      const [usersData, invitationsData, sitesData] = await Promise.all([
-        adminApi.listUsers(),
-        adminApi.listInvitations(),
-        isOrgScope ? restaurantApi.list() : Promise.resolve([]),
+      const [usersData, invitationsData] = await Promise.all([
+        membersApi.list(scope),
+        invitationsApi.list(scope),
       ]);
       setUsers(usersData);
-      setSites(sitesData);
       setInvitations(invitationsData);
     } catch {
       notify.error('Erreur lors du chargement des utilisateurs');
     } finally {
       setIsLoading(false);
     }
-  }, [isOrgScope]);
+  }, [scope]);
 
   useEffect(() => {
     loadData();
@@ -120,7 +130,7 @@ export function UsersPage() {
     }
   };
 
-  const handleDeleteUser = async (target: User) => {
+  const handleDeleteUser = async (target: Member) => {
     const confirmed = await confirmIdentity({
       title: `Supprimer ${target.username || target.email}`,
       description:
@@ -130,7 +140,7 @@ export function UsersPage() {
     });
     if (!confirmed) return;
     try {
-      await adminApi.deleteUser(target.id);
+      await membersApi.remove(scope!, target.id);
       setUsers((previous) => previous.filter((u) => u.id !== target.id));
       notify.success(`Compte ${target.email} supprimé`);
     } catch (err) {
@@ -138,7 +148,7 @@ export function UsersPage() {
     }
   };
 
-  const handleResetMfa = async (target: User) => {
+  const handleResetMfa = async (target: Member) => {
     const name = target.username || target.email;
     const confirmed = await confirmIdentity({
       title: `Réinitialiser la double authentification de ${name}`,
@@ -149,7 +159,7 @@ export function UsersPage() {
     });
     if (!confirmed) return;
     try {
-      await adminApi.resetUserMfa(target.id);
+      await membersApi.resetSecondFactors(scope!, target.id);
       notify.success(
         'Double authentification réinitialisée',
         `Prévenez ${name} : une nouvelle connexion est nécessaire.`
@@ -166,7 +176,7 @@ export function UsersPage() {
       return;
     }
     try {
-      const { reset_url } = await adminApi.sendPasswordReset(target.id);
+      const { reset_url } = await membersApi.sendPasswordReset(scope!, target.id);
       if (reset_url) {
         setResetLink({ name: target.username || target.email, url: reset_url });
       } else {
@@ -186,7 +196,7 @@ export function UsersPage() {
   const handleRevokeInvitation = async () => {
     if (!revokingInvitation) return;
     try {
-      await adminApi.revokeInvitation(revokingInvitation.id);
+      await invitationsApi.revoke(scope!, revokingInvitation.id);
       setInvitations((previous) => previous.filter((inv) => inv.id !== revokingInvitation.id));
       notify.success('Invitation révoquée', 'Son lien ne fonctionne plus.');
     } catch (err) {
@@ -196,19 +206,17 @@ export function UsersPage() {
     }
   };
 
-  const siteNames = useMemo(() => new Map(sites.map((site) => [site.id, site.name])), [sites]);
-
   // A supervisor manages its peers only: site accounts belong to their site.
   const canManage = useCallback(
-    (target: User) => (isOrgScope ? target.role === 'org_admin' : target.role !== 'org_admin'),
+    (target: Member) => (isOrgScope ? target.role === 'org_admin' : target.role !== 'org_admin'),
     [isOrgScope]
   );
 
   const supervisors = useMemo(() => users.filter((u) => u.role === 'org_admin'), [users]);
   const siteUsers = useMemo(() => users.filter((u) => u.role !== 'org_admin'), [users]);
 
-  const columns = useMemo<DataTableColumn<User>[]>(() => {
-    const base: DataTableColumn<User>[] = [
+  const columns = useMemo<DataTableColumn<Member>[]>(() => {
+    const base: DataTableColumn<Member>[] = [
       {
         key: 'name',
         header: 'Utilisateur',
@@ -237,12 +245,8 @@ export function UsersPage() {
       base.push({
         key: 'site',
         header: 'Site',
-        render: (user) => (
-          <span className="text-muted-foreground">
-            {siteNames.get(user.restaurant_id ?? -1) ?? '—'}
-          </span>
-        ),
-        sortValue: (user) => (user.restaurant_id ? (siteNames.get(user.restaurant_id) ?? '') : ''),
+        render: (user) => <span className="text-muted-foreground">{user.site?.name ?? '—'}</span>,
+        sortValue: (user) => user.site?.name ?? '',
       });
     }
 
@@ -306,7 +310,7 @@ export function UsersPage() {
 
     return base;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOrgScope, siteNames, users, canManage, currentUser?.id]);
+  }, [isOrgScope, users, canManage, currentUser?.id]);
 
   const supervisorColumns = useMemo(
     () => columns.filter((column) => column.key !== 'site'),
@@ -532,8 +536,9 @@ export function UsersPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {showInviteModal && (
+      {showInviteModal && scope && (
         <InviteModal
+          scope={scope}
           isOrgScope={isOrgScope}
           onClose={() => setShowInviteModal(false)}
           onSuccess={() => {
@@ -543,8 +548,9 @@ export function UsersPage() {
         />
       )}
 
-      {editingUser && (
+      {editingUser && scope && (
         <EditUserModal
+          scope={scope}
           user={editingUser}
           onClose={() => setEditingUser(null)}
           onSuccess={() => {
@@ -558,10 +564,12 @@ export function UsersPage() {
 }
 
 function InviteModal({
+  scope,
   onClose,
   onSuccess,
   isOrgScope,
 }: {
+  scope: MembersScope;
   onClose: () => void;
   onSuccess: () => void;
   isOrgScope: boolean;
@@ -593,7 +601,12 @@ function InviteModal({
 
     setIsLoading(true);
     try {
-      setResult(await adminApi.createInvitation(isOrgScope ? 'org_admin' : role, suggested));
+      setResult(
+        await invitationsApi.create(
+          scope,
+          isOrgScope ? { email: suggested } : { role, email: suggested }
+        )
+      );
     } catch (err) {
       setError(getApiErrorMessage(err, 'Erreur lors de la création'));
     } finally {
@@ -758,11 +771,13 @@ function InviteModal({
 }
 
 function EditUserModal({
+  scope,
   user,
   onClose,
   onSuccess,
 }: {
-  user: User;
+  scope: MembersScope;
+  user: Member;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -777,7 +792,8 @@ function EditUserModal({
     setError('');
 
     try {
-      await adminApi.updateUser(
+      await membersApi.update(
+        scope,
         user.id,
         user.role === 'org_admin' ? { is_active: isActive } : { role, is_active: isActive }
       );

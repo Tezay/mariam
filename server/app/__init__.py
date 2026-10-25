@@ -239,35 +239,35 @@ def create_app(config_class=None):
     from .routes.categories import categories_bp
     from .routes.closures import closures_bp
     from .routes.devices import devices_bp
+    from .routes.dish_groups import dish_groups_bp
     from .routes.dishes import dishes_bp
     from .routes.domains import domains_bp
     from .routes.events import events_bp
     from .routes.holidays import holidays_bp
     from .routes.imports import imports_bp
     from .routes.inbox import inbox_bp
+    from .routes.members import members_bp
     from .routes.menus import menus_bp
-    from .routes.notifications import notifications_bp
-    from .routes.org import org_bp
     from .routes.orgs import orgs_bp
-    from .routes.public import public_bp
-    from .routes.restaurant import restaurant_bp
+    from .routes.push_subscriptions import push_bp
     from .routes.sites import sites_bp
     from .routes.taxonomy import taxonomy_bp
     from .routes.users import users_bp
+    from .routes.weekly_emails import weekly_emails_bp
 
     api.register_blueprint(auth_bp,          url_prefix='/v1/auth')
-    api.register_blueprint(restaurant_bp,    url_prefix='/v1')
     api.register_blueprint(taxonomy_bp,      url_prefix='/v1/taxonomy')
     api.register_blueprint(holidays_bp,      url_prefix='/v1')
     api.register_blueprint(users_bp,         url_prefix='/v1/users')
-    api.register_blueprint(audit_bp,         url_prefix='/v1/audit-logs')
-    api.register_blueprint(notifications_bp, url_prefix='/v1/notifications')
     api.register_blueprint(inbox_bp,         url_prefix='/v1/inbox')
-    api.register_blueprint(public_bp,        url_prefix='/v1/public')
-    api.register_blueprint(org_bp,           url_prefix='/v1/org')
-    api.register_blueprint(analytics_bp,     url_prefix='/v1/analytics')
+    api.register_blueprint(weekly_emails_bp, url_prefix='/v1/weekly-emails')
+    api.register_blueprint(push_bp,          url_prefix='/v1')
     api.register_blueprint(domains_bp,       url_prefix='/v1/domains')
     api.register_blueprint(orgs_bp,          url_prefix='/v1/orgs')
+    api.register_blueprint(members_bp,       url_prefix='/v1/orgs')
+    api.register_blueprint(audit_bp,         url_prefix='/v1/orgs')
+    api.register_blueprint(analytics_bp,     url_prefix='/v1/orgs')
+    api.register_blueprint(dish_groups_bp,   url_prefix='/v1/orgs/<org>/dish-groups')
     api.register_blueprint(sites_bp,         url_prefix='/v1/orgs/<org>/sites')
     api.register_blueprint(menus_bp,         url_prefix='/v1/orgs/<org>/sites/<site>/menus')
     api.register_blueprint(dishes_bp,        url_prefix='/v1/orgs/<org>/sites/<site>/dishes')

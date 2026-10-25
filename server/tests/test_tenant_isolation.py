@@ -143,38 +143,39 @@ class TestClosureTenantIsolation:
 
 
 class TestUserTenantIsolation:
-    def test_list_users_scoped_to_own_restaurant(self, app, client):
-        _two_tenants()
+    def test_a_site_lists_its_own_accounts(self, app, client):
+        rid_a, _ = _two_tenants()
         token_a = get_token(client, email='a@mariam.app')
-        users = client.get('/v1/users', headers=auth_headers(token_a)).get_json()['users']
-        emails = {u['email'] for u in users}
-        assert emails == {'a@mariam.app'}
 
-    def test_cannot_manage_other_tenant_user(self, app, client):
-        _two_tenants()
-        user_b = User.query.filter_by(email='b@mariam.app').first()
+        res = client.get(f'{site_path(rid_a)}/members', headers=auth_headers(token_a))
+
+        assert {member['email'] for member in res.get_json()['items']} == {'a@mariam.app'}
+
+    def test_another_tenants_accounts_are_out_of_reach(self, app, client):
+        rid_a, rid_b = _two_tenants()
+        user_b = User.query.filter_by(email='b@mariam.app').one().id
         user_a = User.query.filter_by(email='a@mariam.app').one().id
-        token_a = get_token(client, email='a@mariam.app')
-        assert client.get(f'/v1/users/{user_b.id}', headers=auth_headers(token_a)).status_code == 404
+        headers = confirmed_headers(client, user_a)
+
+        assert client.get(f'{site_path(rid_b)}/members', headers=headers).status_code == 404
+        assert client.delete(f'{site_path(rid_b)}/members/{user_b}', headers=headers).status_code == 404
+        assert client.delete(f'{site_path(rid_a)}/members/{user_b}', headers=headers).status_code == 404
         assert client.delete(
-            f'/v1/users/{user_b.id}', headers=confirmed_headers(client, user_a)
+            f'{site_path(rid_a)}/members/{user_b}/second-factors', headers=headers
         ).status_code == 404
-        assert client.post(
-            f'/v1/users/{user_b.id}/reset-mfa', headers=confirmed_headers(client, user_a)
-        ).status_code == 404
-        assert db.session.get(User, user_b.id) is not None
+        assert db.session.get(User, user_b) is not None
 
     def test_cannot_see_or_revoke_other_tenant_invitation(self, app, client):
-        _, rid_b = _two_tenants()
+        rid_a, rid_b = _two_tenants()
         link = ActivationLink.create_invite_link(restaurant_id=rid_b)
         db.session.add(link)
         db.session.commit()
-        token_a = get_token(client, email='a@mariam.app')
+        headers = auth_headers(get_token(client, email='a@mariam.app'))
 
-        listed = client.get('/v1/users/invitations', headers=auth_headers(token_a)).get_json()
-        res = client.delete(f'/v1/users/invitations/{link.id}', headers=auth_headers(token_a))
+        listed = client.get(f'{site_path(rid_a)}/invitations', headers=headers).get_json()
+        res = client.delete(f'{site_path(rid_a)}/invitations/{link.id}', headers=headers)
 
-        assert listed['invitations'] == []
+        assert listed['items'] == []
         assert res.status_code == 404
         assert db.session.get(ActivationLink, link.id).revoked_at is None
 
@@ -196,22 +197,25 @@ class TestAuditTenantIsolation:
     def test_audit_logs_scoped_to_tenant(self, app, client):
         from flask_jwt_extended import create_access_token
 
+        from app.models import AuditLog
+
         rid_a, rid_b = _two_tenants()
         # Reading the audit log needs a second factor, and password login stops
         # at it: the session is minted directly.
         reader = User.query.filter_by(email='a@mariam.app').first()
         reader.set_mfa_secret('JBSWY3DPEHPK3PXP')
-        from app.models import AuditLog
         AuditLog.log(action='login', user_id=reader.id, restaurant_id=rid_a)
         AuditLog.log(action='login', user_id=User.query.filter_by(email='b@mariam.app').first().id,
                      restaurant_id=rid_b)
         db.session.commit()
         with app.app_context():
             token_a = create_access_token(identity=str(reader.id))
-        logs = client.get('/v1/audit-logs', headers=auth_headers(token_a)).get_json()['logs']
-        # No log must come from restaurant B
-        assert all(log.get('user_email') != 'b@mariam.app' for log in logs)
-        assert any(log.get('user_email') == 'a@mariam.app' for log in logs)
+
+        logs = client.get(f'{site_path(rid_a)}/audit-logs', headers=auth_headers(token_a)).get_json()
+        foreign = client.get(f'{site_path(rid_b)}/audit-logs', headers=auth_headers(token_a))
+
+        assert {log['user_email'] for log in logs['items']} == {'a@mariam.app'}
+        assert foreign.status_code == 404
 
 
 class TestTokenRevocation:
@@ -291,21 +295,24 @@ class TestSupervisorManagesOnlyPeers:
     def _supervisor(self):
         return User.query.filter_by(email='sup@mariam.app').one().id
 
-    def test_cannot_delete_a_site_account(self, app, client):
-        _, _, site_admin = self._org_with_site_admin()
-        res = client.delete(
-            f'/v1/users/{site_admin}', headers=confirmed_headers(client, self._supervisor())
-        )
-        assert res.status_code == 404
-        assert db.session.get(User, site_admin) is not None
+    def test_cannot_delete_reset_or_change_a_site_account(self, app, client):
+        _, rid, site_admin = self._org_with_site_admin()
+        headers = confirmed_headers(client, self._supervisor())
+        site = f'{site_path(rid)}/members/{site_admin}'
+        org = f'/v1/orgs/peer-org/members/{site_admin}'
 
-    def test_cannot_reset_mfa_of_a_site_account(self, app, client):
-        _, _, site_admin = self._org_with_site_admin('peer-org-2')
-        res = client.post(
-            f'/v1/users/{site_admin}/reset-mfa',
-            headers=confirmed_headers(client, self._supervisor()),
-        )
-        assert res.status_code == 404
+        answers = [
+            client.delete(site, headers=headers),
+            client.delete(f'{site}/second-factors', headers=headers),
+            client.patch(site, json={'role': 'reader'}, headers=headers),
+            client.delete(org, headers=headers),
+            client.post(f'{org}/password-reset', headers=headers),
+            client.patch(org, json={'is_active': False}, headers=headers),
+        ]
+
+        assert {res.get_json()['code'] for res in answers} == {'supervisor_read_only'}
+        user = db.session.get(User, site_admin)
+        assert (user.role, user.is_active) == ('admin', True)
 
     def _invitations(self, org, rid):
         site = ActivationLink.create_invite_link(restaurant_id=rid, organization_id=org)
@@ -314,17 +321,17 @@ class TestSupervisorManagesOnlyPeers:
         db.session.commit()
         return site.id, peer.id
 
-    def _listed(self, client, token):
-        res = client.get('/v1/users/invitations', headers=auth_headers(token))
-        return {invitation['id'] for invitation in res.get_json()['invitations']}
+    def _listed(self, client, token, path):
+        res = client.get(f'{path}/invitations', headers=auth_headers(token))
+        return {invitation['id'] for invitation in res.get_json()['items']}
 
     def test_a_supervisor_handles_supervisor_invitations_only(self, app, client):
         org, rid, _ = self._org_with_site_admin('peer-org-5')
         site, peer = self._invitations(org, rid)
         token = get_token(client, email='sup@mariam.app')
 
-        assert self._listed(client, token) == {peer}
-        res = client.delete(f'/v1/users/invitations/{site}', headers=auth_headers(token))
+        assert self._listed(client, token, '/v1/orgs/peer-org-5') == {peer}
+        res = client.delete(f'/v1/orgs/peer-org-5/invitations/{site}', headers=auth_headers(token))
         assert res.status_code == 404
         assert db.session.get(ActivationLink, site).revoked_at is None
 
@@ -333,32 +340,22 @@ class TestSupervisorManagesOnlyPeers:
         site, peer = self._invitations(org, rid)
         token = get_token(client, email='siteadmin@mariam.app')
 
-        assert self._listed(client, token) == {site}
-        res = client.delete(f'/v1/users/invitations/{peer}', headers=auth_headers(token))
+        assert self._listed(client, token, site_path(rid)) == {site}
+        res = client.delete(f'{site_path(rid)}/invitations/{peer}', headers=auth_headers(token))
         assert res.status_code == 404
         assert db.session.get(ActivationLink, peer).revoked_at is None
-
-    def test_cannot_change_a_site_account(self, app, client):
-        _, _, site_admin = self._org_with_site_admin('peer-org-3')
-        token = get_token(client, email='sup@mariam.app')
-        res = client.put(
-            f'/v1/users/{site_admin}',
-            json={'role': 'reader'},
-            headers=auth_headers(token),
-        )
-        assert res.status_code == 404
-        assert db.session.get(User, site_admin).role == 'admin'
 
     def test_site_admin_cannot_promote_to_supervisor(self, app, client):
         _, rid, _ = self._org_with_site_admin('peer-org-4')
         editor = _make_user('ed@mariam.app', 'editor', rid)
         token = get_token(client, email='siteadmin@mariam.app')
-        res = client.put(
-            f'/v1/users/{editor}',
-            json={'role': 'org_admin'},
+
+        res = client.patch(
+            f'{site_path(rid)}/members/{editor}', json={'role': 'org_admin'},
             headers=auth_headers(token),
         )
-        assert res.status_code == 403
+
+        assert res.status_code == 422
         assert db.session.get(User, editor).role == 'editor'
 
 
@@ -372,18 +369,18 @@ class TestDeletionNeedsStepUp:
         db.session.commit()
         boss = _make_user('boss@mariam.app', 'admin', rid, org)
         victim = _make_user('victim@mariam.app', 'editor', rid, org)
-        return boss, victim
+        return boss, victim, f'{site_path(rid)}/members/{victim}'
 
     def test_delete_from_an_unconfirmed_session_is_rejected(self, app, client):
-        boss, victim = self._pair()
+        boss, victim, path = self._pair()
         enable_totp(boss)
-        res = client.delete(f'/v1/users/{victim}', headers=session_headers(boss))
+        res = client.delete(path, headers=session_headers(boss))
         assert res.status_code == 403
         assert res.get_json()['code'] == 'step_up_required'
         assert db.session.get(User, victim) is not None
 
     def test_wrong_password_confirms_nothing(self, app, client):
-        boss, _ = self._pair('step-org-2')
+        boss, _, _ = self._pair('step-org-2')
         secret = enable_totp(boss)
         res = client.post(
             '/v1/auth/step-up/password',
@@ -393,9 +390,9 @@ class TestDeletionNeedsStepUp:
         assert res.status_code == 403
 
     def test_delete_succeeds_once_confirmed(self, app, client):
-        boss, victim = self._pair('step-org-3')
-        res = client.delete(f'/v1/users/{victim}', headers=confirmed_headers(client, boss))
-        assert res.status_code == 200
+        boss, victim, path = self._pair('step-org-3')
+        res = client.delete(path, headers=confirmed_headers(client, boss))
+        assert res.status_code == 204
         assert db.session.get(User, victim) is None
 
 
@@ -497,13 +494,24 @@ class TestOrgDashboard:
     def test_sites_overview(self, app, client):
         self._org('ov', ['OVA', 'OVB'])
         token = get_token(client, email='u@mariam.app')
-        res = client.get('/v1/org/sites', headers=auth_headers(token))
-        assert res.status_code == 200
-        sites = res.get_json()['sites']
+        res = client.get('/v1/orgs/ov/sites', headers=auth_headers(token))
+        sites = res.get_json()['items']
         assert {s['name'] for s in sites} == {'OVA', 'OVB'}
         assert all(
-            k in sites[0] for k in ('user_count', 'today_menu_status', 'upcoming_events', 'is_active')
+            k in sites[0] for k in ('member_count', 'today_menu_status', 'upcoming_events', 'is_active')
         )
+
+    def test_a_closed_site_is_listed_for_the_supervisor_only(self, app, client):
+        _, rids = self._org('ov-shut', ['OVS', 'OVT'])
+        db.session.get(Restaurant, rids[1]).is_active = False
+        db.session.commit()
+        token = get_token(client, email='u@mariam.app')
+
+        supervisor = client.get('/v1/orgs/ov-shut/sites', headers=auth_headers(token)).get_json()
+        anyone = client.get('/v1/orgs/ov-shut/sites').get_json()
+
+        assert [s['slug'] for s in supervisor['items']] == ['ovs', 'ovt']
+        assert anyone['items'] == [{'slug': 'ovs', 'name': 'OVS', 'logo_url': None}]
 
     def test_a_closed_day_is_not_reported_as_a_missing_menu(self, app, client):
         _, rids = self._org('ov-closed', ['OVC'])
@@ -518,42 +526,40 @@ class TestOrgDashboard:
         db.session.commit()
         token = get_token(client, email='u@mariam.app')
 
-        res = client.get('/v1/org/sites', headers=auth_headers(token))
+        res = client.get('/v1/orgs/ov-closed/sites', headers=auth_headers(token))
 
-        assert res.get_json()['sites'][0]['today_menu_status'] == 'closed'
+        assert res.get_json()['items'][0]['today_menu_status'] == 'closed'
 
-    def test_sites_overview_forbidden_for_site_admin(self, app, client):
+    def test_a_site_admin_reads_the_public_list_only(self, app, client):
         self._org('ov2', ['OV2A'], role='admin')
         token = get_token(client, email='u@mariam.app')
-        assert client.get('/v1/org/sites', headers=auth_headers(token)).status_code == 403
 
-    def test_catalog_forbidden_for_site_admin(self, app, client):
+        res = client.get('/v1/orgs/ov2/sites', headers=auth_headers(token))
+
+        assert res.get_json()['items'] == [{'slug': 'ov2a', 'name': 'OV2A', 'logo_url': None}]
+
+    def test_dish_groups_forbidden_for_site_admin(self, app, client):
         self._org('ov2b', ['OV2B'], role='admin')
         token = get_token(client, email='u@mariam.app')
-        assert client.get('/v1/org/catalog', headers=auth_headers(token)).status_code == 403
+        res = client.get('/v1/orgs/ov2b/dish-groups', headers=auth_headers(token))
+        assert res.status_code == 403
 
-    def test_supervisor_only_invites_supervisors(self, app, client):
-        _, (rid1, rid2) = self._org('ov3', ['OV3A', 'OV3B'])
+    def test_supervisor_invites_to_no_site(self, app, client):
+        _, (_, rid2) = self._org('ov3', ['OV3A', 'OV3B'])
         headers = self._confirmed(client)
-        for role in ('admin', 'editor', 'reader'):
-            res = client.post(
-                '/v1/users/invite',
-                json={'email': f'{role}@mariam.app', 'role': role, 'restaurant_id': rid2},
-                headers=headers,
-            )
-            assert res.status_code == 403, role
-        from app.models import ActivationLink
+
+        res = client.post(f'{site_path(rid2)}/invitations', json={'role': 'editor'}, headers=headers)
+
+        assert res.get_json()['code'] == 'supervisor_read_only'
         assert ActivationLink.query.filter_by(link_type='invite').count() == 0
 
     def test_supervisor_invitation_is_not_bound_to_a_site(self, app, client):
         org, _ = self._org('ov4', ['OV4A', 'OV4B'])
         res = client.post(
-            '/v1/users/invite',
-            json={'email': 'peer@mariam.app', 'role': 'org_admin'},
+            '/v1/orgs/ov4/invitations', json={'email': 'peer@mariam.app'},
             headers=self._confirmed(client),
         )
         assert res.status_code == 201
-        from app.models import ActivationLink
         link = ActivationLink.query.filter_by(email='peer@mariam.app').first()
         assert link.restaurant_id is None
         assert link.organization_id == org
@@ -561,43 +567,38 @@ class TestOrgDashboard:
     def test_site_admin_cannot_invite_a_supervisor(self, app, client):
         self._org('ov5', ['OV5A'], role='admin')
         res = client.post(
-            '/v1/users/invite',
-            json={'email': 'boss@mariam.app', 'role': 'org_admin'},
+            '/v1/orgs/ov5/invitations', json={'email': 'boss@mariam.app'},
             headers=self._confirmed(client),
         )
-        assert res.status_code == 403
-        assert 'step_up_required' not in res.get_json()
+        assert res.get_json()['code'] == 'supervisor_required'
 
     def test_supervisor_is_listed_for_the_organization_only(self, app, client):
         org, (rid,) = self._org('ov6', ['OV6A'], role='admin')
         _make_user('sup@mariam.app', 'org_admin', restaurant_id=None, organization_id=org)
 
-        site_admin = get_token(client, email='u@mariam.app')
-        emails = {
-            u['email']
-            for u in client.get('/v1/users', headers=auth_headers(site_admin)).get_json()['users']
+        site_admin = auth_headers(get_token(client, email='u@mariam.app'))
+        site_emails = {
+            m['email']
+            for m in client.get(f'{site_path(rid)}/members', headers=site_admin).get_json()['items']
         }
-        assert 'sup@mariam.app' not in emails
+        supervisor = auth_headers(get_token(client, email='sup@mariam.app'))
+        org_emails = {
+            m['email'] for m in client.get('/v1/orgs/ov6/members', headers=supervisor).get_json()['items']
+        }
 
-        supervisor = get_token(client, email='sup@mariam.app')
-        emails = {
-            u['email']
-            for u in client.get('/v1/users', headers=auth_headers(supervisor)).get_json()['users']
-        }
-        assert {'sup@mariam.app', 'u@mariam.app'} <= emails
+        assert 'sup@mariam.app' not in site_emails
+        assert {'sup@mariam.app', 'u@mariam.app'} <= org_emails
 
     def test_site_admin_does_not_see_org_admin(self, app, client):
         org, (rid,) = self._org('vis', ['VIS'], role='admin')
         _make_user('dir2@mariam.app', 'org_admin', restaurant_id=rid, organization_id=org)
         token = get_token(client, email='u@mariam.app')
-        users = client.get('/v1/users', headers=auth_headers(token)).get_json()['users']
-        assert 'org_admin' not in {u['role'] for u in users}
+        res = client.get(f'{site_path(rid)}/members', headers=auth_headers(token))
+        assert 'org_admin' not in {m['role'] for m in res.get_json()['items']}
 
 
 class TestAnalyticsScope:
-    """/v1/analytics serves both roles: a director spans its org, an admin its site."""
-
-    ENDPOINTS = ('/v1/analytics/overview', '/v1/analytics/publications')
+    """A site's analytics under the site, an organization's under the organization."""
 
     def _org_sites(self, slug, codes):
         org = _make_org(slug=slug)
@@ -613,42 +614,40 @@ class TestAnalyticsScope:
         org, rids = self._org_sites('an1', ['AN1A', 'AN1B'])
         _make_user('dir@mariam.app', 'org_admin', rids[0], org)
         token = get_token(client, email='dir@mariam.app')
-        res = client.get('/v1/analytics/overview', headers=auth_headers(token))
-        assert res.status_code == 200
+        res = client.get('/v1/orgs/an1/analytics/overview', headers=auth_headers(token))
         assert res.get_json()['scope']['site_count'] == 2
 
-    def test_site_admin_is_limited_to_its_own_site(self, app, client):
+    def test_site_admin_reads_its_own_site_only(self, app, client):
         org, rids = self._org_sites('an2', ['AN2A', 'AN2B'])
         _make_user('sa@mariam.app', 'admin', rids[0], org)
-        token = get_token(client, email='sa@mariam.app')
-        res = client.get('/v1/analytics/overview', headers=auth_headers(token))
-        assert res.status_code == 200
-        assert [s['site_id'] for s in res.get_json()['sites']] == [rids[0]]
+        headers = auth_headers(get_token(client, email='sa@mariam.app'))
 
-    def test_site_admin_cannot_widen_scope_through_site_ids(self, app, client):
-        org, rids = self._org_sites('an3', ['AN3A', 'AN3B'])
-        _make_user('sa3@mariam.app', 'admin', rids[0], org)
-        token = get_token(client, email='sa3@mariam.app')
-        res = client.get(
-            f'/v1/analytics/overview?site_ids={rids[0]},{rids[1]}',
-            headers=auth_headers(token),
-        )
-        assert [s['site_id'] for s in res.get_json()['sites']] == [rids[0]]
+        own = client.get(f'{site_path(rids[0])}/analytics/overview', headers=headers)
+        neighbour = client.get(f'{site_path(rids[1])}/analytics/overview', headers=headers)
 
-    def test_foreign_site_ids_are_dropped(self, app, client):
+        assert [s['site'] for s in own.get_json()['sites']] == ['an2a']
+        assert neighbour.status_code == 404
+
+    def test_foreign_sites_are_dropped(self, app, client):
         org_a, rids_a = self._org_sites('an4', ['AN4A'])
-        _, rids_b = self._org_sites('an5', ['AN5A'])
+        self._org_sites('an5', ['AN5A'])
         _make_user('dir4@mariam.app', 'org_admin', rids_a[0], org_a)
         token = get_token(client, email='dir4@mariam.app')
-        res = client.get(
-            f'/v1/analytics/overview?site_ids={rids_b[0]}', headers=auth_headers(token)
-        )
-        assert res.status_code == 200
+        res = client.get('/v1/orgs/an4/analytics/overview?sites=an5a', headers=auth_headers(token))
         assert res.get_json()['sites'] == []
+
+    def test_another_organization_is_not_found(self, app, client):
+        org_a, rids_a = self._org_sites('an6', ['AN6A'])
+        self._org_sites('an6b', ['AN6B'])
+        _make_user('dir6@mariam.app', 'org_admin', rids_a[0], org_a)
+        token = get_token(client, email='dir6@mariam.app')
+        res = client.get('/v1/orgs/an6b/analytics/overview', headers=auth_headers(token))
+        assert res.get_json()['code'] == 'org_not_found'
 
     def test_editor_is_forbidden(self, app, client):
         org, rids = self._org_sites('an7', ['AN7A'])
         _make_user('ed@mariam.app', 'editor', rids[0], org)
         token = get_token(client, email='ed@mariam.app')
-        for endpoint in self.ENDPOINTS:
-            assert client.get(endpoint, headers=auth_headers(token)).status_code == 403
+        for report in ('overview', 'publications'):
+            res = client.get(f'{site_path(rids[0])}/analytics/{report}', headers=auth_headers(token))
+            assert res.status_code == 403

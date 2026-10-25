@@ -56,13 +56,3 @@ def format_date_fr(value: date, *, weekday: bool = False, year: bool = True) -> 
     if weekday:
         parts.insert(0, weekday_fr(value))
     return ' '.join(parts)
-
-
-def parse_iso_date(date_str: str | None) -> date | None:
-    """Parse a strict ISO date (YYYY-MM-DD); return None if empty or invalid."""
-    if not date_str:
-        return None
-    try:
-        return datetime.strptime(date_str, '%Y-%m-%d').date()
-    except (ValueError, TypeError):
-        return None

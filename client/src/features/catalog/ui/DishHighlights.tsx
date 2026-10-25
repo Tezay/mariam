@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useOrgRef } from '@/hooks/useOrgRef';
 import { orgApi } from '@/lib/api/org';
 import { type SatisfactionDishRow } from '@/lib/api/analytics';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -30,12 +31,14 @@ function Row({ name, detail }: { name: string; detail: string }) {
  * instead of leaving a hole.
  */
 export function DishHighlights({ topDishes }: { topDishes: SatisfactionDishRow[] }) {
+  const org = useOrgRef();
   const { data, isPending } = useQuery({
-    queryKey: ['org', 'catalog', 'most-served'],
-    queryFn: () => orgApi.getCatalog({ sort: 'usage', page: 1, per_page: 5 }),
+    queryKey: ['org', 'catalog', 'most-served', org],
+    queryFn: () => orgApi.getCatalog(org!, { sort: 'usage', page: 1, per_page: 5 }),
+    enabled: org !== null,
   });
 
-  const served = data?.dishes ?? [];
+  const served = data?.items ?? [];
   const rated = topDishes.slice(0, 5);
 
   if (isPending) {

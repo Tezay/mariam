@@ -324,57 +324,60 @@ class TestWeek:
 
 
 class TestUnsubscribe:
-    @pytest.mark.parametrize('method, answer', [('POST', 204), ('GET', 200)])
-    def test_the_link_sent_by_email_reaches_the_route(self, app, client, method, answer):
+    def _token(self, app, uid):
+        with app.app_context():
+            return email_service.unsubscribe_token(uid)
+
+    def test_the_mail_clients_link_reaches_the_action(self, app, client):
         make_restaurant(app)
         uid = _subscribe(make_user(app))
-        link = email_service.unsubscribe_url(uid)
+        path = urlsplit(email_service.unsubscribe_url(uid)).path
 
-        assert client.open(urlsplit(link).path, method=method).status_code == answer
+        res = client.post(
+            path, data='List-Unsubscribe=One-Click', content_type='application/x-www-form-urlencoded'
+        )
+
+        assert res.status_code == 204
         assert db.session.get(User, uid).get_notification_preferences()['weekly_digest'] is False
+
+    def test_opening_a_link_unsubscribes_no_one(self, app, client):
+        make_restaurant(app)
+        uid = _subscribe(make_user(app))
+
+        client.get(urlsplit(email_service.unsubscribe_url(uid)).path)
+
+        assert db.session.get(User, uid).get_notification_preferences()['weekly_digest'] is True
 
     @pytest.mark.parametrize('api_url, base', [
         (None, 'https://mariam.example.org/v1'),
         ('/v1', 'https://mariam.example.org/v1'),
         ('https://api.example.org/v1/', 'https://api.example.org/v1'),
     ])
-    def test_the_link_follows_where_the_api_is_served(self, app, monkeypatch, api_url, base):
+    def test_the_action_follows_where_the_api_is_served(self, app, monkeypatch, api_url, base):
         monkeypatch.setenv('FRONTEND_URL', 'https://mariam.example.org,https://other.example.org')
         if api_url is None:
             monkeypatch.delenv('API_URL', raising=False)
         else:
             monkeypatch.setenv('API_URL', api_url)
+        uid = make_user(app)
 
-        link = email_service.unsubscribe_url(make_user(app))
+        link = email_service.unsubscribe_url(uid)
 
-        assert link.startswith(f'{base}/public/unsubscribe/')
+        assert link == f'{base}/weekly-emails/{self._token(app, uid)}/unsubscribe'
 
-    def test_one_click_turns_the_digest_off(self, app, client):
-        make_restaurant(app)
-        uid = _subscribe(make_user(app))
-        with app.app_context():
-            token = email_service.unsubscribe_token(uid)
+    def test_the_emails_own_link_opens_the_page(self, app, monkeypatch):
+        monkeypatch.setenv('FRONTEND_URL', 'https://mariam.example.org,https://other.example.org')
+        uid = make_user(app)
 
-        assert client.post(f'/v1/public/unsubscribe/{token}').status_code == 204
-        assert db.session.get(User, uid).get_notification_preferences()['weekly_digest'] is False
+        link = email_service.unsubscribe_page_url(uid)
 
-    def test_the_link_renders_a_confirmation(self, app, client):
-        make_restaurant(app)
-        uid = _subscribe(make_user(app))
-        with app.app_context():
-            token = email_service.unsubscribe_token(uid)
-
-        res = client.get(f'/v1/public/unsubscribe/{token}')
-
-        assert res.status_code == 200
-        assert 'désactivé' in res.get_data(as_text=True)
+        assert link == f'https://mariam.example.org/unsubscribe/{self._token(app, uid)}'
 
     def test_a_forged_token_changes_nothing(self, app, client):
         make_restaurant(app)
         uid = _subscribe(make_user(app))
 
-        res = client.get('/v1/public/unsubscribe/MQ.forged-signature')
+        res = client.post('/v1/weekly-emails/MQ.forged-signature/unsubscribe')
 
-        assert res.status_code == 200
-        assert "n'est plus valide" in res.get_data(as_text=True)
+        assert res.get_json()['code'] == 'link_invalid'
         assert db.session.get(User, uid).get_notification_preferences()['weekly_digest'] is True

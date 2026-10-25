@@ -93,11 +93,8 @@ def _sort(pooled: list[dict], sort: str, ascending: bool) -> None:
 
 
 def pooled_dishes(org_id: int, q: str = '', sort: str = 'usage', order: str | None = None,
-                  period: str | None = None, page: int = 1, per_page: int = 24) -> dict:
-    """Dishes of every site of the organization, grouped by normalised name."""
-    empty = {'dishes': [], 'total': 0, 'page': page, 'per_page': per_page, 'has_more': False}
-    if not org_id:
-        return empty
+                  period: str | None = None) -> list[dict]:
+    """Dishes of every site of the organization, grouped by normalised name, in order."""
 
     rows = (
         db.session.query(
@@ -106,6 +103,7 @@ def pooled_dishes(org_id: int, q: str = '', sort: str = 'usage', order: str | No
             DishCatalog.name,
             DishCatalog.image_url,
             Restaurant.id,
+            Restaurant.slug,
             Restaurant.name,
         )
         .join(Restaurant, Restaurant.id == DishCatalog.restaurant_id)
@@ -113,14 +111,14 @@ def pooled_dishes(org_id: int, q: str = '', sort: str = 'usage', order: str | No
         .all()
     )
     if not rows:
-        return empty
+        return []
 
     cutoff = period_cutoff(period)
     usage = _usage_counts(org_id, cutoff)
     votes = _vote_totals(org_id, cutoff)
 
     groups: dict[str, dict] = {}
-    for normalized, dish_id, name, image_url, site_id, site_name in rows:
+    for normalized, dish_id, name, image_url, site_id, site_slug, site_name in rows:
         group = groups.setdefault(normalized, {
             'names': Counter(),
             'image_url': None,
@@ -137,6 +135,7 @@ def pooled_dishes(org_id: int, q: str = '', sort: str = 'usage', order: str | No
         group['rating_sum'] += rating_sum
         group['sites'].append({
             'site_id': site_id,
+            'site': site_slug,
             'site_name': site_name,
             'dish_id': dish_id,
             'has_image': bool(image_url),
@@ -165,16 +164,7 @@ def pooled_dishes(org_id: int, q: str = '', sort: str = 'usage', order: str | No
     chosen = sort if sort in SORTS else 'usage'
     # A name reads A to Z by default; a measure reads best-first.
     _sort(pooled, chosen, (order or ('asc' if chosen == 'name' else 'desc')) == 'asc')
-
-    total = len(pooled)
-    offset = max(0, (page - 1) * per_page)
-    return {
-        'dishes': pooled[offset:offset + per_page],
-        'total': total,
-        'page': page,
-        'per_page': per_page,
-        'has_more': offset + per_page < total,
-    }
+    return pooled
 
 
 def dish_group(org_id: int, normalized_name: str) -> dict | None:
@@ -185,6 +175,7 @@ def dish_group(org_id: int, normalized_name: str) -> dict | None:
             DishCatalog.name,
             DishCatalog.image_url,
             Restaurant.id,
+            Restaurant.slug,
             Restaurant.name,
         )
         .join(Restaurant, Restaurant.id == DishCatalog.restaurant_id)
@@ -206,7 +197,7 @@ def dish_group(org_id: int, normalized_name: str) -> dict | None:
     names: Counter = Counter()
     totals = {'1': 0, '2': 0, '3': 0}
     sites = []
-    for dish_id, name, image_url, site_id, site_name in rows:
+    for dish_id, name, image_url, site_id, site_slug, site_name in rows:
         names[name] += 1
         counts = distribution.get(dish_id, {'1': 0, '2': 0, '3': 0})
         for rating, count in counts.items():
@@ -215,6 +206,7 @@ def dish_group(org_id: int, normalized_name: str) -> dict | None:
         weighted = sum(int(rating) * count for rating, count in counts.items())
         sites.append({
             'site_id': site_id,
+            'site': site_slug,
             'site_name': site_name,
             'dish_id': dish_id,
             'has_image': bool(image_url),

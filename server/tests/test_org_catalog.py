@@ -1,5 +1,6 @@
 """Organization catalogue: the dishes every site serves, pooled by name."""
 import datetime
+from urllib.parse import quote
 
 from app.extensions import db
 from app.models import (
@@ -75,10 +76,15 @@ def _director(rid, org_id, email='dir@mariam.app'):
     return uid
 
 
+def _org_path(client, token):
+    user = client.get('/v1/auth/me', headers=auth_headers(token)).get_json()['user']
+    return f"/v1/orgs/{user['organization_slug']}"
+
+
 def _catalog(client, token, query=''):
-    res = client.get(f'/v1/org/catalog?{query}', headers=auth_headers(token))
+    res = client.get(f'{_org_path(client, token)}/dish-groups?{query}', headers=auth_headers(token))
     assert res.status_code == 200, res.get_json()
-    return res.get_json()
+    return res
 
 
 class TestPooling:
@@ -91,7 +97,7 @@ class TestPooling:
         _director(first, org)
         token = get_token(client, email='dir@mariam.app')
 
-        dishes = _catalog(client, token)['dishes']
+        dishes = _catalog(client, token).get_json()['items']
 
         assert len(dishes) == 1
         assert dishes[0]['site_count'] == 2
@@ -106,7 +112,7 @@ class TestPooling:
         _director(first, org)
         token = get_token(client, email='dir@mariam.app')
 
-        row = _catalog(client, token)['dishes'][0]
+        row = _catalog(client, token).get_json()['items'][0]
 
         assert (row['photo_count'], row['site_count']) == (1, 2)
         assert row['image_url'] == 'https://example.test/r.jpg'
@@ -123,8 +129,8 @@ class TestUsage:
         _director(rid, org)
         token = get_token(client, email='dir@mariam.app')
 
-        assert _catalog(client, token)['dishes'][0]['usage_count'] == 2
-        assert _catalog(client, token, 'period=90d')['dishes'][0]['usage_count'] == 1
+        assert _catalog(client, token).get_json()['items'][0]['usage_count'] == 2
+        assert _catalog(client, token, 'period=90d').get_json()['items'][0]['usage_count'] == 1
 
 
 class TestSatisfaction:
@@ -139,11 +145,11 @@ class TestSatisfaction:
         _director(rid, org)
         token = get_token(client, email='dir@mariam.app')
 
-        row = _catalog(client, token)['dishes'][0]
+        row = _catalog(client, token).get_json()['items'][0]
         assert (row['votes'], row['score']) == (4, None)
 
         _vote(org, rid, menu, dish, 3, 'device-4')
-        assert _catalog(client, token)['dishes'][0]['score'] == 3.0
+        assert _catalog(client, token).get_json()['items'][0]['score'] == 3.0
 
 
 class TestListing:
@@ -155,7 +161,7 @@ class TestListing:
         _director(rid, org)
         token = get_token(client, email='dir@mariam.app')
 
-        dishes = _catalog(client, token, 'q=POULET')['dishes']
+        dishes = _catalog(client, token, 'q=POULET').get_json()['items']
 
         assert [row['display_name'] for row in dishes] == ['Poulet rôti']
 
@@ -167,10 +173,12 @@ class TestListing:
         _director(rid, org)
         token = get_token(client, email='dir@mariam.app')
 
-        payload = _catalog(client, token, 'sort=name&page=1&per_page=2')
+        res = _catalog(client, token, 'sort=name&page=1&per_page=2')
 
-        assert (payload['total'], len(payload['dishes']), payload['has_more']) == (5, 2, True)
-        assert [row['display_name'] for row in payload['dishes']] == ['Plat 0', 'Plat 1']
+        payload = res.get_json()
+        assert (payload['total_count'], len(payload['items'])) == (5, 2)
+        assert 'rel="next"' in res.headers['Link']
+        assert [row['display_name'] for row in payload['items']] == ['Plat 0', 'Plat 1']
 
 
 class TestIsolation:
@@ -183,7 +191,7 @@ class TestIsolation:
         _director(rid, mine)
         token = get_token(client, email='dir@mariam.app')
 
-        dishes = _catalog(client, token)['dishes']
+        dishes = _catalog(client, token).get_json()['items']
 
         assert len(dishes) == 1
         assert dishes[0]['site_count'] == 1
@@ -203,13 +211,13 @@ class TestDishGroup:
         _director(first, org)
         token = get_token(client, email='dir@mariam.app')
 
-        res = client.get('/v1/org/catalog/group?name=chili', headers=auth_headers(token))
+        res = client.get('/v1/orgs/cat10/dish-groups/chili', headers=auth_headers(token))
 
         assert res.status_code == 200
         group = res.get_json()
         assert (group['site_count'], group['photo_count']) == (2, 1)
         assert (group['votes'], group['score']) == (5, 3.0)
-        assert {site['site_name'] for site in group['sites']} == {'CAT10A', 'CAT10B'}
+        assert {site['site'] for site in group['sites']} == {'cat10a', 'cat10b'}
         rated = next(s for s in group['sites'] if s['dish_id'] == here.id)
         unrated = next(s for s in group['sites'] if s['dish_id'] == there.id)
         assert (rated['votes'], rated['usage_count']) == (5, 1)
@@ -221,6 +229,21 @@ class TestDishGroup:
         _director(rid, org)
         token = get_token(client, email='dir@mariam.app')
 
-        res = client.get('/v1/org/catalog/group?name=inconnu', headers=auth_headers(token))
+        res = client.get('/v1/orgs/cat11/dish-groups/inconnu', headers=auth_headers(token))
 
-        assert res.status_code == 404
+        assert res.get_json()['code'] == 'dish_group_not_found'
+
+    def test_a_name_with_spaces_and_accents_is_read_from_its_encoded_path(self, app, client):
+        org = _org('cat12')
+        rid = _site(org, 'CAT12')
+        _dish(rid, 'Gratin dauphinois / crème')
+        _director(rid, org)
+        token = get_token(client, email='dir@mariam.app')
+        (row,) = _catalog(client, token).get_json()['items']
+
+        res = client.get(
+            f"/v1/orgs/cat12/dish-groups/{quote(row['normalized_name'])}",
+            headers=auth_headers(token),
+        )
+
+        assert res.get_json()['display_name'] == 'Gratin dauphinois / crème'

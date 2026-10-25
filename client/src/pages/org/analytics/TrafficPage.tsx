@@ -9,7 +9,7 @@ export function OrgTrafficPage() {
   const { data: orgSites } = useOrgSites();
 
   const sites = useMemo(
-    () => (orgSites ?? []).map((site) => ({ id: site.id, name: site.name })),
+    () => (orgSites ?? []).map((site) => ({ slug: site.slug, name: site.name })),
     [orgSites]
   );
 
@@ -19,7 +19,7 @@ export function OrgTrafficPage() {
         title="Consultations du menu"
         description="Ouvertures des pages de menu en ligne, hors fréquentation sur place."
       />
-      <TrafficView sites={sites} onSiteClick={(siteId) => navigate(`/org/sites/${siteId}`)} />
+      <TrafficView sites={sites} onSiteClick={(site) => navigate(`/org/sites/${site}`)} />
     </div>
   );
 }

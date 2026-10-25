@@ -164,7 +164,7 @@ class User(db.Model):
     def update_last_login(self):
         self.last_login = utc_now_naive()
     
-    def to_dict(self, include_sensitive=False, include_tenant=False):
+    def to_dict(self, include_tenant=False):
         """Never includes the password hash or the TOTP secret.
 
         `include_tenant` resolves the site and organization names, which costs a
@@ -200,7 +200,7 @@ class User(db.Model):
             )
             data['organization_slug'] = home.slug if home else None
 
-        if include_sensitive or include_tenant:
+        if include_tenant:
             data['is_rescue_account'] = self.is_rescue_account
 
         return data

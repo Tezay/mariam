@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 
 interface PublicationsViewProps {
   sites?: SiteOption[];
-  onSiteClick?: (siteId: number) => void;
+  onSiteClick?: (site: string) => void;
 }
 
 const COLUMNS: DataTableColumn<PublicationSiteRow>[] = [
@@ -66,7 +66,7 @@ const COLUMNS: DataTableColumn<PublicationSiteRow>[] = [
 ];
 
 export function PublicationsView({ sites = [], onSiteClick }: PublicationsViewProps) {
-  const { filters, query, setPeriod, setCustomRange, setSiteIds } = useAnalyticsFilters();
+  const { filters, query, setPeriod, setCustomRange, setSites } = useAnalyticsFilters();
   const { data, isLoading, isError } = useAnalyticsPublications(query);
 
   const summary = data?.summary;
@@ -82,7 +82,7 @@ export function PublicationsView({ sites = [], onSiteClick }: PublicationsViewPr
           onPeriodChange={setPeriod}
           onCustomRange={setCustomRange}
         />
-        <SitePicker sites={sites} selected={filters.siteIds} onChange={setSiteIds} />
+        <SitePicker sites={sites} selected={filters.sites} onChange={setSites} />
       </div>
 
       {isError ? (
@@ -141,10 +141,10 @@ export function PublicationsView({ sites = [], onSiteClick }: PublicationsViewPr
               <DataTable
                 rows={data?.sites ?? []}
                 columns={COLUMNS}
-                rowKey={(row) => row.site_id}
+                rowKey={(row) => row.site}
                 defaultSortKey="publication_rate"
                 loading={isLoading}
-                onRowClick={onSiteClick ? (row) => onSiteClick(row.site_id) : undefined}
+                onRowClick={onSiteClick ? (row) => onSiteClick(row.site) : undefined}
               />
             </section>
           )}

@@ -1,85 +1,32 @@
-import { api } from './client';
+import { api, orgPath, type OrgRef } from './client';
 import type { CatalogPeriod } from './dishes';
-import type { MenuDayStatus } from './menus';
+import type { components } from './schema.gen';
 
-export interface OrgSite {
-  id: number;
-  name: string;
-  slug?: string | null;
-  is_active: boolean;
-  user_count: number;
-  today_menu_status: MenuDayStatus;
-  upcoming_events: number;
-  last_published_at: string | null;
-}
+type Schemas = components['schemas'];
 
-export interface OrgCatalogSite {
-  site_id: number;
-  site_name: string;
-  dish_id: number;
-  has_image: boolean;
-}
-
-export interface OrgCatalogDish {
-  normalized_name: string;
-  display_name: string;
-  image_url: string | null;
-  site_count: number;
-  photo_count: number;
-  usage_count: number;
-  votes: number;
-  score: number | null;
-  sites: OrgCatalogSite[];
-}
-
-export interface OrgCatalogPage {
-  dishes: OrgCatalogDish[];
-  total: number;
-  page: number;
-  per_page: number;
-  has_more: boolean;
-}
-
+/** Required: the supervisors' fields, absent for anyone else, always come for them. */
+export type OrgSite = Required<Schemas['OrgSite']>;
+export type OrgCatalogDish = Schemas['OrgDishGroupSummary'];
+export type OrgCatalogPage = Schemas['OrgDishGroupList'];
 export type OrgCatalogSort = 'usage' | 'sites' | 'name' | 'photos' | 'score';
-
-export interface OrgCatalogGroupSite extends OrgCatalogSite {
-  usage_count: number;
-  votes: number;
-  score: number | null;
-}
-
-export interface OrgCatalogGroup {
-  normalized_name: string;
-  display_name: string;
-  image_url: string | null;
-  site_count: number;
-  photo_count: number;
-  usage_count: number;
-  votes: number;
-  score: number | null;
-  distribution: Record<'1' | '2' | '3', number>;
-  series: { date: string; votes: number; score: number }[];
-  sites: OrgCatalogGroupSite[];
-}
+export type OrgCatalogGroup = Schemas['OrgDishGroup'];
 
 export const orgApi = {
-  getSites: async (): Promise<OrgSite[]> => {
-    const response = await api.get('/org/sites');
-    return (response.data.sites ?? []) as OrgSite[];
-  },
-  getCatalog: async (params: {
-    q?: string;
-    sort?: OrgCatalogSort;
-    order?: 'asc' | 'desc';
-    period?: CatalogPeriod;
-    page?: number;
-    per_page?: number;
-  }): Promise<OrgCatalogPage> => {
-    const response = await api.get('/org/catalog', { params });
-    return response.data as OrgCatalogPage;
-  },
-  getCatalogGroup: async (normalizedName: string): Promise<OrgCatalogGroup> => {
-    const response = await api.get('/org/catalog/group', { params: { name: normalizedName } });
-    return response.data as OrgCatalogGroup;
-  },
+  getSites: async (ref: OrgRef): Promise<OrgSite[]> =>
+    (await api.get(`${orgPath(ref)}/sites`)).data.items,
+
+  getCatalog: async (
+    ref: OrgRef,
+    params: {
+      q?: string;
+      sort?: OrgCatalogSort;
+      order?: 'asc' | 'desc';
+      period?: CatalogPeriod;
+      page?: number;
+      per_page?: number;
+    }
+  ): Promise<OrgCatalogPage> => (await api.get(`${orgPath(ref)}/dish-groups`, { params })).data,
+
+  getCatalogGroup: async (ref: OrgRef, normalizedName: string): Promise<OrgCatalogGroup> =>
+    (await api.get(`${orgPath(ref)}/dish-groups/${encodeURIComponent(normalizedName)}`)).data,
 };

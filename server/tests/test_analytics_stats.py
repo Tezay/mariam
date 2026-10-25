@@ -14,7 +14,7 @@ from app.models import (
     Restaurant,
 )
 from app.utils.time import PARIS_TZ, paris_today
-from conftest import auth_headers, get_token, make_restaurant, make_user
+from conftest import auth_headers, get_token, make_restaurant, make_user, site_path
 
 WEEKDAYS = [0, 1, 2, 3, 4]
 
@@ -83,19 +83,21 @@ def _director(rid, org_id, email='dir@mariam.app'):
     return uid
 
 
-def _publications(client, token, start, end, extra=''):
-    res = client.get(
-        f'/v1/analytics/publications?start={start.isoformat()}&end={end.isoformat()}{extra}',
-        headers=auth_headers(token),
-    )
-    assert res.status_code == 200, res.get_json()
-    return res.get_json()
+def _org_path(client, token):
+    user = client.get('/v1/auth/me', headers=auth_headers(token)).get_json()['user']
+    return f"/v1/orgs/{user['organization_slug']}"
 
 
 def _analytics(client, token, path, query=''):
-    res = client.get(f'/v1/analytics/{path}?{query}', headers=auth_headers(token))
+    res = client.get(f'{_org_path(client, token)}/analytics/{path}?{query}', headers=auth_headers(token))
     assert res.status_code == 200, res.get_json()
     return res.get_json()
+
+
+def _publications(client, token, start, end, extra=''):
+    return _analytics(
+        client, token, 'publications', f'from={start.isoformat()}&to={end.isoformat()}{extra}'
+    )
 
 
 class TestCalendarWindow:
@@ -343,11 +345,7 @@ class TestOverview:
         org = _org('ov1')
         rid = _site(org, 'OV1')
         _director(rid, org)
-        res = client.get(
-            '/v1/analytics/overview', headers=auth_headers(get_token(client, email='dir@mariam.app'))
-        )
-        assert res.status_code == 200
-        kpis = res.get_json()['kpis']
+        kpis = _analytics(client, get_token(client, email='dir@mariam.app'), 'overview')['kpis']
         assert kpis['views']['value'] == 0
         assert kpis['unique_visitors']['value'] == 0
         assert kpis['satisfaction']['value'] is None
@@ -369,11 +367,11 @@ class TestOverview:
             day = previous_monday + datetime.timedelta(days=offset)
             _menu(rid, day, published_at=_utc_naive(day, 9))
 
-        res = client.get(
-            f'/v1/analytics/overview?start={monday.isoformat()}&end={sunday.isoformat()}',
-            headers=auth_headers(get_token(client, email='dir@mariam.app')),
+        overview = _analytics(
+            client, get_token(client, email='dir@mariam.app'), 'overview',
+            f'from={monday.isoformat()}&to={sunday.isoformat()}',
         )
-        publication = res.get_json()['kpis']['publication_rate']
+        publication = overview['kpis']['publication_rate']
         assert publication['value'] == 1.0
         assert publication['previous'] == 0.4
         assert publication['delta'] == 0.6
@@ -385,11 +383,7 @@ class TestOverview:
         monday, _ = _last_full_week()
         _menu(rid, monday, published_at=_utc_naive(monday, 9))
 
-        res = client.get(
-            '/v1/analytics/overview',
-            headers=auth_headers(get_token(client, email='dir@mariam.app')),
-        )
-        site = res.get_json()['sites'][0]
+        site = _analytics(client, get_token(client, email='dir@mariam.app'), 'overview')['sites'][0]
         assert site['last_published_at'].startswith(monday.isoformat())
 
 
@@ -407,5 +401,60 @@ class TestAnalyticsTenantIsolation:
             _menu(rid_b, day, published_at=_utc_naive(day, 9))
 
         body = _publications(client, get_token(client, email='dira@mariam.app'), monday, friday)
-        assert [row['site_id'] for row in body['sites']] == [rid_a]
+        assert [row['site'] for row in body['sites']] == ['isoa']
         assert body['summary']['publication_rate'] == 0.0
+
+
+class TestScope:
+    def test_a_site_admin_reads_its_site_and_not_the_organization(self, app, client):
+        org = _org('scope')
+        rid = _site(org, 'SCOPE')
+        _site(org, 'NEIGHBOUR')
+        make_user(None, email='admin@mariam.app', role='admin', restaurant_id=rid)
+        headers = auth_headers(get_token(client, email='admin@mariam.app'))
+
+        site = client.get(f'{site_path(rid)}/analytics/publications', headers=headers)
+        organization = client.get('/v1/orgs/scope/analytics/publications', headers=headers)
+
+        assert [row['site'] for row in site.get_json()['sites']] == ['scope']
+        assert organization.get_json()['code'] == 'supervisor_required'
+
+    def test_every_report_is_served_for_a_site_and_for_the_organization(self, app, client):
+        org = _org('reports')
+        rid = _site(org, 'REPORTS')
+        make_user(None, email='admin@mariam.app', role='admin', restaurant_id=rid)
+        _director(rid, org)
+        site = auth_headers(get_token(client, email='admin@mariam.app'))
+        director = auth_headers(get_token(client, email='dir@mariam.app'))
+
+        answers = {
+            (report, path): client.get(f'{path}/analytics/{report}?period=1d', headers=headers).status_code
+            for report in ('overview', 'publications', 'traffic', 'satisfaction')
+            for path, headers in ((site_path(rid), site), ('/v1/orgs/reports', director))
+        }
+
+        assert set(answers.values()) == {200}
+
+    def test_the_sites_filter_keeps_to_the_organization(self, app, client):
+        org = _org('filter')
+        rid = _site(org, 'FILTER')
+        _site(org, 'OTHER')
+        _site(_org('elsewhere'), 'FOREIGN')
+        _director(rid, org)
+        token = get_token(client, email='dir@mariam.app')
+
+        body = _analytics(client, token, 'publications', 'sites=filter,foreign')
+
+        assert [row['site'] for row in body['sites']] == ['filter']
+
+    def test_an_inverted_range_is_refused(self, app, client):
+        org = _org('range')
+        _director(_site(org, 'RANGE'), org)
+        headers = auth_headers(get_token(client, email='dir@mariam.app'))
+
+        res = client.get(
+            '/v1/orgs/range/analytics/overview?from=2026-03-10&to=2026-03-01', headers=headers
+        )
+
+        assert res.status_code == 422
+

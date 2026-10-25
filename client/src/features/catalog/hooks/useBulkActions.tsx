@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { TagIcon } from '@/components/TagIcon';
-import { useSiteRef } from '@/contexts/SiteContext';
+import type { SiteRef } from '@/lib/api/client';
 import { dishesApi, type DishBatchDeleteResult } from '@/lib/api/dishes';
 import { type CertificationItem, type DietaryTag } from '@/lib/api/taxonomy';
 import { type MenuCategory } from '@/lib/api/categories';
@@ -30,18 +30,20 @@ import { cn } from '@/lib/utils';
 import { categoryPath, leafCategories, pathLabel } from '../categories';
 
 /**
- * The four actions a dish selection offers, with their dialogs.
+ * The four actions a dish selection offers, with their dialogs; none without a site.
  *
  * Held here rather than in the floating bar because the context menu triggers
  * the very same ones, and two copies of four dialogs would drift.
  */
 export function useBulkActions({
+  site,
   ids,
   categories,
   allTags,
   allCerts,
   onDone,
 }: {
+  site: SiteRef | null;
   ids: number[];
   categories: MenuCategory[];
   allTags: DietaryTag[];
@@ -49,7 +51,6 @@ export function useBulkActions({
   onDone: () => void;
 }) {
   const queryClient = useQueryClient();
-  const site = useSiteRef();
   const [confirming, setConfirming] = useState(false);
   const [kept, setKept] = useState<DishBatchDeleteResult['kept'] | null>(null);
   const [moving, setMoving] = useState(false);
@@ -63,7 +64,7 @@ export function useBulkActions({
   const leaves = leafCategories(categories);
 
   const remove = useMutation({
-    mutationFn: () => dishesApi.batchDelete(site, ids),
+    mutationFn: (site: SiteRef) => dishesApi.batchDelete(site, ids),
     onSuccess: (result) => {
       refresh();
       setConfirming(false);
@@ -78,7 +79,8 @@ export function useBulkActions({
   });
 
   const move = useMutation({
-    mutationFn: () => dishesApi.batchUpdate(site, ids, { category_id: Number(target) }),
+    mutationFn: (site: SiteRef) =>
+      dishesApi.batchUpdate(site, ids, { category_id: Number(target) }),
     onSuccess: ({ updated, kept }) => {
       refresh();
       setMoving(false);
@@ -95,7 +97,7 @@ export function useBulkActions({
   });
 
   const label = useMutation({
-    mutationFn: () =>
+    mutationFn: (site: SiteRef) =>
       dishesApi.batchUpdate(
         site,
         ids,
@@ -113,6 +115,8 @@ export function useBulkActions({
     },
     onError: () => notify.error('La mise à jour des labels a échoué'),
   });
+
+  if (!site) return null;
 
   const download = async () => {
     try {
@@ -142,7 +146,7 @@ export function useBulkActions({
             <AlertDialogAction
               onClick={(event) => {
                 event.preventDefault();
-                remove.mutate();
+                remove.mutate(site);
               }}
               disabled={remove.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -219,7 +223,7 @@ export function useBulkActions({
             <Button variant="ghost" onClick={() => setMoving(false)}>
               Annuler
             </Button>
-            <Button onClick={() => move.mutate()} disabled={target === '' || move.isPending}>
+            <Button onClick={() => move.mutate(site)} disabled={target === '' || move.isPending}>
               Déplacer
             </Button>
           </DialogFooter>
@@ -300,7 +304,7 @@ export function useBulkActions({
               Annuler
             </Button>
             <Button
-              onClick={() => label.mutate()}
+              onClick={() => label.mutate(site)}
               disabled={(tagIds.length === 0 && certIds.length === 0) || label.isPending}
             >
               {mode === 'add' ? 'Ajouter' : 'Retirer'}

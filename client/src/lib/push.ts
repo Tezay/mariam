@@ -1,26 +1,13 @@
-import { pushAxios as api } from './api/client';
+import type { SiteRef } from './api/client';
+import {
+  pushSubscriptionsApi,
+  type NotificationPreferences,
+  type ServerSubscription,
+} from './api/push-subscriptions';
+
+export type { NotificationPreferences } from './api/push-subscriptions';
 
 export type Platform = 'ios' | 'android' | 'desktop';
-
-export interface NotificationPreferences {
-  notify_today_menu: boolean;
-  notify_today_menu_time: string; // "HH:MM"
-  notify_tomorrow_menu: boolean;
-  notify_tomorrow_menu_time: string; // "HH:MM"
-  notify_events: boolean;
-}
-
-export interface ServerSubscription {
-  id: number;
-  restaurant_id: number;
-  notify_today_menu: boolean;
-  notify_today_menu_time: string;
-  notify_tomorrow_menu: boolean;
-  notify_tomorrow_menu_time: string;
-  notify_events: boolean;
-  platform: string | null;
-  created_at: string | null;
-}
 
 export const DEFAULT_PREFERENCES: NotificationPreferences = {
   notify_today_menu: true,
@@ -61,6 +48,7 @@ export function requiresPwaForPush(): boolean {
 }
 
 // The worker activates once its precache is downloaded: on a first visit, a slow
+// connection takes a while.
 const SW_READY_TIMEOUT = 30_000;
 
 const PUSH_SW_URL = '/sw-push.js';
@@ -151,11 +139,9 @@ async function awaitReadyRegistration(
 
 let vapidPublicKeyCache: string | null = null;
 
-export async function getVapidPublicKey(): Promise<string> {
-  if (vapidPublicKeyCache) return vapidPublicKeyCache;
-  const response = await api.get('/notifications/vapid-public-key');
-  vapidPublicKeyCache = response.data.public_key;
-  return vapidPublicKeyCache!;
+async function getVapidPublicKey(): Promise<string> {
+  vapidPublicKeyCache ??= await pushSubscriptionsApi.publicKey();
+  return vapidPublicKeyCache;
 }
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
@@ -200,7 +186,7 @@ export async function getExistingSubscription(): Promise<PushSubscription | null
 
 export async function subscribeToPush(
   preferences: NotificationPreferences,
-  restaurantId?: number
+  site: SiteRef
 ): Promise<{ success: boolean; error?: string }> {
   try {
     if (!isPushSupported()) {
@@ -234,13 +220,12 @@ export async function subscribeToPush(
       return { success: false, error: humanizePushSubscribeError(pushErr, true) };
     }
 
-    const subscriptionJSON = subscription.toJSON();
-    await api.post('/notifications/subscribe', {
-      endpoint: subscriptionJSON.endpoint,
-      keys: subscriptionJSON.keys,
-      preferences,
+    const { keys } = subscription.toJSON();
+    await pushSubscriptionsApi.put(site, {
+      endpoint: subscription.endpoint,
+      keys: { p256dh: keys?.p256dh ?? '', auth: keys?.auth ?? '' },
       platform: detectPlatform(),
-      restaurant_id: restaurantId,
+      ...preferences,
     });
 
     return { success: true };
@@ -251,16 +236,16 @@ export async function subscribeToPush(
   }
 }
 
-export async function unsubscribeFromPush(): Promise<{ success: boolean; error?: string }> {
+export async function unsubscribeFromPush(
+  site: SiteRef
+): Promise<{ success: boolean; error?: string }> {
   try {
     const subscription = await getExistingSubscription();
     if (!subscription) {
       return { success: true };
     }
 
-    await api.delete('/notifications/unsubscribe', {
-      data: { endpoint: subscription.endpoint },
-    });
+    await pushSubscriptionsApi.remove(site, subscription.endpoint);
 
     await subscription.unsubscribe();
 
@@ -273,7 +258,8 @@ export async function unsubscribeFromPush(): Promise<{ success: boolean; error?:
 }
 
 export async function updatePreferences(
-  preferences: NotificationPreferences
+  preferences: NotificationPreferences,
+  site: SiteRef
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const subscription = await getExistingSubscription();
@@ -281,10 +267,7 @@ export async function updatePreferences(
       return { success: false, error: 'Aucune souscription active.' };
     }
 
-    await api.put('/notifications/preferences', {
-      endpoint: subscription.endpoint,
-      preferences,
-    });
+    await pushSubscriptionsApi.update(site, subscription.endpoint, preferences);
 
     return { success: true };
   } catch (err: unknown) {
@@ -294,32 +277,27 @@ export async function updatePreferences(
   }
 }
 
-export async function getServerPreferences(): Promise<ServerSubscription | null> {
+/** `null` when this browser does not follow the site. */
+export async function getServerPreferences(site: SiteRef): Promise<ServerSubscription | null> {
   try {
     const subscription = await getExistingSubscription();
     if (!subscription) return null;
-
-    const response = await api.get('/notifications/preferences', {
-      params: { endpoint: subscription.endpoint },
-    });
-    return response.data.subscription;
+    return await pushSubscriptionsApi.get(site, subscription.endpoint);
   } catch {
     return null;
   }
 }
 
-export async function sendTestNotification(): Promise<{ success: boolean; error?: string }> {
+export async function sendTestNotification(
+  site: SiteRef
+): Promise<{ success: boolean; error?: string }> {
   try {
     const subscription = await getExistingSubscription();
     if (!subscription) {
       return { success: false, error: 'Aucune souscription active.' };
     }
 
-    const subscriptionJSON = subscription.toJSON();
-    await api.post('/notifications/test', {
-      endpoint: subscriptionJSON.endpoint,
-      keys: subscriptionJSON.keys,
-    });
+    await pushSubscriptionsApi.sendTest(site, subscription.endpoint);
 
     return { success: true };
   } catch (err: unknown) {

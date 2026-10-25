@@ -100,7 +100,12 @@ export function MobileMenuDisplay({
   return (
     <PublicShell>
       {restaurant && (
-        <MobileHeader restaurant={restaurant} activeClosure={activeClosure} now={now} />
+        <MobileHeader
+          site={{ org, site: restaurantSlug }}
+          restaurant={restaurant}
+          activeClosure={activeClosure}
+          now={now}
+        />
       )}
 
       {currentData?.menu?.chef_note && <MobileChefNote note={currentData.menu.chef_note} />}

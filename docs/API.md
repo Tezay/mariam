@@ -220,10 +220,9 @@ On a route the session authenticates, `401` speaks of the session alone, and is 
 answer to refresh the access token on. A wrong password, code or passkey answers `403`:
 refreshing there would trade a confirmed token for one that is not.
 
-Marked *confirmed* in the tables: `POST /v1/users/invite`, `DELETE /v1/users/<id>`,
-`POST /v1/users/<id>/reset-mfa`, `POST /v1/users/<id>/reset-password`,
-`GET /v1/audit-logs/export`, `PATCH /v1/auth/me`,
-`DELETE /v1/auth/passkey/<id>` and `DELETE /v1/auth/mfa`.
+Marked *confirmed* in the tables: creating an invitation, and deleting an account, removing
+its second factors or sending it a reset link (see Members and invitations); exporting the
+audit log; `PATCH /v1/auth/me`, `DELETE /v1/auth/passkey/<id>` and `DELETE /v1/auth/mfa`.
 
 Marked *confirmed once enrolled*: both ends of a passkey registration and of a TOTP setup, and
 `POST /v1/auth/session-transfer/generate`. An account with no second factor has nothing to
@@ -271,7 +270,7 @@ campus behind a single address rather than for one visitor.
 |--------|-------|-------------|
 | `GET` | `/v1/domains/{host}` | The organization a host serves; may be cached five minutes |
 | `GET` | `/v1/orgs/{org}` | An organization |
-| `GET` | `/v1/orgs/{org}/sites` | Its active sites |
+| `GET` | `/v1/orgs/{org}/sites` | Its active sites; its supervisors read them all, with their fields (see Organization) |
 | `GET` | `/v1/orgs/{org}/sites/{site}` | A site: address, contact, hours, vote settings, the labels in use, `menu_window` |
 | `GET` | `/v1/orgs/{org}/sites/{site}/menus` | Published menus from `from` to `to`, both included (today to the window's end by default; 62 days at most) |
 | `GET` | `/v1/orgs/{org}/sites/{site}/menus/{date}` | The published menu of a day |
@@ -315,9 +314,9 @@ persisted; no address, user agent or per-visitor row reaches PostgreSQL.
 | `GET` | `/health` | Liveness — the process is up |
 | `GET` | `/health/ready` | Readiness — checks DB, Redis and a scheduler flush in the last 15 minutes; returns 503 otherwise |
 | `GET` | `/v1/taxonomy` | Dietary tags and certifications catalog |
-| `GET` | `/v1/notifications/vapid-public-key` | VAPID public key for push subscriptions |
+| `GET` | `/v1/push-key` | VAPID public key for push subscriptions |
 | `GET` | `/v1/holidays/{year}` | French public holidays of a year, from calendrier.api.gouv.fr |
-| `GET`/`POST` | `/v1/public/unsubscribe/<token>` | Turn the weekly digest off from the email; POST answers the one-click of mail clients |
+| `POST` | `/v1/weekly-emails/{token}/unsubscribe` | Turn the weekly email off; the one-click target of mail clients (see Inbox Notifications) |
 
 ---
 
@@ -487,19 +486,24 @@ Notes:
   and `digest_hour` (6 to 21, Europe/Paris) say when it lands. Off by default,
   Monday 08:00. Whatever the slot, the summary covers the last complete week,
   Monday to Sunday.
+- The email's own link opens `/unsubscribe/<token>` on the frontend, which asks for a
+  click, so that a scanner following links unsubscribes no one. Its
+  `List-Unsubscribe` header names `POST /v1/weekly-emails/{token}/unsubscribe`, the
+  one-click target of mail clients (RFC 8058), which turns `weekly_digest` off; an
+  unknown token answers `404 link_invalid`.
 
 ---
 
 ## Organization
 
-Requires `org_admin`. Cross-site management of the caller's organization;
-per-site management stays under the site endpoints.
+Requires `org_admin` and the caller's own organization; another answers
+`404 org_not_found`. Below, `O` stands for `/v1/orgs/{org}`.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `/v1/org/sites` | Every site of the organization with user count, today's menu status (`published`, `draft`, `missing`, `closed`), upcoming events and last publication |
-| `GET` | `/v1/org/catalog` | Dishes served across the organization, pooled by normalised name (`q`, `sort`, `order`, `period`, `page`, `per_page`) |
-| `GET` | `/v1/org/catalog/group?name=` | One pooled dish: the organization-wide aggregate and each site's figures |
+| `GET` | `O/sites` | Every site, closed ones included, with the supervisors' fields: `is_active`, `member_count`, `today_menu_status` (`published`, `draft`, `missing`, `closed`), `upcoming_events`, `last_published_at` |
+| `GET` | `O/dish-groups` | Dishes served across the organization, grouped by normalised name (`q`, `sort`, `order`, `period`); paginated with `page`, `per_page` (24 by default) and `Link` |
+| `GET` | `O/dish-groups/{name}` | One group, by its `normalized_name` encoded in the path: the organization-wide figures and each site's; `404 dish_group_not_found` |
 
 Opening, renaming or deactivating a site is a billing event and is not exposed
 through the API: it is handled by the Mariam team with the `init-restaurant` CLI
@@ -520,24 +524,26 @@ Catalogue notes:
 
 ## Analytics
 
-Requires `admin` or `org_admin`. The scope is derived from the caller: a site
-admin gets its own site, an org director every site of its organization, which
-`site_ids` narrows.
+One site's reports under `S`, for its admin and the organization's supervisors; the
+organization's under `O`, for its supervisors.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `/v1/analytics/overview` | Period KPIs with previous-period comparison, daily trend, per-site table |
-| `GET` | `/v1/analytics/publications` | Publication rate, punctuality, lead time, completeness, site × day status matrix |
-| `GET` | `/v1/analytics/satisfaction` | Menu ratings: distribution, daily score, per-site comparison and dish ranking (`min_votes`, default 10) |
-| `GET` | `/v1/analytics/traffic` | Public-page consultation: daily series, per-site table, hour profile, page-kind split |
+| `GET` | `S/analytics/overview`, `O/analytics/overview` | Period KPIs with previous-period comparison, daily trend, per-site table |
+| `GET` | `S/analytics/publications`, `O/analytics/publications` | Publication rate, punctuality, lead time, completeness, site × day status matrix |
+| `GET` | `S/analytics/satisfaction`, `O/analytics/satisfaction` | Menu ratings: distribution, daily score, per-site comparison and dish ranking (`min_votes`, default 10) |
+| `GET` | `S/analytics/traffic`, `O/analytics/traffic` | Public-page consultation: daily series, per-site table, hour profile, page-kind split |
 
 Shared query parameters:
 
 | Parameter | Description |
 |-----------|-------------|
-| `period` | `7d`, `30d` (default) or `90d` |
-| `start`, `end` | Custom ISO range (`YYYY-MM-DD`), capped at 366 days; overrides `period` |
-| `site_ids` | Comma-separated site ids; ids outside the caller's scope are ignored |
+| `period` | `1d`, `7d`, `30d` (default) or `90d`, up to today |
+| `from`, `to` | A range in place of `period` (`YYYY-MM-DD`), both included, 366 days at most; a `to` after today reads as today |
+| `sites` | `O` only: comma-separated slugs; those outside the organization are left out |
+
+An inverted or too long range answers `422`. Each per-site row names its site by `site`
+(its slug) and `name`.
 
 Notes:
 
@@ -545,13 +551,12 @@ Notes:
   exceptional closure covers it; `publication_rate` is measured over those days.
 - A menu is *punctual* when `published_at` precedes the service opening time for
   that weekday (`11:30` when the site has no service hours).
-- Rates are `null` when their denominator is zero. Traffic and satisfaction keys
-  are present but `null` until those features collect data.
-- The status matrix covers at most the last 60 days of the period.
+- Rates are `null` when their denominator is zero.
+- The status matrix covers the last 30 days, whatever the period.
 - Traffic excludes signage screens (`page_kind` `tv`), which refresh unattended;
   those appear only in the page-kind split. The public root of a multi-site
   organization is counted against the organization and reported separately as
-  `totals.org_root_views`.
+  `totals.org_root_views`, under `O` only.
 - Unique visitors are an estimate: a HyperLogLog over hashes of IP and user
   agent, salted with a key that rotates daily and is never persisted. No cookie,
   no identifier stored on the device, nothing per-visitor in the database.
@@ -573,7 +578,6 @@ site; a supervisor reads but never writes.
 | `PATCH` | `S` | Change the name, address, contact, capacity, payment methods, access, service days and hours, vote, and the labels in use (`tag_ids`, `certification_ids`) |
 | `GET` | `S/calendar-settings` | What the calendar shows besides menus: public holidays, school holidays and their zone |
 | `PATCH` | `S/calendar-settings` | Change them; `admin` role |
-| `GET` | `/v1/restaurants` | The sites an account reaches, for the supervisor's account list |
 
 Every value has its rule, refused with `422` otherwise: a name of 1 to 50 characters without
 a web or email address, service days from `0` (Monday) to `6`, hours as `HH:MM` with the close
@@ -602,26 +606,34 @@ parent's dishes with `move_dishes: true`. A protected category answers `409 cate
 
 ---
 
-## Users
+## Members and invitations
 
-Requires `admin` role.
+A site's accounts belong to the site, and its admin manages them; the supervisors'
+accounts belong to the organization, and the supervisors manage them. A supervisor reads a
+site's accounts but never changes them (`403 supervisor_read_only`).
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `/v1/users` | List users |
-| `GET` | `/v1/users/<id>` | User details |
-| `PUT` | `/v1/users/<id>` | Update a user's role, site or status; suspending it ends its sessions |
-| `DELETE` | `/v1/users/<id>` | Delete a user (requires a confirmed session) |
-| `POST` | `/v1/users/<id>/reset-mfa` | Remove a user's TOTP and passkeys and end their sessions (requires a confirmed session) |
-| `POST` | `/v1/users/<id>/reset-password` | Email a user a password reset link, returned only when it could not be emailed (requires a confirmed session) |
-| `POST` | `/v1/users/invite` | Create an invitation link (requires a confirmed session); `send_email` also emails it to `email`, and the invitation's `emailed` tells whether it left; `email` is optional and only pre-fills the activation form |
-| `GET` | `/v1/users/invitations` | List pending invitations, each with whether it was emailed |
-| `DELETE` | `/v1/users/invitations/<id>` | Revoke a pending invitation |
+| `GET` | `S/members` | The site's accounts, newest first; paginated (`page`, `per_page` up to 200, `Link`) |
+| `PATCH` | `S/members/{user_id}` | `role` (`admin`, `editor`, `reader`) and `is_active`; turning an account off ends its sessions |
+| `DELETE` | `S/members/{user_id}` | Delete an account (*confirmed*); `204` |
+| `DELETE` | `S/members/{user_id}/second-factors` | Remove its TOTP and passkeys and end its sessions (*confirmed*); `204` |
+| `POST` | `S/members/{user_id}/password-reset` | Email it a link to choose a new password, returned as `reset_url` only when it could not be emailed (*confirmed*); `201` |
+| `GET` | `S/invitations` | The 50 latest pending invitations, each with whether it was emailed; the site's admins only, a link being enough to create the account |
+| `POST` | `S/invitations` | Invite someone (*confirmed*): `role`, an optional `email` that pre-fills the activation form, `send_email` to email it as well; `201` |
+| `DELETE` | `S/invitations/{invitation_id}` | Revoke a pending invitation: its link stops working at once; `204` |
+| `GET` | `O/members` | Every account of the organization, for its supervisors |
+| `PATCH` | `O/members/{user_id}` | `is_active` of a supervisor |
+| `DELETE` | `O/members/{user_id}`, `…/second-factors` | As for a site, on a supervisor (*confirmed*) |
+| `POST` | `O/members/{user_id}/password-reset` | As for a site, on a supervisor (*confirmed*) |
+| `GET`, `POST`, `DELETE` | `O/invitations`, `O/invitations/{invitation_id}` | The supervisors' invitations, without `role` |
 
-Invitations follow the same boundary as accounts: a supervisor lists and revokes supervisor
-invitations, a site admin those of its site. The reset leaves the account active: it signs in
-with its password and enrols a new method. It is refused on the caller's own account and on
-the rescue account.
+Every account carries its `site` (`slug` and `name`, `null` for a supervisor). The caller's
+own account answers `403 own_account` (deleting, deactivating, changing its role, resetting
+it), the rescue account `403 rescue_account`. A reset link needs an active account with a
+second factor (`409 member_inactive`, `409 second_factor_missing`); the reset leaves the
+account active, to sign in with its password and set up a new factor. An address already in
+use answers `409 email_taken`; one administrator emails twenty invitations a day at most.
 
 The two routes below are the exception: any authenticated user reads and writes
 its own.
@@ -635,33 +647,47 @@ its own.
 
 ## Audit Log
 
-Requires the `admin` role and an account carrying a second factor, code or passkey.
+Requires an account carrying a second factor, code or passkey (`403 second_factor_required`
+otherwise): the site's admin or a supervisor under `S`, a supervisor under `O`. Each read is
+itself audited.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `/v1/audit-logs` | Paginated audit log (filters: `action`, `user_id`, `restaurant_id`, `start_date`, `end_date`) |
-| `GET` | `/v1/audit-logs/export` | CSV export (max 10,000 rows; requires a confirmed session) |
+| `GET` | `S/audit-logs` | The site's entries, newest first; paginated (`page`, `per_page` up to 100, `Link`) |
+| `GET` | `S/audit-logs/export` | The same as CSV, 10,000 rows at most (*confirmed*) |
+| `GET` | `O/audit-logs` | The entries of the organization's sites and of its supervisors; `site` narrows to one site |
+| `GET` | `O/audit-logs/export` | The same as CSV (*confirmed*) |
+
+Filters: `action`, `user_id`, `from` and `to` (days in Paris time, both included). An
+unreadable filter answers `422`.
 
 ---
 
 ## Push Notifications
 
-| Method | Route | Auth | Description |
-|--------|-------|------|-------------|
-| `GET` | `/v1/notifications/vapid-public-key` | none | VAPID public key |
-| `POST` | `/v1/notifications/subscribe` | any | Subscribe or update subscription |
-| `GET` | `/v1/notifications/preferences` | any | Get notification preferences |
-| `PUT` | `/v1/notifications/preferences` | any | Update notification preferences |
-| `DELETE` | `/v1/notifications/unsubscribe` | any | Unsubscribe |
-| `POST` | `/v1/notifications/test` | any | Send a test notification |
+A visitor's browser subscribes to a site's menus and events, with no account. A subscription
+is named by the SHA-256 of its endpoint, in base64url: the browser computes it, and the
+endpoint, which alone lets anyone push to that browser, never appears in an address.
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/v1/push-key` | The VAPID public key to subscribe with; `503 push_unavailable` when push is not set up |
+| `PUT` | `S/push-subscriptions/{id}` | Subscribe: `endpoint`, `keys` as `PushSubscription.toJSON()` returns them, `platform` and the preferences; `201` the first time, `200` after |
+| `GET` | `S/push-subscriptions/{id}` | Its preferences |
+| `PATCH` | `S/push-subscriptions/{id}` | Change its preferences |
+| `DELETE` | `S/push-subscriptions/{id}` | Unsubscribe; `204` |
+| `POST` | `S/push-subscriptions/{id}/test` | Send a test notification to the stored subscription; `204`, or `502 push_failed` |
 
 Notes:
 
-- Every route but the first takes the subscription's `endpoint`, which must be an `https://`
-  address on a browser push service (Google, Mozilla, Apple, Microsoft). `subscribe` and `test`
-  also take its two keys, as `PushSubscription.toJSON()` returns them. Anything else answers
-  `422`: it is neither stored nor contacted.
-- `subscribe` answers `404` to a `restaurant_id` that is unknown or inactive.
+- `endpoint` must be an `https://` address on a browser push service (Google, Mozilla, Apple,
+  Microsoft), and `{id}` its fingerprint (`422 subscription_id_mismatch` otherwise). Anything
+  else answers `422`: it is neither stored nor contacted.
+- A subscription follows one site: subscribing on another moves it there, and the first site
+  then answers `404 subscription_not_found`. A closed site answers `404`.
+- Preferences: `notify_today_menu`, `notify_tomorrow_menu`, `notify_events`, and the times
+  `notify_today_menu_time` and `notify_tomorrow_menu_time` (`HH:MM`, Paris time). Left out of
+  a `PUT`, they take their default.
 
 ---
 

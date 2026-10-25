@@ -274,6 +274,11 @@ class TestTrafficEndpoint:
         db.session.get(User, uid).organization_id = org_id
         db.session.commit()
 
+    def _traffic(self, client, org_id, token, period):
+        slug = db.session.get(Organization, org_id).slug
+        res = client.get(f'/v1/orgs/{slug}/analytics/traffic?period={period}', headers=auth_headers(token))
+        return res.get_json()
+
     def test_traffic_excludes_screens_from_the_totals(self, app, client, monkeypatch):
         _use_fake_redis(monkeypatch)
         org_id, rid = _org_with_site('traffic-org', 'TRA')
@@ -285,7 +290,7 @@ class TestTrafficEndpoint:
         telemetry.flush_view_counters(app)
 
         token = get_token(client, email='sup@mariam.app')
-        body = client.get('/v1/analytics/traffic?period=7d', headers=auth_headers(token)).get_json()
+        body = self._traffic(client, org_id, token, '7d')
 
         assert body['totals']['views'] == 1
         assert {row['page_kind']: row['views'] for row in body['by_page_kind']} == {
@@ -301,7 +306,7 @@ class TestTrafficEndpoint:
         telemetry.close_day_uniques(app, paris_today())
 
         token = get_token(client, email='sup@mariam.app')
-        body = client.get('/v1/analytics/traffic?period=7d', headers=auth_headers(token)).get_json()
+        body = self._traffic(client, org_id, token, '7d')
 
         assert body['totals']['unique_visitors'] == 1
 
@@ -325,12 +330,8 @@ class TestTrafficEndpoint:
             _track(client, 'today', 'tra4', user_agent=agent)
 
         token = get_token(client, email='sup@mariam.app')
-        window = client.get(
-            '/v1/analytics/traffic?period=7d', headers=auth_headers(token)
-        ).get_json()
-        day = client.get(
-            '/v1/analytics/traffic?period=1d', headers=auth_headers(token)
-        ).get_json()
+        window = self._traffic(client, org_id, token, '7d')
+        day = self._traffic(client, org_id, token, '1d')
 
         assert window['totals']['unique_visitors'] == 33
         assert day['totals']['unique_visitors'] == 5
@@ -344,7 +345,7 @@ class TestTrafficEndpoint:
         telemetry.flush_view_counters(app)
 
         token = get_token(client, email='sup@mariam.app')
-        body = client.get('/v1/analytics/traffic?period=7d', headers=auth_headers(token)).get_json()
+        body = self._traffic(client, org_id, token, '7d')
 
         assert body['totals']['views'] == 0
         assert body['totals']['org_root_views'] == 1

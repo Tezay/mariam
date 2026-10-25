@@ -15,11 +15,35 @@ def _site_not_found() -> Problem:
     return Problem(404, 'site_not_found', 'Restaurant introuvable.')
 
 
+def _org_not_found() -> Problem:
+    return Problem(404, 'org_not_found', 'Organisation introuvable.')
+
+
 def public_org(slug: str) -> Organization:
     org = Organization.query.filter_by(slug=slug, is_active=True).first()
     if org is None:
-        raise Problem(404, 'org_not_found', 'Organisation introuvable.')
+        raise _org_not_found()
     return org
+
+
+def member_org(slug: str) -> Organization:
+    """The organization the session supervises, open or not; any other reads as missing."""
+    user = get_current_user()
+    org = Organization.query.filter_by(slug=slug).first()
+    if org is None or not user.is_org_admin() or org.id != user.organization_id:
+        raise _org_not_found()
+    return org
+
+
+def readable_org(slug: str) -> tuple[Organization, bool]:
+    """The organization, and whether the caller is one of its supervisors."""
+    verify_jwt_in_request(optional=True)
+    if get_jwt_identity() is not None and get_current_user().is_org_admin():
+        try:
+            return member_org(slug), True
+        except Problem:
+            pass
+    return public_org(slug), False
 
 
 def public_site(org_slug: str, site_slug: str) -> Restaurant:

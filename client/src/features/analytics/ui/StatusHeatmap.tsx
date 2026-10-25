@@ -20,7 +20,7 @@ const LEGEND_ORDER: PublicationDayStatus[] = [
 
 interface StatusHeatmapProps {
   matrix: PublicationsReport['matrix'];
-  onSiteClick?: (siteId: number) => void;
+  onSiteClick?: (site: string) => void;
 }
 
 export function StatusHeatmap({ matrix, onSiteClick }: StatusHeatmapProps) {
@@ -56,12 +56,12 @@ export function StatusHeatmap({ matrix, onSiteClick }: StatusHeatmapProps) {
 
           <div className={cn('space-y-1 py-3 pr-4', !showNames && 'pl-4')}>
             {matrix.map((row) => (
-              <div key={row.site_id} className="flex h-5 items-center gap-1">
+              <div key={row.site} className="flex h-5 items-center gap-1">
                 {showNames && (
                   <button
                     type="button"
                     disabled={!onSiteClick}
-                    onClick={onSiteClick ? () => onSiteClick(row.site_id) : undefined}
+                    onClick={onSiteClick ? () => onSiteClick(row.site) : undefined}
                     className={cn(
                       'sticky left-0 z-20 flex h-5 w-48 shrink-0 items-center bg-card pl-4 pr-3 text-left text-xs font-medium text-foreground',
                       onSiteClick && 'transition-colors hover:text-primary'

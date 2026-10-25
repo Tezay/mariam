@@ -5,12 +5,13 @@ from flask_jwt_extended import create_access_token
 
 from app.extensions import db
 from app.models import User
-from conftest import TEST_PASSWORD, auth_headers, make_user
+from conftest import TEST_PASSWORD, auth_headers, make_user, site_path
 from tests.auth_support import enable_totp, enroll_passkey, new_authenticator, session_headers
 
 
 def _delete(client, target_id, headers):
-    return client.delete(f'/v1/users/{target_id}', headers=headers)
+    site = site_path(db.session.get(User, target_id).restaurant_id)
+    return client.delete(f'{site}/members/{target_id}', headers=headers)
 
 
 class TestPassword:
@@ -63,7 +64,7 @@ class TestPasskey:
 
         confirmed = self._complete(client, admin, begin, authenticator).get_json()['access_token']
 
-        assert _delete(client, target, auth_headers(confirmed)).status_code == 200
+        assert _delete(client, target, auth_headers(confirmed)).status_code == 204
 
     def test_a_signed_challenge_cannot_be_replayed(self, app, client, revocations):
         uid = make_user(app)
@@ -128,15 +129,15 @@ class TestConfirmedSession:
         enable_totp(admin)
         headers = session_headers(admin, confirmed=True)
 
-        assert _delete(client, target, headers).status_code == 200
-        assert _delete(client, other, headers).status_code == 200
+        assert _delete(client, target, headers).status_code == 204
+        assert _delete(client, other, headers).status_code == 204
 
     def test_a_sign_in_with_a_second_factor_is_confirmed(self, app, client, revocations):
         admin = make_user(app)
         target = make_user(app, email='target@mariam.app')
         session = self._sign_in(client, enable_totp(admin))
 
-        assert _delete(client, target, auth_headers(session['access_token'])).status_code == 200
+        assert _delete(client, target, auth_headers(session['access_token'])).status_code == 204
 
     def test_a_refreshed_session_is_not(self, app, client, revocations):
         admin = make_user(app)

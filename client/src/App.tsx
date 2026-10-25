@@ -13,6 +13,9 @@ const Activate = lazy(() => import('./pages/Activate').then((m) => ({ default: m
 const ResetPassword = lazy(() =>
   import('./pages/ResetPassword').then((m) => ({ default: m.ResetPassword }))
 );
+const Unsubscribe = lazy(() =>
+  import('./pages/Unsubscribe').then((m) => ({ default: m.Unsubscribe }))
+);
 const NotificationsPage = lazy(() =>
   import('./pages/public/NotificationsPage').then((m) => ({ default: m.NotificationsPage }))
 );
@@ -225,6 +228,7 @@ function App() {
           <Route path="/activate/:token" element={<Activate />} />
 
           <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/unsubscribe/:token" element={<Unsubscribe />} />
 
           <Route
             path="/admin/security"
@@ -278,7 +282,7 @@ function App() {
             <Route path="analytics/publications" element={<OrgPublicationsPage />} />
             <Route path="sites" element={<OrgSitesPage />} />
             <Route path="catalog" element={<OrgCatalogPage />} />
-            <Route path="sites/:id" element={<OrgSiteDetailPage />} />
+            <Route path="sites/:site" element={<OrgSiteDetailPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="audit" element={<AuditLogsPage />} />
             <Route path="account" element={<AccountPage />} />

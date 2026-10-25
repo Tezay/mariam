@@ -9,7 +9,7 @@ export function OrgSatisfactionPage() {
   const { data: orgSites } = useOrgSites();
 
   const sites = useMemo(
-    () => (orgSites ?? []).map((site) => ({ id: site.id, name: site.name })),
+    () => (orgSites ?? []).map((site) => ({ slug: site.slug, name: site.name })),
     [orgSites]
   );
 
@@ -21,7 +21,7 @@ export function OrgSatisfactionPage() {
       />
       <SatisfactionView
         sites={sites}
-        onSiteClick={(siteId) => navigate(`/org/sites/${siteId}`)}
+        onSiteClick={(site) => navigate(`/org/sites/${site}`)}
         onDishClick={(dish) => navigate(`/org/catalog?q=${encodeURIComponent(dish.name)}`)}
       />
     </div>

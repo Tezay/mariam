@@ -131,22 +131,22 @@ export const publicAxios = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Carries the token but not the refresh interceptor: a failed push call must not end the session.
-export const pushAxios = axios.create({
-  baseURL: API_URL,
-  headers: { 'Content-Type': 'application/json' },
-});
-pushAxios.interceptors.request.use((config) => {
-  const token = getAccessToken();
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-
-export interface SiteRef {
+export interface OrgRef {
   org: string;
+}
+
+export interface SiteRef extends OrgRef {
   site: string;
 }
 
+export function orgPath({ org }: OrgRef): string {
+  return `/orgs/${encodeURIComponent(org)}`;
+}
+
 export function sitePath({ org, site }: SiteRef): string {
-  return `/orgs/${encodeURIComponent(org)}/sites/${encodeURIComponent(site)}`;
+  return `${orgPath({ org })}/sites/${encodeURIComponent(site)}`;
+}
+
+export function scopePath(ref: OrgRef | SiteRef): string {
+  return 'site' in ref ? sitePath(ref) : orgPath(ref);
 }
