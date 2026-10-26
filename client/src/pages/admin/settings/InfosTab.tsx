@@ -17,6 +17,8 @@ export function InfosTab({ state }: { state: SettingsState }) {
     setAddressLabel,
     setAddressLat,
     setAddressLon,
+    setAddressCity,
+    setAddressPostcode,
     addressLat,
     addressLon,
     addressConfirmed,
@@ -82,6 +84,8 @@ export function InfosTab({ state }: { state: SettingsState }) {
                 setAddressConfirmed(!val);
                 setAddressLat(null);
                 setAddressLon(null);
+                setAddressCity(null);
+                setAddressPostcode(null);
                 if (!val) {
                   setBanSuggestions([]);
                   setBanOpen(false);
@@ -107,6 +111,8 @@ export function InfosTab({ state }: { state: SettingsState }) {
                       setAddressLabel(s.label);
                       setAddressLat(s.lat);
                       setAddressLon(s.lon);
+                      setAddressCity(s.city);
+                      setAddressPostcode(s.postcode);
                       setAddressConfirmed(true);
                       setBanSuggestions([]);
                       setBanOpen(false);

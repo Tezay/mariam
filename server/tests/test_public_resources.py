@@ -137,7 +137,7 @@ class TestMenus:
 
         body = client.get(f'{SITE}/menus/{paris_today()}').get_json()
 
-        assert set(body) == {'date', 'chef_note', 'categories', 'images', 'substitutions'}
+        assert set(body) == {'date', 'chef_note', 'categories', 'substitutions'}
         [shown] = body['categories']
         assert 'is_protected' not in shown
         [sub] = shown['subcategories']

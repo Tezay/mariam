@@ -44,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Accounts, invitations, audit log and analytics under the site or the organization**, which also serves its pooled dishes.
 - **`/unsubscribe/<token>`**, the page the weekly email links to.
 - **A site's public page in the API**: tagline, presentation, logo, cover, gallery, access, services and links.
+- **"Page publique"** in the dashboard, for a site's admins: presentation, images, access, services, links and menu window.
 
 ### Changed
 
@@ -99,6 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **An event's or closure's `is_active`**, which no screen set; an inactive one stays hidden.
 - **`/v1/users`, `/v1/audit-logs`, `/v1/analytics`, `/v1/org`, `/v1/restaurants` and `/v1/notifications`**, scoped by the session.
 - **Site ids**: the API and the supervisor's screens name a site by its slug.
+- **A menu's photos**, which no page showed; dishes keep theirs, and a special meal is an event.
 - **`/v1/auth/me`, the second factors and password change under `/v1/auth`, `/v1/users/me` and `/v1/inbox`**, moved to `/v1/user`.
 
 ### Fixed
@@ -111,6 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A visitor subscribes to the notifications of the site they browse**, not to the instance's first site.
 - **The supervisors' own actions appear in the organization's audit log.**
 - **A TOTP code holds the night the clocks go back**: it was refused for that hour.
+- **The service page's preview opens the site's own public page**, in an organization of several sites too.
 
 ## [0.19.0] - 2026-10-13
 

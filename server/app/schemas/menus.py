@@ -1,13 +1,11 @@
 from marshmallow import EXCLUDE, Schema, fields, validate
 
-from .images import ImageSchema
 from .public import (
     PublicMenuSchema,
     PublicSubstitutionSchema,
 )
 
 CHEF_NOTE_MAX = 300
-MENU_IMAGES_MAX = 6
 SUBSTITUTES_MAX = 3
 
 
@@ -21,7 +19,6 @@ class MenuSchema(PublicMenuSchema):
         allow_none=True, metadata={'description': "For the site's editors"}
     )
     updated_at = fields.DateTime(allow_none=True, metadata={'description': "For the site's editors"})
-    images = fields.List(fields.Nested(ImageSchema), required=True)
 
 
 class MenuListSchema(Schema):

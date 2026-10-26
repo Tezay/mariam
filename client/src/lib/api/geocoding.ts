@@ -3,6 +3,8 @@ export interface BanSuggestion {
   label: string;
   lat: number;
   lon: number;
+  city: string | null;
+  postcode: string | null;
 }
 
 export const banApi = {
@@ -15,10 +17,14 @@ export const banApi = {
     const res = await fetch(url.toString());
     if (!res.ok) return [];
     const json = await res.json();
-    return (json.results ?? []).map((r: { fulltext: string; x: number; y: number }) => ({
-      label: r.fulltext,
-      lat: r.y,
-      lon: r.x,
-    }));
+    return (json.results ?? []).map(
+      (r: { fulltext: string; x: number; y: number; city?: string; zipcode?: string }) => ({
+        label: r.fulltext,
+        lat: r.y,
+        lon: r.x,
+        city: r.city || null,
+        postcode: r.zipcode || null,
+      })
+    );
   },
 };

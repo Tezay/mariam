@@ -4,8 +4,9 @@ import license from 'rollup-plugin-license';
 import path from 'path';
 import fs from 'fs';
 
-// compose.yaml points it at the backend container.
+// compose.yaml points them at the backend and storage containers.
 const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://localhost:5000';
+const storageProxyTarget = process.env.STORAGE_PROXY_TARGET || 'http://localhost:9000';
 
 // HTTPS from the mkcert certificates of scripts/generate-dev-certs.sh, when they exist.
 function getDevHttpsConfig() {
@@ -53,6 +54,12 @@ export default defineConfig({
       // Unversioned, like Nginx serves it in production.
       '/health': {
         target: apiProxyTarget,
+        changeOrigin: true,
+      },
+      // The development bucket (S3_PUBLIC_URL of compose.yaml), over the page's own HTTPS:
+      // browsers upgrade or block an http:// image on an https:// page.
+      '/mariam-uploads': {
+        target: storageProxyTarget,
         changeOrigin: true,
       },
     },

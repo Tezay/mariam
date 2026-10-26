@@ -34,6 +34,8 @@ function formOf(site: Site): RestaurantFormState {
     addressLabel: site.address_label ?? '',
     addressLat: site.address_lat ?? null,
     addressLon: site.address_lon ?? null,
+    addressCity: site.address_city,
+    addressPostcode: site.address_postcode,
     email: site.email ?? '',
     phone: site.phone ?? '',
     capacity: site.capacity != null ? String(site.capacity) : '',
@@ -65,6 +67,8 @@ export function useSettingsState() {
   const [addressLabel, setAddressLabel] = useState('');
   const [addressLat, setAddressLat] = useState<number | null>(null);
   const [addressLon, setAddressLon] = useState<number | null>(null);
+  const [addressCity, setAddressCity] = useState<string | null>(null);
+  const [addressPostcode, setAddressPostcode] = useState<string | null>(null);
   const [addressConfirmed, setAddressConfirmed] = useState(false);
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -95,6 +99,8 @@ export function useSettingsState() {
     addressLabel,
     addressLat,
     addressLon,
+    addressCity,
+    addressPostcode,
     email,
     phone,
     capacity,
@@ -124,6 +130,8 @@ export function useSettingsState() {
     setAddressLabel(form.addressLabel);
     setAddressLat(form.addressLat);
     setAddressLon(form.addressLon);
+    setAddressCity(form.addressCity);
+    setAddressPostcode(form.addressPostcode);
     setAddressConfirmed(!form.addressLabel || (form.addressLat != null && form.addressLon != null));
     setEmail(form.email);
     setPhone(form.phone);
@@ -193,6 +201,8 @@ export function useSettingsState() {
               address_label: addressLabel || null,
               address_lat: addressLat,
               address_lon: addressLon,
+              address_city: addressCity,
+              address_postcode: addressPostcode,
               email: email || null,
               phone: phone || null,
               capacity: capacity ? Number(capacity) : null,
@@ -240,6 +250,8 @@ export function useSettingsState() {
     addressConfirmed,
     addressLat,
     addressLon,
+    addressCity,
+    addressPostcode,
     name,
     serviceDays,
     serviceHours,
@@ -282,6 +294,8 @@ export function useSettingsState() {
     setAddressLat,
     addressLon,
     setAddressLon,
+    setAddressCity,
+    setAddressPostcode,
     addressConfirmed,
     setAddressConfirmed,
     email,

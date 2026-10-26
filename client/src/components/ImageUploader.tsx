@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, X, ArrowLeft, ArrowRight, AlertCircle } from 'lucide-react';
 import type { StoredImage } from '@/lib/api/events';
+import { IMAGE_ACCEPT, IMAGE_MAX_MB, imageFileProblem } from '@/lib/image-files';
 
 interface ImageUploaderProps {
   images: StoredImage[];
@@ -12,16 +13,6 @@ interface ImageUploaderProps {
   onReorder?: (imageIds: number[]) => void;
   disabled?: boolean;
 }
-
-const ACCEPTED_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'image/webp',
-  'image/heic',
-  'image/heif',
-];
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 export function ImageUploader({
   images,
@@ -51,12 +42,9 @@ export function ImageUploader({
           newErrors.push(`Maximum ${maxImages} images — fichier ignoré : ${file.name}`);
           break;
         }
-        if (!ACCEPTED_TYPES.includes(file.type)) {
-          newErrors.push(`Type non supporté : ${file.name}`);
-          continue;
-        }
-        if (file.size > MAX_FILE_SIZE) {
-          newErrors.push(`Fichier trop volumineux (max 5 MB) : ${file.name}`);
+        const problem = imageFileProblem(file);
+        if (problem) {
+          newErrors.push(`${problem} (${file.name})`);
           continue;
         }
         validFiles.push(file);
@@ -201,13 +189,13 @@ export function ImageUploader({
           <Upload className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">Glissez-déposez ou cliquez pour ajouter</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            JPG, PNG, GIF, WebP, HEIC — Max 5 MB — {slotsLeft} emplacement
+            JPG, PNG, GIF, WebP, HEIC — {IMAGE_MAX_MB} Mo au plus — {slotsLeft} emplacement
             {slotsLeft > 1 ? 's' : ''} restant{slotsLeft > 1 ? 's' : ''}
           </p>
           <input
             ref={inputRef}
             type="file"
-            accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif"
+            accept={IMAGE_ACCEPT}
             multiple
             onChange={onFileSelect}
             className="hidden"

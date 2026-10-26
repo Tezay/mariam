@@ -2,7 +2,7 @@
 import datetime
 
 from app.extensions import db
-from app.models import AuditLog, DishCatalog, Menu, MenuImage, User
+from app.models import AuditLog, DishCatalog, Menu, User
 from app.utils.time import paris_today
 from conftest import auth_headers, get_token, make_category, make_restaurant, make_user, site_path
 
@@ -137,19 +137,6 @@ class TestRead:
             assert 'status' not in seen['items'][0]
             assert client.get(f'{path}/menus/{_day(1)}', headers=caller).status_code == 404
 
-    def test_only_an_editor_sees_the_image_ids(self, app, client):
-        rid, path, headers = _editor_site(app, client)
-        _menu_with_item(app, client, headers, path, rid)
-        client.post(f'{path}/menus/{_day()}/publish', headers=headers)
-        menu = Menu.query.one()
-        db.session.add(MenuImage(menu_id=menu.id, storage_key='k', url='https://img/1', order=0))
-        db.session.commit()
-
-        assert client.get(f'{path}/menus/{_day()}', headers=headers).get_json()['images'][0]['id']
-        assert client.get(f'{path}/menus/{_day()}').get_json()['images'] == [
-            {'url': 'https://img/1', 'order': 0}
-        ]
-
     def test_an_editor_reads_past_the_window(self, app, client):
         rid, path, headers = _editor_site(app, client)
         _menu_with_item(app, client, headers, path, rid, day=_day(40))
@@ -201,7 +188,7 @@ class TestOtherSites:
         assert res.get_json()['code'] == 'supervisor_read_only'
 
 
-class TestItemsImagesSubstitutes:
+class TestItemsAndSubstitutes:
     def test_an_item_runs_out_and_comes_back(self, app, client):
         rid, path, headers = _editor_site(app, client)
         _menu_with_item(app, client, headers, path, rid)
@@ -215,36 +202,6 @@ class TestItemsImagesSubstitutes:
             f'{path}/menus/{_day()}/items/{item_id + 1}', json={'is_out_of_stock': True}, headers=headers
         )
         assert missing.get_json()['code'] == 'menu_item_not_found'
-
-    def test_images_reorder_only_by_a_full_permutation(self, app, client):
-        rid, path, headers = _editor_site(app, client)
-        _menu_with_item(app, client, headers, path, rid)
-        menu = Menu.query.one()
-        images = [MenuImage(menu_id=menu.id, storage_key=f'k{n}', url=f'https://img/{n}', order=n)
-                  for n in range(3)]
-        db.session.add_all(images)
-        db.session.commit()
-        first, second, third = (image.id for image in images)
-
-        partial = client.put(
-            f'{path}/menus/{_day()}/images/order', json={'image_ids': [third, first]}, headers=headers
-        )
-        assert partial.get_json()['code'] == 'image_order_invalid'
-        res = client.put(
-            f'{path}/menus/{_day()}/images/order',
-            json={'image_ids': [third, first, second]},
-            headers=headers,
-        )
-        assert [image['id'] for image in res.get_json()['items']] == [third, first, second]
-
-    def test_an_image_needs_the_storage(self, app, client):
-        rid, path, headers = _editor_site(app, client)
-        _menu_with_item(app, client, headers, path, rid)
-
-        res = client.post(f'{path}/menus/{_day()}/images', data={'file': (b'x', 'a.jpg')},
-                          headers=headers, content_type='multipart/form-data')
-
-        assert res.status_code in (422, 503)
 
     def test_substitutes_come_from_the_site_three_at_most(self, app, client):
         rid, path, headers = _editor_site(app, client)

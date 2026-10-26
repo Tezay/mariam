@@ -18,6 +18,7 @@ import {
   Users,
   Settings,
   Shield,
+  Globe,
 } from 'lucide-react';
 
 const PAGE_TITLES: PageTitleMap = [
@@ -29,6 +30,7 @@ const PAGE_TITLES: PageTitleMap = [
   ['/admin/stats', 'Statistiques'],
   ['/admin/users', 'Utilisateurs'],
   ['/admin/settings', 'Mon restaurant'],
+  ['/admin/public-page', 'Page publique'],
   ['/admin/audit-logs', "Logs d'audit"],
   ['/admin/account', 'Mon compte'],
   ['/admin', 'Calendrier'],
@@ -36,7 +38,13 @@ const PAGE_TITLES: PageTitleMap = [
 
 const BOTTOM_NAV_PATHS = ['/admin/calendar', '/admin/service', '/admin/catalogue', '/admin/stats'];
 
-const ADMIN_ONLY_PATHS = ['/admin/stats', '/admin/users', '/admin/settings', '/admin/audit-logs'];
+const ADMIN_ONLY_PATHS = [
+  '/admin/stats',
+  '/admin/users',
+  '/admin/settings',
+  '/admin/public-page',
+  '/admin/audit-logs',
+];
 
 export function AdminLayout() {
   const { user } = useAuth();
@@ -97,6 +105,12 @@ export function AdminLayout() {
       label: 'Mon restaurant',
       shortLabel: 'Restaurant',
       icon: <Settings className="h-5 w-5" />,
+    },
+    {
+      to: '/admin/public-page',
+      label: 'Page publique',
+      shortLabel: 'Page',
+      icon: <Globe className="h-5 w-5" />,
     },
     { to: '/admin/audit-logs', label: "Logs d'audit", icon: <Shield className="h-5 w-5" /> },
   ];

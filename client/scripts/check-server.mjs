@@ -66,7 +66,6 @@ function menu(date) {
   return {
     date,
     chef_note: null,
-    images: [],
     substitutions: {},
     categories: [
       {

@@ -36,6 +36,8 @@ export interface RestaurantFormState {
   addressLabel: string;
   addressLat: number | null;
   addressLon: number | null;
+  addressCity: string | null;
+  addressPostcode: string | null;
   email: string;
   phone: string;
   capacity: string;
@@ -56,6 +58,8 @@ export function serializeRestaurantState(s: RestaurantFormState): string {
     addressLabel: s.addressLabel,
     addressLat: s.addressLat,
     addressLon: s.addressLon,
+    addressCity: s.addressCity,
+    addressPostcode: s.addressPostcode,
     email: s.email,
     phone: s.phone,
     capacity: s.capacity,

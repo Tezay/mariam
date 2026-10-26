@@ -4624,7 +4624,7 @@ export interface paths {
             };
         };
         post?: never;
-        /** Delete a menu, with its items and images. */
+        /** Delete a menu, with its items. */
         delete: {
             parameters: {
                 query?: never;
@@ -4823,151 +4823,6 @@ export interface paths {
                 default: components["responses"]["DEFAULT_ERROR"];
             };
         };
-        trace?: never;
-    };
-    "/v1/orgs/{org}/sites/{site}/menus/{date}/images": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                org: string;
-                site: string;
-                date: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Add a photo to a menu: JPEG, PNG, WebP or HEIC, stored as JPEG. */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    org: string;
-                    site: string;
-                    date: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "multipart/form-data": components["schemas"]["FileUpload"];
-                };
-            };
-            responses: {
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Image"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/orgs/{org}/sites/{site}/menus/{date}/images/{image_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                org: string;
-                site: string;
-                date: string;
-                image_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Remove a photo from a menu. */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    org: string;
-                    site: string;
-                    date: string;
-                    image_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description No Content */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/orgs/{org}/sites/{site}/menus/{date}/images/order": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                org: string;
-                site: string;
-                date: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        /** Put a menu's photos in a new order. */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    org: string;
-                    site: string;
-                    date: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ImageOrder"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ImageList"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
         trace?: never;
     };
     "/v1/orgs/{org}/sites/{site}/menus/{date}/substitutions/{category_id}": {
@@ -7765,12 +7620,6 @@ export interface components {
             items?: components["schemas"]["PublicMenuItem"][];
             subcategories?: components["schemas"]["PublicCategory"][];
         };
-        Image: {
-            url: string;
-            order: number;
-            /** @description For the site's editors */
-            id?: number;
-        };
         PublicSubstitution: {
             dish: components["schemas"]["PublicDish"];
             order: number;
@@ -7780,7 +7629,6 @@ export interface components {
             date: string;
             chef_note?: string | null;
             categories: components["schemas"]["PublicCategory"][];
-            images: components["schemas"]["Image"][];
             /** @description Dishes that may replace another, by category id */
             substitutions: {
                 [key: string]: components["schemas"]["PublicSubstitution"][];
@@ -7823,13 +7671,6 @@ export interface components {
         };
         MenuItemPatch: {
             is_out_of_stock: boolean;
-        };
-        ImageOrder: {
-            /** @description Every image, once, in the new order */
-            image_ids: number[];
-        };
-        ImageList: {
-            items: components["schemas"]["Image"][];
         };
         SubstitutesInput: {
             /** @description In order of preference */
@@ -8145,6 +7986,12 @@ export interface components {
             /** @enum {string|null} */
             color_key?: "indigo" | "sky" | "mint" | "saffron" | "clay" | "lilac" | null;
         };
+        Image: {
+            url: string;
+            order: number;
+            /** @description For the site's editors */
+            id?: number;
+        };
         Event: {
             id: number;
             title: string;
@@ -8214,6 +8061,13 @@ export interface components {
              * @description A week after the original by default
              */
             date?: string;
+        };
+        ImageOrder: {
+            /** @description Every image, once, in the new order */
+            image_ids: number[];
+        };
+        ImageList: {
+            items: components["schemas"]["Image"][];
         };
         Closure: {
             id: number;
