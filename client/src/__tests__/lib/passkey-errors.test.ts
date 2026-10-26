@@ -20,14 +20,19 @@ describe('passkeyRegistrationError', () => {
   it('passes on what the server answered', () => {
     const config = { headers: new AxiosHeaders() };
     const refused = new AxiosError('Request failed', 'ERR_BAD_REQUEST', config, null, {
-      data: { error: 'Vérification échouée' },
-      status: 400,
-      statusText: 'Bad Request',
+      data: {
+        title: 'Forbidden',
+        status: 403,
+        detail: "La passkey n'a pas pu être vérifiée.",
+        code: 'passkey_refused',
+      },
+      status: 403,
+      statusText: 'Forbidden',
       headers: {},
       config,
     });
 
-    expect(passkeyRegistrationError(refused)).toBe('Vérification échouée');
+    expect(passkeyRegistrationError(refused)).toBe("La passkey n'a pas pu être vérifiée.");
   });
 
   it('falls back on a plain message', () => {

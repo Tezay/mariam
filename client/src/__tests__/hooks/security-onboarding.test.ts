@@ -14,10 +14,6 @@ describe('needsSecuritySetup', () => {
     expect(needsSecuritySetup({ mfa_enabled: false, passkeys_count: 2 })).toBe(false);
   });
 
-  it('treats a missing count as none', () => {
-    expect(needsSecuritySetup({ mfa_enabled: false })).toBe(true);
-  });
-
   it('is false while the user is unknown', () => {
     expect(needsSecuritySetup(null)).toBe(false);
     expect(needsSecuritySetup(undefined)).toBe(false);

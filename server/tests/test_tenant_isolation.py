@@ -222,13 +222,13 @@ class TestTokenRevocation:
     def test_token_rejected_after_revocation(self, app, client):
         rid_a, _ = _two_tenants()
         token = get_token(client, email='a@mariam.app')
-        assert client.get('/v1/auth/me', headers=auth_headers(token)).status_code == 200
+        assert client.get('/v1/user', headers=auth_headers(token)).status_code == 200
         # Simulate a password change: revoke tokens issued before now
         decoded = decode_token(token)
         user = User.query.filter_by(email='a@mariam.app').first()
         user.tokens_valid_after = datetime.datetime.utcfromtimestamp(decoded['iat'] + 1)
         db.session.commit()
-        assert client.get('/v1/auth/me', headers=auth_headers(token)).status_code == 401
+        assert client.get('/v1/user', headers=auth_headers(token)).status_code == 401
 
 
 class TestFallbackRemoved:
@@ -384,7 +384,7 @@ class TestDeletionNeedsStepUp:
         secret = enable_totp(boss)
         res = client.post(
             '/v1/auth/step-up/password',
-            json={'password': 'WrongPass123!', 'mfa_code': pyotp.TOTP(secret).now()},
+            json={'password': 'WrongPass123!', 'code': pyotp.TOTP(secret).now()},
             headers=session_headers(boss),
         )
         assert res.status_code == 403

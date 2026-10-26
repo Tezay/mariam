@@ -1,5 +1,6 @@
 import ipaddress
 import os
+import time
 
 from flask_limiter import Limiter
 from limits import RateLimitItem
@@ -135,3 +136,11 @@ def spend(limit: RateLimitItem, *subject: str) -> bool:
     False once the limit is exhausted.
     """
     return _budgets.hit(limit, *subject)
+
+
+def seconds_until_reset(limit: RateLimitItem, *subject: str) -> int | None:
+    """None while the limit has uses left; else the wait, for `Retry-After`."""
+    if _budgets.test(limit, *subject):
+        return None
+    reset_at, _ = _budgets.get_window_stats(limit, *subject)
+    return max(1, int(reset_at - time.time()))

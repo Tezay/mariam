@@ -30,14 +30,5 @@ class Passkey(db.Model):
 
     user = db.relationship('User', back_populates='passkeys')
 
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'device_name': self.device_name or 'Appareil inconnu',
-            'transports': self.transports or [],
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_used_at': self.last_used_at.isoformat() if self.last_used_at else None,
-        }
-
     def __repr__(self):
         return f'<Passkey {self.id} user={self.user_id}>'

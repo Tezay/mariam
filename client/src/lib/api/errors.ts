@@ -1,20 +1,25 @@
 import { isAxiosError } from 'axios';
 import type { components } from './schema.gen';
 
-// Routes not yet moved to problem details still answer { error, message? }.
-type ErrorBody = Partial<components['schemas']['Problem']> & { error?: string; message?: string };
+export type Problem = components['schemas']['Problem'];
 
-function errorBody(error: unknown): ErrorBody | undefined {
-  return isAxiosError(error) ? (error.response?.data as ErrorBody | undefined) : undefined;
+function problem(error: unknown): Partial<Problem> | undefined {
+  return isAxiosError(error) ? (error.response?.data as Partial<Problem> | undefined) : undefined;
+}
+
+/** The stable `code` of the problem the API answered, for a program to branch on. */
+export function getProblemCode(error: unknown): string | undefined {
+  return problem(error)?.code;
 }
 
 export function isConfirmationRequired(error: unknown): boolean {
-  return errorBody(error)?.code === 'step_up_required';
+  return getProblemCode(error) === 'step_up_required';
 }
 
+/** What to show the person: the first invalid field's message, or the problem's. */
 export function getApiErrorMessage(error: unknown, fallback: string): string {
-  const body = errorBody(error);
-  return body?.detail || body?.message || body?.error || fallback;
+  const body = problem(error);
+  return body?.errors?.[0]?.detail || body?.detail || fallback;
 }
 
 export type ApiErrorKind = 'network' | 'server' | 'forbidden' | 'notfound' | 'unknown';

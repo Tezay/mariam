@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { NotificationPreferences } from '@/features/notifications/NotificationPreferences';
-import type { NotifPreferences } from '@/lib/api/inbox';
+import type { NotifPreferences } from '@/lib/api/user';
 
 const PREFS: NotifPreferences = {
   notify_menu_unpublished: true,

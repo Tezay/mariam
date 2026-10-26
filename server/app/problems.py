@@ -37,11 +37,15 @@ _BODY_LOCATIONS = {'json', 'form', 'files', 'json_or_form'}
 class Problem(Exception):
     """Raised anywhere in a request, answered as a problem."""
 
-    def __init__(self, status: int, code: str, detail: str, **extensions: Any):
+    def __init__(
+        self, status: int, code: str, detail: str,
+        headers: dict[str, str] | None = None, **extensions: Any,
+    ):
         super().__init__(detail)
         self.status = status
         self.code = code
         self.detail = detail
+        self.headers = headers
         self.extensions = extensions
 
 
@@ -67,7 +71,9 @@ def problem_response(
 
 
 def answer_problem(error: Problem) -> Response:
-    return problem_response(error.status, error.code, error.detail, **error.extensions)
+    return problem_response(
+        error.status, error.code, error.detail, headers=error.headers, **error.extensions
+    )
 
 
 def _flatten(node: Any, path: tuple[str, ...] = ()) -> Iterator[tuple[tuple[str, ...], str]]:
@@ -109,6 +115,15 @@ def http_problem(error: HTTPException) -> Response:
     if status == 422 and data.get('messages'):
         extensions['errors'] = validation_issues(data['messages'])
     return problem_response(status, code, detail, headers=headers, **extensions)
+
+
+class Blueprint(flask_smorest.Blueprint):
+    def problem(self, status: int, *codes: str):
+        """Documents a problem the route answers, and the codes it carries."""
+        return self.alt_response(
+            status, schema=ProblemSchema, content_type=MEDIA_TYPE,
+            description=', '.join(f'`{code}`' for code in codes),
+        )
 
 
 class Api(flask_smorest.Api):

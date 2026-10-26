@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { dashboardPathForRole } from '@/lib/dashboard-routes';
 import { authApi } from '@/lib/api/auth';
-import { getApiErrorMessage } from '@/lib/api/errors';
+import { getApiErrorMessage, getProblemCode } from '@/lib/api/errors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,11 +45,10 @@ export function Login() {
       window.umami?.track('login-success', { method: 'passkey' });
       navigate(dashboardPathForRole(loggedUser?.role));
     } catch (err: unknown) {
-      const error = err as { name?: string; response?: { status?: number } };
       window.umami?.track('login-failure', { method: 'passkey' });
-      if (error.name === 'NotAllowedError') {
+      if ((err as { name?: string }).name === 'NotAllowedError') {
         setError('Authentification annulée ou expirée. Réessayez.');
-      } else if (error.response?.status === 404) {
+      } else if (getProblemCode(err) === 'passkey_unknown') {
         setError('Aucune passkey trouvée. Connectez-vous avec votre mot de passe.');
       } else {
         setError(getApiErrorMessage(err, "Échec de l'authentification."));
@@ -67,17 +66,16 @@ export function Login() {
     try {
       const result = await login(email, password);
 
-      if (result.mfaRequired && result.mfaToken) {
+      if ('mfaToken' in result) {
         setMfaToken(result.mfaToken);
         setMode('mfa');
       } else {
         window.umami?.track('login-success', { method: 'password' });
-        navigate(dashboardPathForRole(result.user?.role));
+        navigate(dashboardPathForRole(result.user.role));
       }
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { passkey_only?: boolean } } };
       window.umami?.track('login-failure', { method: 'password' });
-      if (error.response?.data?.passkey_only) {
+      if (getProblemCode(err) === 'passkey_only') {
         setError(
           'Ce compte utilise la connexion par passkey. ' +
             'Veuillez utiliser un appareil compatible (empreinte digitale, Face ID…).'

@@ -1,3 +1,4 @@
+"""The account's authenticator app: enrolling, replacing, removing."""
 import pyotp
 from cryptography.fernet import Fernet
 from flask_jwt_extended import decode_token
@@ -9,12 +10,12 @@ from tests.auth_support import enable_totp, enroll_passkey, session_headers
 
 
 def _setup(client, headers):
-    return client.post('/v1/auth/mfa/setup', headers=headers)
+    return client.post('/v1/user/totp/enrolment', headers=headers)
 
 
 def _confirm(client, user_id, enrolment, code=None, confirmed=False):
     headers = session_headers(user_id, confirmed=confirmed)
-    return client.post('/v1/auth/mfa/setup/confirm', headers=headers, json={
+    return client.put('/v1/user/totp', headers=headers, json={
         'enrolment_token': enrolment['enrolment_token'],
         'code': code or pyotp.TOTP(enrolment['secret']).now(),
     })
@@ -37,7 +38,7 @@ class TestEnrolment:
 
         res = _confirm(client, uid, enrolment)
 
-        assert res.status_code == 200
+        assert res.get_json()['mfa_enabled'] is True
         user = db.session.get(User, uid)
         assert (user.mfa_secret, user.mfa_enabled) == (enrolment['secret'], True)
         entry = AuditLog.query.filter_by(action=AuditLog.ACTION_MFA_SETUP, user_id=uid).one()
@@ -50,7 +51,8 @@ class TestEnrolment:
         wrong = _confirm(client, uid, enrolment, code='000000')
         right = _confirm(client, uid, enrolment)
 
-        assert (wrong.status_code, right.status_code) == (403, 200)
+        assert wrong.get_json()['code'] == 'code_invalid'
+        assert right.status_code == 200
 
     def test_an_enrolment_belongs_to_one_account(self, app, client):
         owner = make_user(app, email='owner@mariam.app')
@@ -59,7 +61,7 @@ class TestEnrolment:
 
         res = _confirm(client, other, enrolment)
 
-        assert res.status_code == 400
+        assert (res.status_code, res.get_json()['code']) == (410, 'enrolment_expired')
         assert not db.session.get(User, other).mfa_enabled
 
     def test_the_secret_travels_encrypted(self, app, client, monkeypatch):
@@ -76,7 +78,7 @@ class TestEnrolment:
     def test_the_enrolment_token_opens_no_session(self, app, client):
         token = _setup(client, session_headers(make_user(app))).get_json()['enrolment_token']
 
-        assert client.get('/v1/auth/me', headers=auth_headers(token)).status_code == 401
+        assert client.get('/v1/user', headers=auth_headers(token)).status_code == 401
 
 
 class TestReplacement:
@@ -116,17 +118,15 @@ class TestReplacement:
         enrolment = _setup(client, headers).get_json()
         attempt = {'enrolment_token': enrolment['enrolment_token']}
 
-        wrong = client.post(
-            '/v1/auth/mfa/setup/confirm', headers=headers, json={**attempt, 'code': '000000'}
-        )
-        right = client.post(
-            '/v1/auth/mfa/setup/confirm',
+        wrong = client.put('/v1/user/totp', headers=headers, json={**attempt, 'code': '000000'})
+        right = client.put(
+            '/v1/user/totp',
             headers=headers,
             json={**attempt, 'code': pyotp.TOTP(enrolment['secret']).now()},
         )
 
-        assert (wrong.status_code, right.status_code) == (403, 200)
-        assert 'step_up_required' not in wrong.get_json()
+        assert wrong.get_json()['code'] == 'code_invalid'
+        assert right.status_code == 200
 
     def test_finishing_needs_the_confirmed_session_too(self, app, client):
         uid = make_user(app)
@@ -135,7 +135,7 @@ class TestReplacement:
 
         res = _confirm(client, uid, enrolment)
 
-        assert res.status_code == 403
+        assert res.get_json()['code'] == 'step_up_required'
         assert db.session.get(User, uid).mfa_secret == in_use
 
     def test_an_enrolment_started_unconfirmed_ends_with_the_first_factor(self, app, client):
@@ -156,28 +156,36 @@ class TestRemoval:
         enable_totp(uid)
         enroll_passkey(uid)
 
-        res = client.delete('/v1/auth/mfa', headers=session_headers(uid))
+        res = client.delete('/v1/user/totp', headers=session_headers(uid))
 
-        assert res.status_code == 403
+        assert res.get_json()['code'] == 'step_up_required'
         assert db.session.get(User, uid).mfa_enabled
 
     def test_totp_cannot_go_without_a_passkey(self, app, client):
         uid = make_user(app)
         enable_totp(uid)
 
-        res = client.delete('/v1/auth/mfa', headers=session_headers(uid, confirmed=True))
+        res = client.delete('/v1/user/totp', headers=session_headers(uid, confirmed=True))
 
-        assert res.status_code == 409
+        assert res.get_json()['code'] == 'last_second_factor'
         assert db.session.get(User, uid).mfa_enabled
+
+    def test_an_account_without_totp_has_none_to_remove(self, app, client):
+        uid = make_user(app)
+        enroll_passkey(uid)
+
+        res = client.delete('/v1/user/totp', headers=session_headers(uid, confirmed=True))
+
+        assert res.get_json()['code'] == 'totp_not_enabled'
 
     def test_totp_goes_when_a_passkey_remains(self, app, client):
         uid = make_user(app)
         enable_totp(uid)
         enroll_passkey(uid)
 
-        res = client.delete('/v1/auth/mfa', headers=session_headers(uid, confirmed=True))
+        res = client.delete('/v1/user/totp', headers=session_headers(uid, confirmed=True))
 
-        assert res.status_code == 200
+        assert res.status_code == 204
         user = db.session.get(User, uid)
         assert not user.mfa_enabled
         assert user.mfa_secret is None

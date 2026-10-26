@@ -9,6 +9,7 @@ from tests.auth_support import (
     invite_link,
     is_signed_in,
     issue_session,
+    new_authenticator,
     reset_link,
 )
 
@@ -25,20 +26,27 @@ class TestLinkCheck:
 
         body = client.get(f'/v1/auth/check-reset/{reset_link("admin@mariam.app")}').get_json()
 
-        assert body['valid'] is True
-        assert body['has_passkeys'] is True
-        assert body['mfa_enabled'] is False
+        assert body == {'email': 'admin@mariam.app', 'mfa_enabled': False, 'has_passkeys': True}
 
     def test_an_invitation_is_not_a_reset_link(self, app, client):
         token = invite_link('new@mariam.app')
 
-        assert client.get(f'/v1/auth/check-reset/{token}').status_code == 404
+        assert client.get(f'/v1/auth/check-reset/{token}').get_json()['code'] == 'link_unknown'
+
+    def test_a_used_link_is_gone(self, app, client):
+        token = reset_link('admin@mariam.app')
+        ActivationLink.query.filter_by(token=token).one().mark_as_used()
+        db.session.commit()
+
+        res = client.get(f'/v1/auth/check-reset/{token}')
+
+        assert (res.status_code, res.get_json()['code']) == (410, 'link_expired')
 
 
 class TestWithTotp:
     def _reset(self, client, token, code):
         return client.post('/v1/auth/reset-password', json={
-            'token': token, 'new_password': NEW_PASSWORD, 'mfa_code': code,
+            'token': token, 'new_password': NEW_PASSWORD, 'code': code,
         })
 
     def test_the_password_is_reset_and_every_session_ends(self, app, client):
@@ -47,7 +55,7 @@ class TestWithTotp:
         session = issue_session(uid)
         token = reset_link('admin@mariam.app')
 
-        assert self._reset(client, token, pyotp.TOTP(secret).now()).status_code == 200
+        assert self._reset(client, token, pyotp.TOTP(secret).now()).status_code == 204
 
         assert db.session.get(User, uid).check_password(NEW_PASSWORD)
         assert _link_used(token)
@@ -58,23 +66,33 @@ class TestWithTotp:
 
         res = self._reset(client, reset_link('admin@mariam.app'), '000000')
 
-        assert res.status_code == 401
-        assert AuditLog.query.filter_by(action=AuditLog.ACTION_PASSWORD_RESET).count() == 1
+        assert (res.status_code, res.get_json()['code']) == (401, 'code_invalid')
+        entry = AuditLog.query.filter_by(action=AuditLog.ACTION_PASSWORD_RESET).one()
+        assert entry.get_details() == {'success': False, 'reason': 'code_invalid'}
 
     def test_a_passkey_account_is_sent_to_the_passkey_reset(self, app, client):
         enroll_passkey(make_user(app))
 
         res = self._reset(client, reset_link('admin@mariam.app'), '000000')
 
-        assert res.status_code == 400
-        assert res.get_json()['passkey_required'] is True
+        assert (res.status_code, res.get_json()['code']) == (409, 'passkey_required')
+
+    def test_a_weak_password_is_refused_with_a_pointer(self, app, client):
+        secret = enable_totp(make_user(app))
+
+        res = client.post('/v1/auth/reset-password', json={
+            'token': reset_link('admin@mariam.app'), 'new_password': 'weak',
+            'code': pyotp.TOTP(secret).now(),
+        })
+
+        assert [issue['pointer'] for issue in res.get_json()['errors']] == ['/new_password']
 
     def test_a_used_link_is_refused(self, app, client):
         secret = enable_totp(make_user(app))
         token = reset_link('admin@mariam.app')
         self._reset(client, token, pyotp.TOTP(secret).now())
 
-        assert self._reset(client, token, pyotp.TOTP(secret).now()).status_code == 400
+        assert self._reset(client, token, pyotp.TOTP(secret).now()).status_code == 410
 
 
 class TestWithPasskey:
@@ -96,7 +114,7 @@ class TestWithPasskey:
         token = reset_link('admin@mariam.app')
         begin = self._begin(client, token).get_json()
 
-        assert self._complete(client, token, begin, authenticator).status_code == 200
+        assert self._complete(client, token, begin, authenticator).status_code == 204
 
         assert db.session.get(User, uid).check_password(NEW_PASSWORD)
         assert _link_used(token)
@@ -110,5 +128,23 @@ class TestWithPasskey:
 
         res = self._complete(client, reset_link('victim@mariam.app'), begin, attacker)
 
-        assert res.status_code == 401
+        assert res.get_json()['code'] == 'challenge_invalid'
         assert db.session.get(User, victim_id).check_password(TEST_PASSWORD)
+
+    def test_a_refused_assertion_does_not_say_why(self, app, client):
+        uid = make_user(app)
+        enroll_passkey(uid)
+        token = reset_link('admin@mariam.app')
+        begin = self._begin(client, token).get_json()
+
+        res = self._complete(client, token, begin, new_authenticator())
+
+        assert res.get_json()['detail'] == "La passkey n'a pas pu être vérifiée."
+        assert db.session.get(User, uid).check_password(TEST_PASSWORD)
+
+    def test_an_account_without_a_passkey_has_none_to_challenge(self, app, client):
+        enable_totp(make_user(app))
+
+        res = self._begin(client, reset_link('admin@mariam.app'))
+
+        assert res.get_json()['code'] == 'no_passkey'

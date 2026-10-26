@@ -1,17 +1,15 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authApi, User } from '@/lib/api/auth';
+import { authApi } from '@/lib/api/auth';
+import { userApi, type Account } from '@/lib/api/user';
 
 interface AuthContextType {
-  user: User | null;
+  user: Account | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (
-    email: string,
-    password: string
-  ) => Promise<{ mfaRequired: boolean; mfaToken?: string; user?: User }>;
-  verifyMfa: (mfaToken: string, code: string) => Promise<User>;
-  loginWithPasskey: (challengeToken: string, credential: unknown) => Promise<User>;
-  activateComplete: (user: User) => void;
+  login: (email: string, password: string) => Promise<{ user: Account } | { mfaToken: string }>;
+  verifyMfa: (mfaToken: string, code: string) => Promise<Account>;
+  loginWithPasskey: (challengeToken: string, credential: unknown) => Promise<Account>;
+  activateComplete: (user: Account) => void;
   refreshUser: () => Promise<void>;
   logout: () => void;
 }
@@ -27,14 +25,14 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<Account | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const initAuth = async () => {
       if (authApi.isAuthenticated()) {
         try {
-          const currentUser = await authApi.getCurrentUser();
+          const currentUser = await userApi.get();
           setUser(currentUser);
         } catch {
           authApi.logout();
@@ -48,14 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const result = await authApi.login(email, password);
-
-    if (result.mfaRequired) {
-      return { mfaRequired: true, mfaToken: result.mfaToken };
-    }
-
-    setUser(result.user);
-    // Returned as well as stored: the caller redirects on role before the
-    return { mfaRequired: false, user: result.user };
+    // Returned as well as stored: the caller redirects on the role before the next render.
+    if ('user' in result) setUser(result.user);
+    return result;
   };
 
   const verifyMfa = async (mfaToken: string, code: string) => {
@@ -70,12 +63,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return loggedUser;
   };
 
-  const activateComplete = (user: User) => {
+  const activateComplete = (user: Account) => {
     setUser(user);
   };
 
   const refreshUser = async () => {
-    const currentUser = await authApi.getCurrentUser();
+    const currentUser = await userApi.get();
     setUser(currentUser);
   };
 

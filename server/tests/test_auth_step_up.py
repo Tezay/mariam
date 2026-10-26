@@ -17,14 +17,14 @@ def _delete(client, target_id, headers):
 class TestPassword:
     def _step_up(self, client, user_id, code):
         return client.post('/v1/auth/step-up/password', headers=session_headers(user_id), json={
-            'password': TEST_PASSWORD, 'mfa_code': code,
+            'password': TEST_PASSWORD, 'code': code,
         })
 
     def test_the_totp_code_is_required_once_enabled(self, app, client):
         uid = make_user(app)
         secret = enable_totp(uid)
 
-        assert self._step_up(client, uid, '000000').status_code == 403
+        assert self._step_up(client, uid, '000000').get_json()['code'] == 'code_invalid'
         assert 'access_token' in self._step_up(client, uid, pyotp.TOTP(secret).now()).get_json()
 
     def test_the_password_alone_confirms_nothing_on_a_passkey_account(self, app, client):
@@ -33,17 +33,24 @@ class TestPassword:
 
         res = self._step_up(client, uid, '000000')
 
-        assert res.status_code == 403
-        assert res.get_json()['passkey_required'] is True
+        assert (res.status_code, res.get_json()['code']) == (403, 'passkey_required')
 
     def test_an_account_without_second_factor_cannot_confirm(self, app, client):
         uid = make_user(app)
 
         res = self._step_up(client, uid, '000000')
 
-        assert res.status_code == 403
-        assert res.get_json()['second_factor_required'] is True
-        assert 'access_token' not in res.get_json()
+        assert (res.status_code, res.get_json()['code']) == (403, 'second_factor_required')
+
+    def test_a_wrong_password_is_refused_before_the_code(self, app, client):
+        uid = make_user(app)
+        secret = enable_totp(uid)
+
+        res = client.post('/v1/auth/step-up/password', headers=session_headers(uid), json={
+            'password': 'Wrong-Pass123!', 'code': pyotp.TOTP(secret).now(),
+        })
+
+        assert (res.status_code, res.get_json()['code']) == (403, 'password_invalid')
 
 
 class TestPasskey:
@@ -79,10 +86,11 @@ class TestPasskey:
         first = client.post(url, headers=headers, json=signed)
         replay = client.post(url, headers=headers, json=signed)
 
-        assert (first.status_code, replay.status_code) == (200, 403)
+        assert first.status_code == 200
+        assert (replay.status_code, replay.get_json()['code']) == (403, 'challenge_invalid')
 
     def test_an_account_without_passkey_gets_no_challenge(self, app, client):
-        assert self._begin(client, make_user(app)).status_code == 404
+        assert self._begin(client, make_user(app)).get_json()['code'] == 'no_passkey'
 
     def test_a_challenge_issued_to_another_user_is_refused(self, app, client):
         owner = make_user(app, email='owner@mariam.app')
@@ -92,14 +100,16 @@ class TestPasskey:
 
         res = self._complete(client, intruder, begin, enroll_passkey(intruder))
 
-        assert res.status_code == 403
+        assert res.get_json()['code'] == 'challenge_invalid'
 
     def test_an_unregistered_passkey_is_refused(self, app, client):
         uid = make_user(app)
         enroll_passkey(uid)
         begin = self._begin(client, uid).get_json()
 
-        assert self._complete(client, uid, begin, new_authenticator()).status_code == 404
+        res = self._complete(client, uid, begin, new_authenticator())
+
+        assert (res.status_code, res.get_json()['code']) == (403, 'passkey_refused')
 
 
 class TestConfirmedSession:

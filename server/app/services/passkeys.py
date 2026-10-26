@@ -133,7 +133,7 @@ def verify_registration(
         public_key=verification.credential_public_key,
         sign_count=verification.sign_count,
         transports=list(transports),
-        device_name=(name or '').strip() or describe_device(user_agent),
+        device_name=name or describe_device(user_agent),
     )
 
 

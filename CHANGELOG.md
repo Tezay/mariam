@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Every route open to anyone has its own rate limit**, activation and reset link checks included.
 - **A push subscription is named by its endpoint's fingerprint**: the endpoint stays out of addresses and logs.
 - **Opening the weekly email's unsubscribe link unsubscribes no one**: the page asks for a click.
+- **A TOTP code serves once**, and an account takes ten wrong codes an hour at most, wherever they come from.
+- **No TOTP secret is stored before its first code**; a migration clears those never confirmed.
+- **A refused passkey answers a fixed sentence**: the WebAuthn library's reason no longer reaches the caller.
 
 ### Added
 
@@ -35,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Each route documents whether it needs a session**; `/v1/docs` takes a token (*Authorize*) for those that do.
 - **A site's menus, dishes and imports under `/v1/orgs/{org}/sites/{site}`**: a menu by its date, read by anyone once published and by the site's editors as a draft too.
 - **`/v1/holidays/{year}` and `/v1/school-holidays/{year}`.**
-- **The profile names its site and organization by slug** (`restaurant_slug`, `organization_slug`).
+- **`/v1/user`, the signed-in account**: profile, preferences, alerts, passkeys, TOTP and password; no site or organization id.
 - **A site's settings, categories, events and closures under `/v1/orgs/{org}/sites/{site}`**, drafts included for its editors.
 - **Accounts, invitations, audit log and analytics under the site or the organization**, which also serves its pooled dishes.
 - **`/unsubscribe/<token>`**, the page the weekly email links to.
@@ -52,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The generated client types make a field with a default optional** in a request body.
 - **A category comes after the others** unless told otherwise, and reordering takes one whole level at once.
 - **An event's editor always offers its images** and saves their order with the event; without storage, the upload says so.
+- **Sign-in, activation and reset refusals carry a `code`** (`passkey_only`, `link_expired`…), listed in the specification.
 
 - **React Router 7** replaces `react-router-dom` 6; the current page stays visible while the next one loads.
 - **The frontend is built by React Router's framework mode**; the build needs Node 22 alongside Bun.
@@ -92,6 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **An event's or closure's `is_active`**, which no screen set; an inactive one stays hidden.
 - **`/v1/users`, `/v1/audit-logs`, `/v1/analytics`, `/v1/org`, `/v1/restaurants` and `/v1/notifications`**, scoped by the session.
 - **Site ids**: the API and the supervisor's screens name a site by its slug.
+- **`/v1/auth/me`, the second factors and password change under `/v1/auth`, `/v1/users/me` and `/v1/inbox`**, moved to `/v1/user`.
 
 ### Fixed
 
@@ -102,6 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **An event with six images can swap one in a single save**, and images just added stay on screen.
 - **A visitor subscribes to the notifications of the site they browse**, not to the instance's first site.
 - **The supervisors' own actions appear in the organization's audit log.**
+- **A TOTP code holds the night the clocks go back**: it was refused for that hour.
 
 ## [0.19.0] - 2026-10-13
 

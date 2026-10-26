@@ -20,9 +20,6 @@ session sees more (a site's drafts); Swagger UI counts its anonymous option as a
 
 ## Conventions
 
-Routes being reworked follow these rules. Until its domain moves, a section below describes a
-route as it is today.
-
 - **Resources.** Plural English nouns in kebab-case, under the organization and the site they
   belong to: `/v1/orgs/{org}/sites/{site}/menus/2026-10-16`. Organizations and sites are named
   by slug, a menu by its date (one per site and day), anything else by an integer id.
@@ -89,76 +86,87 @@ Any route may answer these:
 | 429 | `rate_limited` | Too many requests; `Retry-After` gives the seconds to wait |
 | 500 | `internal_error` | An unexpected failure, never with its details |
 
-A route whose domain has not moved yet answers its own refusals as `{"error": "…"}`, sometimes
-with a `message`, or a flag such as `passkey_only` on `POST /v1/auth/login`.
+The routes of the account and of its ceremonies also list, in the specification, each
+refusal they answer and its codes.
 
 ## Authentication
 
-Mariam supports two login methods: **passkey** (biometric / FIDO2, passwordless) and **email + password + TOTP**. Every account must have at least one active 2FA method (TOTP or at least one passkey) at all times.
-
-Authenticated requests must include the access token as a Bearer token in the `Authorization` header.
-
-```
-Authorization: Bearer <access_token>
-```
+An account signs in with a **passkey**, or with its **email and password** followed by the
+code of its authenticator app (TOTP). It keeps at least one second factor, TOTP or a passkey,
+at all times. The routes under `/v1/auth` are ceremonies: each step returns what the next one
+needs. What the account itself holds lives under `/v1/user` (see The signed-in account).
 
 | Token | Lifetime |
 |-------|----------|
 | Access token | 30 minutes |
 | Refresh token | 7 days |
 
-### Login flows
+### Signing in
 
-**Flow A — Standalone passkey (no email/password required)**
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| `POST` | `/v1/auth/login` | none | Email and password; opens the session, or returns an `mfa_token` when the account has TOTP |
+| `POST` | `/v1/auth/mfa/verify` | `mfa_token` | `{mfa_token, code}`; opens the session |
+| `POST` | `/v1/auth/passkey/login/begin` | none | A discoverable WebAuthn challenge |
+| `POST` | `/v1/auth/passkey/login/complete` | challenge | The assertion; the passkey names the account |
+| `POST` | `/v1/auth/refresh` | refresh token | A new access token, never confirmed |
+| `POST` | `/v1/auth/logout` | refresh token | `204`; revokes the refresh token and every access token issued from it |
 
-1. `POST /v1/auth/passkey/login/begin` — generate a discoverable WebAuthn challenge
-2. `POST /v1/auth/passkey/login/complete` — verify assertion, receive JWT
+A session answers `{user, access_token, refresh_token}`, `user` being the account as
+`GET /v1/user` reads it. The `mfa_token` serves once, within ten minutes.
 
-**Flow B — Email + password + TOTP**
+- A wrong address or password answers `401 credentials_invalid`, an unknown address alike.
+- An account protected by a passkey only answers `403 passkey_only` to the password route.
+- A disabled account answers `403 account_disabled`, once its password or passkey checked. It
+  has no session either: its tokens are refused, refresh included.
 
-1. `POST /v1/auth/login` — submit email and password; returns `mfa_token` if MFA is required
-2. `POST /v1/auth/mfa/verify` — submit TOTP code with `mfa_token`, receive JWT
+### Codes
+
+A TOTP code is accepted one 30-second step either side of its own, and once: replayed, it
+answers `code_used` (RFC 6238, § 5.2). An account takes ten wrong codes an hour, wherever they
+come from. Past that, every code it sends answers `429 too_many_attempts` until the hour ends,
+with `Retry-After`. A wrong code answers `401 code_invalid` before a session exists, `403`
+within one.
 
 ### Account activation
 
-Both paths start alike: `GET /v1/auth/check-activation/<token>` validates the link and names
-the site, the role and the address the inviter suggested, if any. `POST /v1/auth/activate`
-then creates the account, without a second factor yet. Its `mfa_setup` carries a TOTP secret
-with its QR code, and a `setup_token` valid 15 minutes. The user then picks a second factor.
+`GET /v1/auth/check-activation/<token>` describes an invitation link: the role, the site or the
+organization, and the address the inviter suggested, if any. `POST /v1/auth/activate` creates
+the account without a second factor, and answers `201` with `mfa_setup`: a TOTP secret, its QR
+code, and a `setup_token` valid 15 minutes. The token carries the secret, encrypted; nothing is
+stored before its first code is checked. The user then picks a second factor.
 
 The invitee supplies the address and the display name; the role and the tenant come from the
 link and from nothing else. An address is stored lowercase and must be ASCII. A display name
 is 2 to 50 characters: letters, spaces, hyphens, apostrophes and periods. A link serves once:
 it is locked while the account is created, and only invitation links are accepted, never a
-password-reset link.
-
-**Path A — Passkey**
-
-1. `POST /v1/auth/passkey/setup/begin` — with the `setup_token`, generate a registration challenge
-2. `POST /v1/auth/passkey/setup/complete` — store the passkey, receive JWT (immediate login)
-
-**Path B — TOTP**
-
-1. `POST /v1/auth/mfa/verify-setup` — with the `setup_token` and a first code, enable TOTP and
-   receive JWT
-
-The `setup_token` enrols a first factor only: once the account has one, both paths answer
-`400` and a further factor takes a confirmed session.
-
-### Token management
+password-reset link. An unknown link answers `404 link_unknown`, a spent, revoked or expired
+one `410 link_expired`.
 
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
-| `POST` | `/v1/auth/refresh` | refresh token | Issue a new access token |
-| `POST` | `/v1/auth/logout` | refresh token | Revoke the refresh token and every access token issued from it |
-| `GET` | `/v1/auth/me` | bearer | Current user profile |
-| `PATCH` | `/v1/auth/me` | bearer, confirmed | Change the display name or the sign-in address |
+| `POST` | `/v1/auth/mfa/verify-setup` | `setup_token` | `{setup_token, code}`; enables TOTP and opens the session |
+| `POST` | `/v1/auth/passkey/setup/begin` | `setup_token` | A registration challenge, in place of TOTP |
+| `POST` | `/v1/auth/passkey/setup/complete` | challenge | Stores the passkey and opens the session |
 
-A new address ends every other session of the account: the response carries the access and
-refresh tokens of the session that replaces the caller's, which is not confirmed. Pending
-password-reset links are spent, the previous address is told by email, and an account changes
-address twice a day at most. A disabled account has no session: its tokens are refused,
-refresh included.
+The `setup_token` names the account and enrols a first factor only. Once the account has one,
+these routes answer `409 second_factor_present`, and a further factor takes a confirmed
+session. An expired or forged token, or one issued before the account's sessions were ended,
+answers `401 setup_token_invalid`.
+
+### Password reset
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| `GET` | `/v1/auth/check-reset/<token>` | none | The link's address, and the second factor the reset asks for (`mfa_enabled`, `has_passkeys`) |
+| `POST` | `/v1/auth/reset-password` | none | `{token, new_password, code}`; `204` |
+| `POST` | `/v1/auth/passkey/reset-password/begin` | none | `{reset_token}`; challenges the account's passkeys |
+| `POST` | `/v1/auth/passkey/reset-password/complete` | challenge | `{reset_token, challenge_token, credential, new_password}`; `204` |
+
+A reset spends its link and ends every session of the account. An account without TOTP resets
+with its passkey (`409 passkey_required` on the code route); one with neither cannot
+(`409 second_factor_required`). A link answers as an invitation does: `404 link_unknown`,
+`410 link_expired`.
 
 ### Session transfer
 
@@ -170,38 +178,14 @@ refresh included.
 The receiving device has no second factor of its own to confirm with: the session it opens
 inherits what is left of the confirmation of the one that handed it over, never more, and can
 register its passkey within that time. A transfer token issued before the account's sessions
-were ended is refused.
+were ended answers `401 transfer_invalid`, a spent one `401 transfer_used`.
 
-### TOTP (authenticator app)
+### Passkeys
 
-| Method | Route | Auth | Description |
-|--------|-------|------|-------------|
-| `POST` | `/v1/auth/mfa/setup` | bearer, confirmed once enrolled | Generate a TOTP secret; returns it with its QR code and an `enrolment_token` |
-| `POST` | `/v1/auth/mfa/setup/confirm` | bearer, confirmed once enrolled | With the `enrolment_token` and a first code, enable TOTP or replace its secret |
-| `POST` | `/v1/auth/mfa/verify-setup` | setup token | Verify the first code at activation (Path B) |
-| `POST` | `/v1/auth/mfa/verify` | mfa token | Verify TOTP code at login (step 2 of Flow B) |
-| `DELETE` | `/v1/auth/mfa` | bearer, confirmed | Disable TOTP — rejected if no passkey is registered |
-
-Nothing is stored when a secret is generated: it travels in the `enrolment_token`, valid ten
-minutes, and is written once its first code is checked. The secret in use keeps working until
-then, and a mistyped code can be tried again with the same token.
-
-### Passkeys (WebAuthn / FIDO2)
-
-| Method | Route | Auth | Description |
-|--------|-------|------|-------------|
-| `GET` | `/v1/auth/passkey` | bearer | List the user's registered passkeys |
-| `POST` | `/v1/auth/passkey/register/begin` | bearer, confirmed once enrolled | Start passkey registration |
-| `POST` | `/v1/auth/passkey/register/complete` | bearer, confirmed once enrolled | Finish passkey registration; device name auto-detected from User-Agent if omitted |
-| `PATCH` | `/v1/auth/passkey/<id>` | bearer | Rename a passkey |
-| `DELETE` | `/v1/auth/passkey/<id>` | bearer, confirmed | Delete a passkey — rejected if it is the last one and TOTP is disabled |
-| `POST` | `/v1/auth/passkey/login/begin` | none | Start discoverable passkey login (Flow A, step 1) |
-| `POST` | `/v1/auth/passkey/login/complete` | none | Finish passkey login, receive JWT (Flow A, step 2) |
-| `POST` | `/v1/auth/passkey/setup/begin` | setup token | Start passkey registration during activation (Path A, step 1) |
-| `POST` | `/v1/auth/passkey/setup/complete` | challenge token | Finish passkey registration during activation, receive JWT (Path A, step 2) |
-
-A WebAuthn challenge serves once, whatever the ceremony: a begin route issues it, and the
-complete route that reads it spends it.
+A WebAuthn challenge serves once, whatever the ceremony: a route issues it with a
+`challenge_token`, and the route that reads it spends it. A challenge read by another ceremony
+or another account answers `challenge_invalid`. A refused passkey answers `passkey_refused`
+with a fixed sentence: the library's reason never reaches the caller.
 
 ### Confirmed sessions (step-up)
 
@@ -222,33 +206,88 @@ refreshing there would trade a confirmed token for one that is not.
 
 Marked *confirmed* in the tables: creating an invitation, and deleting an account, removing
 its second factors or sending it a reset link (see Members and invitations); exporting the
-audit log; `PATCH /v1/auth/me`, `DELETE /v1/auth/passkey/<id>` and `DELETE /v1/auth/mfa`.
+audit log; `PATCH /v1/user`, `DELETE /v1/user/passkeys/{passkey_id}` and
+`DELETE /v1/user/totp`.
 
-Marked *confirmed once enrolled*: both ends of a passkey registration and of a TOTP setup, and
-`POST /v1/auth/session-transfer/generate`. An account with no second factor has nothing to
-confirm with, and goes through.
+Marked *confirmed once enrolled*: both steps of adding a passkey and of setting up TOTP under
+`/v1/user`, and `POST /v1/auth/session-transfer/generate`. An account with no second factor
+has nothing to confirm with, and goes through.
 
 A confirmation always attests a second factor: the password route also takes the TOTP code, an
-account without TOTP confirms with its passkey (`403` with `passkey_required`), and an account
-with neither cannot confirm (`403` with `second_factor_required`).
+account without TOTP confirms with its passkey (`403 passkey_required`), and an account with
+neither cannot confirm (`403 second_factor_required`).
 
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
-| `POST` | `/v1/auth/step-up/password` | bearer | Confirm with password and TOTP code; returns a confirmed access token |
-| `POST` | `/v1/auth/step-up/passkey/begin` | bearer | Challenge the caller's passkeys |
+| `POST` | `/v1/auth/step-up/password` | bearer | `{password, code}`; returns a confirmed access token |
+| `POST` | `/v1/auth/step-up/passkey/begin` | bearer | Challenge the caller's passkeys (`409 no_passkey` without one) |
 | `POST` | `/v1/auth/step-up/passkey/complete` | bearer | Verify the assertion; returns a confirmed access token |
 
-### Password management
+---
 
-| Method | Route | Auth | Description |
-|--------|-------|------|-------------|
-| `POST` | `/v1/auth/change-password` | bearer | Change password — requires current password + TOTP code; a passkey-only account is refused with `passkey_required` |
-| `POST` | `/v1/auth/passkey/change-password/begin` | bearer | Change password via passkey (step 1) — validate current password, generate challenge |
-| `POST` | `/v1/auth/passkey/change-password/complete` | bearer | Change password via passkey (step 2) — verify assertion, apply new password |
-| `GET` | `/v1/auth/check-reset/<token>` | none | Validate a password reset link; returns `mfa_enabled` and `has_passkeys` |
-| `POST` | `/v1/auth/reset-password` | none | Reset password via reset link — requires TOTP code |
-| `POST` | `/v1/auth/passkey/reset-password/begin` | none | Reset password via passkey (step 1) — validate reset token, generate challenge |
-| `POST` | `/v1/auth/passkey/reset-password/complete` | none | Reset password via passkey (step 2) — verify assertion, apply password, consume link |
+## The signed-in account
+
+`U` = `/v1/user`. Every route reads or changes the caller's own account.
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `U` | The account; `site` and `organization` as `{slug, name}`, `null` when it has none |
+| `PATCH` | `U` | Display name or sign-in address (*confirmed*); `{user}`, with tokens when the address changed |
+| `GET`, `PATCH` | `U/ui-preferences` | Interface state carried by the account: the guided tours already seen |
+| `GET`, `PATCH` | `U/notification-preferences` | Which alerts the account sees, and when its weekly email lands |
+| `GET` | `U/alerts` | The account's active alerts, computed now |
+| `GET` | `U/passkeys` | The account's passkeys |
+| `POST` | `U/passkeys/options` | Creation options and a `challenge_token` (*confirmed once enrolled*) |
+| `POST` | `U/passkeys` | `201`, the passkey the browser created from them (*confirmed once enrolled*) |
+| `PATCH` | `U/passkeys/{passkey_id}` | Rename a passkey |
+| `DELETE` | `U/passkeys/{passkey_id}` | `204` (*confirmed*) |
+| `POST` | `U/totp/enrolment` | A new secret, its QR code and an `enrolment_token` (*confirmed once enrolled*) |
+| `PUT` | `U/totp` | `{enrolment_token, code}`: enables TOTP or replaces its secret; the account (*confirmed once enrolled*) |
+| `DELETE` | `U/totp` | `204` (*confirmed*) |
+| `POST` | `U/password/options` | `{current_password}`; challenges the account's passkeys |
+| `PUT` | `U/password` | `204`; ends every session of the account, this one included |
+
+A site's team reads its organization through its site. The account carries no id of either.
+
+**Address.** A new address ends every other session of the account: the response carries the
+access and refresh tokens of the session that replaces the caller's, which is not confirmed.
+Pending password-reset links are spent, and the previous address is told by email. An account
+changes address twice a day at most (`429 email_change_limit`, with `Retry-After`); the rescue
+account never does (`403 rescue_account`).
+
+**Second factors.** The account keeps one at all times: removing the last passkey while TOTP
+is off, or TOTP without a passkey, answers `409 last_second_factor`. A passkey is named after
+the device when `device_name` is left out; a name is 1 to 100 characters. A TOTP secret is
+stored only once a first code checks it: until then it travels in the `enrolment_token`, valid
+ten minutes (`410 enrolment_expired` after), and the secret in use keeps working. A mistyped
+code can be tried again with the same token.
+
+**Password.** `PUT U/password` takes the new password and one proof: `current_password`, with
+`code` when the account has TOTP, or the `challenge_token` and `credential` of
+`U/password/options`. A body that mixes or misses them answers `422`. The password alone never
+stands for the second factor an account has: an account protected by a passkey only answers
+`403 passkey_required` to the first proof.
+
+**Alerts.** In-app alerts, computed on the fly: nothing is stored.
+
+- They cover the sites the account may read: its own for a site's team, every site of its
+  organization for a supervisor. Beyond one site, each rule answers as one entry naming its
+  `sites` (`slug` and `name`), rather than one entry per site.
+- Each rule names the accounts it is for. A site team gets: unpublished menu, service open
+  without a menu, tomorrow's menu missing, traffic drop, low satisfaction, vote anomaly and
+  upcoming holiday. A supervisor gets: service open without a menu, traffic drop, low
+  satisfaction, vote anomaly and inactive site. Each is switched by its own preference key,
+  all on by default; the thresholds are environment variables (`ALERT_*`).
+- `PATCH U/notification-preferences` takes the keys to change and validates them: switches
+  are booleans, `holiday_alert_days_before` runs from 1 to 30. Anything else answers `422`
+  and stores nothing.
+- `weekly_digest` subscribes the caller to the email, `digest_day` (Monday = 0) and
+  `digest_hour` (6 to 21, Europe/Paris) say when it lands. Off by default, Monday 08:00.
+  Whatever the slot, the summary covers the last complete week, Monday to Sunday.
+- The email's own link opens `/unsubscribe/<token>` on the frontend, which asks for a click,
+  so that a scanner following links unsubscribes no one. Its `List-Unsubscribe` header names
+  `POST /v1/weekly-emails/{token}/unsubscribe`, the one-click target of mail clients
+  (RFC 8058), which turns `weekly_digest` off; an unknown token answers `404 link_invalid`.
 
 ---
 
@@ -316,7 +355,7 @@ persisted; no address, user agent or per-visitor row reaches PostgreSQL.
 | `GET` | `/v1/taxonomy` | Dietary tags and certifications catalog |
 | `GET` | `/v1/push-key` | VAPID public key for push subscriptions |
 | `GET` | `/v1/holidays/{year}` | French public holidays of a year, from calendrier.api.gouv.fr |
-| `POST` | `/v1/weekly-emails/{token}/unsubscribe` | Turn the weekly email off; the one-click target of mail clients (see Inbox Notifications) |
+| `POST` | `/v1/weekly-emails/{token}/unsubscribe` | Turn the weekly email off; the one-click target of mail clients (see The signed-in account) |
 
 ---
 
@@ -455,42 +494,6 @@ Notes:
   `enabled` (the site collects votes), `votable` (the dish's category is offered
   to voters) and `votes`. It also carries the site's `icon_preset` so the
   breakdown is drawn with the icons students saw.
-
----
-
-## Inbox Notifications
-
-Requires authentication. In-app alerts, computed on the fly: nothing is stored.
-
-| Method | Route | Description |
-|--------|-------|-------------|
-| `GET` | `/v1/inbox/live-alerts` | Active alerts on the sites the caller may read |
-| `GET` | `/v1/inbox/notification-preferences` | Get the caller's alert and email preferences |
-| `PUT` | `/v1/inbox/notification-preferences` | Update them |
-
-Notes:
-
-- `live-alerts` is scoped by role: a site account sees its own site, a supervisor
-  every site of its organization. Beyond one site each rule answers as one entry
-  carrying `site_ids` and `site_names`, rather than one entry per site.
-- Each rule names the accounts it is for. A site team gets: unpublished menu,
-  service open without a menu, tomorrow's menu missing, traffic drop, low
-  satisfaction, vote anomaly and upcoming holiday. A supervisor gets: service open
-  without a menu, traffic drop, low satisfaction, vote anomaly and inactive site.
-  Each is switched by its own preference key, all on by default; the thresholds
-  are environment variables (`ALERT_*`).
-- `PUT notification-preferences` takes the keys to change and validates them:
-  switches are booleans, `holiday_alert_days_before` runs from 1 to 30. Anything
-  else answers `422` and stores nothing.
-- `weekly_digest` subscribes the caller to the email, `digest_day` (Monday = 0)
-  and `digest_hour` (6 to 21, Europe/Paris) say when it lands. Off by default,
-  Monday 08:00. Whatever the slot, the summary covers the last complete week,
-  Monday to Sunday.
-- The email's own link opens `/unsubscribe/<token>` on the frontend, which asks for a
-  click, so that a scanner following links unsubscribes no one. Its
-  `List-Unsubscribe` header names `POST /v1/weekly-emails/{token}/unsubscribe`, the
-  one-click target of mail clients (RFC 8058), which turns `weekly_digest` off; an
-  unknown token answers `404 link_invalid`.
 
 ---
 
@@ -634,14 +637,6 @@ it), the rescue account `403 rescue_account`. A reset link needs an active accou
 second factor (`409 member_inactive`, `409 second_factor_missing`); the reset leaves the
 account active, to sign in with its password and set up a new factor. An address already in
 use answers `409 email_taken`; one administrator emails twenty invitations a day at most.
-
-The two routes below are the exception: any authenticated user reads and writes
-its own.
-
-| Method | Route | Description |
-|--------|-------|-------------|
-| `GET` | `/v1/users/me/ui-preferences` | Interface state carried by the account: the guided tours already seen |
-| `PUT` | `/v1/users/me/ui-preferences` | Update those flags; unknown keys are ignored |
 
 ---
 

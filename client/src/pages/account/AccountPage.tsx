@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { RoleBadge } from '@/components/dashboard/RoleBadge';
 import { APP_ENVIRONMENT, APP_VERSION } from '@/lib/runtime-config';
-import { authApi } from '@/lib/api/auth';
 import { getApiErrorMessage } from '@/lib/api/errors';
-import { inboxApi, type NotifPreferences } from '@/lib/api/inbox';
+import { userApi, type NotifPreferences } from '@/lib/api/user';
 import { publicApi } from '@/lib/api/public';
 import {
   NotificationPreferences,
@@ -63,7 +62,7 @@ function NotificationSection() {
   const [saveState, setSaveState] = useState<SaveState>(null);
 
   useEffect(() => {
-    inboxApi
+    userApi
       .getNotifPreferences()
       .then(setPrefs)
       .catch(() => setPrefs(null));
@@ -77,7 +76,7 @@ function NotificationSection() {
     setPrefs({ ...prefs, ...patch });
     setSaveState({ key, state: 'saving' });
     try {
-      await inboxApi.updateNotifPreferences(patch);
+      await userApi.updateNotifPreferences(patch);
       setSaveState({ key, state: 'saved' });
       setTimeout(() => setSaveState((current) => (current?.key === key ? null : current)), 2000);
     } catch {
@@ -393,7 +392,7 @@ function DetailRow({
 export function AccountPage() {
   const { user } = useAuth();
   const confirmIdentity = useStepUp();
-  const tenant = user?.role === 'org_admin' ? user?.organization_name : user?.restaurant_name;
+  const tenant = user?.role === 'org_admin' ? user.organization?.name : user?.site?.name;
 
   const hasMfa = user?.mfa_enabled ?? false;
   const hasPasskeys = (user?.passkeys_count ?? 0) > 0;
@@ -443,7 +442,7 @@ export function AccountPage() {
     setIsSubmitting(true);
     setMessage(null);
     try {
-      await authApi.changePassword(currentPassword, newPassword, mfaCode);
+      await userApi.changePassword(currentPassword, newPassword, mfaCode);
       setMessage({ type: 'success', text: 'Mot de passe modifié avec succès' });
       resetForm();
       setTimeout(() => {
@@ -468,14 +467,13 @@ export function AccountPage() {
     setIsSubmitting(true);
     setMessage(null);
     try {
-      const { options, challenge_token } =
-        await authApi.passkeyChangePasswordBegin(currentPassword);
+      const { options, challenge_token } = await userApi.passwordOptions(currentPassword);
 
       const credential = await startAuthentication({
         optionsJSON: options as unknown as PublicKeyCredentialRequestOptionsJSON,
       });
 
-      await authApi.passkeyChangePasswordComplete(newPassword, challenge_token, credential);
+      await userApi.changePasswordWithPasskey(newPassword, challenge_token, credential);
 
       setMessage({ type: 'success', text: 'Mot de passe modifié avec succès' });
       resetForm();
@@ -551,7 +549,7 @@ export function AccountPage() {
             <DetailRow
               icon={Building2}
               label={user?.role === 'org_admin' ? 'Organisation' : 'Site'}
-              value={user?.role === 'org_admin' ? user?.organization_name : user?.restaurant_name}
+              value={tenant}
             />
             <DetailRow
               icon={Calendar}

@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import type { User } from '@/lib/api/auth';
+import type { Account } from '@/lib/api/user';
 
-export function needsSecuritySetup(user?: Pick<User, 'mfa_enabled' | 'passkeys_count'> | null) {
+export function needsSecuritySetup(user?: Pick<Account, 'mfa_enabled' | 'passkeys_count'> | null) {
   if (!user) return false;
-  return !user.mfa_enabled && (user.passkeys_count ?? 0) === 0;
+  return !user.mfa_enabled && user.passkeys_count === 0;
 }
 
 /**
@@ -14,7 +14,7 @@ export function needsSecuritySetup(user?: Pick<User, 'mfa_enabled' | 'passkeys_c
  * state, so the only way out is to actually enrol a method.
  */
 export function useSecurityOnboarding(
-  user: Pick<User, 'mfa_enabled' | 'passkeys_count'> | null | undefined,
+  user: Pick<Account, 'mfa_enabled' | 'passkeys_count'> | null | undefined,
   setupPath: string
 ) {
   const { pathname } = useLocation();

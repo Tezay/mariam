@@ -1,14 +1,9 @@
 from marshmallow import EXCLUDE, Schema, ValidationError, fields, validate, validates_schema
 
 from ..models import User
-from .common import NormalizedEmail
+from .common import NamedRefSchema, NormalizedEmail
 
 SITE_ROLES = (User.ROLE_ADMIN, User.ROLE_EDITOR, User.ROLE_READER)
-
-
-class MemberSiteSchema(Schema):
-    slug = fields.Str(required=True)
-    name = fields.Str(required=True)
 
 
 class MemberSchema(Schema):
@@ -21,7 +16,7 @@ class MemberSchema(Schema):
     passkeys_count = fields.Int(required=True)
     is_rescue_account = fields.Bool(required=True)
     site = fields.Nested(
-        MemberSiteSchema, required=True, allow_none=True,
+        NamedRefSchema, required=True, allow_none=True,
         metadata={'description': "None for a supervisor"},
     )
     created_at = fields.DateTime(required=True, allow_none=True)

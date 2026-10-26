@@ -139,8 +139,8 @@ function SiteDashboardRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/org" replace />;
   }
 
-  const org = user?.organization_slug;
-  const site = user?.restaurant_slug;
+  const org = user?.organization?.slug;
+  const site = user?.site?.slug;
   if (!org || !site) {
     return <NotFound />;
   }

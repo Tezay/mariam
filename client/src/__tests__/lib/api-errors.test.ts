@@ -27,15 +27,24 @@ describe('getApiErrorMessage', () => {
     );
   });
 
-  it('prefers the explanation of a route not yet moved to problems', () => {
-    const error = answered(400, {
-      error: 'Mot de passe trop faible',
-      message: 'Le mot de passe doit contenir au moins 12 caractères.',
+  it('names the first invalid field rather than the whole request', () => {
+    const error = answered(422, {
+      title: 'Unprocessable Entity',
+      status: 422,
+      detail: 'Certaines valeurs envoyées sont invalides.',
+      code: 'validation_failed',
+      errors: [
+        { pointer: '/new_password', detail: 'Le mot de passe doit contenir 12 caractères.' },
+      ],
     });
 
-    expect(getApiErrorMessage(error, 'Échec')).toBe(
-      'Le mot de passe doit contenir au moins 12 caractères.'
-    );
+    expect(getApiErrorMessage(error, 'Échec')).toBe('Le mot de passe doit contenir 12 caractères.');
+  });
+
+  it('reads nothing but a problem', () => {
+    const error = answered(400, { error: 'Mot de passe trop faible' });
+
+    expect(getApiErrorMessage(error, 'Échec')).toBe('Échec');
   });
 
   it('falls back when nothing answered', () => {

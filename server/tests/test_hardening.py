@@ -21,8 +21,8 @@ class TestLoginHardening:
         wrong = client.post('/v1/auth/login',
                             json={'email': 'real@mariam.app', 'password': 'WrongPass123!'})
 
-        assert unknown.status_code == wrong.status_code == 401
-        assert unknown.get_json()['error'] == wrong.get_json()['error']
+        assert unknown.get_json() == wrong.get_json()
+        assert unknown.status_code == 401
 
     def test_disabled_account_cannot_login(self, app, client):
         uid = make_user(None, email='off@mariam.app', role='admin')

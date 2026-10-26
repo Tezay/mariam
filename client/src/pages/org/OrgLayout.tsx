@@ -79,9 +79,7 @@ export function OrgLayout() {
       showNotifications
       accountPath="/org/account"
       tenant={
-        user?.organization_name
-          ? { label: 'Organisation', name: user.organization_name }
-          : undefined
+        user?.organization ? { label: 'Organisation', name: user.organization.name } : undefined
       }
       contentClassName="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8"
     />

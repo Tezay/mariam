@@ -15,14 +15,13 @@ class TestRefresh:
         assert res.status_code == 401
         assert 'access_token' not in res.get_json()
 
-
     def test_a_disabled_account_has_no_session(self, app, client):
         uid = make_user(app)
         session = issue_session(uid)
         db.session.get(User, uid).is_active = False
         db.session.commit()
 
-        me = client.get('/v1/auth/me', headers=auth_headers(session['access']))
+        me = client.get('/v1/user', headers=auth_headers(session['access']))
         refresh = client.post('/v1/auth/refresh', headers=auth_headers(session['refresh']))
 
         assert (me.status_code, refresh.status_code) == (401, 401)
@@ -33,7 +32,7 @@ class TestRefresh:
         db.session.delete(db.session.get(User, uid))
         db.session.commit()
 
-        me = client.get('/v1/auth/me', headers=auth_headers(session['access']))
+        me = client.get('/v1/user', headers=auth_headers(session['access']))
         refresh = client.post('/v1/auth/refresh', headers=auth_headers(session['refresh']))
         logout = client.post('/v1/auth/logout', headers=auth_headers(session['refresh']))
 
@@ -47,9 +46,9 @@ class TestLogout:
     def test_both_tokens_are_revoked(self, app, client, revocations):
         session = issue_session(make_user(app))
 
-        assert self._logout(client, session).status_code == 200
+        assert self._logout(client, session).status_code == 204
 
-        assert client.get('/v1/auth/me', headers=auth_headers(session['access'])).status_code == 401
+        assert client.get('/v1/user', headers=auth_headers(session['access'])).status_code == 401
         assert client.post(
             '/v1/auth/refresh', headers=auth_headers(session['refresh'])
         ).status_code == 401
@@ -64,8 +63,8 @@ class TestLogout:
 
         self._logout(client, session)
 
-        assert client.get('/v1/auth/me', headers=refreshed).status_code == 401
-        assert client.get('/v1/auth/me', headers=confirmed).status_code == 401
+        assert client.get('/v1/user', headers=refreshed).status_code == 401
+        assert client.get('/v1/user', headers=confirmed).status_code == 401
 
     def test_a_sign_in_ties_the_access_token_to_its_session(self, app, client):
         make_user(app)
@@ -109,12 +108,12 @@ class TestSessionTransfer:
         token = self._transfer_token(client, make_user(app))
         self._validate(client, token)
 
-        assert self._validate(client, token).status_code == 401
+        assert self._validate(client, token).get_json()['code'] == 'transfer_used'
 
     def test_a_transfer_token_is_not_an_access_token(self, app, client, revocations):
         token = self._transfer_token(client, make_user(app))
 
-        assert client.get('/v1/auth/me', headers=auth_headers(token)).status_code == 401
+        assert client.get('/v1/user', headers=auth_headers(token)).status_code == 401
 
     def test_a_disabled_account_receives_no_session(self, app, client, revocations):
         uid = make_user(app)
@@ -122,7 +121,7 @@ class TestSessionTransfer:
         db.session.get(User, uid).is_active = False
         db.session.commit()
 
-        assert self._validate(client, token).status_code == 403
+        assert self._validate(client, token).get_json()['code'] == 'account_disabled'
 
     def test_ending_the_sessions_ends_a_transfer_in_flight(self, app, client, revocations):
         uid = make_user(app)
@@ -130,7 +129,7 @@ class TestSessionTransfer:
         db.session.get(User, uid).revoke_tokens()
         db.session.commit()
 
-        assert self._validate(client, token).status_code == 401
+        assert self._validate(client, token).get_json()['code'] == 'transfer_invalid'
 
     def test_signing_out_ends_a_transfer_in_flight(self, app, client, revocations):
         session = issue_session(make_user(app))
@@ -161,7 +160,7 @@ class TestSessionTransfer:
 
         assert decode_token(received)['fresh'] == decode_token(session['access'])['fresh']
         assert client.post(
-            '/v1/auth/passkey/register/begin', headers=auth_headers(received)
+            '/v1/user/passkeys/options', headers=auth_headers(received)
         ).status_code == 200
 
     def test_an_unconfirmed_transfer_stays_so_once_the_account_gains_a_factor(
@@ -174,7 +173,7 @@ class TestSessionTransfer:
         received = self._validate(client, token).get_json()['access_token']
 
         assert client.post(
-            '/v1/auth/passkey/register/begin', headers=auth_headers(received)
+            '/v1/user/passkeys/options', headers=auth_headers(received)
         ).status_code == 403
 
     def test_a_password_alone_confirms_nothing(self, app, client):

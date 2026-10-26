@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { API_URL } from '../runtime-config';
 import { api } from './client';
+import type { components } from './schema.gen';
 import {
   clearTokens,
   confirmedUntil,
@@ -10,45 +11,14 @@ import {
   setAccessToken,
   storeTokens,
 } from './tokens';
+import type { Account, WebAuthnOptions } from './user';
 
-export interface User {
-  id: number;
-  email: string;
-  username?: string;
-  role: 'org_admin' | 'admin' | 'editor' | 'reader';
-  mfa_enabled: boolean;
-  is_active: boolean;
-  restaurant_id?: number;
-  organization_id?: number | null;
-  created_at: string;
-  last_login?: string;
-  passkeys_count?: number;
-  is_rescue_account?: boolean;
-  /** Resolved only on the authenticated user's own profile. */
-  restaurant_name?: string | null;
-  restaurant_slug?: string | null;
-  organization_name?: string | null;
-  /** The site's organization, for a site's own team. */
-  organization_slug?: string | null;
-}
+type Schemas = components['schemas'];
 
-export interface ActivationLinkInfo {
-  valid: boolean;
-  link_type: 'invite' | 'first_admin';
-  /** Suggested by the inviter; the invitee may enter another. */
-  email: string | null;
-  role: User['role'];
-  restaurant_name: string | null;
-  organization_name: string | null;
-}
-
-export interface PasskeyInfo {
-  id: number;
-  device_name: string;
-  transports: string[];
-  created_at: string | null;
-  last_used_at: string | null;
-}
+export type ActivationLink = Schemas['ActivationLink'];
+export type ResetLink = Schemas['ResetLink'];
+export type Activation = Schemas['Activation'];
+type Session = Schemas['Session'];
 
 // In CacheStorage because the service worker, which cannot read localStorage, picks
 // the app manifest from this role. Best-effort: without it, the public one is served.
@@ -74,55 +44,36 @@ function setManifestRole(role: string | null): void {
   }
 }
 
+function openSession({ access_token, refresh_token, user }: Session): Account {
+  storeTokens(access_token, refresh_token);
+  setManifestRole(user.role);
+  return user;
+}
+
 export const authApi = {
-  login: async (email: string, password: string) => {
-    const response = await api.post('/auth/login', { email, password });
-
-    if (response.data.mfa_required) {
-      return {
-        mfaRequired: true,
-        mfaToken: response.data.mfa_token,
-      };
-    }
-
-    const { access_token, refresh_token, user } = response.data;
-    storeTokens(access_token, refresh_token);
-    setManifestRole(user.role);
-    return { user, mfaRequired: false };
+  /** Opens the session, unless the account asks for its TOTP code first. */
+  login: async (
+    email: string,
+    password: string
+  ): Promise<{ user: Account } | { mfaToken: string }> => {
+    const body = (await api.post('/auth/login', { email, password })).data;
+    if (body.mfa_required) return { mfaToken: body.mfa_token };
+    return { user: openSession(body) };
   },
 
-  verifyMfa: async (mfaToken: string, code: string) => {
-    const response = await api.post('/auth/mfa/verify', { mfa_token: mfaToken, code });
-    const { access_token, refresh_token, user } = response.data;
-    storeTokens(access_token, refresh_token);
-    setManifestRole(user.role);
-    return user;
-  },
+  verifyMfa: async (mfaToken: string, code: string): Promise<Account> =>
+    openSession((await api.post('/auth/mfa/verify', { mfa_token: mfaToken, code })).data),
 
-  checkActivationLink: async (token: string): Promise<ActivationLinkInfo> => {
-    const response = await api.get(`/auth/check-activation/${token}`);
-    return response.data;
-  },
+  checkActivationLink: async (token: string): Promise<ActivationLink> =>
+    (await api.get(`/auth/check-activation/${token}`)).data,
 
   activate: async (
     token: string,
     account: { email: string; username: string; password: string }
-  ) => {
-    const response = await api.post('/auth/activate', { token, ...account });
-    return response.data;
-  },
+  ): Promise<Activation> => (await api.post('/auth/activate', { token, ...account })).data,
 
-  verifyMfaSetup: async (userId: number, code: string, setupToken: string) => {
-    const response = await api.post('/auth/mfa/verify-setup', {
-      user_id: userId,
-      code,
-      setup_token: setupToken,
-    });
-    const { access_token, refresh_token, user } = response.data;
-    storeTokens(access_token, refresh_token);
-    setManifestRole(user.role);
-    return user;
-  },
+  verifyMfaSetup: async (setupToken: string, code: string): Promise<Account> =>
+    openSession((await api.post('/auth/mfa/verify-setup', { setup_token: setupToken, code })).data),
 
   logout: () => {
     const refreshToken = getRefreshToken();
@@ -139,11 +90,6 @@ export const authApi = {
     }
   },
 
-  getCurrentUser: async () => {
-    const response = await api.get('/auth/me');
-    return response.data.user;
-  },
-
   isAuthenticated: () => {
     return !!getAccessToken();
   },
@@ -155,25 +101,13 @@ export const authApi = {
 
   onSessionChange: onTokensChange,
 
-  /** A changed address comes back with the session that replaces the caller's. */
-  updateProfile: async (changes: { username?: string; email?: string }) => {
-    const response = await api.patch('/auth/me', changes);
-    const { access_token, refresh_token } = response.data;
-    if (access_token && refresh_token) storeTokens(access_token, refresh_token);
-  },
-
-  stepUpWithPassword: async (password: string, mfaCode: string) => {
-    const response = await api.post('/auth/step-up/password', {
-      password,
-      mfa_code: mfaCode,
-    });
+  stepUpWithPassword: async (password: string, code: string) => {
+    const response = await api.post('/auth/step-up/password', { password, code });
     setAccessToken(response.data.access_token);
   },
 
-  stepUpPasskeyBegin: async () => {
-    const response = await api.post('/auth/step-up/passkey/begin');
-    return response.data as { options: Record<string, unknown>; challenge_token: string };
-  },
+  stepUpPasskeyBegin: async (): Promise<WebAuthnOptions> =>
+    (await api.post('/auth/step-up/passkey/begin')).data,
 
   stepUpPasskeyComplete: async (challengeToken: string, credential: unknown) => {
     const response = await api.post('/auth/step-up/passkey/complete', {
@@ -183,127 +117,29 @@ export const authApi = {
     setAccessToken(response.data.access_token);
   },
 
-  changePassword: async (currentPassword: string, newPassword: string, mfaCode: string) => {
-    const response = await api.post('/auth/change-password', {
-      current_password: currentPassword,
-      new_password: newPassword,
-      mfa_code: mfaCode,
-    });
-    return response.data;
+  checkResetLink: async (token: string): Promise<ResetLink> =>
+    (await api.get(`/auth/check-reset/${token}`)).data,
+
+  /** Ends every session of the account. */
+  resetPassword: async (token: string, newPassword: string, code: string) => {
+    await api.post('/auth/reset-password', { token, new_password: newPassword, code });
   },
 
-  checkResetLink: async (token: string) => {
-    const response = await api.get(`/auth/check-reset/${token}`);
-    return response.data;
-  },
+  passkeyLoginBegin: async (): Promise<WebAuthnOptions> =>
+    (await api.post('/auth/passkey/login/begin')).data,
 
-  resetPassword: async (token: string, newPassword: string, mfaCode: string) => {
-    const response = await api.post('/auth/reset-password', {
-      token,
-      new_password: newPassword,
-      mfa_code: mfaCode,
-    });
-    return response.data;
-  },
+  passkeyLoginComplete: async (challengeToken: string, credential: unknown): Promise<Account> =>
+    openSession(
+      (
+        await api.post('/auth/passkey/login/complete', {
+          challenge_token: challengeToken,
+          credential,
+        })
+      ).data
+    ),
 
-  /** A signed-in user adding a passkey; account activation goes through passkeySetup*. */
-  passkeyRegisterBegin: async () => {
-    const response = await api.post('/auth/passkey/register/begin');
-    return response.data as { options: Record<string, unknown>; challenge_token: string };
-  },
-
-  passkeyRegisterComplete: async (
-    challengeToken: string,
-    credential: unknown,
-    deviceName?: string
-  ) => {
-    const response = await api.post('/auth/passkey/register/complete', {
-      challenge_token: challengeToken,
-      credential,
-      device_name: deviceName,
-    });
-    return response.data;
-  },
-
-  listPasskeys: async (): Promise<PasskeyInfo[]> => {
-    const response = await api.get('/auth/passkey');
-    return response.data.passkeys as PasskeyInfo[];
-  },
-
-  deletePasskey: async (id: number) => {
-    await api.delete(`/auth/passkey/${id}`);
-  },
-
-  mfaSetupBegin: async (): Promise<{
-    qr_code: string;
-    secret: string;
-    enrolment_token: string;
-  }> => {
-    const response = await api.post('/auth/mfa/setup');
-    return response.data;
-  },
-
-  mfaSetupConfirm: async (enrolmentToken: string, code: string): Promise<User> => {
-    const response = await api.post('/auth/mfa/setup/confirm', {
-      enrolment_token: enrolmentToken,
-      code,
-    });
-    return response.data.user as User;
-  },
-
-  /** Refused by the server unless a passkey remains. */
-  disableMfa: async (): Promise<User> => {
-    const response = await api.delete('/auth/mfa');
-    return response.data.user as User;
-  },
-
-  passkeyChangePasswordBegin: async (currentPassword: string) => {
-    const response = await api.post('/auth/passkey/change-password/begin', {
-      current_password: currentPassword,
-    });
-    return response.data as { options: Record<string, unknown>; challenge_token: string };
-  },
-
-  passkeyChangePasswordComplete: async (
-    newPassword: string,
-    challengeToken: string,
-    credential: unknown
-  ) => {
-    const response = await api.post('/auth/passkey/change-password/complete', {
-      new_password: newPassword,
-      challenge_token: challengeToken,
-      credential,
-    });
-    return response.data;
-  },
-
-  passkeyLoginBegin: async () => {
-    const response = await api.post('/auth/passkey/login/begin');
-    return response.data as { options: Record<string, unknown>; challenge_token: string };
-  },
-
-  passkeyLoginComplete: async (challengeToken: string, credential: unknown) => {
-    const response = await api.post('/auth/passkey/login/complete', {
-      challenge_token: challengeToken,
-      credential,
-    });
-    const { access_token, refresh_token, user } = response.data;
-    storeTokens(access_token, refresh_token);
-    setManifestRole(user.role);
-    return user;
-  },
-
-  renamePasskey: async (id: number, deviceName: string) => {
-    const response = await api.patch(`/auth/passkey/${id}`, { device_name: deviceName });
-    return response.data as { message: string; device_name: string };
-  },
-
-  passkeyResetPasswordBegin: async (resetToken: string) => {
-    const response = await api.post('/auth/passkey/reset-password/begin', {
-      reset_token: resetToken,
-    });
-    return response.data as { options: Record<string, unknown>; challenge_token: string };
-  },
+  passkeyResetPasswordBegin: async (resetToken: string): Promise<WebAuthnOptions> =>
+    (await api.post('/auth/passkey/reset-password/begin', { reset_token: resetToken })).data,
 
   passkeyResetPasswordComplete: async (
     newPassword: string,
@@ -311,53 +147,38 @@ export const authApi = {
     credential: unknown,
     resetToken: string
   ) => {
-    const response = await api.post('/auth/passkey/reset-password/complete', {
+    await api.post('/auth/passkey/reset-password/complete', {
       new_password: newPassword,
       challenge_token: challengeToken,
       credential,
       reset_token: resetToken,
     });
-    return response.data;
   },
 
   /** During account activation, before any session exists. */
-  passkeySetupBegin: async (userId: number, setupToken: string) => {
-    const response = await api.post('/auth/passkey/setup/begin', {
-      user_id: userId,
-      setup_token: setupToken,
-    });
-    return response.data as { options: Record<string, unknown>; challenge_token: string };
-  },
+  passkeySetupBegin: async (setupToken: string): Promise<WebAuthnOptions> =>
+    (await api.post('/auth/passkey/setup/begin', { setup_token: setupToken })).data,
 
   passkeySetupComplete: async (
-    userId: number,
     challengeToken: string,
     credential: unknown,
     deviceName?: string
-  ) => {
-    const response = await api.post('/auth/passkey/setup/complete', {
-      user_id: userId,
-      challenge_token: challengeToken,
-      credential,
-      device_name: deviceName,
-    });
-    const { access_token, refresh_token, user } = response.data;
-    storeTokens(access_token, refresh_token);
-    setManifestRole(user.role);
-    return user;
-  },
+  ): Promise<Account> =>
+    openSession(
+      (
+        await api.post('/auth/passkey/setup/complete', {
+          challenge_token: challengeToken,
+          credential,
+          device_name: deviceName,
+        })
+      ).data
+    ),
 
-  generateSessionTransfer: async () => {
-    const response = await api.post('/auth/session-transfer/generate');
-    return response.data as { transfer_token: string; expires_in: number };
-  },
+  generateSessionTransfer: async (): Promise<Schemas['SessionTransfer']> =>
+    (await api.post('/auth/session-transfer/generate')).data,
 
-  validateSessionTransfer: async (transferToken: string) => {
-    const response = await api.post('/auth/session-transfer/validate', {
-      transfer_token: transferToken,
-    });
-    const { access_token, refresh_token, user } = response.data;
-    storeTokens(access_token, refresh_token);
-    setManifestRole(user.role);
-  },
+  validateSessionTransfer: async (transferToken: string): Promise<Account> =>
+    openSession(
+      (await api.post('/auth/session-transfer/validate', { transfer_token: transferToken })).data
+    ),
 };

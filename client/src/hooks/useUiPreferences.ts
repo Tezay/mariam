@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { adminApi, type UiPreferences } from '@/lib/api/admin';
+import { userApi, type UiPreferences } from '@/lib/api/user';
 
 const KEY = ['ui-preferences'];
 
 export function useUiPreferences(enabled = true) {
   return useQuery({
     queryKey: KEY,
-    queryFn: adminApi.getUiPreferences,
+    queryFn: userApi.getUiPreferences,
     enabled,
     staleTime: Infinity,
     retry: false,
@@ -17,7 +17,7 @@ export function useUpdateUiPreferences() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (prefs: Partial<UiPreferences>) => adminApi.updateUiPreferences(prefs),
+    mutationFn: (prefs: Partial<UiPreferences>) => userApi.updateUiPreferences(prefs),
     // Applied locally without rollback on failure: a tour the user dismissed must
     // not come back, neither while the write is in flight nor if it never lands.
     onMutate: async (prefs) => {

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStepUp } from '@/hooks/useStepUp';
-import { authApi } from '@/lib/api/auth';
 import { getApiErrorMessage } from '@/lib/api/errors';
+import { userApi } from '@/lib/api/user';
 import { DISPLAY_NAME_RULE, parseDisplayName } from '@/lib/display-name';
 import { EMAIL_RULE, canonicalEmail } from '@/lib/email-address';
 import { notify } from '@/lib/toast';
@@ -53,7 +53,7 @@ export function ProfileDialog({
 
     setIsSaving(true);
     try {
-      await authApi.updateProfile(changes);
+      await userApi.update(changes);
     } catch (err) {
       setError(getApiErrorMessage(err, "L'enregistrement a échoué"));
       return;

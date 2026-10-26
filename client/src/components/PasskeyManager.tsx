@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIdentityConfirmed, useStepUp } from '@/hooks/useStepUp';
-import { authApi, type PasskeyInfo } from '@/lib/api/auth';
 import { getApiErrorMessage } from '@/lib/api/errors';
+import { userApi, type Passkey } from '@/lib/api/user';
 import { passkeyRegistrationError } from '@/lib/passkey-errors';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,7 +34,7 @@ export function PasskeyManager() {
   const { user, refreshUser } = useAuth();
   const confirmIdentity = useStepUp();
   const identityConfirmed = useIdentityConfirmed();
-  const [passkeys, setPasskeys] = useState<PasskeyInfo[]>([]);
+  const [passkeys, setPasskeys] = useState<Passkey[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRegistering, setIsRegistering] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -51,7 +51,7 @@ export function PasskeyManager() {
 
   const loadPasskeys = useCallback(async () => {
     try {
-      const list = await authApi.listPasskeys();
+      const list = await userApi.listPasskeys();
       setPasskeys(list);
     } catch {
       // The list then shows empty.
@@ -71,7 +71,8 @@ export function PasskeyManager() {
     if (!(await confirmIdentity({ description: "Avant d'enregistrer un nouvel appareil." }))) {
       return;
     }
-    // The browser creates a passkey only in answer to a click, and confirming
+    // The browser creates a passkey only in answer to a click, and the confirmation
+    // dialog has used this one up.
     if (!identityConfirmed) {
       setMessage({
         type: 'success',
@@ -82,15 +83,11 @@ export function PasskeyManager() {
 
     setIsRegistering(true);
     try {
-      const { options, challenge_token } = await authApi.passkeyRegisterBegin();
+      const { options, challenge_token } = await userApi.passkeyOptions();
       const credential = await startRegistration({
         optionsJSON: options as unknown as PublicKeyCredentialCreationOptionsJSON,
       });
-      await authApi.passkeyRegisterComplete(
-        challenge_token,
-        credential,
-        deviceName.trim() || undefined
-      );
+      await userApi.createPasskey(challenge_token, credential, deviceName.trim() || undefined);
 
       setMessage({ type: 'success', text: 'Passkey enregistrée avec succès !' });
       setDeviceName('');
@@ -108,7 +105,7 @@ export function PasskeyManager() {
     }
   };
 
-  const handleRenameStart = (pk: PasskeyInfo) => {
+  const handleRenameStart = (pk: Passkey) => {
     setRenameError(null);
     setEditingId(pk.id);
     setEditingName(pk.device_name || '');
@@ -120,15 +117,15 @@ export function PasskeyManager() {
     setRenameError(null);
   };
 
-  const handleRenameConfirm = async (pk: PasskeyInfo) => {
+  const handleRenameConfirm = async (pk: Passkey) => {
     const trimmed = editingName.trim();
     if (!trimmed) {
       setRenameError('Le nom ne peut pas être vide');
       return;
     }
     try {
-      await authApi.renamePasskey(pk.id, trimmed);
-      setPasskeys((prev) => prev.map((p) => (p.id === pk.id ? { ...p, device_name: trimmed } : p)));
+      const renamed = await userApi.renamePasskey(pk.id, trimmed);
+      setPasskeys((prev) => prev.map((p) => (p.id === pk.id ? renamed : p)));
       setEditingId(null);
       setEditingName('');
       setRenameError(null);
@@ -137,7 +134,7 @@ export function PasskeyManager() {
     }
   };
 
-  const handleDelete = async (passkey: PasskeyInfo) => {
+  const handleDelete = async (passkey: Passkey) => {
     if (editingId === passkey.id) handleRenameCancel();
     setDeleteError(null);
 
@@ -159,7 +156,7 @@ export function PasskeyManager() {
     if (!confirmed) return;
 
     try {
-      await authApi.deletePasskey(passkey.id);
+      await userApi.deletePasskey(passkey.id);
       setPasskeys((prev) => prev.filter((p) => p.id !== passkey.id));
       await refreshUser();
     } catch (err: unknown) {

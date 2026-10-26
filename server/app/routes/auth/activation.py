@@ -1,56 +1,87 @@
 from datetime import timedelta
 
-from flask import jsonify, request
+from flask import request
 from flask_jwt_extended import create_access_token, decode_token
 from psycopg2.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
 
 from ...extensions import db
 from ...models import ActivationLink, AuditLog, Organization, Restaurant, User
+from ...problems import Problem
 from ...schemas.auth import (
     ActivateAccountSchema,
+    ActivationCodeSchema,
     ActivationLinkSchema,
     ActivationSchema,
-    InvalidLinkSchema,
-    MFAVerifySetupSchema,
-    PasskeySetupBeginSchema,
-    PasskeySetupCompleteSchema,
+    PasskeyRegistrationSchema,
     SessionSchema,
+    SetupTokenSchema,
     WebAuthnOptionsSchema,
 )
-from ...schemas.common import ErrorSchema
 from ...security import get_client_ip, limiter
 from ...services import passkeys, totp
+from ...services.crypto import decrypt_secret, encrypt_secret
 from ...services.passkeys import Ceremony
+from ..helpers import account_view
 from ._common import (
     CONFIRMATION_WINDOW,
+    account_disabled,
+    account_not_found,
+    challenge_refused,
+    code_refusal,
     complete_login,
+    passkey_refused,
     token_pair,
-    user_not_found,
-    weak_password,
 )
 from .blueprint import auth_bp
 
 SETUP_TTL = timedelta(minutes=15)
-BAD_SETUP_TOKEN = 'Setup token invalid, expired, or issued to another account.'
-ALREADY_ENROLLED = 'The account already has a second factor.'
+_SETUP_SECRET = 'setup_totp'
 
 
-def _setup_token(user_id: int) -> str:
-    """Its setup_phase claim keeps it off every regular endpoint: the token loader refuses it."""
+def _setup_token(user_id: int, secret: str) -> str:
+    """Its setup_phase claim keeps it off every regular endpoint: the token loader refuses it.
+
+    It carries the TOTP secret, encrypted like the column, so that none is stored
+    before its first code is checked.
+    """
     return create_access_token(
-        identity=str(user_id), additional_claims={'setup_phase': True}, expires_delta=SETUP_TTL
+        identity=str(user_id),
+        additional_claims={'setup_phase': True, _SETUP_SECRET: encrypt_secret(secret)},
+        expires_delta=SETUP_TTL,
     )
 
 
-def _setup_token_error(token: str, user_id: int):
+def _setup_refused() -> Problem:
+    return Problem(401, 'setup_token_invalid', "Étape d'activation expirée. Recommencez.")
+
+
+def _setup_account(token: str) -> tuple[User, dict]:
     try:
         claims = decode_token(token)
     except Exception:
-        return jsonify({'error': 'setup_token invalide ou expiré'}), 401
-    if not claims.get('setup_phase') or int(claims['sub']) != user_id:
-        return jsonify({'error': 'setup_token invalide'}), 401
-    return None
+        raise _setup_refused() from None
+    if not claims.get('setup_phase'):
+        raise _setup_refused()
+    user = _account_to_set_up(int(claims['sub']))
+    # Decoded by hand, so the token loader never saw it: ending the account's
+    # sessions ends its setup too.
+    if user.has_revoked(claims['iat'], None):
+        raise _setup_refused()
+    return user, claims
+
+
+def _account_to_set_up(user_id: int):
+    user = db.session.get(User, user_id)
+    if not user:
+        raise account_not_found()
+    if not user.is_active:
+        raise account_disabled()
+    # The setup token stands in for a session: past the first factor, adding
+    # one takes a confirmed session like anywhere else.
+    if user.has_second_factor():
+        raise Problem(409, 'second_factor_present', 'Ce compte a déjà un second facteur.')
+    return user
 
 
 def _account_link(token: str):
@@ -61,53 +92,50 @@ def _account_link(token: str):
     )
 
 
-def _email_taken():
-    return jsonify({
-        'error': 'Cette adresse est déjà utilisée. Choisissez-en une autre ou contactez '
-                 'la personne qui vous a invité.',
-    }), 409
+def _usable(link):
+    if not link:
+        raise Problem(404, 'link_unknown', "Ce lien d'activation n'existe pas.")
+    if not link.is_valid():
+        raise Problem(
+            410, 'link_expired', "Ce lien d'activation a expiré, a été révoqué ou a déjà servi."
+        )
+    return link
 
 
-def _already_enrolled():
-    # The setup token stands in for a session: past the first factor, adding
-    # one takes a confirmed session like anywhere else.
-    return jsonify({'error': 'Ce compte a déjà une double authentification'}), 400
+def _email_taken() -> Problem:
+    return Problem(
+        409, 'email_taken',
+        'Cette adresse est déjà utilisée. Choisissez-en une autre ou contactez la personne '
+        'qui vous a invité.',
+    )
 
 
 @auth_bp.route('/check-activation/<token>', methods=['GET'])
 @auth_bp.doc(security=[])
 @limiter.limit('10 per minute')
 @auth_bp.response(200, ActivationLinkSchema)
-@auth_bp.alt_response(
-    400, schema=InvalidLinkSchema, description='Link expired, revoked or already used.'
-)
-@auth_bp.alt_response(404, schema=InvalidLinkSchema, description='Unknown link.')
+@auth_bp.problem(404, 'link_unknown')
+@auth_bp.problem(410, 'link_expired')
 def check_activation_link(token):
-    """Check an invitation link before the activation form
+    """Check an invitation link before the activation form.
 
     `email` is the address the inviter suggested, if any: the form pre-fills it and the
     invitee may change it.
     """
-    link = _account_link(token).first()
-
-    if not link:
-        return jsonify({'valid': False, 'error': 'Lien invalide'}), 404
-
-    if not link.is_valid():
-        return jsonify({'valid': False, 'error': 'Lien expiré, révoqué ou déjà utilisé'}), 400
-
+    link = _usable(_account_link(token).first())
     restaurant = db.session.get(Restaurant, link.restaurant_id) if link.restaurant_id else None
     organization = (
         db.session.get(Organization, link.organization_id) if link.organization_id else None
     )
-    return jsonify({
-        'valid': True,
+    return {
         'link_type': link.link_type,
         'email': link.email,
         'role': link.role,
-        'restaurant_name': restaurant.name if restaurant else None,
-        'organization_name': organization.name if organization else None,
-    }), 200
+        'site': {'slug': restaurant.slug, 'name': restaurant.name} if restaurant else None,
+        'organization': (
+            {'slug': organization.slug, 'name': organization.name} if organization else None
+        ),
+    }
 
 
 @auth_bp.route('/activate', methods=['POST'])
@@ -115,47 +143,33 @@ def check_activation_link(token):
 @limiter.limit('3 per minute')
 @auth_bp.arguments(ActivateAccountSchema)
 @auth_bp.response(201, ActivationSchema)
-@auth_bp.alt_response(
-    400, schema=ErrorSchema, description='Link expired, revoked or used, or password too weak.'
-)
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Unknown link.')
-@auth_bp.alt_response(409, schema=ErrorSchema, description='Email already in use.')
-def activate_account(data):
-    """Create an account from an invitation link
+@auth_bp.problem(404, 'link_unknown')
+@auth_bp.problem(409, 'email_taken')
+@auth_bp.problem(410, 'link_expired')
+def activate_account(body):
+    """Create an account from an invitation link.
 
     The invitee chooses the address and the display name; the role and the tenant come
     from the link. The account starts without a second factor. `mfa_setup` carries what
-    the next step needs, both valid fifteen minutes: a TOTP secret and its QR code for
-    `/mfa/verify-setup`, and a setup token that `/passkey/setup/*` accepts as well.
+    the next step needs, valid fifteen minutes: a TOTP secret and its QR code for
+    `/mfa/verify-setup`, and a setup token that `/passkey/setup/begin` accepts as well.
     """
     # Row-locked until commit: a second request with the same token waits here,
     # then finds the link spent.
-    link = _account_link(data['token']).with_for_update().first()
+    link = _usable(_account_link(body['token']).with_for_update().first())
 
-    if not link:
-        return jsonify({'error': "Lien d'activation invalide"}), 404
-
-    if not link.is_valid():
-        return jsonify({'error': "Lien d'activation expiré, révoqué ou déjà utilisé"}), 400
-
-    if not User.validate_password_strength(data['password']):
-        return weak_password()
-
-    email = data['email']
+    email = body['email']
     if User.query.filter_by(email=email).first():
-        return _email_taken()
+        raise _email_taken()
 
     user = User(
         email=email,
-        username=data['username'],
+        username=body['username'],
         role=link.role,
         restaurant_id=link.restaurant_id,
         organization_id=link.organization_id,
     )
-    user.set_password(data['password'])
-    user.mfa_secret = totp.new_secret()
-    user.mfa_enabled = False
-
+    user.set_password(body['password'])
     link.mark_as_used()
     db.session.add(user)
     try:
@@ -165,7 +179,7 @@ def activate_account(data):
         # Two invitees can pass the lookup above with the same address; the
         # unique index decides between them.
         if isinstance(exc.orig, UniqueViolation):
-            return _email_taken()
+            raise _email_taken() from None
         raise
 
     AuditLog.log(
@@ -186,114 +200,84 @@ def activate_account(data):
     )
     db.session.commit()
 
-    return jsonify({
-        'message': 'Compte créé avec succès',
-        'user': user.to_dict(include_tenant=True),
+    secret = totp.new_secret()
+    return {
+        'user': account_view(user),
         'mfa_setup': {
-            'qr_code': totp.provisioning_qr(user.mfa_secret, email),
-            'secret': user.mfa_secret,
-            'user_id': user.id,
-            'setup_token': _setup_token(user.id),
+            'qr_code': totp.provisioning_qr(secret, email),
+            'secret': secret,
+            'setup_token': _setup_token(user.id, secret),
         },
-    }), 201
+    }, 201
 
 
 @auth_bp.route('/mfa/verify-setup', methods=['POST'])
 @auth_bp.doc(security=[])
 @limiter.limit('5 per minute')
-@auth_bp.arguments(MFAVerifySetupSchema)
+@auth_bp.arguments(ActivationCodeSchema)
 @auth_bp.response(200, SessionSchema)
-@auth_bp.alt_response(400, schema=ErrorSchema, description=ALREADY_ENROLLED)
-@auth_bp.alt_response(401, schema=ErrorSchema, description=f'Wrong code. {BAD_SETUP_TOKEN}')
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Unknown account.')
-def verify_mfa_setup(data):
-    """Enable TOTP at activation, and sign in
+@auth_bp.problem(401, 'setup_token_invalid', 'code_invalid', 'code_used')
+@auth_bp.problem(403, 'account_disabled')
+@auth_bp.problem(404, 'account_not_found')
+@auth_bp.problem(409, 'second_factor_present')
+@auth_bp.problem(429, 'too_many_attempts')
+def verify_mfa_setup(body):
+    """Enable TOTP at activation with a first code of the secret, and sign in."""
+    user, claims = _setup_account(body['setup_token'])
+    if not claims.get(_SETUP_SECRET):
+        raise _setup_refused()
+    secret = decrypt_secret(claims[_SETUP_SECRET])
+    if refusal := code_refusal(user.id, secret, body['code'], 401):
+        raise refusal
 
-    A first code confirms the secret returned by `/activate`.
-    """
-    if error := _setup_token_error(data['setup_token'], data['user_id']):
-        return error
-
-    user = db.session.get(User, data['user_id'])
-    if not user:
-        return user_not_found()
-
-    if user.has_second_factor():
-        return _already_enrolled()
-
-    if not totp.code_matches(user.mfa_secret, data['code']):
-        return jsonify({'error': 'Code invalide'}), 401
-
-    user.mfa_enabled = True
+    user.set_mfa_secret(secret)
     AuditLog.log(action=AuditLog.ACTION_MFA_SETUP, user_id=user.id, ip_address=get_client_ip())
     db.session.commit()
 
-    return jsonify({
-        'message': 'MFA activé avec succès',
-        'user': user.to_dict(include_tenant=True),
+    return {
+        'user': account_view(user),
         **token_pair(user, confirmed=CONFIRMATION_WINDOW),
-    }), 200
+    }
 
 
 @auth_bp.route('/passkey/setup/begin', methods=['POST'])
 @auth_bp.doc(security=[])
 @limiter.limit('10 per minute')
-@auth_bp.arguments(PasskeySetupBeginSchema)
+@auth_bp.arguments(SetupTokenSchema)
 @auth_bp.response(200, WebAuthnOptionsSchema)
-@auth_bp.alt_response(400, schema=ErrorSchema, description=ALREADY_ENROLLED)
-@auth_bp.alt_response(401, schema=ErrorSchema, description=BAD_SETUP_TOKEN)
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Unknown account.')
-def passkey_setup_begin(data):
-    """Start registering a passkey at activation"""
-    if error := _setup_token_error(data['setup_token'], data['user_id']):
-        return error
-
-    user = db.session.get(User, data['user_id'])
-    if not user:
-        return user_not_found()
-
-    if user.has_second_factor():
-        return _already_enrolled()
-
-    return jsonify(passkeys.begin_registration(user, Ceremony.SETUP)), 200
+@auth_bp.problem(401, 'setup_token_invalid')
+@auth_bp.problem(403, 'account_disabled')
+@auth_bp.problem(404, 'account_not_found')
+@auth_bp.problem(409, 'second_factor_present')
+def passkey_setup_begin(body):
+    """Start registering a passkey at activation, in place of TOTP."""
+    user, _ = _setup_account(body['setup_token'])
+    return passkeys.begin_registration(user, Ceremony.SETUP)
 
 
 @auth_bp.route('/passkey/setup/complete', methods=['POST'])
 @auth_bp.doc(security=[])
 @limiter.limit('10 per minute')
-@auth_bp.arguments(PasskeySetupCompleteSchema)
+@auth_bp.arguments(PasskeyRegistrationSchema)
 @auth_bp.response(200, SessionSchema)
-@auth_bp.alt_response(
-    400, schema=ErrorSchema, description=f'{ALREADY_ENROLLED} Or a credential that fails.'
-)
-@auth_bp.alt_response(
-    401, schema=ErrorSchema, description='Challenge invalid, expired, or issued to another account.'
-)
-@auth_bp.alt_response(403, schema=ErrorSchema, description='Account disabled.')
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Unknown account.')
-def passkey_setup_complete(data):
-    """Register the activation passkey, and sign in"""
-    user = db.session.get(User, data['user_id'])
-    if not user:
-        return user_not_found()
-
-    if user.has_second_factor():
-        return _already_enrolled()
-
+@auth_bp.problem(401, 'challenge_invalid', 'passkey_refused')
+@auth_bp.problem(403, 'account_disabled')
+@auth_bp.problem(404, 'account_not_found')
+@auth_bp.problem(409, 'second_factor_present')
+def passkey_setup_complete(body):
+    """Register the activation passkey, and sign in; the challenge names the account."""
     try:
-        token_user_id, challenge = passkeys.read_challenge(data['challenge_token'], Ceremony.SETUP)
+        owner_id, challenge = passkeys.read_challenge(body['challenge_token'], Ceremony.SETUP)
     except passkeys.InvalidChallenge:
-        return jsonify({'error': 'challenge_token invalide ou expiré'}), 401
-
-    if token_user_id != user.id:
-        return jsonify({'error': 'Token invalide'}), 401
+        raise challenge_refused(401) from None
+    user = _account_to_set_up(owner_id)
 
     try:
         passkey = passkeys.verify_registration(
-            user, data['credential'], challenge, data.get('device_name'), request.user_agent.string
+            user, body['credential'], challenge, body.get('device_name'), request.user_agent.string
         )
-    except passkeys.VerificationFailed as exc:
-        return jsonify({'error': f'Vérification échouée : {exc}'}), 400
+    except passkeys.VerificationFailed:
+        raise passkey_refused(401) from None
 
     db.session.add(passkey)
     AuditLog.log(

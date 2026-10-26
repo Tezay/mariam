@@ -6,11 +6,12 @@ from flask_jwt_extended import get_jwt_identity, jwt_required, verify_jwt_in_req
 from flask_jwt_extended.exceptions import FreshTokenRequired
 
 from ..extensions import db
-from ..models import AuditLog, DishCatalog, Restaurant, User
+from ..models import AuditLog, DishCatalog, Organization, Restaurant, User
 from ..models.taxonomy import Certification, DietaryTag
 from ..problems import Problem
 from ..security import get_client_ip
 from ..services.storage import storage
+from ..utils.time import as_utc
 
 
 def refuse_supervisor(user) -> None:
@@ -79,10 +80,7 @@ def org_admin_required(f):
 
 def _confirmation_required() -> Problem:
     # 403, not 401: the client takes a 401 for an expired session and refreshes it.
-    # The boolean serves the clients that predate `code`.
-    return Problem(
-        403, 'step_up_required', 'Confirmation d’identité requise.', step_up_required=True
-    )
+    return Problem(403, 'step_up_required', 'Confirmation d’identité requise.')
 
 
 def _identity_confirmed() -> bool:
@@ -131,6 +129,37 @@ def get_current_user():
     Never None: the token loader has already refused a token whose account is gone.
     """
     return db.session.get(User, int(get_jwt_identity()))
+
+
+def member_view(user) -> dict:
+    site = user.restaurant
+    return {
+        'id': user.id,
+        'email': user.email,
+        'username': user.username,
+        'role': user.role,
+        'is_active': user.is_active,
+        'mfa_enabled': user.mfa_enabled,
+        'passkeys_count': user.passkeys.count(),
+        'is_rescue_account': user.is_rescue_account,
+        'site': {'slug': site.slug, 'name': site.name} if site else None,
+        'created_at': as_utc(user.created_at),
+        'last_login': as_utc(user.last_login),
+    }
+
+
+def account_view(user) -> dict:
+    """The signed-in account; a site's team takes its organization from the site."""
+    organization = (
+        db.session.get(Organization, user.organization_id) if user.organization_id
+        else user.restaurant.organization if user.restaurant else None
+    )
+    return {
+        **member_view(user),
+        'organization': (
+            {'slug': organization.slug, 'name': organization.name} if organization else None
+        ),
+    }
 
 
 def audit(action: str, restaurant: Restaurant | None, **fields) -> None:

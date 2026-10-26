@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
-import { authApi, type ActivationLinkInfo } from '@/lib/api/auth';
+import { authApi, type ActivationLink } from '@/lib/api/auth';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import { DISPLAY_NAME_RULE, parseDisplayName } from '@/lib/display-name';
 import { EMAIL_RULE, canonicalEmail } from '@/lib/email-address';
@@ -29,7 +29,7 @@ export function Activate() {
   const { activateComplete } = useAuth();
 
   const [step, setStep] = useState<Step>('loading');
-  const [linkInfo, setLinkInfo] = useState<ActivationLinkInfo | null>(null);
+  const [linkInfo, setLinkInfo] = useState<ActivationLink | null>(null);
 
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -38,7 +38,6 @@ export function Activate() {
 
   const [qrCode, setQrCode] = useState('');
   const [mfaSecret, setMfaSecret] = useState('');
-  const [userId, setUserId] = useState<number>(0);
   const [setupToken, setSetupToken] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
@@ -52,13 +51,9 @@ export function Activate() {
       }
       try {
         const data = await authApi.checkActivationLink(token);
-        if (data.valid) {
-          setLinkInfo(data);
-          setEmail(data.email || '');
-          setStep('password');
-        } else {
-          setStep('invalid');
-        }
+        setLinkInfo(data);
+        setEmail(data.email || '');
+        setStep('password');
       } catch {
         setStep('invalid');
       }
@@ -83,8 +78,8 @@ export function Activate() {
 
   const destination =
     linkInfo?.role === 'org_admin'
-      ? linkInfo.organization_name
-      : (linkInfo?.restaurant_name ?? linkInfo?.organization_name);
+      ? linkInfo.organization?.name
+      : (linkInfo?.site?.name ?? linkInfo?.organization?.name);
   const role = roleLabel(linkInfo?.role);
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
@@ -104,13 +99,10 @@ export function Activate() {
         password,
       });
 
-      if (result.mfa_setup) {
-        setQrCode(result.mfa_setup.qr_code);
-        setMfaSecret(result.mfa_setup.secret);
-        setUserId(result.mfa_setup.user_id);
-        setSetupToken(result.mfa_setup.setup_token);
-        setStep('second-factor');
-      }
+      setQrCode(result.mfa_setup.qr_code);
+      setMfaSecret(result.mfa_setup.secret);
+      setSetupToken(result.mfa_setup.setup_token);
+      setStep('second-factor');
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, "Erreur lors de l'activation"));
     } finally {
@@ -118,20 +110,20 @@ export function Activate() {
     }
   };
 
-  // The activation endpoints carry their own setup token: there is no session
+  // No session yet: the setup token names the account to each step.
   const enrolment: SecondFactorEnrolment = {
     registerPasskey: async () => {
-      const { options, challenge_token } = await authApi.passkeySetupBegin(userId, setupToken);
+      const { options, challenge_token } = await authApi.passkeySetupBegin(setupToken);
       const credential = await startRegistration({
         optionsJSON: options as unknown as PublicKeyCredentialCreationOptionsJSON,
       });
-      const user = await authApi.passkeySetupComplete(userId, challenge_token, credential);
+      const user = await authApi.passkeySetupComplete(challenge_token, credential);
       activateComplete(user);
       navigate('/admin');
     },
     beginTotp: async () => ({ qrCode, secret: mfaSecret }),
     confirmTotp: async (code) => {
-      const user = await authApi.verifyMfaSetup(userId, code, setupToken);
+      const user = await authApi.verifyMfaSetup(setupToken, code);
       activateComplete(user);
       navigate('/admin');
     },
