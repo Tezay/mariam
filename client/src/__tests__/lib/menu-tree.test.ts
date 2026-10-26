@@ -14,7 +14,6 @@ function item(id: number, categoryId: number): MenuItem {
 
 const menu: Menu = {
   date: '2026-10-19',
-  images: [],
   substitutions: {},
   categories: [
     { id: 1, label: 'Entrées', is_highlighted: false, order: 0, items: [item(1, 1)] },

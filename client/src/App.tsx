@@ -28,6 +28,9 @@ const UsersPage = lazy(() =>
 const SettingsPage = lazy(() =>
   import('./pages/admin/SettingsPage').then((m) => ({ default: m.SettingsPage }))
 );
+const PublicPagePage = lazy(() =>
+  import('./pages/admin/PublicPagePage').then((m) => ({ default: m.PublicPagePage }))
+);
 const AuditLogsPage = lazy(() =>
   import('./pages/admin/AuditLogsPage').then((m) => ({ default: m.AuditLogsPage }))
 );
@@ -411,6 +414,15 @@ function App() {
               element={
                 <AdminRoute>
                   <SettingsPage />
+                </AdminRoute>
+              }
+            />
+
+            <Route
+              path="public-page"
+              element={
+                <AdminRoute>
+                  <PublicPagePage />
                 </AdminRoute>
               }
             />

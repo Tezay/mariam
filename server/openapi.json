@@ -4961,7 +4961,7 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Delete a menu, with its items and images.",
+        "summary": "Delete a menu, with its items.",
         "tags": [
           "menus"
         ]
@@ -5141,190 +5141,6 @@
           "schema": {
             "type": "integer",
             "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/orgs/{org}/sites/{site}/menus/{date}/images": {
-      "post": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Image"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/FileUpload"
-              }
-            }
-          }
-        },
-        "summary": "Add a photo to a menu: JPEG, PNG, WebP or HEIC, stored as JPEG.",
-        "tags": [
-          "menus"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "org",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        {
-          "in": "path",
-          "name": "site",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        {
-          "in": "path",
-          "name": "date",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "format": "date"
-          }
-        }
-      ]
-    },
-    "/v1/orgs/{org}/sites/{site}/menus/{date}/images/{image_id}": {
-      "delete": {
-        "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Remove a photo from a menu.",
-        "tags": [
-          "menus"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "org",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        {
-          "in": "path",
-          "name": "site",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        {
-          "in": "path",
-          "name": "date",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "format": "date"
-          }
-        },
-        {
-          "in": "path",
-          "name": "image_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ]
-    },
-    "/v1/orgs/{org}/sites/{site}/menus/{date}/images/order": {
-      "put": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ImageList"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ImageOrder"
-              }
-            }
-          }
-        },
-        "summary": "Put a menu's photos in a new order.",
-        "tags": [
-          "menus"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "org",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        {
-          "in": "path",
-          "name": "site",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        {
-          "in": "path",
-          "name": "date",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "format": "date"
           }
         }
       ]
@@ -11219,26 +11035,6 @@
         ],
         "additionalProperties": false
       },
-      "Image": {
-        "type": "object",
-        "properties": {
-          "url": {
-            "type": "string"
-          },
-          "order": {
-            "type": "integer"
-          },
-          "id": {
-            "type": "integer",
-            "description": "For the site's editors"
-          }
-        },
-        "required": [
-          "order",
-          "url"
-        ],
-        "additionalProperties": false
-      },
       "PublicSubstitution": {
         "type": "object",
         "properties": {
@@ -11270,12 +11066,6 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PublicCategory"
-            }
-          },
-          "images": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Image"
             }
           },
           "substitutions": {
@@ -11312,7 +11102,6 @@
         "required": [
           "categories",
           "date",
-          "images",
           "substitutions"
         ],
         "additionalProperties": false
@@ -11414,36 +11203,6 @@
         "required": [
           "is_out_of_stock"
         ]
-      },
-      "ImageOrder": {
-        "type": "object",
-        "properties": {
-          "image_ids": {
-            "type": "array",
-            "description": "Every image, once, in the new order",
-            "items": {
-              "type": "integer"
-            }
-          }
-        },
-        "required": [
-          "image_ids"
-        ]
-      },
-      "ImageList": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Image"
-            }
-          }
-        },
-        "required": [
-          "items"
-        ],
-        "additionalProperties": false
       },
       "SubstitutesInput": {
         "type": "object",
@@ -12640,6 +12399,26 @@
           }
         }
       },
+      "Image": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "order": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "integer",
+            "description": "For the site's editors"
+          }
+        },
+        "required": [
+          "order",
+          "url"
+        ],
+        "additionalProperties": false
+      },
       "Event": {
         "type": "object",
         "properties": {
@@ -12818,6 +12597,36 @@
             "description": "A week after the original by default"
           }
         }
+      },
+      "ImageOrder": {
+        "type": "object",
+        "properties": {
+          "image_ids": {
+            "type": "array",
+            "description": "Every image, once, in the new order",
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "required": [
+          "image_ids"
+        ]
+      },
+      "ImageList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Image"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
       },
       "Closure": {
         "type": "object",

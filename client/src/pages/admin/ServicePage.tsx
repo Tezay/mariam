@@ -6,6 +6,7 @@ import { menuItems, withItem } from '@/lib/menu-tree';
 import { categoriesApi, MenuCategory } from '@/lib/api/categories';
 import { closuresApi } from '@/lib/api/closures';
 import { sitesApi, type ServiceHours } from '@/lib/api/sites';
+import { publicPagePath } from '@/lib/public-page';
 import { backendWeekday, isInServiceHours } from '@/lib/utils';
 import { formatParisTime, nowInstant, parisNow, parisToday } from '@/lib/date-utils';
 import { Button } from '@/components/ui/button';
@@ -232,12 +233,13 @@ interface ActionsCardProps {
 }
 
 function ActionsCard({ isFullscreen, onToggleFullscreen, onOpenEditor }: ActionsCardProps) {
+  const site = useSiteRef();
   return (
     <div className="space-y-1 rounded-xl border border-border bg-card p-2">
       <Button
         variant="ghost"
         className="h-9 w-full justify-start gap-2.5"
-        onClick={() => window.open('/menu', '_blank')}
+        onClick={() => window.open(publicPagePath(site.site), '_blank')}
       >
         <ExternalLink className="h-4 w-4 text-muted-foreground" />
         Aperçu écran public

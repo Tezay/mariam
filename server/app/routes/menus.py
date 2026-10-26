@@ -4,14 +4,11 @@ from datetime import UTC
 from flask_smorest import Blueprint
 
 from ..extensions import db
-from ..models import AuditLog, DishCatalog, Menu, MenuImage, MenuItem, Restaurant
+from ..models import AuditLog, DishCatalog, Menu, MenuItem, Restaurant
 from ..models.catalog import CategorySubstitution
 from ..models.category import MenuCategory
 from ..problems import Problem
-from ..schemas.common import FileUploadSchema
-from ..schemas.images import ImageListSchema, ImageOrderSchema, ImageSchema
 from ..schemas.menus import (
-    MENU_IMAGES_MAX,
     MenuItemPatchSchema,
     MenuListSchema,
     MenuPatchSchema,
@@ -40,7 +37,7 @@ from ..services.votes import (
     voting_open,
 )
 from ..utils.time import as_utc, paris_today
-from .helpers import audit, editor_required, get_current_user, get_or_create_dish, store_image
+from .helpers import audit, editor_required, get_current_user, get_or_create_dish
 from .scope import SESSION_OPTIONAL, finish_public_read, member_site, public_site, readable_site
 
 menus_bp = Blueprint(
@@ -99,10 +96,6 @@ def menu_view(menu, member: bool) -> dict:
         'date': menu.date,
         'chef_note': menu.chef_note,
         'by_category': _category_tree(menu.restaurant, items),
-        'images': [
-            {'url': image.url, 'order': image.order, **({'id': image.id} if member else {})}
-            for image in menu.images
-        ],
         'substitutions': substitutes,
     }
     if member:
@@ -287,9 +280,10 @@ def patch_menu(body, org: str, site: str, date: datetime.date):
 @editor_required
 @menus_bp.response(204)
 def delete_menu(org: str, site: str, date: datetime.date):
-    """Delete a menu, with its items and images."""
+    """Delete a menu, with its items."""
     restaurant = member_site(org, site)
     menu = _site_menu(restaurant, date)
+    # Photos sent before 0.20.0, until their table goes.
     for image in list(menu.images):
         storage.delete_file(image.storage_key)
     audit(
@@ -358,79 +352,6 @@ def patch_menu_item(body, org: str, site: str, date: datetime.date, item_id: int
     item.is_out_of_stock = body['is_out_of_stock']
     db.session.commit()
     return item.to_dict()
-
-
-@menus_bp.route('/<date:date>/images', methods=['POST'])
-@editor_required
-@menus_bp.arguments(FileUploadSchema, location='files')
-@menus_bp.response(201, ImageSchema)
-def add_menu_image(files, org: str, site: str, date: datetime.date):
-    """Add a photo to a menu: JPEG, PNG, WebP or HEIC, stored as JPEG."""
-    restaurant = member_site(org, site)
-    menu = _site_menu(restaurant, date)
-    count = menu.images.count()
-    if count >= MENU_IMAGES_MAX:
-        raise Problem(
-            409, 'menu_image_limit', f'Un menu porte {MENU_IMAGES_MAX} images au plus.'
-        )
-    stored, filename = store_image(files['file'], f'menus/{menu.id}')
-
-    image = MenuImage(
-        menu_id=menu.id,
-        storage_key=stored['key'],
-        url=stored['url'],
-        filename=filename,
-        order=count,
-    )
-    db.session.add(image)
-    db.session.flush()
-    audit(
-        AuditLog.ACTION_MENU_IMAGE_UPLOAD,
-        restaurant,
-        target_type='menu_image',
-        target_id=image.id,
-    )
-    db.session.commit()
-    return image
-
-
-@menus_bp.route('/<date:date>/images/<int:image_id>', methods=['DELETE'])
-@editor_required
-@menus_bp.response(204)
-def delete_menu_image(org: str, site: str, date: datetime.date, image_id: int):
-    """Remove a photo from a menu."""
-    restaurant = member_site(org, site)
-    menu = _site_menu(restaurant, date)
-    image = MenuImage.query.filter_by(id=image_id, menu_id=menu.id).first()
-    if image is None:
-        raise Problem(404, 'menu_image_not_found', 'Image introuvable.')
-    storage.delete_file(image.storage_key)
-    db.session.delete(image)
-    audit(
-        AuditLog.ACTION_MENU_IMAGE_DELETE,
-        restaurant,
-        target_type='menu_image',
-        target_id=image_id,
-    )
-    db.session.commit()
-
-
-@menus_bp.route('/<date:date>/images/order', methods=['PUT'])
-@editor_required
-@menus_bp.arguments(ImageOrderSchema)
-@menus_bp.response(200, ImageListSchema)
-def order_menu_images(body, org: str, site: str, date: datetime.date):
-    """Put a menu's photos in a new order."""
-    menu = _site_menu(member_site(org, site), date)
-    images = {image.id: image for image in menu.images}
-    if sorted(body['image_ids']) != sorted(images):
-        raise Problem(
-            422, 'image_order_invalid', 'La liste doit reprendre chaque image du menu, une fois.'
-        )
-    for order, image_id in enumerate(body['image_ids']):
-        images[image_id].order = order
-    db.session.commit()
-    return {'items': list(menu.images.order_by(MenuImage.order))}
 
 
 @menus_bp.route('/<date:date>/substitutions/<int:category_id>', methods=['PUT'])

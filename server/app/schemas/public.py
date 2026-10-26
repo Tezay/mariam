@@ -146,7 +146,6 @@ class PublicMenuSchema(Schema):
     categories = fields.List(
         fields.Nested(PublicCategorySchema), attribute='by_category', required=True
     )
-    images = fields.List(fields.Nested(PublicImageSchema), required=True)
     substitutions = fields.Dict(
         keys=fields.Str(),
         values=fields.List(fields.Nested(PublicSubstitutionSchema)),

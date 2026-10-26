@@ -31,7 +31,7 @@ const site = {
 } satisfies Site;
 
 function menu(date: string): Menu {
-  return { date, categories: [], images: [], substitutions: {} };
+  return { date, categories: [], substitutions: {} };
 }
 
 function event(id: number, date: string): Event {

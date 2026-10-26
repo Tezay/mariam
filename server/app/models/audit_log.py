@@ -57,8 +57,6 @@ class AuditLog(db.Model):
     ACTION_DISH_DELETE = 'dish_delete'
     ACTION_DISH_IMAGE_UPLOAD = 'dish_image_upload'
     ACTION_DISH_IMAGE_DELETE = 'dish_image_delete'
-    ACTION_MENU_IMAGE_UPLOAD = 'menu_image_upload'
-    ACTION_MENU_IMAGE_DELETE = 'menu_image_delete'
     ACTION_EVENT_IMAGE_UPLOAD = 'event_image_upload'
     ACTION_EVENT_IMAGE_DELETE = 'event_image_delete'
     ACTION_CALENDAR_SETTINGS_UPDATE = 'calendar_settings_update'

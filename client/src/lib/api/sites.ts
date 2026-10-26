@@ -14,6 +14,16 @@ export type PaymentMethod = NonNullable<Site['payment_methods']>[number];
 export type VoteIconPreset = Site['vote_icon_preset'];
 export type CalendarSettings = Schemas['CalendarSettings'];
 export type CalendarSettingsPatch = Schemas['CalendarSettingsPatch'];
+export type SitePhoto = Schemas['SitePhoto'];
+
+const UPLOAD = { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 };
+
+function upload(file: File, fields: Record<string, string> = {}): FormData {
+  const form = new FormData();
+  form.append('file', file);
+  for (const [name, value] of Object.entries(fields)) form.append(name, value);
+  return form;
+}
 
 export const sitesApi = {
   get: async (org: string, site: string): Promise<Site> =>
@@ -33,4 +43,24 @@ export const sitesApi = {
     patch: CalendarSettingsPatch
   ): Promise<CalendarSettings> =>
     (await api.patch(`${sitePath(ref)}/calendar-settings`, patch)).data,
+
+  putMedia: async (ref: SiteRef, media: 'logo' | 'cover', file: File): Promise<Site> =>
+    (await api.put(`${sitePath(ref)}/${media}`, upload(file), UPLOAD)).data,
+
+  deleteMedia: async (ref: SiteRef, media: 'logo' | 'cover'): Promise<void> => {
+    await api.delete(`${sitePath(ref)}/${media}`);
+  },
+
+  addPhoto: async (ref: SiteRef, file: File, alt: string): Promise<SitePhoto> =>
+    (await api.post(`${sitePath(ref)}/photos`, upload(file, { alt }), UPLOAD)).data,
+
+  updatePhoto: async (ref: SiteRef, id: number, alt: string): Promise<SitePhoto> =>
+    (await api.patch(`${sitePath(ref)}/photos/${id}`, { alt })).data,
+
+  deletePhoto: async (ref: SiteRef, id: number): Promise<void> => {
+    await api.delete(`${sitePath(ref)}/photos/${id}`);
+  },
+
+  orderPhotos: async (ref: SiteRef, ids: number[]): Promise<SitePhoto[]> =>
+    (await api.put(`${sitePath(ref)}/photos/order`, { photo_ids: ids })).data.items,
 };

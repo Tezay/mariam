@@ -1,12 +1,10 @@
 import { useState, useRef } from 'react';
 import { Camera, Check, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { IMAGE_ACCEPT, IMAGE_MAX_MB, imageFileProblem } from '@/lib/image-files';
 import { notify } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import type { UseOnboardingStateReturn } from '../useOnboardingState';
-
-const ACCEPTED = 'image/jpeg,image/png,image/webp,image/heic,image/heif';
-const MAX_SIZE_MB = 5;
 
 export function PhotoStep({ state }: { state: UseOnboardingStateReturn }) {
   const { activeDish } = state;
@@ -19,8 +17,9 @@ export function PhotoStep({ state }: { state: UseOnboardingStateReturn }) {
 
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
-    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      notify.error(`Image trop lourde (max ${MAX_SIZE_MB} Mo)`);
+    const problem = imageFileProblem(file);
+    if (problem) {
+      notify.error(problem);
       return;
     }
     setIsUploading(true);
@@ -54,7 +53,7 @@ export function PhotoStep({ state }: { state: UseOnboardingStateReturn }) {
         <input
           ref={inputRef}
           type="file"
-          accept={ACCEPTED}
+          accept={IMAGE_ACCEPT}
           className="hidden"
           onChange={(e) => {
             handleFile(e.target.files?.[0]);
@@ -109,7 +108,7 @@ export function PhotoStep({ state }: { state: UseOnboardingStateReturn }) {
                   : 'Prendre ou choisir une photo'}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              JPEG, PNG, WebP ou HEIC · {MAX_SIZE_MB} Mo max
+              JPEG, PNG, WebP ou HEIC · {IMAGE_MAX_MB} Mo max
             </p>
           </button>
         )}

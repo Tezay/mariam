@@ -22,7 +22,8 @@ x-backend-env: &backend-env
   S3_SECRET_ACCESS_KEY: mariam_minio_secret
   S3_BUCKET_NAME: mariam-uploads
   S3_REGION: us-east-1
-  S3_PUBLIC_URL: http://localhost:9000/mariam-uploads
+  # Served by the frontend's dev server, over its HTTPS (vite.config.ts).
+  S3_PUBLIC_URL: ${S3_PUBLIC_URL:-https://localhost:5173/mariam-uploads}
   # No default on purpose: push stays off until a developer generates a pair.
   VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
   VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
@@ -140,6 +141,7 @@ services:
     environment:
       API_PROXY_TARGET: http://backend:5000
       API_INTERNAL_URL: http://backend:5000/v1
+      STORAGE_PROXY_TARGET: http://minio:9000
     volumes:
       - ./client:/app
       # Keeps the image's node_modules, which the bind mount above would shadow.

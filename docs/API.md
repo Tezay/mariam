@@ -363,21 +363,18 @@ persisted; no address, user agent or per-visitor row reaches PostgreSQL.
 
 A site's menus live at the addresses above, one per day. The same `GET` routes serve a
 session: an editor of the site (a supervisor included) reads its drafts too, with no window,
-and receives the editors' fields: `status`, `published_at`, `updated_at` and the `id` of each
-image. Writes require the `editor` role on the site; a supervisor reads but never writes.
+and receives the editors' fields: `status`, `published_at` and `updated_at`. Writes require
+the `editor` role on the site; a supervisor reads but never writes.
 Below, `S` stands for `/v1/orgs/{org}/sites/{site}`.
 
 | Method | Route | Description |
 |--------|-------|-------------|
 | `PUT` | `S/menus/{date}` | Create or replace the menu of a day: `items` and `chef_note` (300 characters); `201` the first time, `200` after |
 | `PATCH` | `S/menus/{date}` | Change the `chef_note` |
-| `DELETE` | `S/menus/{date}` | Delete the menu, its items and images |
+| `DELETE` | `S/menus/{date}` | Delete the menu and its items |
 | `POST` | `S/menus/{date}/publish` | Publish; `409 menu_empty` without items |
 | `POST` | `S/menus/{date}/unpublish` | Back to draft; `409 menu_not_published` for a draft |
 | `PATCH` | `S/menus/{date}/items/{item_id}` | Mark an item out of stock (`is_out_of_stock`) |
-| `POST` | `S/menus/{date}/images` | Add a photo (multipart `file`), six per menu |
-| `PUT` | `S/menus/{date}/images/order` | New order of the images: every `image_ids` of the menu, once |
-| `DELETE` | `S/menus/{date}/images/{image_id}` | Remove a photo |
 | `PUT` | `S/menus/{date}/substitutions/{category_id}` | The dishes offered when one of the category runs out: `dish_ids`, three at most, from the site's catalog |
 
 A menu is one tree, `categories`, each holding its `items` or its `subcategories`. An item of

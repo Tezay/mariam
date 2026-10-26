@@ -1,10 +1,11 @@
 """A site's settings: one address with its public page, written by its admins."""
 import re
 from pathlib import Path
+from xml.etree import ElementTree
 
 import pytest
 
-from app.data.site_profile import PAYMENT_METHODS
+from app.data.site_profile import LINK_KINDS, PAYMENT_METHODS, SERVICES
 from app.extensions import db
 from app.models import MenuCategory, Restaurant
 from app.models.taxonomy import DietaryTag, DietaryTagCategory
@@ -14,6 +15,14 @@ SETTINGS_SHARED = (
     Path(__file__).resolve().parents[2] / 'client/src/pages/admin/settings/settings-shared.ts'
 )
 CATEGORY_COLORS = Path(__file__).resolve().parents[2] / 'client/src/lib/category-colors.ts'
+SITE_PROFILE = Path(__file__).resolve().parents[2] / 'client/src/lib/site-profile.ts'
+LINK_LOGOS = Path(__file__).resolve().parents[2] / 'client/public/links'
+SVG = '{http://www.w3.org/2000/svg}'
+LOGO_ELEMENTS = {'svg', 'g', 'path', 'circle', 'ellipse', 'rect', 'polygon', 'polyline', 'line'}
+LOGO_ATTRIBUTES = {
+    'viewBox', 'd', 'fill-rule', 'clip-rule', 'transform', 'points',
+    'x', 'y', 'width', 'height', 'cx', 'cy', 'r', 'rx', 'ry', 'x1', 'y1', 'x2', 'y2',
+}
 
 
 def _site(app, client, role='admin'):
@@ -247,6 +256,32 @@ def test_the_client_offers_every_payment_method():
     offered = re.findall(r"\{ id: '(\w+)'", SETTINGS_SHARED.read_text())
 
     assert tuple(offered) == PAYMENT_METHODS
+
+
+@pytest.mark.skipif(not SITE_PROFILE.exists(), reason='the client sources are not mounted here')
+def test_the_client_offers_every_service_and_link_kind():
+    source = SITE_PROFILE.read_text()
+    services = re.findall(r"\{ id: '(\w+)', label: '[^']+', icon:", source)
+    kinds = dict(re.findall(r"\{ id: '(\w+)', label: '[^']+', hosts: (null|\[[^\]]*\])", source))
+
+    assert tuple(services) == SERVICES
+    assert kinds == {
+        kind: 'null' if hosts is None else str(list(hosts)) for kind, hosts in LINK_KINDS.items()
+    }
+
+
+@pytest.mark.skipif(not SITE_PROFILE.exists(), reason='the client sources are not mounted here')
+@pytest.mark.parametrize('kind', [kind for kind, hosts in LINK_KINDS.items() if hosts])
+def test_each_link_kind_has_a_square_logo_that_only_draws(kind):
+    # Served from the site's own origin: anything but shapes could run there when opened.
+    logo = ElementTree.parse(LINK_LOGOS / f'{kind}.svg').getroot()
+    *_, width, height = logo.get('viewBox', '0 0 0 1').split()
+
+    assert logo.tag == f'{SVG}svg'
+    assert float(width) == float(height) and not {'width', 'height'} & set(logo.attrib)
+    for element in logo.iter():
+        assert element.tag.removeprefix(SVG) in LOGO_ELEMENTS
+        assert set(element.attrib) <= LOGO_ATTRIBUTES
 
 
 @pytest.mark.skipif(not CATEGORY_COLORS.exists(), reason='the client sources are not mounted here')
