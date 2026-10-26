@@ -71,6 +71,7 @@ class TestSite:
         site = client.get(SITE).get_json()
 
         assert not {'id', 'code', 'is_active', 'config'} & set(site)
+        assert not {'menu_days_ahead', 'menu_days_back', 'vote_category_ids'} & set(site)
         today = paris_today()
         assert site['menu_window'] == {
             'from': (today - timedelta(days=DAYS_BACK)).isoformat(),
@@ -142,6 +143,23 @@ class TestMenus:
         [sub] = shown['subcategories']
         assert set(sub['items'][0]['dish']) == {
             'id', 'name', 'image_url', 'tags', 'certifications',
+        }
+
+    def test_the_window_is_the_sites_own(self, client):
+        site = _site(_org())
+        site.menu_days_ahead, site.menu_days_back = 0, 0
+        db.session.commit()
+        today = paris_today()
+        for days in (-1, 0, 1):
+            _menu(site, today + timedelta(days=days))
+        start, end = today - timedelta(days=5), today + timedelta(days=5)
+
+        menus = client.get(f'{SITE}/menus?from={start}&to={end}').get_json()['items']
+
+        assert [menu['date'] for menu in menus] == [today.isoformat()]
+        assert client.get(f'{SITE}/menus/{today + timedelta(days=1)}').status_code == 404
+        assert client.get(SITE).get_json()['menu_window'] == {
+            'from': today.isoformat(), 'to': today.isoformat(),
         }
 
     def test_a_draft_or_a_far_day_is_not_found(self, client):

@@ -109,6 +109,16 @@ def fresh_budgets(monkeypatch):
 
 
 @pytest.fixture()
+def bucket(monkeypatch):
+    """An image store that keeps what is put in it, for the uploads to succeed."""
+    from app.services.storage import storage
+    recorder = BucketRecorder()
+    monkeypatch.setattr(storage, 'client', recorder)
+    monkeypatch.setattr(storage, 'public_url', 'https://images.test')
+    return recorder
+
+
+@pytest.fixture()
 def smtp(monkeypatch):
     SmtpRecorder.sent = []
     monkeypatch.setenv('SMTP_HOST', 'smtp.example.org')
@@ -228,6 +238,21 @@ class FakeRedis:
 
     def pfcount(self, key):
         return len(self.hll.get(key, set()))
+
+
+class BucketRecorder:
+    """The two calls the image store makes on S3."""
+
+    def __init__(self):
+        self.objects: dict[str, bytes] = {}
+        self.deleted: list[str] = []
+
+    def put_object(self, Bucket, Key, Body, **kwargs):
+        self.objects[Key] = Body
+
+    def delete_object(self, Bucket, Key):
+        self.deleted.append(Key)
+        self.objects.pop(Key, None)
 
 
 class SmtpRecorder:

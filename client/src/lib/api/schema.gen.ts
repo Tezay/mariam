@@ -4104,6 +4104,315 @@ export interface paths {
         };
         trace?: never;
     };
+    "/v1/orgs/{org}/sites/{site}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Set or replace the site's logo, kept within 512 pixels; one with transparency stays PNG. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": components["schemas"]["FileUpload"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Site"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        post?: never;
+        /** Remove the site's logo. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/cover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Set or replace the photo at the top of the site's page, kept within 2400 pixels. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": components["schemas"]["FileUpload"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Site"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        post?: never;
+        /** Remove the site's cover photo. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a photo to the site's gallery, kept within 2000 pixels; eight at most. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": components["schemas"]["SitePhotoUpload"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SitePhoto"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/photos/{photo_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                photo_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a photo from the site's gallery. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    photo_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Change what a photo's text says to screen readers. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    photo_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SitePhotoAlt"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SitePhoto"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/photos/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Put the site's gallery in a new order. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PhotoOrder"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SitePhotoList"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/orgs/{org}/sites/{site}/calendar-settings": {
         parameters: {
             query?: never;
@@ -7278,6 +7587,21 @@ export interface components {
             distribution: components["schemas"]["Distribution"];
             series: components["schemas"]["RatingPoint"][];
         };
+        SitePhoto: {
+            url: string;
+            /** @description For screen readers */
+            alt: string;
+            order: number;
+            /** @description For the site's editors */
+            id?: number;
+        };
+        SiteLink: {
+            /** @enum {string} */
+            kind: "website" | "izly" | "instagram" | "facebook" | "linkedin" | "x" | "tiktok" | "youtube";
+            url: string;
+            /** @description A website's; None for the others */
+            label: string | null;
+        };
         ServiceHoursDay: {
             /** @description HH:MM */
             open: string;
@@ -7293,10 +7617,22 @@ export interface components {
         Site: {
             slug: string;
             name: string;
+            tagline: string | null;
+            /** @description Paragraphs, split by blank lines */
+            description: string | null;
             logo_url?: string | null;
+            cover_url: string | null;
+            photos: components["schemas"]["SitePhoto"][];
             address_label?: string | null;
+            address_city: string | null;
+            address_postcode: string | null;
             address_lat?: number | null;
             address_lon?: number | null;
+            /** @description How to get there; paragraphs */
+            access_info: string | null;
+            /** @description In the order of the closed list */
+            services: ("wifi" | "microwave" | "takeaway" | "terrace" | "power_outlets" | "water_fountain" | "study_area")[];
+            links: components["schemas"]["SiteLink"][];
             email?: string | null;
             phone?: string | null;
             /** @description Seats */
@@ -7318,6 +7654,18 @@ export interface components {
             menu_window: components["schemas"]["MenuWindow"];
             /** @description For the site's editors: the categories a vote names */
             vote_category_ids?: number[];
+            /** @description For the site's editors: how many days ahead `menu_window` reaches */
+            menu_days_ahead?: number;
+            /** @description For the site's editors: how many days back `menu_window` reaches */
+            menu_days_back?: number;
+        };
+        SiteLinkInput: {
+            /** @enum {string} */
+            kind: "website" | "izly" | "instagram" | "facebook" | "linkedin" | "x" | "tiktok" | "youtube";
+            /** Format: url */
+            url: string;
+            /** @description A website's only */
+            label?: string | null;
         };
         ServiceHoursInput: {
             open: string;
@@ -7335,6 +7683,16 @@ export interface components {
             payment_methods?: ("izly" | "cb" | "cash" | "ticket_restaurant")[] | null;
             /** @description None when unknown */
             pmr_access?: boolean | null;
+            tagline?: string | null;
+            description?: string | null;
+            access_info?: string | null;
+            address_city?: string | null;
+            address_postcode?: string | null;
+            services?: ("wifi" | "microwave" | "takeaway" | "terrace" | "power_outlets" | "water_fountain" | "study_area")[];
+            /** @description Replaces the site's links, in their order */
+            links?: components["schemas"]["SiteLinkInput"][];
+            menu_days_ahead?: number;
+            menu_days_back?: number;
             /** @description 0 is Monday */
             service_days?: number[];
             /** @description Replaces every day's hours; a day left out has none */
@@ -7350,6 +7708,27 @@ export interface components {
             tag_ids?: string[];
             /** @description The certifications the site uses */
             certification_ids?: string[];
+        };
+        FileUpload: {
+            /** Format: binary */
+            file: string;
+        };
+        SitePhotoUpload: {
+            /** @description What it shows, for screen readers */
+            alt: string;
+            /** Format: binary */
+            file: string;
+        };
+        SitePhotoAlt: {
+            /** @description What it shows, for screen readers */
+            alt: string;
+        };
+        PhotoOrder: {
+            /** @description Every photo, once, in the new order */
+            photo_ids: number[];
+        };
+        SitePhotoList: {
+            items: components["schemas"]["SitePhoto"][];
         };
         CalendarSettings: {
             show_public_holidays: boolean;
@@ -7444,10 +7823,6 @@ export interface components {
         };
         MenuItemPatch: {
             is_out_of_stock: boolean;
-        };
-        FileUpload: {
-            /** Format: binary */
-            file: string;
         };
         ImageOrder: {
             /** @description Every image, once, in the new order */

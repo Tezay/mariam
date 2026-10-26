@@ -145,14 +145,15 @@ class StorageService:
         return True, None
 
     @classmethod
-    def process_image(cls, file_data, filename, content_type=None):
+    def process_image(cls, file_data, filename, content_type=None, max_size=None):
         """Validate and re-encode an uploaded image through Pillow.
 
         Decoding rejects non-images (a fake ``.jpg`` that is really HTML/SVG) and
         neutralizes polyglot files; re-encoding strips EXIF and any trailing
         payload. The returned content type is derived from the decoded image, not
         from the client-supplied ``content_type``, kept only for signature
-        compatibility. HEIC/HEIF are converted to JPEG.
+        compatibility. HEIC/HEIF are converted to JPEG. With `max_size`, the image
+        keeps its first frame only and its longer side is brought down to it.
 
         Raises ValueError when the bytes do not decode as an image.
         """
@@ -166,12 +167,14 @@ class StorageService:
 
         # Preserve animation (GIF/WebP): re-encoding frames is error-prone, so
         # keep the validated bytes but force the correct content type.
-        if getattr(img, 'is_animated', False):
+        if getattr(img, 'is_animated', False) and not max_size:
             fmt = (img.format or 'GIF').upper()
             content_type = cls._FORMAT_CONTENT_TYPE.get(fmt, 'application/octet-stream')
             return file_data, f'{base}.{fmt.lower()}', content_type
 
         img = ImageOps.exif_transpose(img)
+        if max_size:
+            img.thumbnail((max_size, max_size))
         has_alpha = img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info)
 
         output = io.BytesIO()

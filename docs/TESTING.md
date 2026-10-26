@@ -42,11 +42,11 @@ One file per domain in `server/tests/`, grouped roughly as:
 | Area | Files |
 |---|---|
 | Authentication and hardening | `test_auth.py`, `test_auth_<module>.py` (one per module of `routes/auth/`), `test_user_<module>.py` (one per module of `routes/user/`), `test_crypto.py`, `test_hardening.py` |
-| Site content | `test_menus.py`, `test_categories.py`, `test_catalog.py`, `test_csv_import.py`, `test_events.py`, `test_closures.py`, `test_holidays.py` |
+| Site content | `test_site_settings.py`, `test_site_media.py`, `test_menus.py`, `test_categories.py`, `test_catalog.py`, `test_csv_import.py`, `test_events.py`, `test_closures.py`, `test_holidays.py` |
 | Public surface | `test_public_resources.py`, `test_domains.py`, `test_push_subscriptions.py` |
 | Analytics | `test_analytics_stats.py`, `test_telemetry.py`, `test_votes.py` |
 | Organization | `test_members.py`, `test_audit_access.py`, `test_org_catalog.py`, `test_alerts.py`, `test_email_digest.py` |
-| Cross-cutting | `test_tenant_isolation.py`, `test_retention.py`, `test_site_settings.py`, `test_storage.py` |
+| Cross-cutting | `test_tenant_isolation.py`, `test_retention.py`, `test_storage.py` |
 
 `test_tenant_isolation.py` is the one to extend whenever an endpoint is added: every route that
 resolves a scope belongs there.
@@ -57,7 +57,7 @@ WebAuthn verification runs. `tests/auth_support.py` puts an account in the state
 branch on (TOTP enabled, passkey enrolled, reset link, confirmed session). A test that relies
 on a revoked or single-use token takes the `revocations` fixture, which keeps the blacklist in
 memory. A test that expects an email takes `smtp`, which records the messages instead of
-sending them.
+sending them. A test that uploads an image takes `bucket`, which keeps what would be stored.
 
 ### Writing one
 

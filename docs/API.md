@@ -303,14 +303,14 @@ campus behind a single address rather than for one visitor.
 - **Conditional requests.** A read carries an `ETag` and `Cache-Control: no-cache`; sent
   back in `If-None-Match`, it answers `304` while nothing changed.
 - **Menu window.** An anonymous caller sees the menus of the dates in the site's
-  `menu_window`: 30 days back and 7 ahead.
+  `menu_window`, which the site sets: 30 days back and 7 ahead by default.
 
 | Method | Route | Description |
 |--------|-------|-------------|
 | `GET` | `/v1/domains/{host}` | The organization a host serves; may be cached five minutes |
 | `GET` | `/v1/orgs/{org}` | An organization |
 | `GET` | `/v1/orgs/{org}/sites` | Its active sites; its supervisors read them all, with their fields (see Organization) |
-| `GET` | `/v1/orgs/{org}/sites/{site}` | A site: address, contact, hours, vote settings, the labels in use, `menu_window` |
+| `GET` | `/v1/orgs/{org}/sites/{site}` | A site: its page (tagline, presentation, logo, cover, gallery, access, services, links), address, contact, hours, vote settings, the labels in use, `menu_window` |
 | `GET` | `/v1/orgs/{org}/sites/{site}/menus` | Published menus from `from` to `to`, both included (today to the window's end by default; 62 days at most) |
 | `GET` | `/v1/orgs/{org}/sites/{site}/menus/{date}` | The published menu of a day |
 | `GET` | `/v1/orgs/{org}/sites/{site}/events` | Published events from today on (`visibility` = `tv` or `mobile`, `limit` up to 100); `{event_id}` for one |
@@ -572,20 +572,48 @@ Notes:
 
 ## Site settings
 
-A site's settings are its page: `GET S` serves the public fields to anyone and adds
-`vote_category_ids` for the site's editors. Changing them requires the `admin` role on the
-site; a supervisor reads but never writes.
+A site's settings are its page: `GET S` serves the public fields to anyone. The site's
+editors also read `vote_category_ids`, `menu_days_ahead`, `menu_days_back` and the `id` of
+each photo. Changing them requires the `admin` role on the site; a supervisor reads but never
+writes.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `PATCH` | `S` | Change the name, address, contact, capacity, payment methods, access, service days and hours, vote, and the labels in use (`tag_ids`, `certification_ids`) |
+| `PATCH` | `S` | Change the page, name, address, contact, capacity, payment methods, access, service days and hours, menu window, vote, and the labels in use (`tag_ids`, `certification_ids`) |
+| `PUT` | `S/logo` | Set or replace the logo (`file`, multipart); returns the site |
+| `DELETE` | `S/logo` | Remove it; `204` |
+| `PUT` | `S/cover` | Set or replace the photo at the top of the page; returns the site |
+| `DELETE` | `S/cover` | Remove it; `204` |
+| `POST` | `S/photos` | `201`, a photo added to the gallery (`file` and `alt`, multipart); eight at most (`409 site_photo_limit`) |
+| `PATCH` | `S/photos/{photo_id}` | Change its `alt` |
+| `DELETE` | `S/photos/{photo_id}` | Remove it; `204` |
+| `PUT` | `S/photos/order` | `{photo_ids}`: every photo once, in the new order (`422 image_order_invalid` otherwise) |
 | `GET` | `S/calendar-settings` | What the calendar shows besides menus: public holidays, school holidays and their zone |
 | `PATCH` | `S/calendar-settings` | Change them; `admin` role |
 
-Every value has its rule, refused with `422` otherwise: a name of 1 to 50 characters without
-a web or email address, service days from `0` (Monday) to `6`, hours as `HH:MM` with the close
-after the open, payment methods among `izly`, `cb`, `cash` and `ticket_restaurant`, vote
-categories of the site, known labels. `service_hours` replaces every day's hours.
+Every value has its rule, refused with `422` otherwise:
+- **Site:** a name of 1 to 50 characters without a web or email address, a postcode of five
+  digits.
+- **Hours:** service days from `0` (Monday) to `6`, hours as `HH:MM` with the close after the
+  open. `service_hours` replaces every day's hours.
+- **Closed lists:** payment methods among `izly`, `cb`, `cash` and `ticket_restaurant`;
+  services among `wifi`, `microwave`, `takeaway`, `terrace`, `power_outlets`,
+  `water_fountain` and `study_area`, read back in that order.
+- **Votes and labels:** vote categories of the site, known labels.
+- **Texts:** plain text, never markup. `tagline` holds one line of 160 characters at most,
+  `description` paragraphs of 800, `access_info` paragraphs of 300. Spaces are tidied and an
+  empty text reads as `null`.
+- **Links:** six at most, `[{kind, url, label}]`, replacing the site's.
+  - The `url` is `https`, without credentials.
+  - A `website` takes any host and needs a `label`.
+  - The other kinds (`izly`, `instagram`, `facebook`, `linkedin`, `x`, `tiktok`, `youtube`)
+    lead to their own domain, carry no label, and appear once at most.
+- **Menu window:** `menu_days_ahead` from 0 to 28, `menu_days_back` from 0 to 90.
+
+An image is decoded and stored again, without its metadata: JPEG, PNG, WebP or HEIC, 5 MB
+at most. It is brought down to 512 pixels on its longer side for a logo (which keeps its
+transparency), 2400 for the cover and 2000 for a photo, and keeps its first frame only. A
+photo's `alt` describes it for screen readers, 150 characters at most, and cannot be empty.
 
 ---
 

@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A TOTP code serves once**, and an account takes ten wrong codes an hour at most, wherever they come from.
 - **No TOTP secret is stored before its first code**; a migration clears those never confirmed.
 - **A refused passkey answers a fixed sentence**: the WebAuthn library's reason no longer reaches the caller.
+- **A site's logo is uploaded:** never an outside address.
 
 ### Added
 
@@ -42,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A site's settings, categories, events and closures under `/v1/orgs/{org}/sites/{site}`**, drafts included for its editors.
 - **Accounts, invitations, audit log and analytics under the site or the organization**, which also serves its pooled dishes.
 - **`/unsubscribe/<token>`**, the page the weekly email links to.
+- **A site's public page in the API**: tagline, presentation, logo, cover, gallery, access, services and links.
 
 ### Changed
 
@@ -55,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The generated client types make a field with a default optional** in a request body.
 - **A category comes after the others** unless told otherwise, and reordering takes one whole level at once.
 - **An event's editor always offers its images** and saves their order with the event; without storage, the upload says so.
+- **Each site sets how far its menus read ahead and back**, 7 and 30 days by default.
 - **Sign-in, activation and reset refusals carry a `code`** (`passkey_only`, `link_expired`…), listed in the specification.
 
 - **React Router 7** replaces `react-router-dom` 6; the current page stays visible while the next one loads.

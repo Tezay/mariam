@@ -62,6 +62,9 @@ class AuditLog(db.Model):
     ACTION_EVENT_IMAGE_UPLOAD = 'event_image_upload'
     ACTION_EVENT_IMAGE_DELETE = 'event_image_delete'
     ACTION_CALENDAR_SETTINGS_UPDATE = 'calendar_settings_update'
+    ACTION_SITE_MEDIA_UPLOAD = 'site_media_upload'
+    ACTION_SITE_MEDIA_UPDATE = 'site_media_update'
+    ACTION_SITE_MEDIA_DELETE = 'site_media_delete'
 
     @classmethod
     def log(cls, action, user_id=None, target_type=None, target_id=None,

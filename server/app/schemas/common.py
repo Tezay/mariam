@@ -1,3 +1,7 @@
+import re
+import unicodedata
+from urllib.parse import urlsplit
+
 from flask_smorest.fields import Upload
 from marshmallow import EXCLUDE, Schema, ValidationError, fields, validate
 
@@ -91,6 +95,52 @@ class DeviceName(fields.Str):
         if not 1 <= len(name) <= self.MAX or not name.isprintable():
             raise ValidationError(f'Le nom doit faire 1 à {self.MAX} caractères.')
         return name
+
+
+class PlainText(fields.Str):
+    """Text shown as typed, never as markup: one line, or paragraphs.
+
+    An empty text reads as None, and is refused where None is.
+    """
+
+    def __init__(self, max_length: int, *, multiline: bool = False, **kwargs):
+        super().__init__(**kwargs)
+        self.max_length = max_length
+        self.multiline = multiline
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        text = unicodedata.normalize('NFC', super()._deserialize(value, attr, data, **kwargs))
+        if self.multiline:
+            lines = (' '.join(line.split()) for line in text.replace('\r\n', '\n').split('\n'))
+            text = re.sub(r'\n{3,}', '\n\n', '\n'.join(lines)).strip()
+        else:
+            text = ' '.join(text.split())
+        if not all(char == '\n' or char.isprintable() for char in text):
+            raise ValidationError('Le texte contient un caractère non autorisé.')
+        if len(text) > self.max_length:
+            raise ValidationError(f'Le texte fait {self.max_length} caractères au plus.')
+        if not text and not self.allow_none:
+            raise ValidationError('Ce texte ne peut pas être vide.')
+        return text or None
+
+
+class HttpsUrl(fields.Url):
+    """An https address with a domain name, no credentials, 500 characters at most."""
+
+    def __init__(self, **kwargs):
+        super().__init__(
+            schemes={'https'}, require_tld=True, validate=validate.Length(max=500),
+            error_messages={
+                'invalid': 'Une adresse en https://, par exemple https://www.crous.fr.'
+            },
+            **kwargs,
+        )
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        url = super()._deserialize(value, attr, data, **kwargs)
+        if urlsplit(url).username is not None:
+            raise ValidationError("Une adresse sans nom d'utilisateur ni mot de passe.")
+        return url
 
 
 class PageQuerySchema(Schema):
