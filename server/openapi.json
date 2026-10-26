@@ -4333,6 +4333,337 @@
         ]
       }
     },
+    "/v1/orgs/{org}/sites/{site}/logo": {
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Site"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/FileUpload"
+              }
+            }
+          }
+        },
+        "summary": "Set or replace the site's logo, kept within 512 pixels; one with transparency stays PNG.",
+        "tags": [
+          "sites"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ],
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Remove the site's logo.",
+        "tags": [
+          "sites"
+        ]
+      }
+    },
+    "/v1/orgs/{org}/sites/{site}/cover": {
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Site"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/FileUpload"
+              }
+            }
+          }
+        },
+        "summary": "Set or replace the photo at the top of the site's page, kept within 2400 pixels.",
+        "tags": [
+          "sites"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ],
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Remove the site's cover photo.",
+        "tags": [
+          "sites"
+        ]
+      }
+    },
+    "/v1/orgs/{org}/sites/{site}/photos": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SitePhoto"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/SitePhotoUpload"
+              }
+            }
+          }
+        },
+        "summary": "Add a photo to the site's gallery, kept within 2000 pixels; eight at most.",
+        "tags": [
+          "sites"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/photos/{photo_id}": {
+      "patch": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SitePhoto"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SitePhotoAlt"
+              }
+            }
+          }
+        },
+        "summary": "Change what a photo's text says to screen readers.",
+        "tags": [
+          "sites"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "photo_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ],
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Remove a photo from the site's gallery.",
+        "tags": [
+          "sites"
+        ]
+      }
+    },
+    "/v1/orgs/{org}/sites/{site}/photos/order": {
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SitePhotoList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhotoOrder"
+              }
+            }
+          }
+        },
+        "summary": "Put the site's gallery in a new order.",
+        "tags": [
+          "sites"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
     "/v1/orgs/{org}/sites/{site}/calendar-settings": {
       "get": {
         "responses": {
@@ -10171,6 +10502,63 @@
         ],
         "additionalProperties": false
       },
+      "SitePhoto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "alt": {
+            "type": "string",
+            "description": "For screen readers"
+          },
+          "order": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "integer",
+            "description": "For the site's editors"
+          }
+        },
+        "required": [
+          "alt",
+          "order",
+          "url"
+        ],
+        "additionalProperties": false
+      },
+      "SiteLink": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "website",
+              "izly",
+              "instagram",
+              "facebook",
+              "linkedin",
+              "x",
+              "tiktok",
+              "youtube"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "description": "A website's; None for the others",
+            "nullable": true
+          }
+        },
+        "required": [
+          "kind",
+          "label",
+          "url"
+        ],
+        "additionalProperties": false
+      },
       "ServiceHoursDay": {
         "type": "object",
         "properties": {
@@ -10216,11 +10604,38 @@
           "name": {
             "type": "string"
           },
+          "tagline": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Paragraphs, split by blank lines",
+            "nullable": true
+          },
           "logo_url": {
             "type": "string",
             "nullable": true
           },
+          "cover_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SitePhoto"
+            }
+          },
           "address_label": {
+            "type": "string",
+            "nullable": true
+          },
+          "address_city": {
+            "type": "string",
+            "nullable": true
+          },
+          "address_postcode": {
             "type": "string",
             "nullable": true
           },
@@ -10231,6 +10646,33 @@
           "address_lon": {
             "type": "number",
             "nullable": true
+          },
+          "access_info": {
+            "type": "string",
+            "description": "How to get there; paragraphs",
+            "nullable": true
+          },
+          "services": {
+            "type": "array",
+            "description": "In the order of the closed list",
+            "items": {
+              "type": "string",
+              "enum": [
+                "wifi",
+                "microwave",
+                "takeaway",
+                "terrace",
+                "power_outlets",
+                "water_fountain",
+                "study_area"
+              ]
+            }
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SiteLink"
+            }
           },
           "email": {
             "type": "string",
@@ -10313,20 +10755,69 @@
             "items": {
               "type": "integer"
             }
+          },
+          "menu_days_ahead": {
+            "type": "integer",
+            "description": "For the site's editors: how many days ahead `menu_window` reaches"
+          },
+          "menu_days_back": {
+            "type": "integer",
+            "description": "For the site's editors: how many days back `menu_window` reaches"
           }
         },
         "required": [
+          "access_info",
+          "address_city",
+          "address_postcode",
           "certifications",
+          "cover_url",
+          "description",
           "dietary_tags",
+          "links",
           "menu_window",
           "name",
+          "photos",
           "service_days",
           "service_hours",
+          "services",
           "slug",
+          "tagline",
           "vote_enabled",
           "vote_icon_preset"
         ],
         "additionalProperties": false
+      },
+      "SiteLinkInput": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "website",
+              "izly",
+              "instagram",
+              "facebook",
+              "linkedin",
+              "x",
+              "tiktok",
+              "youtube"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "format": "url",
+            "maxLength": 500
+          },
+          "label": {
+            "type": "string",
+            "description": "A website's only",
+            "nullable": true
+          }
+        },
+        "required": [
+          "kind",
+          "url"
+        ]
       },
       "ServiceHoursInput": {
         "type": "object",
@@ -10402,6 +10893,60 @@
             "description": "None when unknown",
             "nullable": true
           },
+          "tagline": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "access_info": {
+            "type": "string",
+            "nullable": true
+          },
+          "address_city": {
+            "type": "string",
+            "nullable": true
+          },
+          "address_postcode": {
+            "type": "string",
+            "pattern": "^\\d{5}$",
+            "nullable": true
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "wifi",
+                "microwave",
+                "takeaway",
+                "terrace",
+                "power_outlets",
+                "water_fountain",
+                "study_area"
+              ]
+            }
+          },
+          "links": {
+            "type": "array",
+            "maxItems": 6,
+            "description": "Replaces the site's links, in their order",
+            "items": {
+              "$ref": "#/components/schemas/SiteLinkInput"
+            }
+          },
+          "menu_days_ahead": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 28
+          },
+          "menu_days_back": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 90
+          },
           "service_days": {
             "type": "array",
             "description": "0 is Monday",
@@ -10451,6 +10996,78 @@
             }
           }
         }
+      },
+      "FileUpload": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "additionalProperties": false
+      },
+      "SitePhotoUpload": {
+        "type": "object",
+        "properties": {
+          "alt": {
+            "type": "string",
+            "description": "What it shows, for screen readers"
+          },
+          "file": {
+            "type": "string",
+            "format": "binary"
+          }
+        },
+        "required": [
+          "alt",
+          "file"
+        ]
+      },
+      "SitePhotoAlt": {
+        "type": "object",
+        "properties": {
+          "alt": {
+            "type": "string",
+            "description": "What it shows, for screen readers"
+          }
+        },
+        "required": [
+          "alt"
+        ]
+      },
+      "PhotoOrder": {
+        "type": "object",
+        "properties": {
+          "photo_ids": {
+            "type": "array",
+            "description": "Every photo, once, in the new order",
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "required": [
+          "photo_ids"
+        ]
+      },
+      "SitePhotoList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SitePhoto"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
       },
       "CalendarSettings": {
         "type": "object",
@@ -10797,19 +11414,6 @@
         "required": [
           "is_out_of_stock"
         ]
-      },
-      "FileUpload": {
-        "type": "object",
-        "properties": {
-          "file": {
-            "type": "string",
-            "format": "binary"
-          }
-        },
-        "required": [
-          "file"
-        ],
-        "additionalProperties": false
       },
       "ImageOrder": {
         "type": "object",

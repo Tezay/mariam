@@ -1,20 +1,63 @@
+from urllib.parse import urlsplit
+
 from marshmallow import EXCLUDE, Schema, ValidationError, fields, validate, validates_schema
 
-from ..data.site_profile import PAYMENT_METHODS
+from ..data.site_profile import LINK_KINDS, LINKS_MAX, PAYMENT_METHODS, SERVICES
 from ..models.menu_vote import VOTE_ICON_PRESETS
-from .common import SiteName
-from .public import PublicSiteSchema
+from ..services.menu_window import DAYS_AHEAD_MAX, DAYS_BACK_MAX
+from .common import FileUploadSchema, HttpsUrl, PlainText, SiteName
+from .public import PublicSitePhotoSchema, PublicSiteSchema
 
 DAYS = [str(day) for day in range(7)]
 HOUR = validate.Regexp(r'^([01]\d|2[0-3]):[0-5]\d$', error='Une heure au format HH:MM.')
 ZONES = ['A', 'B', 'C']
 
 
+EDITORS = "For the site's editors"
+
+
+class SitePhotoSchema(PublicSitePhotoSchema):
+    id = fields.Int(metadata={'description': EDITORS})
+
+
+class SitePhotoListSchema(Schema):
+    items = fields.List(fields.Nested(SitePhotoSchema), required=True)
+
+
 class SiteSchema(PublicSiteSchema):
     """A site; the fields described as for the site's editors are absent for anyone else."""
+    photos = fields.List(fields.Nested(SitePhotoSchema), required=True)
     vote_category_ids = fields.List(
-        fields.Int(), metadata={'description': "For the site's editors: the categories a vote names"}
+        fields.Int(), metadata={'description': f'{EDITORS}: the categories a vote names'}
     )
+    menu_days_ahead = fields.Int(
+        metadata={'description': f'{EDITORS}: how many days ahead `menu_window` reaches'}
+    )
+    menu_days_back = fields.Int(
+        metadata={'description': f'{EDITORS}: how many days back `menu_window` reaches'}
+    )
+
+
+class SiteLinkInputSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    kind = fields.Str(required=True, validate=validate.OneOf(LINK_KINDS))
+    url = HttpsUrl(required=True)
+    label = PlainText(40, allow_none=True, metadata={'description': "A website's only"})
+
+    @validates_schema
+    def check_kind(self, data, **kwargs):
+        hosts = LINK_KINDS[data['kind']]
+        if hosts is None:
+            if not data.get('label'):
+                raise ValidationError('Nommez ce lien, par exemple « Site du Crous ».', 'label')
+            return
+        if data.get('label'):
+            raise ValidationError('Ce type de lien porte déjà son nom.', 'label')
+        host = (urlsplit(data['url']).hostname or '').lower()
+        if not any(host == allowed or host.endswith(f'.{allowed}') for allowed in hosts):
+            raise ValidationError("Cette adresse ne correspond pas au type de lien choisi.", 'url')
 
 
 class ServiceHoursInputSchema(Schema):
@@ -45,6 +88,21 @@ class SitePatchSchema(Schema):
         fields.Str(validate=validate.OneOf(PAYMENT_METHODS)), allow_none=True
     )
     pmr_access = fields.Bool(allow_none=True, metadata={'description': "None when unknown"})
+    tagline = PlainText(160, allow_none=True)
+    description = PlainText(800, multiline=True, allow_none=True)
+    access_info = PlainText(300, multiline=True, allow_none=True)
+    address_city = PlainText(100, allow_none=True)
+    address_postcode = fields.Str(
+        allow_none=True,
+        validate=validate.Regexp(r'^\d{5}$', error='Un code postal à cinq chiffres.'),
+    )
+    services = fields.List(fields.Str(validate=validate.OneOf(SERVICES)))
+    links = fields.List(
+        fields.Nested(SiteLinkInputSchema), validate=validate.Length(max=LINKS_MAX),
+        metadata={'description': "Replaces the site's links, in their order"},
+    )
+    menu_days_ahead = fields.Int(validate=validate.Range(min=0, max=DAYS_AHEAD_MAX))
+    menu_days_back = fields.Int(validate=validate.Range(min=0, max=DAYS_BACK_MAX))
     service_days = fields.List(
         fields.Int(validate=validate.Range(min=0, max=6)), metadata={'description': "0 is Monday"}
     )
@@ -61,6 +119,34 @@ class SitePatchSchema(Schema):
     tag_ids = fields.List(fields.Str(), metadata={'description': "The dietary tags the site uses"})
     certification_ids = fields.List(
         fields.Str(), metadata={'description': "The certifications the site uses"}
+    )
+
+    @validates_schema
+    def one_link_per_kind(self, data, **kwargs):
+        kinds = [link['kind'] for link in data.get('links', []) if LINK_KINDS[link['kind']]]
+        if len(kinds) != len(set(kinds)):
+            raise ValidationError('Un seul lien de chaque type, hors site web.', 'links')
+
+
+class SitePhotoAltSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    alt = PlainText(
+        150, required=True, metadata={'description': "What it shows, for screen readers"}
+    )
+
+
+class SitePhotoUploadSchema(FileUploadSchema, SitePhotoAltSchema):
+    pass
+
+
+class PhotoOrderSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    photo_ids = fields.List(
+        fields.Int(), required=True, metadata={'description': "Every photo, once, in the new order"}
     )
 
 

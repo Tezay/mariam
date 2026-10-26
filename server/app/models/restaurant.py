@@ -1,5 +1,8 @@
+from datetime import UTC, datetime
+
 from ..data.taxonomy import DEFAULT_ENABLED_CERT_IDS, DEFAULT_ENABLED_TAG_IDS
 from ..extensions import db
+from ..services.menu_window import DAYS_AHEAD, DAYS_BACK
 from ..utils.time import utc_now_naive
 from .taxonomy import (
     Certification,
@@ -18,6 +21,9 @@ class Restaurant(db.Model):
     name = db.Column(db.String(100), nullable=False)
     code = db.Column(db.String(20), unique=True, nullable=False)
     logo_url = db.Column(db.String(500), nullable=True)
+    logo_storage_key = db.Column(db.String(500), nullable=True)
+    cover_url = db.Column(db.String(500), nullable=True)
+    cover_storage_key = db.Column(db.String(500), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=utc_now_naive)
 
@@ -35,6 +41,23 @@ class Restaurant(db.Model):
     address_label = db.Column(db.String(300), nullable=True)
     address_lat = db.Column(db.Float, nullable=True)
     address_lon = db.Column(db.Float, nullable=True)
+    address_city = db.Column(db.String(100), nullable=True)
+    address_postcode = db.Column(db.String(10), nullable=True)
+
+    tagline = db.Column(db.String(160), nullable=True)
+    description = db.Column(db.String(800), nullable=True)
+    access_info = db.Column(db.String(300), nullable=True)
+    # Among data/site_profile.SERVICES, in its order.
+    services = db.Column(db.JSON, nullable=True)
+    # [{kind, url, label}], label set for a website only.
+    links = db.Column(db.JSON, nullable=True)
+
+    menu_days_ahead = db.Column(
+        db.Integer, nullable=False, default=DAYS_AHEAD, server_default=str(DAYS_AHEAD)
+    )
+    menu_days_back = db.Column(
+        db.Integer, nullable=False, default=DAYS_BACK, server_default=str(DAYS_BACK)
+    )
 
     email = db.Column(db.String(150), nullable=True)
     phone = db.Column(db.String(30), nullable=True)
@@ -163,6 +186,20 @@ class Restaurant(db.Model):
     
     def __repr__(self):
         return f'<Restaurant {self.code}: {self.name}>'
+
+
+class RestaurantPhoto(db.Model):
+    __tablename__ = 'restaurant_photos'
+
+    id = db.Column(db.Integer, primary_key=True)
+    restaurant_id = db.Column(
+        db.Integer, db.ForeignKey('restaurants.id', ondelete='CASCADE'), nullable=False, index=True
+    )
+    storage_key = db.Column(db.String(500), nullable=False)
+    url = db.Column(db.String(500), nullable=False)
+    alt = db.Column(db.String(150), nullable=False)
+    order = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
 
 class RestaurantServiceHours(db.Model):

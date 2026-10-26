@@ -18,7 +18,7 @@ from .menu_vote import (
 from .organization import Organization
 from .passkey import Passkey
 from .push_subscription import PushSubscription
-from .restaurant import Restaurant, RestaurantServiceHours
+from .restaurant import Restaurant, RestaurantPhoto, RestaurantServiceHours
 from .restaurant_calendar import RestaurantCalendarSettings
 from .taxonomy import (
     Certification,
@@ -38,6 +38,7 @@ __all__ = [
     'Passkey',
     'Organization',
     'Restaurant',
+    'RestaurantPhoto',
     'RestaurantServiceHours',
     'RestaurantCalendarSettings',
     'MenuCategory',

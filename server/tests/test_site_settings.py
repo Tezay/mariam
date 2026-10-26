@@ -96,6 +96,97 @@ class TestPatch:
         assert db.session.get(Restaurant, rid).tags_customized is True
 
 
+WEBSITE = {'kind': 'website', 'url': 'https://www.crous-demo.fr', 'label': 'Site du Crous'}
+IZLY = {'kind': 'izly', 'url': 'https://mon-espace.izly.fr'}
+
+
+class TestPublicPage:
+    def test_the_texts_are_kept_as_typed_and_read_by_anyone(self, app, client):
+        _, path, headers = _site(app, client)
+
+        client.patch(path, headers=headers, json={
+            'tagline': '  Cuisine   préparée sur place ',
+            'description': 'Ouvert à tous.\r\n\r\n\r\n\r\nUne salle   lumineuse.  ',
+            'access_info': 'Métro 8.',
+            'address_city': 'Créteil',
+            'address_postcode': '94000',
+        })
+
+        site = client.get(path).get_json()
+        assert site['tagline'] == 'Cuisine préparée sur place'
+        assert site['description'] == 'Ouvert à tous.\n\nUne salle lumineuse.'
+        assert (site['access_info'], site['address_city'], site['address_postcode']) == (
+            'Métro 8.', 'Créteil', '94000',
+        )
+
+    def test_an_empty_text_clears_it(self, app, client):
+        rid, path, headers = _site(app, client)
+        client.patch(path, json={'tagline': 'Une accroche'}, headers=headers)
+
+        client.patch(path, json={'tagline': '   '}, headers=headers)
+
+        assert db.session.get(Restaurant, rid).tagline is None
+
+    @pytest.mark.parametrize('body, pointer', [
+        ({'tagline': 'x' * 161}, '/tagline'),
+        ({'description': 'x' * 801}, '/description'),
+        ({'access_info': 'Métro\x07 8'}, '/access_info'),
+        ({'address_postcode': '9400'}, '/address_postcode'),
+        ({'services': ['spa']}, '/services/0'),
+        ({'menu_days_ahead': 29}, '/menu_days_ahead'),
+        ({'menu_days_back': 91}, '/menu_days_back'),
+        ({'menu_days_back': -1}, '/menu_days_back'),
+        ({'links': [{**WEBSITE, 'url': 'http://www.crous-demo.fr'}]}, '/links/0/url'),
+        ({'links': [{**WEBSITE, 'url': 'https://admin:secret@www.crous-demo.fr'}]}, '/links/0/url'),
+        ({'links': [{**WEBSITE, 'label': None}]}, '/links/0/label'),
+        ({'links': [{**IZLY, 'label': 'Izly'}]}, '/links/0/label'),
+        ({'links': [{'kind': 'instagram', 'url': 'https://evil.example/instagram.com'}]},
+         '/links/0/url'),
+        ({'links': [{'kind': 'instagram', 'url': 'https://instagram.com.evil.example'}]},
+         '/links/0/url'),
+        ({'links': [{'kind': 'blog', 'url': 'https://blog.example'}]}, '/links/0/kind'),
+        ({'links': [IZLY, IZLY]}, '/links'),
+        ({'links': [WEBSITE] * 7}, '/links'),
+    ])
+    def test_a_value_out_of_its_rule_is_refused_with_a_pointer(
+        self, app, client, body, pointer
+    ):
+        rid, path, headers = _site(app, client)
+
+        res = client.patch(path, json=body, headers=headers)
+
+        assert res.status_code == 422
+        assert [issue['pointer'] for issue in res.get_json()['errors']] == [pointer]
+        site = db.session.get(Restaurant, rid)
+        assert (site.tagline, site.links, site.menu_days_ahead) == (None, None, 7)
+
+    def test_services_follow_the_list_order_once(self, app, client):
+        _, path, headers = _site(app, client)
+
+        res = client.patch(path, json={'services': ['takeaway', 'wifi', 'wifi']}, headers=headers)
+
+        assert res.get_json()['services'] == ['wifi', 'takeaway']
+
+    def test_links_keep_their_order_and_a_label_for_a_website_only(self, app, client):
+        _, path, headers = _site(app, client)
+        youtube = {'kind': 'youtube', 'url': 'https://youtu.be/abc'}
+
+        client.patch(path, json={'links': [IZLY, WEBSITE, youtube]}, headers=headers)
+
+        assert client.get(path).get_json()['links'] == [
+            {**IZLY, 'label': None}, WEBSITE, {**youtube, 'label': None},
+        ]
+
+    def test_the_window_settings_and_photo_ids_are_for_the_sites_editors(self, app, client):
+        _, path, headers = _site(app, client)
+
+        client.patch(path, json={'menu_days_ahead': 14, 'menu_days_back': 0}, headers=headers)
+
+        member = client.get(path, headers=headers).get_json()
+        assert (member['menu_days_ahead'], member['menu_days_back']) == (14, 0)
+        assert 'menu_days_ahead' not in client.get(path).get_json()
+
+
 class TestSiteName:
     def _rename(self, app, client, name):
         rid, path, headers = _site(app, client)

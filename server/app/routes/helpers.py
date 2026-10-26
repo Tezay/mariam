@@ -173,9 +173,9 @@ def audit(action: str, restaurant: Restaurant | None, **fields) -> None:
     )
 
 
-def store_image(upload, prefix: str) -> tuple[dict, str]:
+def store_image(upload, prefix: str, max_size: int | None = None) -> tuple[dict, str]:
     """Check, convert and store an uploaded image: its stored `key` and `url`, and
-    the name it was stored under.
+    the name it was stored under. `max_size` bounds its longer side, in pixels.
     """
     if not storage.is_configured:
         raise Problem(503, 'storage_unavailable', "Le stockage des images n'est pas configuré.")
@@ -187,7 +187,7 @@ def store_image(upload, prefix: str) -> tuple[dict, str]:
         raise Problem(422, 'image_invalid', 'Fichier trop volumineux (5 Mo au plus).')
     try:
         data, filename, content_type = storage.process_image(
-            data, upload.filename, upload.content_type or 'application/octet-stream'
+            data, upload.filename, upload.content_type or 'application/octet-stream', max_size
         )
     except ValueError as err:
         raise Problem(422, 'image_invalid', str(err)) from None

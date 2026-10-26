@@ -200,7 +200,7 @@ def list_menus(query, org: str, site: str):
     """
     restaurant, member = readable_site(org, site)
     today = paris_today()
-    window_start, window_end = visible_range(today)
+    window_start, window_end = visible_range(restaurant, today)
     start = query.get('start', today)
     end = query.get('end', max(window_end, start))
     menus = Menu.query.filter(Menu.restaurant_id == restaurant.id)
@@ -224,7 +224,7 @@ def get_menu(org: str, site: str, date: datetime.date):
     restaurant, member = readable_site(org, site)
     menu = Menu.query.filter_by(restaurant_id=restaurant.id, date=date).first()
     if menu is not None and not member:
-        window_start, window_end = visible_range(paris_today())
+        window_start, window_end = visible_range(restaurant, paris_today())
         if menu.status != 'published' or not window_start <= date <= window_end:
             menu = None
     if menu is None:

@@ -12,6 +12,7 @@ from flask import Response, jsonify
 from flask_smorest.utils import prepare_response
 from werkzeug.exceptions import HTTPException
 
+from . import multipart
 from .schemas.common import ProblemSchema
 
 MEDIA_TYPE = 'application/problem+json'
@@ -31,7 +32,7 @@ _FRAMEWORK = {
     500: ('internal_error', 'Erreur interne du serveur.'),
 }
 
-_BODY_LOCATIONS = {'json', 'form', 'files', 'json_or_form'}
+_BODY_LOCATIONS = {'json', 'form', 'files', 'json_or_form', multipart.LOCATION}
 
 
 class Problem(Exception):
@@ -118,6 +119,12 @@ def http_problem(error: HTTPException) -> Response:
 
 
 class Blueprint(flask_smorest.Blueprint):
+    ARGUMENTS_PARSER = multipart.Parser()
+    DEFAULT_LOCATION_CONTENT_TYPE_MAPPING = {
+        **flask_smorest.Blueprint.DEFAULT_LOCATION_CONTENT_TYPE_MAPPING,
+        multipart.LOCATION: 'multipart/form-data',
+    }
+
     def problem(self, status: int, *codes: str):
         """Documents a problem the route answers, and the codes it carries."""
         return self.alt_response(

@@ -1,7 +1,7 @@
 """What an anonymous caller may read of an organization and its sites."""
 from marshmallow import EXCLUDE, Schema, ValidationError, fields, validate, validates_schema
 
-from ..data.site_profile import PAYMENT_METHODS
+from ..data.site_profile import LINK_KINDS, PAYMENT_METHODS, SERVICES
 from ..models import RATING_MAX, RATING_MIN
 from ..models.menu_vote import VOTE_ICON_PRESETS
 from ..services.menu_window import MAX_RANGE_DAYS
@@ -38,13 +38,43 @@ class MenuWindowSchema(Schema):
     end = fields.Date(data_key='to', required=True)
 
 
+class PublicSitePhotoSchema(Schema):
+    url = fields.Str(required=True)
+    alt = fields.Str(required=True, metadata={'description': "For screen readers"})
+    order = fields.Int(required=True)
+
+
+class SiteLinkSchema(Schema):
+    kind = fields.Str(required=True, validate=validate.OneOf(LINK_KINDS))
+    url = fields.Str(required=True)
+    label = fields.Str(
+        required=True, allow_none=True, metadata={'description': "A website's; None for the others"}
+    )
+
+
 class PublicSiteSchema(Schema):
     slug = fields.Str(required=True)
     name = fields.Str(required=True)
+    tagline = fields.Str(required=True, allow_none=True)
+    description = fields.Str(
+        required=True, allow_none=True, metadata={'description': "Paragraphs, split by blank lines"}
+    )
     logo_url = fields.Str(allow_none=True)
+    cover_url = fields.Str(required=True, allow_none=True)
+    photos = fields.List(fields.Nested(PublicSitePhotoSchema), required=True)
     address_label = fields.Str(allow_none=True)
+    address_city = fields.Str(required=True, allow_none=True)
+    address_postcode = fields.Str(required=True, allow_none=True)
     address_lat = fields.Float(allow_none=True)
     address_lon = fields.Float(allow_none=True)
+    access_info = fields.Str(
+        required=True, allow_none=True, metadata={'description': "How to get there; paragraphs"}
+    )
+    services = fields.List(
+        fields.Str(validate=validate.OneOf(SERVICES)), required=True,
+        metadata={'description': "In the order of the closed list"},
+    )
+    links = fields.List(fields.Nested(SiteLinkSchema), required=True)
     email = fields.Str(allow_none=True)
     phone = fields.Str(allow_none=True)
     capacity = fields.Int(allow_none=True, metadata={'description': "Seats"})

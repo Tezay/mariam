@@ -69,6 +69,9 @@ const ACTION_LABELS: Record<string, string> = {
   dish_delete: 'Suppr. plat',
   dish_image_upload: 'Upload image plat',
   dish_image_delete: 'Suppr. image plat',
+  site_media_upload: 'Upload image page publique',
+  site_media_update: 'Modif. photo page publique',
+  site_media_delete: 'Suppr. image page publique',
 };
 
 const getActionBadgeVariant = (
