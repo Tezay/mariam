@@ -77,8 +77,8 @@ def _director(rid, org_id, email='dir@mariam.app'):
 
 
 def _org_path(client, token):
-    user = client.get('/v1/auth/me', headers=auth_headers(token)).get_json()['user']
-    return f"/v1/orgs/{user['organization_slug']}"
+    account = client.get('/v1/user', headers=auth_headers(token)).get_json()
+    return f"/v1/orgs/{account['organization']['slug']}"
 
 
 def _catalog(client, token, query=''):

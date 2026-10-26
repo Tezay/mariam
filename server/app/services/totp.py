@@ -1,6 +1,6 @@
 import base64
 import io
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import pyotp
 import qrcode
@@ -11,18 +11,23 @@ from .crypto import decrypt_secret, encrypt_secret
 
 _ENROLMENT_TTL = timedelta(minutes=10)
 _ENROLMENT_CLAIM = 'totp_enrolment'
+# One 30-second step either side absorbs a drifting phone clock.
+_STEPS = (0, -1, 1)
+CODE_LIFETIME = 30 * len(_STEPS)
 
 
 def new_secret() -> str:
     return pyotp.random_base32()
 
 
-def code_matches(secret: str | None, code: str) -> bool:
-    # TOTP turned off between the two steps of a sign-in leaves the second without a secret.
-    if not secret:
-        return False
-    # One 30-second step either side absorbs a drifting phone clock.
-    return pyotp.TOTP(secret).verify(code, valid_window=1)
+def accepted_step(secret: str, code: str) -> int | None:
+    """The time step a code was made for, or None when it matches none."""
+    generator = pyotp.TOTP(secret)
+    now = datetime.now(UTC)
+    for offset in _STEPS:
+        if pyotp.utils.strings_equal(code, generator.at(now, offset)):
+            return generator.timecode(now) + offset
+    return None
 
 
 def issue_enrolment(user_id: int, secret: str) -> str:

@@ -1,6 +1,5 @@
 from datetime import timedelta
 
-from flask import jsonify
 from flask_jwt_extended import (
     create_access_token,
     decode_token,
@@ -11,15 +10,13 @@ from flask_jwt_extended import (
 
 from ...extensions import db
 from ...models import AuditLog, User
+from ...problems import Problem
 from ...schemas.auth import (
-    AuthErrorSchema,
     SessionSchema,
     SessionTransferSchema,
     SessionTransferValidateSchema,
     TokenRefreshSchema,
-    UserSchema,
 )
-from ...schemas.common import ErrorSchema, MessageSchema
 from ...security import (
     SESSION_CLAIM,
     claim_token,
@@ -27,44 +24,43 @@ from ...security import (
     is_token_blacklisted,
     limiter,
 )
-from ..helpers import get_current_user, step_up_once_enrolled
+from ..helpers import account_view, get_current_user, step_up_once_enrolled
 from ._common import (
-    NO_SESSION,
-    NOT_CONFIRMED,
     account_disabled,
+    account_not_found,
     renewed_access_token,
     revoke_until_expiry,
     token_pair,
-    user_not_found,
 )
 from .blueprint import auth_bp
 
 TRANSFER_TTL = timedelta(minutes=5)
 _CONFIRMED_UNTIL = 'session_transfer_confirmed_until'
-REFRESH_REFUSED = 'Refresh token missing, expired or revoked.'
+
+
+def _transfer_refused() -> Problem:
+    return Problem(401, 'transfer_invalid', 'Code de transfert expiré ou invalide.')
 
 
 @auth_bp.route('/refresh', methods=['POST'])
 @limiter.limit('10 per minute')
 @jwt_required(refresh=True)
 @auth_bp.response(200, TokenRefreshSchema)
-@auth_bp.alt_response(401, schema=ErrorSchema, description=REFRESH_REFUSED)
 def refresh():
-    """Get a new access token
+    """Get a new access token.
 
     Authenticated by the refresh token. The new access token is never confirmed:
     only presenting a second factor confirms a session.
     """
-    return jsonify({'access_token': renewed_access_token()}), 200
+    return {'access_token': renewed_access_token()}
 
 
 @auth_bp.route('/logout', methods=['POST'])
 @limiter.limit('20 per minute')
 @jwt_required(refresh=True)
-@auth_bp.response(200, MessageSchema)
-@auth_bp.alt_response(401, schema=ErrorSchema, description=REFRESH_REFUSED)
+@auth_bp.response(204)
 def logout():
-    """Sign out
+    """Sign out.
 
     Authenticated by the refresh token, which is revoked with every access token issued
     from it.
@@ -78,28 +74,15 @@ def logout():
     )
     db.session.commit()
 
-    return jsonify({'message': 'Déconnecté'}), 200
-
-
-@auth_bp.route('/me', methods=['GET'])
-@jwt_required()
-@auth_bp.response(200, UserSchema)
-@auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
-def me():
-    """Get the signed-in account"""
-    user = get_current_user()
-    return jsonify({'user': user.to_dict(include_tenant=True)}), 200
-
 
 @auth_bp.route('/session-transfer/generate', methods=['POST'])
 @limiter.limit('10 per minute')
 @jwt_required()
 @step_up_once_enrolled
 @auth_bp.response(200, SessionTransferSchema)
-@auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
-@auth_bp.alt_response(403, schema=AuthErrorSchema, description=NOT_CONFIRMED)
+@auth_bp.problem(403, 'step_up_required')
 def session_transfer_generate():
-    """Hand the session over to another device
+    """Hand the session over to another device.
 
     Asks an account that has a second factor for a confirmed session. Returns a
     single-use token, valid five minutes, that `/session-transfer/validate` exchanges
@@ -118,10 +101,7 @@ def session_transfer_generate():
         },
         expires_delta=TRANSFER_TTL,
     )
-    return jsonify({
-        'transfer_token': transfer_token,
-        'expires_in': int(TRANSFER_TTL.total_seconds()),
-    }), 200
+    return {'transfer_token': transfer_token, 'expires_in': int(TRANSFER_TTL.total_seconds())}
 
 
 @auth_bp.route('/session-transfer/validate', methods=['POST'])
@@ -129,38 +109,36 @@ def session_transfer_generate():
 @limiter.limit('10 per minute')
 @auth_bp.arguments(SessionTransferValidateSchema)
 @auth_bp.response(200, SessionSchema)
-@auth_bp.alt_response(
-    401, schema=ErrorSchema, description='Token invalid, expired or already used.'
-)
-@auth_bp.alt_response(403, schema=ErrorSchema, description='Account disabled.')
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Account deleted.')
-def session_transfer_validate(data):
-    """Open a session from a transfer token
+@auth_bp.problem(401, 'transfer_invalid', 'transfer_used')
+@auth_bp.problem(403, 'account_disabled')
+@auth_bp.problem(404, 'account_not_found')
+def session_transfer_validate(body):
+    """Open a session from a transfer token.
 
     The session inherits what is left of the confirmation of the one that handed it
     over: the receiving device has no second factor of its own to confirm with yet.
     """
     try:
-        claims = decode_token(data['transfer_token'])
+        claims = decode_token(body['transfer_token'])
     except Exception:
-        return jsonify({'error': 'Token invalide ou expiré'}), 401
+        raise _transfer_refused() from None
     if not claims.get('session_transfer'):
-        return jsonify({'error': 'Token invalide'}), 401
+        raise _transfer_refused()
 
     user = db.session.get(User, int(claims['sub']))
     if not user:
-        return user_not_found()
+        raise account_not_found()
     if not user.is_active:
-        return account_disabled()
+        raise account_disabled()
     # Decoded by hand, so the token loader never saw it: ending the account's
     # sessions, or signing out of the one that handed over, ends the hand-overs
     # in flight too.
     origin = claims.get(SESSION_CLAIM)
     if user.has_revoked(claims['iat'], None) or (origin and is_token_blacklisted(origin)):
-        return jsonify({'error': 'Token invalide ou expiré'}), 401
+        raise _transfer_refused()
 
     if not claim_token(claims['jti'], int(TRANSFER_TTL.total_seconds())):
-        return jsonify({'error': 'Ce lien a déjà été utilisé'}), 401
+        raise Problem(401, 'transfer_used', 'Ce code a déjà servi. Générez-en un autre.')
 
     AuditLog.log(
         action=AuditLog.ACTION_LOGIN,
@@ -170,7 +148,7 @@ def session_transfer_validate(data):
     )
     db.session.commit()
 
-    return jsonify({
-        'user': user.to_dict(include_tenant=True),
+    return {
+        'user': account_view(user),
         **token_pair(user, confirmed=claims.get(_CONFIRMED_UNTIL)),
-    }), 200
+    }

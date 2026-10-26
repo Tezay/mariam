@@ -18,7 +18,7 @@ import {
 } from '@/features/security/SecondFactorSetup';
 import { useAuth } from '@/contexts/AuthContext';
 import { needsSecuritySetup } from '@/hooks/useSecurityOnboarding';
-import { authApi } from '@/lib/api/auth';
+import { userApi } from '@/lib/api/user';
 import { dashboardPathForRole } from '@/lib/dashboard-routes';
 
 export default function SecurityPage() {
@@ -36,20 +36,20 @@ export default function SecurityPage() {
 
   const enrolment: SecondFactorEnrolment = {
     registerPasskey: async () => {
-      const { options, challenge_token } = await authApi.passkeyRegisterBegin();
+      const { options, challenge_token } = await userApi.passkeyOptions();
       const credential = await startRegistration({
         optionsJSON: options as unknown as PublicKeyCredentialCreationOptionsJSON,
       });
-      await authApi.passkeyRegisterComplete(challenge_token, credential);
+      await userApi.createPasskey(challenge_token, credential);
       await refreshUser();
     },
     beginTotp: async () => {
-      const { qr_code, secret, enrolment_token } = await authApi.mfaSetupBegin();
+      const { qr_code, secret, enrolment_token } = await userApi.enrolTotp();
       enrolmentToken.current = enrolment_token;
       return { qrCode: qr_code, secret };
     },
     confirmTotp: async (code) => {
-      await authApi.mfaSetupConfirm(enrolmentToken.current, code);
+      await userApi.putTotp(enrolmentToken.current, code);
       await refreshUser();
     },
   };

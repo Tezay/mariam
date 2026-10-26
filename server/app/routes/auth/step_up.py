@@ -1,21 +1,26 @@
-from flask import jsonify
 from flask_jwt_extended import jwt_required
 
 from ...extensions import db
 from ...models import Passkey
+from ...problems import Problem
 from ...schemas.auth import (
-    AuthErrorSchema,
     ConfirmedTokenSchema,
     PasskeyAssertionSchema,
     StepUpPasswordSchema,
     WebAuthnOptionsSchema,
 )
-from ...schemas.common import ErrorSchema
 from ...security import limiter
-from ...services import passkeys, totp
+from ...services import passkeys
 from ...services.passkeys import Ceremony
 from ..helpers import get_current_user
-from ._common import CONFIRMATION_WINDOW, NO_SESSION, renewed_access_token
+from ._common import (
+    CONFIRMATION_WINDOW,
+    challenge_refused,
+    code_refusal,
+    credential_unreadable,
+    passkey_refused,
+    renewed_access_token,
+)
 from .blueprint import auth_bp
 
 
@@ -24,61 +29,46 @@ from .blueprint import auth_bp
 @jwt_required()
 @auth_bp.arguments(StepUpPasswordSchema)
 @auth_bp.response(200, ConfirmedTokenSchema)
-@auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
-@auth_bp.alt_response(
-    403,
-    schema=AuthErrorSchema,
-    description='Wrong password or code. Or no TOTP on the account: `passkey_required` is '
-                'set when it has a passkey, `second_factor_required` when it has no second '
-                'factor at all.',
+@auth_bp.problem(
+    403, 'passkey_required', 'second_factor_required', 'password_invalid', 'code_invalid',
+    'code_used',
 )
-def step_up_password(data):
-    """Confirm identity with the password and the TOTP code
+@auth_bp.problem(429, 'too_many_attempts')
+def step_up_password(body):
+    """Confirm identity with the password and the TOTP code.
 
     Returns an access token that replaces the caller's and opens the routes asking
     for a confirmed session, for ten minutes. A confirmation always attests a second
-    factor: an account without TOTP confirms with its passkey through
-    `/step-up/passkey/*`, and an account with neither cannot confirm.
+    factor: an account without TOTP confirms through `/step-up/passkey/*`.
     """
     user = get_current_user()
-
     if not (user.mfa_enabled and user.mfa_secret):
         if user.passkeys.count() > 0:
-            return jsonify({
-                'error': 'Ce compte confirme son identité avec sa passkey',
-                'passkey_required': True,
-            }), 403
-        return jsonify({
-            'error': 'Configurez d’abord la double authentification',
-            'second_factor_required': True,
-        }), 403
-
-    if not user.check_password(data['password']):
-        return jsonify({'error': 'Mot de passe incorrect'}), 403
-
-    if not totp.code_matches(user.mfa_secret, data['mfa_code']):
-        return jsonify({'error': 'Code MFA invalide'}), 403
-
-    return jsonify({
-        'access_token': renewed_access_token(confirmed=CONFIRMATION_WINDOW),
-    }), 200
+            raise Problem(
+                403, 'passkey_required', 'Ce compte confirme son identité avec sa passkey.'
+            )
+        raise Problem(
+            403, 'second_factor_required', "Configurez d'abord la double authentification."
+        )
+    if not user.check_password(body['password']):
+        raise Problem(403, 'password_invalid', 'Mot de passe incorrect.')
+    if refusal := code_refusal(user.id, user.mfa_secret, body['code'], 403):
+        raise refusal
+    return {'access_token': renewed_access_token(confirmed=CONFIRMATION_WINDOW)}
 
 
 @auth_bp.route('/step-up/passkey/begin', methods=['POST'])
 @limiter.limit('5 per minute')
 @jwt_required()
 @auth_bp.response(200, WebAuthnOptionsSchema)
-@auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
-@auth_bp.alt_response(404, schema=ErrorSchema, description='No passkey on the account.')
+@auth_bp.problem(409, 'no_passkey')
 def step_up_passkey_begin():
-    """Start confirming identity with a passkey"""
+    """Start confirming identity with a passkey."""
     user = get_current_user()
-
     registered = list(user.passkeys)
     if not registered:
-        return jsonify({'error': 'Aucune passkey enregistrée'}), 404
-
-    return jsonify(passkeys.begin_authentication(user.id, registered, Ceremony.STEP_UP)), 200
+        raise Problem(409, 'no_passkey', "Ce compte n'a aucune passkey.")
+    return passkeys.begin_authentication(user.id, registered, Ceremony.STEP_UP)
 
 
 @auth_bp.route('/step-up/passkey/complete', methods=['POST'])
@@ -86,45 +76,27 @@ def step_up_passkey_begin():
 @jwt_required()
 @auth_bp.arguments(PasskeyAssertionSchema)
 @auth_bp.response(200, ConfirmedTokenSchema)
-@auth_bp.alt_response(400, schema=ErrorSchema, description='Malformed credential id.')
-@auth_bp.alt_response(401, schema=ErrorSchema, description=NO_SESSION)
-@auth_bp.alt_response(
-    403,
-    schema=ErrorSchema,
-    description='Challenge invalid, expired or issued to another account, '
-                'or a signature that fails.',
-)
-@auth_bp.alt_response(404, schema=ErrorSchema, description='Unknown passkey.')
-def step_up_passkey_complete(data):
-    """Finish confirming identity with a passkey
-
-    Returns the same confirmed access token as `/step-up/password`.
-    """
+@auth_bp.problem(403, 'challenge_invalid', 'passkey_refused')
+def step_up_passkey_complete(body):
+    """Finish confirming identity with a passkey; the same token as `/step-up/password`."""
     user = get_current_user()
-
     try:
-        token_user_id, challenge = passkeys.read_challenge(
-            data['challenge_token'], Ceremony.STEP_UP
-        )
-        raw_id = passkeys.credential_id(data['credential'])
+        owner_id, challenge = passkeys.read_challenge(body['challenge_token'], Ceremony.STEP_UP)
+        raw_id = passkeys.credential_id(body['credential'])
     except passkeys.InvalidChallenge:
-        return jsonify({'error': 'challenge_token invalide ou expiré'}), 403
+        raise challenge_refused(403) from None
     except passkeys.InvalidCredential:
-        return jsonify({'error': 'credential_id invalide'}), 400
-
-    if token_user_id != user.id:
-        return jsonify({'error': 'Token invalide'}), 403
+        raise credential_unreadable() from None
+    if owner_id != user.id:
+        raise challenge_refused(403)
 
     passkey = Passkey.query.filter_by(user_id=user.id, credential_id=raw_id).first()
-    if not passkey:
-        return jsonify({'error': 'Passkey inconnue'}), 404
-
+    if passkey is None:
+        raise passkey_refused(403)
     try:
-        passkeys.verify_assertion(passkey, data['credential'], challenge)
+        passkeys.verify_assertion(passkey, body['credential'], challenge)
     except passkeys.VerificationFailed:
-        return jsonify({'error': 'Vérification de la passkey échouée'}), 403
-    db.session.commit()
+        raise passkey_refused(403) from None
 
-    return jsonify({
-        'access_token': renewed_access_token(confirmed=CONFIRMATION_WINDOW),
-    }), 200
+    db.session.commit()
+    return {'access_token': renewed_access_token(confirmed=CONFIRMATION_WINDOW)}

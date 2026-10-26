@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
-import { isAxiosError } from 'axios';
 import { auditApi, type AuditLog, type AuditScope } from '@/lib/api/audit';
+import { getProblemCode } from '@/lib/api/errors';
 import { notify } from '@/lib/toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOptionalSiteRef } from '@/contexts/SiteContext';
@@ -124,7 +124,7 @@ export function AuditLogsPage() {
       setTotalPages(Math.max(1, Math.ceil(response.total_count / PER_PAGE)));
       setMfaRequired(false);
     } catch (error) {
-      if (isAxiosError(error) && error.response?.data?.code === 'second_factor_required') {
+      if (getProblemCode(error) === 'second_factor_required') {
         setMfaRequired(true);
       }
     } finally {

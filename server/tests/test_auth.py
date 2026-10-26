@@ -1,7 +1,7 @@
 """Sign-in, refresh, sign-out, rate limits and TOTP."""
 import pytest
 from app.extensions import db
-from conftest import make_user, make_restaurant, get_token, auth_headers, TEST_PASSWORD
+from conftest import make_user, make_restaurant, TEST_PASSWORD
 
 
 class TestLogin:
@@ -132,25 +132,3 @@ class TestRefreshAndLogout:
                           headers={'Authorization': f'Bearer {refresh_token}'})
         assert res.status_code == 200
         assert 'access_token' in res.get_json()
-
-    def test_get_me(self, app, client):
-        make_restaurant(app)
-        make_user(app)
-        token = get_token(client)
-        res = client.get('/v1/auth/me', headers=auth_headers(token))
-        assert res.status_code == 200
-        assert res.get_json()['user']['email'] == 'admin@mariam.app'
-
-    def test_the_profile_names_the_sites_address(self, app, client):
-        """A site's own team has no organization, yet the dashboard writes it in its paths."""
-        make_restaurant(app)
-        make_user(app)
-
-        user = client.get('/v1/auth/me', headers=auth_headers(get_token(client))).get_json()['user']
-
-        assert user['organization_id'] is None
-        assert (user['organization_slug'], user['restaurant_slug']) == ('test-org', 'ru-test')
-
-    def test_protected_route_without_token(self, client):
-        res = client.get('/v1/auth/me')
-        assert res.status_code == 401

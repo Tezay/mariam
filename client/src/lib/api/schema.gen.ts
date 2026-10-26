@@ -14,7 +14,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Check an invitation link before the activation form
+         * Check an invitation link before the activation form.
          * @description `email` is the address the inviter suggested, if any: the form pre-fills it and the
          *     invitee may change it.
          */
@@ -38,22 +38,22 @@ export interface paths {
                         "application/json": components["schemas"]["ActivationLink"];
                     };
                 };
-                /** @description Link expired, revoked or already used. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["InvalidLink"];
-                    };
-                };
-                /** @description Unknown link. */
+                /** @description `link_unknown` */
                 404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["InvalidLink"];
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `link_expired` */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 default: components["responses"]["DEFAULT_ERROR"];
@@ -77,11 +77,11 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Create an account from an invitation link
+         * Create an account from an invitation link.
          * @description The invitee chooses the address and the display name; the role and the tenant come
          *     from the link. The account starts without a second factor. `mfa_setup` carries what
-         *     the next step needs, both valid fifteen minutes: a TOTP secret and its QR code for
-         *     `/mfa/verify-setup`, and a setup token that `/passkey/setup/*` accepts as well.
+         *     the next step needs, valid fifteen minutes: a TOTP secret and its QR code for
+         *     `/mfa/verify-setup`, and a setup token that `/passkey/setup/begin` accepts as well.
          */
         post: {
             parameters: {
@@ -105,31 +105,31 @@ export interface paths {
                         "application/json": components["schemas"]["Activation"];
                     };
                 };
-                /** @description Link expired, revoked or used, or password too weak. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Unknown link. */
+                /** @description `link_unknown` */
                 404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description Email already in use. */
+                /** @description `email_taken` */
                 409: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `link_expired` */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
@@ -151,10 +151,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Enable TOTP at activation, and sign in
-         * @description A first code confirms the secret returned by `/activate`.
-         */
+        /** Enable TOTP at activation with a first code of the secret, and sign in. */
         post: {
             parameters: {
                 query?: never;
@@ -164,7 +161,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["MFAVerifySetup"];
+                    "application/json": components["schemas"]["ActivationCode"];
                 };
             };
             responses: {
@@ -177,34 +174,52 @@ export interface paths {
                         "application/json": components["schemas"]["Session"];
                     };
                 };
-                /** @description The account already has a second factor. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Wrong code. Setup token invalid, expired, or issued to another account. */
+                /** @description `setup_token_invalid`, `code_invalid`, `code_used` */
                 401: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description Unknown account. */
+                /** @description `account_disabled` */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `account_not_found` */
                 404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `second_factor_present` */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                /** @description `too_many_attempts` */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
                 default: components["responses"]["DEFAULT_ERROR"];
             };
         };
@@ -223,7 +238,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start registering a passkey at activation */
+        /** Start registering a passkey at activation, in place of TOTP. */
         post: {
             parameters: {
                 query?: never;
@@ -233,7 +248,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["PasskeySetupBegin"];
+                    "application/json": components["schemas"]["SetupToken"];
                 };
             };
             responses: {
@@ -246,31 +261,40 @@ export interface paths {
                         "application/json": components["schemas"]["WebAuthnOptions"];
                     };
                 };
-                /** @description The account already has a second factor. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Setup token invalid, expired, or issued to another account. */
+                /** @description `setup_token_invalid` */
                 401: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description Unknown account. */
+                /** @description `account_disabled` */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `account_not_found` */
                 404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `second_factor_present` */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
@@ -292,7 +316,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Register the activation passkey, and sign in */
+        /** Register the activation passkey, and sign in; the challenge names the account. */
         post: {
             parameters: {
                 query?: never;
@@ -302,7 +326,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["PasskeySetupComplete"];
+                    "application/json": components["schemas"]["PasskeyRegistration"];
                 };
             };
             responses: {
@@ -315,40 +339,40 @@ export interface paths {
                         "application/json": components["schemas"]["Session"];
                     };
                 };
-                /** @description The account already has a second factor. Or a credential that fails. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Challenge invalid, expired, or issued to another account. */
+                /** @description `challenge_invalid`, `passkey_refused` */
                 401: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description Account disabled. */
+                /** @description `account_disabled` */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description Unknown account. */
+                /** @description `account_not_found` */
                 404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `second_factor_present` */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
@@ -371,10 +395,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Sign in with email and password
-         * @description Opens the session when the account has no second factor. With TOTP enabled, returns
-         *     an `mfa_token` instead, to finish with `/mfa/verify`. An account protected by a
-         *     passkey only is refused with `passkey_only` set: it signs in with `/passkey/login/*`.
+         * Sign in with email and password.
+         * @description Opens the session when the account has no second factor. With TOTP enabled,
+         *     returns an `mfa_token` instead, to finish with `/mfa/verify`. An account
+         *     protected by a passkey only signs in with `/passkey/login/*`.
          */
         post: {
             parameters: {
@@ -398,22 +422,22 @@ export interface paths {
                         "application/json": components["schemas"]["LoginResponse"];
                     };
                 };
-                /** @description Wrong email or password. */
+                /** @description `credentials_invalid` */
                 401: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description Account disabled, or protected by a passkey only. */
+                /** @description `account_disabled`, `passkey_only` */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AuthError"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
@@ -436,7 +460,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Finish a sign-in with the authenticator-app code
+         * Finish a sign-in with the authenticator-app code.
          * @description The `mfa_token` from `/login` works once, within ten minutes.
          */
         post: {
@@ -461,34 +485,43 @@ export interface paths {
                         "application/json": components["schemas"]["Session"];
                     };
                 };
-                /** @description Wrong code, or an MFA token invalid, expired or spent. */
+                /** @description `mfa_token_invalid`, `code_invalid`, `code_used` */
                 401: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description Account disabled since the password step. */
+                /** @description `account_disabled` */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description Account deleted since the password step. */
+                /** @description `account_not_found` */
                 404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                /** @description `too_many_attempts` */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
                 default: components["responses"]["DEFAULT_ERROR"];
             };
         };
@@ -508,7 +541,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Start a passwordless sign-in
+         * Start a passwordless sign-in.
          * @description The options allow any passkey registered for this site: the one the user picks
          *     identifies the account.
          */
@@ -548,7 +581,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Finish a passwordless sign-in */
+        /** Finish a passwordless sign-in. */
         post: {
             parameters: {
                 query?: never;
@@ -571,571 +604,22 @@ export interface paths {
                         "application/json": components["schemas"]["Session"];
                     };
                 };
-                /** @description Malformed credential id. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Challenge invalid or expired, or a signature that fails. */
+                /** @description `challenge_invalid`, `passkey_unknown`, `passkey_refused` */
                 401: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description Unknown passkey, or a disabled account. */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/passkey/register/begin": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start adding a passkey
-         * @description Asks an account that already has a second factor for a confirmed session; an
-         *     account with none enrols its first freely. The options leave out the passkeys
-         *     already registered, and ask for one that serves passwordless sign-in.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["WebAuthnOptions"];
-                    };
-                };
-                /** @description No valid session. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Session not confirmed: `step_up_required` is set. */
+                /** @description `account_disabled` */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AuthError"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/passkey/register/complete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Finish adding a passkey
-         * @description Guarded like `/passkey/register/begin`.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["PasskeyRegistration"];
-                };
-            };
-            responses: {
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PasskeyCreated"];
-                    };
-                };
-                /** @description A credential that fails verification. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description No valid session. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Challenge invalid, expired, or issued to another account. Or: Session not confirmed: `step_up_required` is set. */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AuthError"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/passkey": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List the account's passkeys */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PasskeyList"];
-                    };
-                };
-                /** @description No valid session. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/passkey/{passkey_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                passkey_id: number;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Remove a passkey, from a confirmed session
-         * @description Refused for the last one while TOTP is off.
-         */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    passkey_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description No valid session. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Session not confirmed: `step_up_required` is set. */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AuthError"];
-                    };
-                };
-                /** @description Unknown passkey, or not the account’s. */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description The last passkey, while TOTP is off. */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        options?: never;
-        head?: never;
-        /** Rename a passkey */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    passkey_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["PasskeyRename"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PasskeyRenamed"];
-                    };
-                };
-                /** @description Blank name, or over 100 characters. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description No valid session. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Unknown passkey, or not the account’s. */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        trace?: never;
-    };
-    "/v1/auth/change-password": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Change the password, confirmed by the current one and TOTP
-         * @description The code is checked when the account has TOTP enabled. An account protected by a
-         *     passkey only goes through `/passkey/change-password/*` instead. Ends every session,
-         *     this one included.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ChangePassword"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description Password too weak. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description No valid session. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Wrong current password or code. Or a passkey and no TOTP on the account: `passkey_required` is set. */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AuthError"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/passkey/change-password/begin": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start a password change confirmed by passkey
-         * @description Checks the current password, then challenges the account's passkeys.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["PasswordCheck"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["WebAuthnOptions"];
-                    };
-                };
-                /** @description No valid session. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Wrong current password. */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description No passkey on the account. */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/passkey/change-password/complete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Finish a password change confirmed by passkey
-         * @description Ends every session, this one included.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["PasskeyPasswordChange"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description Malformed credential id, or a password too weak. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description No valid session. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Challenge invalid, expired or issued to another account, or a signature that fails. */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Unknown passkey. */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
@@ -1157,10 +641,7 @@ export interface paths {
             };
             cookie?: never;
         };
-        /**
-         * Check a password-reset link
-         * @description Tells which second factor the reset will ask for.
-         */
+        /** Check a password-reset link, and tell which second factor the reset asks for. */
         get: {
             parameters: {
                 query?: never;
@@ -1181,22 +662,22 @@ export interface paths {
                         "application/json": components["schemas"]["ResetLink"];
                     };
                 };
-                /** @description Link expired or already used. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["InvalidLink"];
-                    };
-                };
-                /** @description Unknown link. */
+                /** @description `link_unknown` */
                 404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["InvalidLink"];
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `link_expired` */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 default: components["responses"]["DEFAULT_ERROR"];
@@ -1220,8 +701,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Reset a password with a reset link and a TOTP code
-         * @description Consumes the link and ends every session.
+         * Reset a password with a reset link and a TOTP code.
+         * @description Consumes the link and ends every session. An account without TOTP resets with
+         *     its passkey, through `/passkey/reset-password/*`.
          */
         post: {
             parameters: {
@@ -1236,52 +718,68 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description OK */
-                200: {
+                /** @description No Content */
+                204: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
+                    content?: never;
                 };
-                /** @description Link expired or used, password too weak, or no TOTP on the account: `passkey_required` is then set when it has passkeys. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AuthError"];
-                    };
-                };
-                /** @description Wrong code. */
+                /** @description `code_invalid`, `code_used` */
                 401: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description Account disabled. */
+                /** @description `account_disabled` */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description Unknown link or account. */
+                /** @description `link_unknown`, `account_not_found` */
                 404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `passkey_required`, `second_factor_required` */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `link_expired` */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                /** @description `too_many_attempts` */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
                 default: components["responses"]["DEFAULT_ERROR"];
             };
         };
@@ -1300,7 +798,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start a password reset confirmed by passkey */
+        /** Start a password reset confirmed by passkey. */
         post: {
             parameters: {
                 query?: never;
@@ -1323,31 +821,40 @@ export interface paths {
                         "application/json": components["schemas"]["WebAuthnOptions"];
                     };
                 };
-                /** @description Link expired or used, or no passkey on the account. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Account disabled. */
+                /** @description `account_disabled` */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description Unknown link or account. */
+                /** @description `link_unknown`, `account_not_found` */
                 404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `no_passkey` */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `link_expired` */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
@@ -1369,10 +876,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Finish a password reset confirmed by passkey
-         * @description Consumes the link and ends every session.
-         */
+        /** Finish a password reset confirmed by passkey; consumes the link and ends every session. */
         post: {
             parameters: {
                 query?: never;
@@ -1386,49 +890,47 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description OK */
-                200: {
+                /** @description No Content */
+                204: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
+                    content?: never;
                 };
-                /** @description Link expired or used, malformed credential id, or a password too weak. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Challenge invalid or expired, a link for another account, or a signature that fails. */
+                /** @description `challenge_invalid`, `passkey_refused` */
                 401: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description Account disabled. */
+                /** @description `account_disabled` */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description Unknown link, account or passkey. */
+                /** @description `link_unknown`, `account_not_found` */
                 404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `link_expired` */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
@@ -1441,119 +943,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/auth/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get the signed-in account */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["User"];
-                    };
-                };
-                /** @description No valid session. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Change the display name or the sign-in address, from a confirmed session
-         * @description A new address ends every other session and returns the tokens of the one that
-         *     replaces the caller's, which is not confirmed; the previous address is told by
-         *     email. An account changes address twice a day at most.
-         */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ProfileUpdate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ProfileUpdated"];
-                    };
-                };
-                /** @description No valid session. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Session not confirmed, with `step_up_required` set; or the rescue account changing its address. */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AuthError"];
-                    };
-                };
-                /** @description Address already in use. */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                /** @description Address already changed twice within a day. */
-                429: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        trace?: never;
-    };
     "/v1/auth/refresh": {
         parameters: {
             query?: never;
@@ -1564,7 +953,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Get a new access token
+         * Get a new access token.
          * @description Authenticated by the refresh token. The new access token is never confirmed:
          *     only presenting a second factor confirms a session.
          */
@@ -1586,15 +975,6 @@ export interface paths {
                         "application/json": components["schemas"]["TokenRefresh"];
                     };
                 };
-                /** @description Refresh token missing, expired or revoked. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
                 default: components["responses"]["DEFAULT_ERROR"];
             };
         };
@@ -1614,7 +994,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Sign out
+         * Sign out.
          * @description Authenticated by the refresh token, which is revoked with every access token issued
          *     from it.
          */
@@ -1627,23 +1007,12 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description OK */
-                200: {
+                /** @description No Content */
+                204: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content: {
-                        "application/json": components["schemas"]["Message"];
-                    };
-                };
-                /** @description Refresh token missing, expired or revoked. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
+                    content?: never;
                 };
                 default: components["responses"]["DEFAULT_ERROR"];
             };
@@ -1664,7 +1033,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Hand the session over to another device
+         * Hand the session over to another device.
          * @description Asks an account that has a second factor for a confirmed session. Returns a
          *     single-use token, valid five minutes, that `/session-transfer/validate` exchanges
          *     for a session on the other device, confirmed until the same time as this one.
@@ -1688,22 +1057,13 @@ export interface paths {
                         "application/json": components["schemas"]["SessionTransfer"];
                     };
                 };
-                /** @description No valid session. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Session not confirmed: `step_up_required` is set. */
+                /** @description `step_up_required` */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AuthError"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 default: components["responses"]["DEFAULT_ERROR"];
@@ -1725,7 +1085,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Open a session from a transfer token
+         * Open a session from a transfer token.
          * @description The session inherits what is left of the confirmation of the one that handed it
          *     over: the receiving device has no second factor of its own to confirm with yet.
          */
@@ -1751,31 +1111,31 @@ export interface paths {
                         "application/json": components["schemas"]["Session"];
                     };
                 };
-                /** @description Token invalid, expired or already used. */
+                /** @description `transfer_invalid`, `transfer_used` */
                 401: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description Account disabled. */
+                /** @description `account_disabled` */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description Account deleted. */
+                /** @description `account_not_found` */
                 404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
@@ -1798,11 +1158,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Confirm identity with the password and the TOTP code
+         * Confirm identity with the password and the TOTP code.
          * @description Returns an access token that replaces the caller's and opens the routes asking
          *     for a confirmed session, for ten minutes. A confirmation always attests a second
-         *     factor: an account without TOTP confirms with its passkey through
-         *     `/step-up/passkey/*`, and an account with neither cannot confirm.
+         *     factor: an account without TOTP confirms through `/step-up/passkey/*`.
          */
         post: {
             parameters: {
@@ -1826,25 +1185,25 @@ export interface paths {
                         "application/json": components["schemas"]["ConfirmedToken"];
                     };
                 };
-                /** @description No valid session. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Wrong password or code. Or no TOTP on the account: `passkey_required` is set when it has a passkey, `second_factor_required` when it has no second factor at all. */
+                /** @description `passkey_required`, `second_factor_required`, `password_invalid`, `code_invalid`, `code_used` */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AuthError"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                /** @description `too_many_attempts` */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
                 default: components["responses"]["DEFAULT_ERROR"];
             };
         };
@@ -1863,7 +1222,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start confirming identity with a passkey */
+        /** Start confirming identity with a passkey. */
         post: {
             parameters: {
                 query?: never;
@@ -1882,22 +1241,13 @@ export interface paths {
                         "application/json": components["schemas"]["WebAuthnOptions"];
                     };
                 };
-                /** @description No valid session. */
-                401: {
+                /** @description `no_passkey` */
+                409: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description No passkey on the account. */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 default: components["responses"]["DEFAULT_ERROR"];
@@ -1918,10 +1268,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Finish confirming identity with a passkey
-         * @description Returns the same confirmed access token as `/step-up/password`.
-         */
+        /** Finish confirming identity with a passkey; the same token as `/step-up/password`. */
         post: {
             parameters: {
                 query?: never;
@@ -1944,40 +1291,13 @@ export interface paths {
                         "application/json": components["schemas"]["ConfirmedToken"];
                     };
                 };
-                /** @description Malformed credential id. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description No valid session. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Challenge invalid, expired or issued to another account, or a signature that fails. */
+                /** @description `challenge_invalid`, `passkey_refused` */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Unknown passkey. */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
@@ -1985,215 +1305,6 @@ export interface paths {
             };
         };
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/mfa/setup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start enabling TOTP, or moving it to another device
-         * @description Asks an account that already has a second factor for a confirmed session. Nothing
-         *     is stored yet: the secret travels in `enrolment_token` until `/mfa/setup/confirm`
-         *     checks a first code, and the TOTP in use keeps working until then.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["TotpSetup"];
-                    };
-                };
-                /** @description No valid session. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Session not confirmed: `step_up_required` is set. */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AuthError"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/mfa/setup/confirm": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Store the secret of an enrolment once its first code is checked
-         * @description Guarded like `/mfa/setup`. Enables TOTP, or replaces the secret of an account that
-         *     already had it. A wrong code can be tried again with the same `enrolment_token`.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["TotpEnrolmentConfirm"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AccountUpdate"];
-                    };
-                };
-                /** @description Enrolment token invalid, expired or another account’s. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description No valid session. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Wrong code. Or: Session not confirmed: `step_up_required` is set. */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AuthError"];
-                    };
-                };
-                422: components["responses"]["UNPROCESSABLE_ENTITY"];
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/mfa": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Disable TOTP, from a confirmed session
-         * @description Refused unless the account keeps a passkey as its second factor.
-         */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AccountUpdate"];
-                    };
-                };
-                /** @description TOTP not enabled. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description No valid session. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Session not confirmed: `step_up_required` is set. */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AuthError"];
-                    };
-                };
-                /** @description No passkey would remain. */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                default: components["responses"]["DEFAULT_ERROR"];
-            };
-        };
         options?: never;
         head?: never;
         patch?: never;
@@ -2333,14 +1444,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/users/me/ui-preferences": {
+    "/v1/user": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Return the interface state of the current user. */
+        /** The signed-in account. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Account"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change the display name or the sign-in address, from a confirmed session.
+         * @description A new address ends every other session and comes back with the tokens of the
+         *     one that replaces the caller's, which is not confirmed; the previous address is
+         *     told by email. An account changes address twice a day at most.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ProfilePatch"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Profile"];
+                    };
+                };
+                /** @description `step_up_required`, `rescue_account` */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `email_taken` */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                /** @description `email_change_limit` */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        trace?: never;
+    };
+    "/v1/user/ui-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What the interface remembers for the account: the guided tours already seen. */
         get: {
             parameters: {
                 query?: never;
@@ -2359,20 +1565,52 @@ export interface paths {
                         "application/json": components["schemas"]["UiPreferences"];
                     };
                 };
-                /** @description Not authenticated */
-                401: {
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change some of them; the others keep their value. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UiPreferences"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["UiPreferences"];
                     };
                 };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
                 default: components["responses"]["DEFAULT_ERROR"];
             };
         };
-        /** Update the interface state of the current user. */
-        put: {
+        trace?: never;
+    };
+    "/v1/user/notification-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Which alerts the account sees, and when its weekly email lands. */
+        get: {
             parameters: {
                 query?: never;
                 header?: never;
@@ -2387,29 +1625,47 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["UiPreferences"];
-                    };
-                };
-                /** @description Not authenticated */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["NotificationPreferences"];
                     };
                 };
                 default: components["responses"]["DEFAULT_ERROR"];
             };
         };
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Change some of them; the others keep their value. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["NotificationPreferences"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationPreferences"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
         trace?: never;
     };
-    "/v1/inbox/live-alerts": {
+    "/v1/user/alerts": {
         parameters: {
             query?: never;
             header?: never;
@@ -2417,9 +1673,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get the caller's active alerts
-         * @description On the sites the caller may read: its own for a site account, every site of
-         *     its organization for a supervisor. Each rule reaches the accounts it is for.
+         * The account's active alerts, computed now.
+         * @description On the sites the account may read: its own for a site's team, every site of
+         *     the organization for a supervisor. Each rule reaches the accounts it is for.
          */
         get: {
             parameters: {
@@ -2436,16 +1692,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["LiveAlertList"];
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["AlertList"];
                     };
                 };
                 default: components["responses"]["DEFAULT_ERROR"];
@@ -2459,14 +1706,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/inbox/notification-preferences": {
+    "/v1/user/passkeys": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get the caller's alert and email preferences */
+        /** The account's passkeys. */
         get: {
             parameters: {
                 query?: never;
@@ -2482,24 +1729,284 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["InboxPreferences"];
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["PasskeyList"];
                     };
                 };
                 default: components["responses"]["DEFAULT_ERROR"];
             };
         };
+        put?: never;
+        /** Register the passkey the browser created from the options; guarded like them. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PasskeyRegistration"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Passkey"];
+                    };
+                };
+                /** @description `step_up_required`, `challenge_invalid`, `passkey_refused` */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/user/passkeys/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
         /**
-         * Change the caller's alert and email preferences
-         * @description Takes the keys to change; the others keep their value.
+         * Options to create a passkey with, and the challenge to send back.
+         * @description From a confirmed session once the account has a second factor; its first is
+         *     enrolled freely. The options leave out the passkeys already registered, and ask
+         *     for one that serves passwordless sign-in.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WebAuthnOptions"];
+                    };
+                };
+                /** @description `step_up_required` */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/user/passkeys/{passkey_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                passkey_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a passkey, from a confirmed session; never the last while TOTP is off. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    passkey_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description `step_up_required` */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `passkey_not_found` */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `last_second_factor` */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Rename a passkey. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    passkey_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PasskeyPatch"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Passkey"];
+                    };
+                };
+                /** @description `passkey_not_found` */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        trace?: never;
+    };
+    "/v1/user/password/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check the current password, then challenge the account's passkeys.
+         * @description For an account that changes its password with a passkey rather than a code.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PasswordOptions"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WebAuthnOptions"];
+                    };
+                };
+                /** @description `password_invalid` */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `no_passkey` */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/user/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Change the password, and end every session, this one included.
+         * @description With the current password and a TOTP code, or, for an account protected by a
+         *     passkey only, with the passkey challenged by `POST /v1/user/password/options`.
          */
         put: {
             parameters: {
@@ -2510,7 +2017,120 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["InboxPreferences"];
+                    "application/json": components["schemas"]["PasswordChange"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description `passkey_required`, `password_invalid`, `code_invalid`, `code_used`, `challenge_invalid`, `passkey_refused` */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                /** @description `too_many_attempts` */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/user/totp/enrolment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A new secret to scan, for enabling TOTP or moving it to another device.
+         * @description From a confirmed session once the account has a second factor. Nothing is
+         *     stored: the secret travels in `enrolment_token` until `PUT /v1/user/totp`
+         *     checks a first code, and the TOTP in use keeps working until then.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TotpEnrolment"];
+                    };
+                };
+                /** @description `step_up_required` */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/user/totp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Store the secret of an enrolment once its first code is checked.
+         * @description Guarded like the enrolment. Enables TOTP, or replaces the secret in use; a
+         *     wrong code can be tried again with the same `enrolment_token`.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TotpInput"];
                 };
             };
             responses: {
@@ -2520,24 +2140,79 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["InboxPreferences"];
+                        "application/json": components["schemas"]["Account"];
                     };
                 };
-                /** @description Unauthorized */
-                401: {
+                /** @description `step_up_required`, `code_invalid`, `code_used` */
+                403: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `enrolment_expired` */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                /** @description `too_many_attempts` */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
                 default: components["responses"]["DEFAULT_ERROR"];
             };
         };
         post?: never;
-        delete?: never;
+        /** Turn TOTP off, from a confirmed session; never while it is the only factor. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description `step_up_required` */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `totp_not_enabled`, `last_second_factor` */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -6846,270 +6521,166 @@ export interface components {
             previous_page?: number;
             next_page?: number;
         };
-        InvalidLink: {
-            valid: boolean;
-            error: string;
+        NamedRef: {
+            slug: string;
+            name: string;
         };
         ActivationLink: {
-            valid: boolean;
-            link_type: string;
+            /** @enum {string} */
+            link_type: "invite" | "first_admin";
             /**
              * Format: email
-             * @description Suggested by the inviter, if any.
+             * @description Suggested by the inviter, if any
              */
-            email?: string | null;
-            /** @enum {string|null} */
-            role?: "org_admin" | "admin" | "editor" | "reader" | null;
-            restaurant_name?: string | null;
-            organization_name?: string | null;
+            email: string | null;
+            /** @enum {string} */
+            role: "org_admin" | "admin" | "editor" | "reader";
+            /** @description The site the account will belong to, if any */
+            site: components["schemas"]["NamedRef"] | (Record<string, never> | null);
+            organization: (Record<string, never> | null) | components["schemas"]["NamedRef"];
         };
         ActivateAccount: {
-            /** @description Token from the invitation link. */
+            /** @description From the invitation link */
             token: string;
             password: string;
             /**
              * Format: email
-             * @description Chosen by the invitee; the invitation only suggests one.
+             * @description Chosen by the invitee; the invitation only suggests one
              */
             email: string;
-            /** @description Display name: 2 to 50 letters, spaces, hyphens, apostrophes. */
+            /** @description Display name: 2 to 50 letters, spaces, hyphens, apostrophes */
             username: string;
-        };
-        Error: {
-            /** @description Error message */
-            error?: string;
-            /** @description Detailed error description */
-            message?: string;
         };
         Account: {
             id: number;
             /** Format: email */
             email: string;
-            username?: string | null;
+            /** @description Display name */
+            username: string | null;
             /** @enum {string} */
             role: "org_admin" | "admin" | "editor" | "reader";
-            mfa_enabled: boolean;
             is_active: boolean;
-            restaurant_id?: number | null;
-            organization_id?: number | null;
-            restaurant_name?: string | null;
-            restaurant_slug?: string | null;
-            organization_name?: string | null;
-            /** @description The site's, for a site's own team */
-            organization_slug?: string | null;
+            /** @description An authenticator app is set up */
+            mfa_enabled: boolean;
             passkeys_count: number;
-            /** @description Its address cannot be changed. */
-            is_rescue_account?: boolean | null;
+            is_rescue_account: boolean;
+            /** @description None for a supervisor */
+            site: components["schemas"]["NamedRef"] | (Record<string, never> | null);
             /** Format: date-time */
-            created_at?: string | null;
+            created_at: string | null;
             /** Format: date-time */
-            last_login?: string | null;
+            last_login: string | null;
+            /** @description A site's team reads its site's */
+            organization: components["schemas"]["NamedRef"] | (Record<string, never> | null);
         };
         ActivationSetup: {
-            /** @description PNG data URI. */
+            /** @description PNG data URI */
             qr_code: string;
-            /** @description For typing into the app instead of scanning. */
+            /** @description For typing into the app instead of scanning */
             secret: string;
-            user_id: number;
-            /** @description Authorises TOTP or passkey setup for 15 minutes. */
+            /** @description Sets up TOTP or a passkey within 15 minutes; it carries the secret */
             setup_token: string;
         };
         Activation: {
-            message: string;
             user: components["schemas"]["Account"];
             mfa_setup: components["schemas"]["ActivationSetup"];
         };
-        MFAVerifySetup: {
-            user_id: number;
-            /** @description Current authenticator-app code. */
-            code: string;
-            /** @description Token returned by account activation. */
+        ActivationCode: {
+            /** @description Returned by `/activate` */
             setup_token: string;
+            /** @description First code of the scanned secret */
+            code: string;
         };
         Session: {
-            message?: string;
             user: components["schemas"]["Account"];
             access_token: string;
             refresh_token: string;
         };
-        PasskeySetupBegin: {
-            user_id: number;
-            /** @description Token returned by account activation. */
+        SetupToken: {
+            /** @description Returned by `/activate` */
             setup_token: string;
         };
         WebAuthnOptions: {
-            /** @description For navigator.credentials.create() or .get(). */
+            /** @description For navigator.credentials.create() or .get() */
             options: {
                 [key: string]: unknown;
             };
-            /** @description Send back with the credential, within 120 seconds. */
+            /** @description Send back with the credential, within 120 seconds */
             challenge_token: string;
         };
-        PasskeySetupComplete: {
-            /** @description Token returned with the options. */
+        PasskeyRegistration: {
+            /** @description Returned with the options */
             challenge_token: string;
-            /** @description The PublicKeyCredential the browser returned, JSON-encoded. */
+            /** @description The PublicKeyCredential the browser returned, JSON-encoded */
             credential: {
                 [key: string]: unknown;
             };
-            /** @description At most 100 characters. Derived from the User-Agent when omitted. */
+            /** @description 1 to 100 characters; from the User-Agent when left out */
             device_name?: string | null;
-            user_id: number;
         };
         Login: {
             /** Format: email */
             email: string;
             password: string;
         };
-        AuthError: {
-            /** @description Error message */
-            error?: string;
-            /** @description Detailed error description */
-            message?: string;
-            /** @description The account signs in with a passkey only. */
-            passkey_only?: boolean;
-            /** @description The account has no TOTP: use the passkey route instead. */
-            passkey_required?: boolean;
-            /** @description The account has no second factor to confirm with. */
-            second_factor_required?: boolean;
-            /** @description Confirm identity through `/auth/step-up/*`, then retry with the access token it returns. */
-            step_up_required?: boolean;
-        };
         LoginResponse: {
-            message?: string;
+            /** @description With the tokens, once signed in */
             user?: components["schemas"]["Account"];
             access_token?: string;
             refresh_token?: string;
-            /** @description Set when the account has TOTP: finish with /mfa/verify. */
+            /** @description Set when the account has TOTP: finish with `/mfa/verify` */
             mfa_required?: boolean;
-            /** @description Valid 10 minutes, for /mfa/verify only. */
+            /** @description Valid 10 minutes, for `/mfa/verify` only */
             mfa_token?: string;
         };
         MFAVerify: {
-            /** @description Token returned by the password step. */
+            /** @description Returned by `/login` */
             mfa_token: string;
-            /** @description Current authenticator-app code. */
+            /** @description Current authenticator-app code */
             code: string;
         };
         PasskeyAssertion: {
-            /** @description Token returned with the options. */
+            /** @description Returned with the options */
             challenge_token: string;
-            /** @description The PublicKeyCredential the browser returned, JSON-encoded. */
+            /** @description The PublicKeyCredential the browser returned, JSON-encoded */
             credential: {
                 [key: string]: unknown;
             };
-        };
-        PasskeyRegistration: {
-            /** @description Token returned with the options. */
-            challenge_token: string;
-            /** @description The PublicKeyCredential the browser returned, JSON-encoded. */
-            credential: {
-                [key: string]: unknown;
-            };
-            /** @description At most 100 characters. Derived from the User-Agent when omitted. */
-            device_name?: string | null;
-        };
-        Passkey: {
-            id: number;
-            device_name: string;
-            transports: string[];
-            /** Format: date-time */
-            created_at?: string | null;
-            /** Format: date-time */
-            last_used_at?: string | null;
-        };
-        PasskeyCreated: {
-            message: string;
-            passkey: components["schemas"]["Passkey"];
-        };
-        PasskeyList: {
-            passkeys: components["schemas"]["Passkey"][];
-        };
-        Message: {
-            /** @description Success message */
-            message?: string;
-        };
-        PasskeyRename: {
-            /** @description At most 100 characters. */
-            device_name: string;
-        };
-        PasskeyRenamed: {
-            message: string;
-            device_name: string;
-        };
-        ChangePassword: {
-            current_password: string;
-            new_password: string;
-            /** @description Checked when the account has TOTP enabled. */
-            mfa_code: string;
-        };
-        PasswordCheck: {
-            current_password: string;
-        };
-        PasskeyPasswordChange: {
-            /** @description Token returned with the options. */
-            challenge_token: string;
-            /** @description The PublicKeyCredential the browser returned, JSON-encoded. */
-            credential: {
-                [key: string]: unknown;
-            };
-            new_password: string;
         };
         ResetLink: {
-            valid: boolean;
-            link_type: string;
             /** Format: email */
             email: string;
             mfa_enabled: boolean;
             has_passkeys: boolean;
         };
         ResetPassword: {
-            /** @description Token from the reset link. */
+            /** @description From the reset link */
             token: string;
             new_password: string;
-            /** @description Current authenticator-app code. */
-            mfa_code: string;
+            /** @description Current authenticator-app code */
+            code: string;
         };
         ResetToken: {
-            /** @description Token from the reset link. */
+            /** @description From the reset link */
             reset_token: string;
         };
         PasskeyPasswordReset: {
-            /** @description Token returned with the options. */
+            /** @description Returned with the options */
             challenge_token: string;
-            /** @description The PublicKeyCredential the browser returned, JSON-encoded. */
+            /** @description The PublicKeyCredential the browser returned, JSON-encoded */
             credential: {
                 [key: string]: unknown;
             };
             new_password: string;
-            /** @description Token from the reset link. */
+            /** @description From the reset link */
             reset_token: string;
-        };
-        ProfileUpdate: {
-            /** @description Display name: 2 to 50 letters, spaces, hyphens, apostrophes. */
-            username?: string;
-            /**
-             * Format: email
-             * @description New sign-in address.
-             */
-            email?: string;
-        };
-        ProfileUpdated: {
-            message: string;
-            user: components["schemas"]["Account"];
-            /** @description With `refresh_token`, when the address changed: the session that replaces the caller's, every other one being closed. */
-            access_token?: string;
-            refresh_token?: string;
         };
         TokenRefresh: {
             access_token: string;
         };
-        User: {
-            user: components["schemas"]["Account"];
-        };
         SessionTransfer: {
             transfer_token: string;
-            /** @description Seconds. */
+            /** @description Seconds */
             expires_in: number;
         };
         SessionTransferValidate: {
@@ -7117,30 +6688,12 @@ export interface components {
         };
         StepUpPassword: {
             password: string;
-            /** @description Current authenticator-app code. */
-            mfa_code: string;
-        };
-        ConfirmedToken: {
-            /** @description Replaces the access token in use. Its `fresh` claim is the time until which the session is confirmed. */
-            access_token: string;
-        };
-        TotpSetup: {
-            /** @description PNG data URI. */
-            qr_code: string;
-            /** @description For typing into the app instead of scanning. */
-            secret: string;
-            /** @description Send back with a first code, within 10 minutes. */
-            enrolment_token: string;
-        };
-        TotpEnrolmentConfirm: {
-            /** @description Token returned by `/mfa/setup`. */
-            enrolment_token: string;
-            /** @description First code of the app that scanned the secret. */
+            /** @description Current authenticator-app code */
             code: string;
         };
-        AccountUpdate: {
-            message: string;
-            user: components["schemas"]["Account"];
+        ConfirmedToken: {
+            /** @description Replaces the access token in use. Its `fresh` claim is the time until which the session is confirmed */
+            access_token: string;
         };
         DietaryTag: {
             id: string;
@@ -7199,24 +6752,27 @@ export interface components {
         SchoolHolidayList: {
             items: components["schemas"]["SchoolHoliday"][];
         };
+        ProfilePatch: {
+            /** @description Display name: 2 to 50 letters, spaces, hyphens, apostrophes */
+            username?: string;
+            /**
+             * Format: email
+             * @description New sign-in address
+             */
+            email?: string;
+        };
+        Profile: {
+            user: components["schemas"]["Account"];
+            /** @description With `refresh_token`, when the address changed: the session that replaces the caller's, every other one being closed */
+            access_token?: string;
+            refresh_token?: string;
+        };
         UiPreferences: {
             tour_done?: boolean;
             tour_catalog_done?: boolean;
             tour_stats_done?: boolean;
         };
-        LiveAlert: {
-            key?: string;
-            title?: string;
-            body?: string;
-            /** @description info | warning | error */
-            severity?: string;
-            site_ids?: number[];
-            site_names?: string[];
-        };
-        LiveAlertList: {
-            alerts?: components["schemas"]["LiveAlert"][];
-        };
-        InboxPreferences: {
+        NotificationPreferences: {
             notify_menu_unpublished?: boolean;
             notify_menu_during_service?: boolean;
             notify_menu_tomorrow?: boolean;
@@ -7229,6 +6785,62 @@ export interface components {
             weekly_digest?: boolean;
             digest_day?: number;
             digest_hour?: number;
+        };
+        Alert: {
+            key: string;
+            title: string;
+            body: string;
+            /** @enum {string} */
+            severity: "info" | "warning" | "error";
+            sites: components["schemas"]["NamedRef"][];
+        };
+        AlertList: {
+            items: components["schemas"]["Alert"][];
+        };
+        Passkey: {
+            id: number;
+            device_name: string;
+            transports: string[];
+            /** Format: date-time */
+            created_at: string | null;
+            /** Format: date-time */
+            last_used_at: string | null;
+        };
+        PasskeyList: {
+            items: components["schemas"]["Passkey"][];
+        };
+        PasskeyPatch: {
+            /** @description 1 to 100 characters */
+            device_name: string;
+        };
+        PasswordOptions: {
+            current_password: string;
+        };
+        PasswordChange: {
+            new_password: string;
+            current_password?: string;
+            /** @description Current authenticator-app code, if the account has TOTP */
+            code?: string;
+            /** @description Returned by `POST /v1/user/password/options` */
+            challenge_token?: string;
+            /** @description The PublicKeyCredential the browser returned, JSON-encoded */
+            credential?: {
+                [key: string]: unknown;
+            };
+        };
+        TotpEnrolment: {
+            /** @description PNG data URI */
+            qr_code: string;
+            /** @description For typing into the app instead of scanning */
+            secret: string;
+            /** @description Send back with a first code, within 10 minutes */
+            enrolment_token: string;
+        };
+        TotpInput: {
+            /** @description Returned by `POST /v1/user/totp/enrolment` */
+            enrolment_token: string;
+            /** @description First code of the app that scanned the secret */
+            code: string;
         };
         PushKey: {
             /** @description VAPID, for PushManager.subscribe */
@@ -7304,10 +6916,6 @@ export interface components {
         OrgSiteList: {
             items: components["schemas"]["OrgSite"][];
         };
-        MemberSite: {
-            slug: string;
-            name: string;
-        };
         Member: {
             id: number;
             /** Format: email */
@@ -7322,7 +6930,7 @@ export interface components {
             passkeys_count: number;
             is_rescue_account: boolean;
             /** @description None for a supervisor */
-            site: components["schemas"]["MemberSite"] | (Record<string, never> | null);
+            site: components["schemas"]["NamedRef"] | (Record<string, never> | null);
             /** Format: date-time */
             created_at: string | null;
             /** Format: date-time */

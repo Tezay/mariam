@@ -328,7 +328,7 @@ class TestInvitations:
         res = client.delete(f'{path}/invitations/{link_id}', headers=session_headers(admin))
 
         assert res.status_code == 204
-        assert client.get(f'/v1/auth/check-activation/{token}').status_code == 400
+        assert client.get(f'/v1/auth/check-activation/{token}').status_code == 410
         entry = AuditLog.query.filter_by(action=AuditLog.ACTION_ACTIVATION_LINK_REVOKE).one()
         assert (entry.user_id, entry.target_id) == (admin, link_id)
 
@@ -549,7 +549,7 @@ class TestPasswordResetLink:
         assert message['To'] == 'target@mariam.app'
         token = ActivationLink.query.filter_by(link_type='password_reset').one().token
         assert f'/reset-password/{token}' in message.get_body(('plain',)).get_content()
-        assert client.get(f'/v1/auth/check-reset/{token}').get_json()['valid'] is True
+        assert client.get(f'/v1/auth/check-reset/{token}').status_code == 200
 
     def test_without_mail_the_link_is_handed_to_the_administrator(self, app, client):
         admin, path = _site_admin(app)
@@ -569,7 +569,7 @@ class TestPasswordResetLink:
         first = self._send(client, path, target, headers).get_json()['reset_url'].rsplit('/', 1)[1]
         self._send(client, path, target, headers)
 
-        assert client.get(f'/v1/auth/check-reset/{first}').status_code == 400
+        assert client.get(f'/v1/auth/check-reset/{first}').status_code == 410
 
     def test_it_is_audited_against_the_target(self, app, client):
         admin, path = _site_admin(app)

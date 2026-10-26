@@ -78,6 +78,7 @@ def _entry(key: str, severity: str, single: str, plural: str, findings: list[Fin
     if not findings:
         return []
     names = [finding.site_name for finding in findings]
+    slugs = {site.id: site.slug for site in context.sites}
     grouped = context.multi
     return [{
         'key': key,
@@ -87,8 +88,9 @@ def _entry(key: str, severity: str, single: str, plural: str, findings: list[Fin
             if grouped else single
         ),
         'body': ', '.join(names) if grouped else findings[0].detail,
-        'site_ids': [finding.site_id for finding in findings],
-        'site_names': names,
+        'sites': [
+            {'slug': slugs[finding.site_id], 'name': finding.site_name} for finding in findings
+        ],
     }]
 
 
@@ -295,8 +297,7 @@ def _holidays(context: Context) -> list[dict]:
             'severity': 'info',
             'title': f'Jour férié {label}',
             'body': f'{ferie["description"]} — {ferie["date"]}',
-            'site_ids': [],
-            'site_names': [],
+            'sites': [],
         })
     return alerts
 

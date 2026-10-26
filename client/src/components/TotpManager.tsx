@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStepUp } from '@/hooks/useStepUp';
-import { authApi } from '@/lib/api/auth';
 import { getApiErrorMessage } from '@/lib/api/errors';
+import { userApi } from '@/lib/api/user';
 import { notify } from '@/lib/toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,7 +55,7 @@ export function TotpManager() {
     setDialogOpen(true);
 
     try {
-      const data = await authApi.mfaSetupBegin();
+      const data = await userApi.enrolTotp();
       setQrCode(data.qr_code);
       setSecret(data.secret);
       setEnrolmentToken(data.enrolment_token);
@@ -83,7 +83,7 @@ export function TotpManager() {
     setIsLoading(true);
 
     try {
-      await authApi.mfaSetupConfirm(enrolmentToken, code);
+      await userApi.putTotp(enrolmentToken, code);
       await refreshUser();
       setMessage({
         type: 'success',
@@ -110,7 +110,7 @@ export function TotpManager() {
     if (!confirmed) return;
 
     try {
-      await authApi.disableMfa();
+      await userApi.deleteTotp();
       await refreshUser();
       notify.success('Authentification par code désactivée');
     } catch (err) {

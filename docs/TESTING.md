@@ -41,12 +41,12 @@ One file per domain in `server/tests/`, grouped roughly as:
 
 | Area | Files |
 |---|---|
-| Authentication and hardening | `test_auth.py`, `test_auth_<module>.py` (one per module of `routes/auth/`), `test_crypto.py`, `test_hardening.py` |
+| Authentication and hardening | `test_auth.py`, `test_auth_<module>.py` (one per module of `routes/auth/`), `test_user_<module>.py` (one per module of `routes/user/`), `test_crypto.py`, `test_hardening.py` |
 | Site content | `test_menus.py`, `test_categories.py`, `test_catalog.py`, `test_csv_import.py`, `test_events.py`, `test_closures.py`, `test_holidays.py` |
 | Public surface | `test_public_resources.py`, `test_domains.py`, `test_push_subscriptions.py` |
 | Analytics | `test_analytics_stats.py`, `test_telemetry.py`, `test_votes.py` |
 | Organization | `test_members.py`, `test_audit_access.py`, `test_org_catalog.py`, `test_alerts.py`, `test_email_digest.py` |
-| Cross-cutting | `test_tenant_isolation.py`, `test_retention.py`, `test_inbox.py`, `test_users.py`, `test_site_settings.py`, `test_storage.py` |
+| Cross-cutting | `test_tenant_isolation.py`, `test_retention.py`, `test_site_settings.py`, `test_storage.py` |
 
 `test_tenant_isolation.py` is the one to extend whenever an endpoint is added: every route that
 resolves a scope belongs there.
@@ -138,7 +138,7 @@ describe('MyComponent', () => {
 
 Pure functions first: dates, colours, validation, matching. Components get smoke tests and the
 accessibility cases that matter. Mock API calls on the module the code imports, such as
-`vi.mock('@/lib/api/admin')`.
+`vi.mock('@/lib/api/user')`.
 
 ### The built server
 
@@ -176,6 +176,9 @@ cd client && bun run api:types
 ```
 
 `tests/test_api_contract.py` fails on an operation that does not document what it answers.
+Under `/v1/auth` and `/v1/user`, every test also holds each answer to the route's declared
+responses: a status the route answers without declaring it fails the test, as does a body
+that strays from its schema (`documented_auth_responses`, `server/conftest.py`).
 
 ## CI
 

@@ -238,7 +238,7 @@ class TestCrossOrigin:
             f'{SITE}/menus/{paris_today()}/vote',
             headers={**self.FOREIGN, 'Access-Control-Request-Method': 'PUT'},
         )
-        session = client.get('/v1/auth/me', headers=self.FOREIGN)
+        session = client.get('/v1/user', headers=self.FOREIGN)
 
         assert 'Access-Control-Allow-Origin' not in preflight.headers
         assert 'Access-Control-Allow-Origin' not in session.headers

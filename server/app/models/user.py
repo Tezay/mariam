@@ -164,46 +164,5 @@ class User(db.Model):
     def update_last_login(self):
         self.last_login = utc_now_naive()
     
-    def to_dict(self, include_tenant=False):
-        """Never includes the password hash or the TOTP secret.
-
-        `include_tenant` resolves the site and organization names, which costs a
-        query each: reserve it for the caller's own profile, never for a list.
-        """
-        data = {
-            'id': self.id,
-            'email': self.email,
-            'username': self.username,
-            'role': self.role,
-            'mfa_enabled': self.mfa_enabled,
-            'is_active': self.is_active,
-            'restaurant_id': self.restaurant_id,
-            'organization_id': self.organization_id,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None,
-            'passkeys_count': self.passkeys.count(),
-        }
-        
-        if include_tenant:
-            from .organization import Organization
-
-            data['restaurant_name'] = self.restaurant.name if self.restaurant else None
-            data['restaurant_slug'] = self.restaurant.slug if self.restaurant else None
-            organization = (
-                db.session.get(Organization, self.organization_id) if self.organization_id else None
-            )
-            data['organization_name'] = organization.name if organization else None
-            # A site's own team has no organization of its own, yet its addresses name one.
-            home = organization or (
-                db.session.get(Organization, self.restaurant.organization_id)
-                if self.restaurant else None
-            )
-            data['organization_slug'] = home.slug if home else None
-
-        if include_tenant:
-            data['is_rescue_account'] = self.is_rescue_account
-
-        return data
-    
     def __repr__(self):
         return f'<User {self.email} ({self.role})>'

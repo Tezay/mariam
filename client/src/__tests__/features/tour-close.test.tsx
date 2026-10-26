@@ -18,8 +18,8 @@ const updateUiPreferences = vi.fn(async (prefs: Record<string, boolean>) => {
   return { ...stored };
 });
 
-vi.mock('@/lib/api/admin', () => ({
-  adminApi: {
+vi.mock('@/lib/api/user', () => ({
+  userApi: {
     getUiPreferences: () => getUiPreferences(),
     updateUiPreferences: (prefs: Record<string, boolean>) => updateUiPreferences(prefs),
   },

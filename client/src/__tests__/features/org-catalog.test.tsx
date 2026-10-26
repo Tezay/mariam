@@ -4,10 +4,12 @@ import { MemoryRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('@/contexts/AuthContext', () => ({
-  useAuth: () => ({ user: { role: 'org_admin', organization_slug: 'crous' } }),
+  useAuth: () => ({
+    user: { role: 'org_admin', site: null, organization: { slug: 'crous', name: 'Crous' } },
+  }),
 }));
-vi.mock('@/lib/api/admin', () => ({
-  adminApi: { getUiPreferences: async () => ({}), updateUiPreferences: async () => ({}) },
+vi.mock('@/lib/api/user', () => ({
+  userApi: { getUiPreferences: async () => ({}), updateUiPreferences: async () => ({}) },
 }));
 vi.mock('@/lib/api/org', () => ({
   orgApi: {

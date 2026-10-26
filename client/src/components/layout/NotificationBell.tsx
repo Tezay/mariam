@@ -3,24 +3,24 @@ import { Link } from 'react-router';
 import { Bell, Info, AlertTriangle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { inboxApi, type LiveAlert } from '@/lib/api/inbox';
+import { userApi, type Alert } from '@/lib/api/user';
 import { cn } from '@/lib/utils';
 
 const POLL_INTERVAL_MS = 15_000;
 
-const LIVE_ALERT_STYLES: Record<LiveAlert['severity'], string> = {
+const LIVE_ALERT_STYLES: Record<Alert['severity'], string> = {
   error: 'border-l-2 border-red-500 bg-red-50 dark:bg-red-950/20',
   warning: 'border-l-2 border-amber-500 bg-amber-50 dark:bg-amber-950/20',
   info: 'border-l-2 border-blue-500 bg-blue-50 dark:bg-blue-950/20',
 };
 
-const LIVE_ALERT_ICON: Record<LiveAlert['severity'], React.ReactNode> = {
+const LIVE_ALERT_ICON: Record<Alert['severity'], React.ReactNode> = {
   error: <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />,
   warning: <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />,
   info: <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />,
 };
 
-function AlertText({ alert }: { alert: LiveAlert }) {
+function AlertText({ alert }: { alert: Alert }) {
   return (
     <div className="min-w-0 flex-1">
       <p className="text-sm font-medium leading-snug text-foreground">{alert.title}</p>
@@ -33,12 +33,12 @@ function AlertText({ alert }: { alert: LiveAlert }) {
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const [liveAlerts, setLiveAlerts] = useState<LiveAlert[]>([]);
+  const [liveAlerts, setLiveAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchAlerts = useCallback(async () => {
     try {
-      setLiveAlerts(await inboxApi.getLiveAlerts());
+      setLiveAlerts(await userApi.listAlerts());
     } catch {
       // A failed poll keeps what the bell already shows.
     }
@@ -87,9 +87,9 @@ export function NotificationBell() {
           ) : (
             <ul>
               {liveAlerts.map((alert) => {
-                // An alert spanning several sites is a director's: send him
-                // where their state is listed.
-                const grouped = alert.site_names.length > 1;
+                // An alert spanning several sites is a supervisor's: it leads to the
+                // list of their sites.
+                const grouped = alert.sites.length > 1;
                 return (
                   <li
                     key={alert.key}

@@ -37,6 +37,7 @@ from .helpers import (
     admin_required,
     audit,
     get_current_user,
+    member_view,
     org_admin_required,
     refuse_supervisor,
     site_admin_required,
@@ -52,23 +53,6 @@ members_bp = Blueprint(
     'members', __name__,
     description="Accounts and invitations, of a site or of the organization's supervisors",
 )
-
-
-def member_view(user) -> dict:
-    site = user.restaurant
-    return {
-        'id': user.id,
-        'email': user.email,
-        'username': user.username,
-        'role': user.role,
-        'is_active': user.is_active,
-        'mfa_enabled': user.mfa_enabled,
-        'passkeys_count': user.passkeys.count(),
-        'is_rescue_account': user.is_rescue_account,
-        'site': {'slug': site.slug, 'name': site.name} if site else None,
-        'created_at': as_utc(user.created_at),
-        'last_login': as_utc(user.last_login),
-    }
 
 
 def invitation_view(link) -> dict:

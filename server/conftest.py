@@ -119,24 +119,32 @@ def smtp(monkeypatch):
 
 @pytest.fixture(scope='session', autouse=True)
 def documented_auth_responses(app):
-    """Fail any test whose auth route answers something its OpenAPI doc does not declare.
+    """Fail any test whose auth or account route answers something its OpenAPI doc does not declare.
 
-    flask-smorest writes 422 itself, from the request schema, so it is left out.
+    Two answers are left out: 422, which flask-smorest writes from the request
+    schema, and the 401 of a route behind a session, which only ever speaks of
+    the session its security requirement documents.
     """
     from flask import current_app, request
 
     @app.after_request
     def check(response):
         endpoint = request.endpoint or ''
-        if not endpoint.startswith('auth.') or response.status_code == 422:
+        if not endpoint.startswith(('auth.', 'user.')) or response.status_code == 422:
             return response
         # flask-smorest records the declared responses only in this private attribute.
-        declared = current_app.view_functions[endpoint]._apidoc['response']['responses']
+        apidoc = current_app.view_functions[endpoint]._apidoc
+        anonymous = (apidoc.get('manual_doc') or {}).get('security') == []
+        if response.status_code == 401 and not anonymous:
+            return response
+        declared = apidoc['response']['responses']
         assert response.status_code in declared, (
             f'{endpoint} answered an undocumented {response.status_code}'
         )
-        errors = declared[response.status_code][0]['schema'].validate(response.get_json())
-        assert not errors, f'{endpoint} {response.status_code} strays from its schema: {errors}'
+        schema = declared[response.status_code][0].get('schema')
+        if schema is not None:
+            errors = schema.validate(response.get_json())
+            assert not errors, f'{endpoint} {response.status_code} strays from its schema: {errors}'
         return response
 
 
@@ -327,11 +335,14 @@ def make_restaurant(app, name='RU Test', code='RU_TEST', organization_id=None):
 
 
 def own_site(client, token) -> tuple[int, str]:
-    """The id and address of the caller's own site, as its profile names them."""
-    user = client.get('/v1/auth/me', headers=auth_headers(token)).get_json()['user']
+    """The id and address of the caller's own site, the address as its profile names it."""
+    from flask_jwt_extended import decode_token
+
+    from app.models import User
+    account = client.get('/v1/user', headers=auth_headers(token)).get_json()
     return (
-        user['restaurant_id'],
-        f"/v1/orgs/{user['organization_slug']}/sites/{user['restaurant_slug']}",
+        _db.session.get(User, int(decode_token(token)['sub'])).restaurant_id,
+        f"/v1/orgs/{account['organization']['slug']}/sites/{account['site']['slug']}",
     )
 
 

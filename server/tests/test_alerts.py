@@ -212,7 +212,7 @@ class TestOrgScope:
 
         assert len(alerts) == 1
         assert alerts[0]['title'].startswith('2 sites')
-        assert alerts[0]['site_names'] == ['Créteil', 'Villejuif']
+        assert [site['name'] for site in alerts[0]['sites']] == ['Créteil', 'Villejuif']
 
     def test_another_organization_never_shows(self, app, client):
         _, first, second, director = _org_with_two_sites(app)
@@ -221,7 +221,7 @@ class TestOrgScope:
 
         alerts = live_alerts(director, [first, second])
 
-        assert 'Ailleurs' not in alerts[0]['site_names']
+        assert 'Ailleurs' not in [site['name'] for site in alerts[0]['sites']]
 
 
 class TestAudience:
@@ -271,7 +271,7 @@ class TestAudience:
         alerts = live_alerts(director, [first, second])
 
         assert [alert['key'].split(':')[0] for alert in alerts] == ['service_active']
-        assert alerts[0]['site_names'] == ['Créteil', 'Villejuif']
+        assert [site['name'] for site in alerts[0]['sites']] == ['Créteil', 'Villejuif']
 
 
 class TestEndpoint:
@@ -281,10 +281,10 @@ class TestEndpoint:
         _serves_every_day(rid)
         token = get_token(client)
 
-        res = client.get('/v1/inbox/live-alerts', headers=auth_headers(token))
+        res = client.get('/v1/user/alerts', headers=auth_headers(token))
 
         assert res.status_code == 200
-        keys = [alert['key'].split(':')[0] for alert in res.get_json()['alerts']]
+        keys = [alert['key'].split(':')[0] for alert in res.get_json()['items']]
         assert 'menu_unpublished' in keys
 
     def test_a_supervisor_without_a_site_gets_its_alerts(self, app, client):
@@ -292,14 +292,13 @@ class TestEndpoint:
         _quiet(director, notify_site_inactive=True)
 
         res = client.get(
-            '/v1/inbox/live-alerts',
+            '/v1/user/alerts',
             headers=auth_headers(get_token(client, email='dir@mariam.app')),
         )
 
-        assert res.status_code == 200
-        assert [alert['site_names'] for alert in res.get_json()['alerts']] == [
-            ['Créteil', 'Villejuif']
-        ]
+        assert [alert['sites'] for alert in res.get_json()['items']] == [[
+            {'slug': 'ru-a', 'name': 'Créteil'}, {'slug': 'ru-b', 'name': 'Villejuif'},
+        ]]
 
     def test_live_alerts_require_a_token(self, client):
-        assert client.get('/v1/inbox/live-alerts').status_code == 401
+        assert client.get('/v1/user/alerts').status_code == 401

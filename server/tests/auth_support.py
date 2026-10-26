@@ -37,7 +37,7 @@ def session_headers(user_id: int, *, confirmed: bool = False) -> dict[str, str]:
 
 
 def is_signed_in(client, session: dict[str, str]) -> bool:
-    return client.get('/v1/auth/me', headers=auth_headers(session['access'])).status_code == 200
+    return client.get('/v1/user', headers=auth_headers(session['access'])).status_code == 200
 
 
 def enable_totp(user_id: int) -> str:
@@ -58,7 +58,7 @@ def confirmed_headers(
     res = client.post(
         '/v1/auth/step-up/password',
         headers=headers or session_headers(user_id),
-        json={'password': TEST_PASSWORD, 'mfa_code': pyotp.TOTP(secret).now()},
+        json={'password': TEST_PASSWORD, 'code': pyotp.TOTP(secret).now()},
     )
     return auth_headers(res.get_json()['access_token'])
 

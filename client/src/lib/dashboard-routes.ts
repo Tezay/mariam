@@ -1,13 +1,11 @@
-import type { User } from '@/lib/api/auth';
-
-type Role = User['role'] | undefined;
+import type { Role } from '@/lib/api/user';
 
 /** Landing dashboard for a role, shared by the login flow and the route guards. */
-export function dashboardPathForRole(role: Role): string {
+export function dashboardPathForRole(role: Role | undefined): string {
   return role === 'org_admin' ? '/org' : '/admin';
 }
 
 /** The account page is mounted under both dashboards; pick the caller's own. */
-export function accountPathForRole(role: Role): string {
+export function accountPathForRole(role: Role | undefined): string {
   return `${dashboardPathForRole(role)}/account`;
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { authApi } from '@/lib/api/auth';
 import { getApiErrorMessage, isConfirmationRequired } from '@/lib/api/errors';
+import { userApi } from '@/lib/api/user';
 import { passkeyRegistrationError } from '@/lib/passkey-errors';
 import { useAuth } from '@/contexts/AuthContext';
 import { Logo } from '@/components/Logo';
@@ -48,14 +49,15 @@ export function SetupTransferPage() {
     setIsRegistering(true);
     setPasskeyError('');
     try {
-      const { options, challenge_token } = await authApi.passkeyRegisterBegin();
+      const { options, challenge_token } = await userApi.passkeyOptions();
       const credential = await startRegistration({
         optionsJSON: options as unknown as PublicKeyCredentialCreationOptionsJSON,
       });
-      await authApi.passkeyRegisterComplete(challenge_token, credential);
+      await userApi.createPasskey(challenge_token, credential);
       setState('passkey_done');
     } catch (err) {
-      // This device has no second factor of its own to confirm with: only a
+      // This device has no second factor of its own to confirm with: only a new
+      // QR code brings back a confirmed session.
       setPasskeyError(
         isConfirmationRequired(err)
           ? 'Le délai pour enregistrer une passkey est dépassé. Scannez de nouveau le QR code, ou ignorez cette étape.'

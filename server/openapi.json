@@ -8,22 +8,22 @@
     "/v1/auth/check-activation/{token}": {
       "get": {
         "responses": {
-          "404": {
-            "description": "Unknown link.",
+          "410": {
+            "description": "`link_expired`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InvalidLink"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
-          "400": {
-            "description": "Link expired, revoked or already used.",
+          "404": {
+            "description": "`link_unknown`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InvalidLink"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -42,7 +42,7 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Check an invitation link before the activation form",
+        "summary": "Check an invitation link before the activation form.",
         "description": "`email` is the address the inviter suggested, if any: the form pre-fills it and the\ninvitee may change it.",
         "tags": [
           "auth"
@@ -67,32 +67,32 @@
           "422": {
             "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
           },
-          "409": {
-            "description": "Email already in use.",
+          "410": {
+            "description": "`link_expired`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`email_taken`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
           "404": {
-            "description": "Unknown link.",
+            "description": "`link_unknown`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Link expired, revoked or used, or password too weak.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -121,8 +121,8 @@
             }
           }
         },
-        "summary": "Create an account from an invitation link",
-        "description": "The invitee chooses the address and the display name; the role and the tenant come\nfrom the link. The account starts without a second factor. `mfa_setup` carries what\nthe next step needs, both valid fifteen minutes: a TOTP secret and its QR code for\n`/mfa/verify-setup`, and a setup token that `/passkey/setup/*` accepts as well.",
+        "summary": "Create an account from an invitation link.",
+        "description": "The invitee chooses the address and the display name; the role and the tenant come\nfrom the link. The account starts without a second factor. `mfa_setup` carries what\nthe next step needs, valid fifteen minutes: a TOTP secret and its QR code for\n`/mfa/verify-setup`, and a setup token that `/passkey/setup/begin` accepts as well.",
         "tags": [
           "auth"
         ],
@@ -135,32 +135,52 @@
           "422": {
             "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
           },
-          "404": {
-            "description": "Unknown account.",
+          "429": {
+            "description": "`too_many_attempts`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`second_factor_present`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`account_not_found`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`account_disabled`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
           "401": {
-            "description": "Wrong code. Setup token invalid, expired, or issued to another account.",
+            "description": "`setup_token_invalid`, `code_invalid`, `code_used`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "The account already has a second factor.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -184,13 +204,12 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MFAVerifySetup"
+                "$ref": "#/components/schemas/ActivationCode"
               }
             }
           }
         },
-        "summary": "Enable TOTP at activation, and sign in",
-        "description": "A first code confirms the secret returned by `/activate`.",
+        "summary": "Enable TOTP at activation with a first code of the secret, and sign in.",
         "tags": [
           "auth"
         ],
@@ -203,32 +222,42 @@
           "422": {
             "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
           },
-          "404": {
-            "description": "Unknown account.",
+          "409": {
+            "description": "`second_factor_present`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`account_not_found`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`account_disabled`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
           "401": {
-            "description": "Setup token invalid, expired, or issued to another account.",
+            "description": "`setup_token_invalid`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "The account already has a second factor.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -252,12 +281,12 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PasskeySetupBegin"
+                "$ref": "#/components/schemas/SetupToken"
               }
             }
           }
         },
-        "summary": "Start registering a passkey at activation",
+        "summary": "Start registering a passkey at activation, in place of TOTP.",
         "tags": [
           "auth"
         ],
@@ -270,42 +299,42 @@
           "422": {
             "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
           },
-          "404": {
-            "description": "Unknown account.",
+          "409": {
+            "description": "`second_factor_present`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`account_not_found`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
           "403": {
-            "description": "Account disabled.",
+            "description": "`account_disabled`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
           "401": {
-            "description": "Challenge invalid, expired, or issued to another account.",
+            "description": "`challenge_invalid`, `passkey_refused`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "The account already has a second factor. Or a credential that fails.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -329,12 +358,12 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PasskeySetupComplete"
+                "$ref": "#/components/schemas/PasskeyRegistration"
               }
             }
           }
         },
-        "summary": "Register the activation passkey, and sign in",
+        "summary": "Register the activation passkey, and sign in; the challenge names the account.",
         "tags": [
           "auth"
         ],
@@ -348,21 +377,21 @@
             "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
           },
           "403": {
-            "description": "Account disabled, or protected by a passkey only.",
+            "description": "`account_disabled`, `passkey_only`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthError"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
           "401": {
-            "description": "Wrong email or password.",
+            "description": "`credentials_invalid`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -391,8 +420,8 @@
             }
           }
         },
-        "summary": "Sign in with email and password",
-        "description": "Opens the session when the account has no second factor. With TOTP enabled, returns\nan `mfa_token` instead, to finish with `/mfa/verify`. An account protected by a\npasskey only is refused with `passkey_only` set: it signs in with `/passkey/login/*`.",
+        "summary": "Sign in with email and password.",
+        "description": "Opens the session when the account has no second factor. With TOTP enabled,\nreturns an `mfa_token` instead, to finish with `/mfa/verify`. An account\nprotected by a passkey only signs in with `/passkey/login/*`.",
         "tags": [
           "auth"
         ],
@@ -405,32 +434,42 @@
           "422": {
             "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
           },
-          "404": {
-            "description": "Account deleted since the password step.",
+          "429": {
+            "description": "`too_many_attempts`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`account_not_found`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
           "403": {
-            "description": "Account disabled since the password step.",
+            "description": "`account_disabled`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
           "401": {
-            "description": "Wrong code, or an MFA token invalid, expired or spent.",
+            "description": "`mfa_token_invalid`, `code_invalid`, `code_used`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -459,7 +498,7 @@
             }
           }
         },
-        "summary": "Finish a sign-in with the authenticator-app code",
+        "summary": "Finish a sign-in with the authenticator-app code.",
         "description": "The `mfa_token` from `/login` works once, within ten minutes.",
         "tags": [
           "auth"
@@ -484,7 +523,7 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Start a passwordless sign-in",
+        "summary": "Start a passwordless sign-in.",
         "description": "The options allow any passkey registered for this site: the one the user picks\nidentifies the account.",
         "tags": [
           "auth"
@@ -498,32 +537,22 @@
           "422": {
             "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
           },
-          "404": {
-            "description": "Unknown passkey, or a disabled account.",
+          "403": {
+            "description": "`account_disabled`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
           "401": {
-            "description": "Challenge invalid or expired, or a signature that fails.",
+            "description": "`challenge_invalid`, `passkey_unknown`, `passkey_refused`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Malformed credential id.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -552,526 +581,32 @@
             }
           }
         },
-        "summary": "Finish a passwordless sign-in",
+        "summary": "Finish a passwordless sign-in.",
         "tags": [
           "auth"
         ],
         "security": []
       }
     },
-    "/v1/auth/passkey/register/begin": {
-      "post": {
-        "responses": {
-          "403": {
-            "description": "Session not confirmed: `step_up_required` is set.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthError"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid session.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WebAuthnOptions"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Start adding a passkey",
-        "description": "Asks an account that already has a second factor for a confirmed session; an\naccount with none enrols its first freely. The options leave out the passkeys\nalready registered, and ask for one that serves passwordless sign-in.",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/v1/auth/passkey/register/complete": {
-      "post": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "403": {
-            "description": "Challenge invalid, expired, or issued to another account. Or: Session not confirmed: `step_up_required` is set.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthError"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid session.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "A credential that fails verification.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PasskeyCreated"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PasskeyRegistration"
-              }
-            }
-          }
-        },
-        "summary": "Finish adding a passkey",
-        "description": "Guarded like `/passkey/register/begin`.",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/v1/auth/passkey": {
-      "get": {
-        "responses": {
-          "401": {
-            "description": "No valid session.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PasskeyList"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "List the account's passkeys",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/v1/auth/passkey/{passkey_id}": {
-      "delete": {
-        "responses": {
-          "409": {
-            "description": "The last passkey, while TOTP is off.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Unknown passkey, or not the account\u2019s.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Session not confirmed: `step_up_required` is set.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthError"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid session.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Remove a passkey, from a confirmed session",
-        "description": "Refused for the last one while TOTP is off.",
-        "tags": [
-          "auth"
-        ]
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "passkey_id",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      ],
-      "patch": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "404": {
-            "description": "Unknown passkey, or not the account\u2019s.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid session.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Blank name, or over 100 characters.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PasskeyRenamed"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PasskeyRename"
-              }
-            }
-          }
-        },
-        "summary": "Rename a passkey",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/v1/auth/change-password": {
-      "post": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "403": {
-            "description": "Wrong current password or code. Or a passkey and no TOTP on the account: `passkey_required` is set.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthError"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid session.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Password too weak.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChangePassword"
-              }
-            }
-          }
-        },
-        "summary": "Change the password, confirmed by the current one and TOTP",
-        "description": "The code is checked when the account has TOTP enabled. An account protected by a\npasskey only goes through `/passkey/change-password/*` instead. Ends every session,\nthis one included.",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/v1/auth/passkey/change-password/begin": {
-      "post": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "404": {
-            "description": "No passkey on the account.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Wrong current password.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid session.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WebAuthnOptions"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PasswordCheck"
-              }
-            }
-          }
-        },
-        "summary": "Start a password change confirmed by passkey",
-        "description": "Checks the current password, then challenges the account's passkeys.",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/v1/auth/passkey/change-password/complete": {
-      "post": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "404": {
-            "description": "Unknown passkey.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Challenge invalid, expired or issued to another account, or a signature that fails.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid session.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Malformed credential id, or a password too weak.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PasskeyPasswordChange"
-              }
-            }
-          }
-        },
-        "summary": "Finish a password change confirmed by passkey",
-        "description": "Ends every session, this one included.",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
     "/v1/auth/check-reset/{token}": {
       "get": {
         "responses": {
-          "404": {
-            "description": "Unknown link.",
+          "410": {
+            "description": "`link_expired`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InvalidLink"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
-          "400": {
-            "description": "Link expired or already used.",
+          "404": {
+            "description": "`link_unknown`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InvalidLink"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -1090,8 +625,7 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Check a password-reset link",
-        "description": "Tells which second factor the reset will ask for.",
+        "summary": "Check a password-reset link, and tell which second factor the reset asks for.",
         "tags": [
           "auth"
         ],
@@ -1115,55 +649,68 @@
           "422": {
             "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
           },
-          "404": {
-            "description": "Unknown link or account.",
+          "429": {
+            "description": "`too_many_attempts`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "`link_expired`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`passkey_required`, `second_factor_required`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`link_unknown`, `account_not_found`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
           "403": {
-            "description": "Account disabled.",
+            "description": "`account_disabled`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
           "401": {
-            "description": "Wrong code.",
+            "description": "`code_invalid`, `code_used`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
-          "400": {
-            "description": "Link expired or used, password too weak, or no TOTP on the account: `passkey_required` is then set when it has passkeys.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthError"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
+          "204": {
+            "description": "No Content"
           },
           "default": {
             "$ref": "#/components/responses/DEFAULT_ERROR"
@@ -1179,8 +726,8 @@
             }
           }
         },
-        "summary": "Reset a password with a reset link and a TOTP code",
-        "description": "Consumes the link and ends every session.",
+        "summary": "Reset a password with a reset link and a TOTP code.",
+        "description": "Consumes the link and ends every session. An account without TOTP resets with\nits passkey, through `/passkey/reset-password/*`.",
         "tags": [
           "auth"
         ],
@@ -1193,32 +740,42 @@
           "422": {
             "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
           },
-          "404": {
-            "description": "Unknown link or account.",
+          "410": {
+            "description": "`link_expired`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`no_passkey`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`link_unknown`, `account_not_found`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
           "403": {
-            "description": "Account disabled.",
+            "description": "`account_disabled`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Link expired or used, or no passkey on the account.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -1247,7 +804,7 @@
             }
           }
         },
-        "summary": "Start a password reset confirmed by passkey",
+        "summary": "Start a password reset confirmed by passkey.",
         "tags": [
           "auth"
         ],
@@ -1260,55 +817,48 @@
           "422": {
             "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
           },
-          "404": {
-            "description": "Unknown link, account or passkey.",
+          "410": {
+            "description": "`link_expired`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`link_unknown`, `account_not_found`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
           "403": {
-            "description": "Account disabled.",
+            "description": "`account_disabled`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
           "401": {
-            "description": "Challenge invalid or expired, a link for another account, or a signature that fails.",
+            "description": "`challenge_invalid`, `passkey_refused`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
-          "400": {
-            "description": "Link expired or used, malformed credential id, or a password too weak.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
+          "204": {
+            "description": "No Content"
           },
           "default": {
             "$ref": "#/components/responses/DEFAULT_ERROR"
@@ -1324,135 +874,16 @@
             }
           }
         },
-        "summary": "Finish a password reset confirmed by passkey",
-        "description": "Consumes the link and ends every session.",
+        "summary": "Finish a password reset confirmed by passkey; consumes the link and ends every session.",
         "tags": [
           "auth"
         ],
         "security": []
       }
     },
-    "/v1/auth/me": {
-      "patch": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "429": {
-            "description": "Address already changed twice within a day.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Address already in use.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Session not confirmed, with `step_up_required` set; or the rescue account changing its address.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthError"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid session.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProfileUpdated"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProfileUpdate"
-              }
-            }
-          }
-        },
-        "summary": "Change the display name or the sign-in address, from a confirmed session",
-        "description": "A new address ends every other session and returns the tokens of the one that\nreplaces the caller's, which is not confirmed; the previous address is told by\nemail. An account changes address twice a day at most.",
-        "tags": [
-          "auth"
-        ]
-      },
-      "get": {
-        "responses": {
-          "401": {
-            "description": "No valid session.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/User"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Get the signed-in account",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
     "/v1/auth/refresh": {
       "post": {
         "responses": {
-          "401": {
-            "description": "Refresh token missing, expired or revoked.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "200": {
             "description": "OK",
             "content": {
@@ -1467,7 +898,7 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Get a new access token",
+        "summary": "Get a new access token.",
         "description": "Authenticated by the refresh token. The new access token is never confirmed:\nonly presenting a second factor confirms a session.",
         "tags": [
           "auth"
@@ -1477,31 +908,14 @@
     "/v1/auth/logout": {
       "post": {
         "responses": {
-          "401": {
-            "description": "Refresh token missing, expired or revoked.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
+          "204": {
+            "description": "No Content"
           },
           "default": {
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Sign out",
+        "summary": "Sign out.",
         "description": "Authenticated by the refresh token, which is revoked with every access token issued\nfrom it.",
         "tags": [
           "auth"
@@ -1512,21 +926,11 @@
       "post": {
         "responses": {
           "403": {
-            "description": "Session not confirmed: `step_up_required` is set.",
+            "description": "`step_up_required`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthError"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid session.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -1545,7 +949,7 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Hand the session over to another device",
+        "summary": "Hand the session over to another device.",
         "description": "Asks an account that has a second factor for a confirmed session. Returns a\nsingle-use token, valid five minutes, that `/session-transfer/validate` exchanges\nfor a session on the other device, confirmed until the same time as this one.\nSigning out of this session ends the token with it.",
         "tags": [
           "auth"
@@ -1559,31 +963,31 @@
             "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
           },
           "404": {
-            "description": "Account deleted.",
+            "description": "`account_not_found`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
           "403": {
-            "description": "Account disabled.",
+            "description": "`account_disabled`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
           "401": {
-            "description": "Token invalid, expired or already used.",
+            "description": "`transfer_invalid`, `transfer_used`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -1612,7 +1016,7 @@
             }
           }
         },
-        "summary": "Open a session from a transfer token",
+        "summary": "Open a session from a transfer token.",
         "description": "The session inherits what is left of the confirmation of the one that handed it\nover: the receiving device has no second factor of its own to confirm with yet.",
         "tags": [
           "auth"
@@ -1626,22 +1030,22 @@
           "422": {
             "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
           },
-          "403": {
-            "description": "Wrong password or code. Or no TOTP on the account: `passkey_required` is set when it has a passkey, `second_factor_required` when it has no second factor at all.",
+          "429": {
+            "description": "`too_many_attempts`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthError"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
           },
-          "401": {
-            "description": "No valid session.",
+          "403": {
+            "description": "`passkey_required`, `second_factor_required`, `password_invalid`, `code_invalid`, `code_used`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -1670,8 +1074,8 @@
             }
           }
         },
-        "summary": "Confirm identity with the password and the TOTP code",
-        "description": "Returns an access token that replaces the caller's and opens the routes asking\nfor a confirmed session, for ten minutes. A confirmation always attests a second\nfactor: an account without TOTP confirms with its passkey through\n`/step-up/passkey/*`, and an account with neither cannot confirm.",
+        "summary": "Confirm identity with the password and the TOTP code.",
+        "description": "Returns an access token that replaces the caller's and opens the routes asking\nfor a confirmed session, for ten minutes. A confirmation always attests a second\nfactor: an account without TOTP confirms through `/step-up/passkey/*`.",
         "tags": [
           "auth"
         ]
@@ -1680,22 +1084,12 @@
     "/v1/auth/step-up/passkey/begin": {
       "post": {
         "responses": {
-          "404": {
-            "description": "No passkey on the account.",
+          "409": {
+            "description": "`no_passkey`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid session.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -1714,7 +1108,7 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Start confirming identity with a passkey",
+        "summary": "Start confirming identity with a passkey.",
         "tags": [
           "auth"
         ]
@@ -1726,42 +1120,12 @@
           "422": {
             "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
           },
-          "404": {
-            "description": "Unknown passkey.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "403": {
-            "description": "Challenge invalid, expired or issued to another account, or a signature that fails.",
+            "description": "`challenge_invalid`, `passkey_refused`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid session.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Malformed credential id.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -1790,183 +1154,7 @@
             }
           }
         },
-        "summary": "Finish confirming identity with a passkey",
-        "description": "Returns the same confirmed access token as `/step-up/password`.",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/v1/auth/mfa/setup": {
-      "post": {
-        "responses": {
-          "403": {
-            "description": "Session not confirmed: `step_up_required` is set.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthError"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid session.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TotpSetup"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Start enabling TOTP, or moving it to another device",
-        "description": "Asks an account that already has a second factor for a confirmed session. Nothing\nis stored yet: the secret travels in `enrolment_token` until `/mfa/setup/confirm`\nchecks a first code, and the TOTP in use keeps working until then.",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/v1/auth/mfa/setup/confirm": {
-      "post": {
-        "responses": {
-          "422": {
-            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
-          },
-          "403": {
-            "description": "Wrong code. Or: Session not confirmed: `step_up_required` is set.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthError"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid session.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Enrolment token invalid, expired or another account\u2019s.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccountUpdate"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TotpEnrolmentConfirm"
-              }
-            }
-          }
-        },
-        "summary": "Store the secret of an enrolment once its first code is checked",
-        "description": "Guarded like `/mfa/setup`. Enables TOTP, or replaces the secret of an account that\nalready had it. A wrong code can be tried again with the same `enrolment_token`.",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/v1/auth/mfa": {
-      "delete": {
-        "responses": {
-          "409": {
-            "description": "No passkey would remain.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Session not confirmed: `step_up_required` is set.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthError"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid session.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "TOTP not enabled.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccountUpdate"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Disable TOTP, from a confirmed session",
-        "description": "Refused unless the account keeps a passkey as its second factor.",
+        "summary": "Finish confirming identity with a passkey; the same token as `/step-up/password`.",
         "tags": [
           "auth"
         ]
@@ -2085,25 +1273,15 @@
         }
       ]
     },
-    "/v1/users/me/ui-preferences": {
+    "/v1/user": {
       "get": {
         "responses": {
-          "401": {
-            "description": "Not authenticated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UiPreferences"
+                  "$ref": "#/components/schemas/Account"
                 }
               }
             }
@@ -2112,120 +1290,42 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Return the interface state of the current user.",
+        "summary": "The signed-in account.",
         "tags": [
-          "users"
+          "user"
         ]
       },
-      "put": {
-        "responses": {
-          "401": {
-            "description": "Not authenticated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UiPreferences"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Update the interface state of the current user.",
-        "tags": [
-          "users"
-        ]
-      }
-    },
-    "/v1/inbox/live-alerts": {
-      "get": {
-        "responses": {
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LiveAlertList"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Get the caller's active alerts",
-        "description": "On the sites the caller may read: its own for a site account, every site of\nits organization for a supervisor. Each rule reaches the accounts it is for.",
-        "tags": [
-          "inbox"
-        ]
-      }
-    },
-    "/v1/inbox/notification-preferences": {
-      "get": {
-        "responses": {
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InboxPreferences"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/DEFAULT_ERROR"
-          }
-        },
-        "summary": "Get the caller's alert and email preferences",
-        "tags": [
-          "inbox"
-        ]
-      },
-      "put": {
+      "patch": {
         "responses": {
           "422": {
             "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
           },
-          "401": {
-            "description": "Unauthorized",
+          "429": {
+            "description": "`email_change_limit`",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`email_taken`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`step_up_required`, `rescue_account`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -2235,7 +1335,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InboxPreferences"
+                  "$ref": "#/components/schemas/Profile"
                 }
               }
             }
@@ -2249,15 +1349,597 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/InboxPreferences"
+                "$ref": "#/components/schemas/ProfilePatch"
               }
             }
           }
         },
-        "summary": "Change the caller's alert and email preferences",
-        "description": "Takes the keys to change; the others keep their value.",
+        "summary": "Change the display name or the sign-in address, from a confirmed session.",
+        "description": "A new address ends every other session and comes back with the tokens of the\none that replaces the caller's, which is not confirmed; the previous address is\ntold by email. An account changes address twice a day at most.",
         "tags": [
-          "inbox"
+          "user"
+        ]
+      }
+    },
+    "/v1/user/ui-preferences": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UiPreferences"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "What the interface remembers for the account: the guided tours already seen.",
+        "tags": [
+          "user"
+        ]
+      },
+      "patch": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UiPreferences"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UiPreferences"
+              }
+            }
+          }
+        },
+        "summary": "Change some of them; the others keep their value.",
+        "tags": [
+          "user"
+        ]
+      }
+    },
+    "/v1/user/notification-preferences": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationPreferences"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Which alerts the account sees, and when its weekly email lands.",
+        "tags": [
+          "user"
+        ]
+      },
+      "patch": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationPreferences"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationPreferences"
+              }
+            }
+          }
+        },
+        "summary": "Change some of them; the others keep their value.",
+        "tags": [
+          "user"
+        ]
+      }
+    },
+    "/v1/user/alerts": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The account's active alerts, computed now.",
+        "description": "On the sites the account may read: its own for a site's team, every site of\nthe organization for a supervisor. Each rule reaches the accounts it is for.",
+        "tags": [
+          "user"
+        ]
+      }
+    },
+    "/v1/user/passkeys": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The account's passkeys.",
+        "tags": [
+          "user"
+        ]
+      },
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "403": {
+            "description": "`step_up_required`, `challenge_invalid`, `passkey_refused`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Passkey"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyRegistration"
+              }
+            }
+          }
+        },
+        "summary": "Register the passkey the browser created from the options; guarded like them.",
+        "tags": [
+          "user"
+        ]
+      }
+    },
+    "/v1/user/passkeys/options": {
+      "post": {
+        "responses": {
+          "403": {
+            "description": "`step_up_required`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebAuthnOptions"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Options to create a passkey with, and the challenge to send back.",
+        "description": "From a confirmed session once the account has a second factor; its first is\nenrolled freely. The options leave out the passkeys already registered, and ask\nfor one that serves passwordless sign-in.",
+        "tags": [
+          "user"
+        ]
+      }
+    },
+    "/v1/user/passkeys/{passkey_id}": {
+      "patch": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "404": {
+            "description": "`passkey_not_found`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Passkey"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyPatch"
+              }
+            }
+          }
+        },
+        "summary": "Rename a passkey.",
+        "tags": [
+          "user"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "passkey_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ],
+      "delete": {
+        "responses": {
+          "409": {
+            "description": "`last_second_factor`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`passkey_not_found`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`step_up_required`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Remove a passkey, from a confirmed session; never the last while TOTP is off.",
+        "tags": [
+          "user"
+        ]
+      }
+    },
+    "/v1/user/password/options": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "409": {
+            "description": "`no_passkey`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`password_invalid`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebAuthnOptions"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordOptions"
+              }
+            }
+          }
+        },
+        "summary": "Check the current password, then challenge the account's passkeys.",
+        "description": "For an account that changes its password with a passkey rather than a code.",
+        "tags": [
+          "user"
+        ]
+      }
+    },
+    "/v1/user/password": {
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "429": {
+            "description": "`too_many_attempts`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`passkey_required`, `password_invalid`, `code_invalid`, `code_used`, `challenge_invalid`, `passkey_refused`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          }
+        },
+        "summary": "Change the password, and end every session, this one included.",
+        "description": "With the current password and a TOTP code, or, for an account protected by a\npasskey only, with the passkey challenged by `POST /v1/user/password/options`.",
+        "tags": [
+          "user"
+        ]
+      }
+    },
+    "/v1/user/totp/enrolment": {
+      "post": {
+        "responses": {
+          "403": {
+            "description": "`step_up_required`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TotpEnrolment"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "A new secret to scan, for enabling TOTP or moving it to another device.",
+        "description": "From a confirmed session once the account has a second factor. Nothing is\nstored: the secret travels in `enrolment_token` until `PUT /v1/user/totp`\nchecks a first code, and the TOTP in use keeps working until then.",
+        "tags": [
+          "user"
+        ]
+      }
+    },
+    "/v1/user/totp": {
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "429": {
+            "description": "`too_many_attempts`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "`enrolment_expired`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`step_up_required`, `code_invalid`, `code_used`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TotpInput"
+              }
+            }
+          }
+        },
+        "summary": "Store the secret of an enrolment once its first code is checked.",
+        "description": "Guarded like the enrolment. Enables TOTP, or replaces the secret in use; a\nwrong code can be tried again with the same `enrolment_token`.",
+        "tags": [
+          "user"
+        ]
+      },
+      "delete": {
+        "responses": {
+          "409": {
+            "description": "`totp_not_enabled`, `last_second_factor`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`step_up_required`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Turn TOTP off, from a confirmed session; never while it is the only factor.",
+        "tags": [
+          "user"
         ]
       }
     },
@@ -7677,12 +7359,8 @@
       "description": "French public and school holidays"
     },
     {
-      "name": "users",
-      "description": "The signed-in account's interface state"
-    },
-    {
-      "name": "inbox",
-      "description": "In-app alerts, computed on demand, and their per-account preferences"
+      "name": "user",
+      "description": "The signed-in account: its profile, preferences, alerts and second factors"
     },
     {
       "name": "weekly_emails",
@@ -7832,35 +7510,36 @@
         },
         "additionalProperties": false
       },
-      "InvalidLink": {
+      "NamedRef": {
         "type": "object",
         "properties": {
-          "valid": {
-            "type": "boolean"
+          "slug": {
+            "type": "string"
           },
-          "error": {
+          "name": {
             "type": "string"
           }
         },
         "required": [
-          "error",
-          "valid"
+          "name",
+          "slug"
         ],
         "additionalProperties": false
       },
       "ActivationLink": {
         "type": "object",
         "properties": {
-          "valid": {
-            "type": "boolean"
-          },
           "link_type": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "invite",
+              "first_admin"
+            ]
           },
           "email": {
             "type": "string",
             "format": "email",
-            "description": "Suggested by the inviter, if any.",
+            "description": "Suggested by the inviter, if any",
             "nullable": true
           },
           "role": {
@@ -7869,23 +7548,39 @@
               "org_admin",
               "admin",
               "editor",
-              "reader",
-              null
-            ],
-            "nullable": true
+              "reader"
+            ]
           },
-          "restaurant_name": {
-            "type": "string",
-            "nullable": true
+          "site": {
+            "description": "The site the account will belong to, if any",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NamedRef"
+              },
+              {
+                "type": "object",
+                "nullable": true
+              }
+            ]
           },
-          "organization_name": {
-            "type": "string",
-            "nullable": true
+          "organization": {
+            "anyOf": [
+              {
+                "type": "object",
+                "nullable": true
+              },
+              {
+                "$ref": "#/components/schemas/NamedRef"
+              }
+            ]
           }
         },
         "required": [
+          "email",
           "link_type",
-          "valid"
+          "organization",
+          "role",
+          "site"
         ],
         "additionalProperties": false
       },
@@ -7894,7 +7589,7 @@
         "properties": {
           "token": {
             "type": "string",
-            "description": "Token from the invitation link."
+            "description": "From the invitation link"
           },
           "password": {
             "type": "string"
@@ -7902,11 +7597,11 @@
           "email": {
             "type": "string",
             "format": "email",
-            "description": "Chosen by the invitee; the invitation only suggests one."
+            "description": "Chosen by the invitee; the invitation only suggests one"
           },
           "username": {
             "type": "string",
-            "description": "Display name: 2 to 50 letters, spaces, hyphens, apostrophes."
+            "description": "Display name: 2 to 50 letters, spaces, hyphens, apostrophes"
           }
         },
         "required": [
@@ -7915,19 +7610,6 @@
           "token",
           "username"
         ]
-      },
-      "Error": {
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "string",
-            "description": "Error message"
-          },
-          "message": {
-            "type": "string",
-            "description": "Detailed error description"
-          }
-        }
       },
       "Account": {
         "type": "object",
@@ -7941,6 +7623,7 @@
           },
           "username": {
             "type": "string",
+            "description": "Display name",
             "nullable": true
           },
           "role": {
@@ -7952,44 +7635,30 @@
               "reader"
             ]
           },
-          "mfa_enabled": {
-            "type": "boolean"
-          },
           "is_active": {
             "type": "boolean"
           },
-          "restaurant_id": {
-            "type": "integer",
-            "nullable": true
-          },
-          "organization_id": {
-            "type": "integer",
-            "nullable": true
-          },
-          "restaurant_name": {
-            "type": "string",
-            "nullable": true
-          },
-          "restaurant_slug": {
-            "type": "string",
-            "nullable": true
-          },
-          "organization_name": {
-            "type": "string",
-            "nullable": true
-          },
-          "organization_slug": {
-            "type": "string",
-            "description": "The site's, for a site's own team",
-            "nullable": true
+          "mfa_enabled": {
+            "type": "boolean",
+            "description": "An authenticator app is set up"
           },
           "passkeys_count": {
             "type": "integer"
           },
           "is_rescue_account": {
-            "type": "boolean",
-            "description": "Its address cannot be changed.",
-            "nullable": true
+            "type": "boolean"
+          },
+          "site": {
+            "description": "None for a supervisor",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NamedRef"
+              },
+              {
+                "type": "object",
+                "nullable": true
+              }
+            ]
           },
           "created_at": {
             "type": "string",
@@ -8000,15 +7669,33 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          },
+          "organization": {
+            "description": "A site's team reads its site's",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NamedRef"
+              },
+              {
+                "type": "object",
+                "nullable": true
+              }
+            ]
           }
         },
         "required": [
+          "created_at",
           "email",
           "id",
           "is_active",
+          "is_rescue_account",
+          "last_login",
           "mfa_enabled",
+          "organization",
           "passkeys_count",
-          "role"
+          "role",
+          "site",
+          "username"
         ],
         "additionalProperties": false
       },
@@ -8017,34 +7704,27 @@
         "properties": {
           "qr_code": {
             "type": "string",
-            "description": "PNG data URI."
+            "description": "PNG data URI"
           },
           "secret": {
             "type": "string",
-            "description": "For typing into the app instead of scanning."
-          },
-          "user_id": {
-            "type": "integer"
+            "description": "For typing into the app instead of scanning"
           },
           "setup_token": {
             "type": "string",
-            "description": "Authorises TOTP or passkey setup for 15 minutes."
+            "description": "Sets up TOTP or a passkey within 15 minutes; it carries the secret"
           }
         },
         "required": [
           "qr_code",
           "secret",
-          "setup_token",
-          "user_id"
+          "setup_token"
         ],
         "additionalProperties": false
       },
       "Activation": {
         "type": "object",
         "properties": {
-          "message": {
-            "type": "string"
-          },
           "user": {
             "$ref": "#/components/schemas/Account"
           },
@@ -8053,39 +7733,31 @@
           }
         },
         "required": [
-          "message",
           "mfa_setup",
           "user"
         ],
         "additionalProperties": false
       },
-      "MFAVerifySetup": {
+      "ActivationCode": {
         "type": "object",
         "properties": {
-          "user_id": {
-            "type": "integer"
+          "setup_token": {
+            "type": "string",
+            "description": "Returned by `/activate`"
           },
           "code": {
             "type": "string",
-            "description": "Current authenticator-app code."
-          },
-          "setup_token": {
-            "type": "string",
-            "description": "Token returned by account activation."
+            "description": "First code of the scanned secret"
           }
         },
         "required": [
           "code",
-          "setup_token",
-          "user_id"
+          "setup_token"
         ]
       },
       "Session": {
         "type": "object",
         "properties": {
-          "message": {
-            "type": "string"
-          },
           "user": {
             "$ref": "#/components/schemas/Account"
           },
@@ -8103,20 +7775,16 @@
         ],
         "additionalProperties": false
       },
-      "PasskeySetupBegin": {
+      "SetupToken": {
         "type": "object",
         "properties": {
-          "user_id": {
-            "type": "integer"
-          },
           "setup_token": {
             "type": "string",
-            "description": "Token returned by account activation."
+            "description": "Returned by `/activate`"
           }
         },
         "required": [
-          "setup_token",
-          "user_id"
+          "setup_token"
         ]
       },
       "WebAuthnOptions": {
@@ -8124,12 +7792,12 @@
         "properties": {
           "options": {
             "type": "object",
-            "description": "For navigator.credentials.create() or .get().",
+            "description": "For navigator.credentials.create() or .get()",
             "additionalProperties": {}
           },
           "challenge_token": {
             "type": "string",
-            "description": "Send back with the credential, within 120 seconds."
+            "description": "Send back with the credential, within 120 seconds"
           }
         },
         "required": [
@@ -8138,32 +7806,27 @@
         ],
         "additionalProperties": false
       },
-      "PasskeySetupComplete": {
+      "PasskeyRegistration": {
         "type": "object",
         "properties": {
           "challenge_token": {
             "type": "string",
-            "description": "Token returned with the options."
+            "description": "Returned with the options"
           },
           "credential": {
             "type": "object",
-            "description": "The PublicKeyCredential the browser returned, JSON-encoded.",
+            "description": "The PublicKeyCredential the browser returned, JSON-encoded",
             "additionalProperties": {}
           },
           "device_name": {
             "type": "string",
-            "maxLength": 100,
-            "description": "At most 100 characters. Derived from the User-Agent when omitted.",
+            "description": "1 to 100 characters; from the User-Agent when left out",
             "nullable": true
-          },
-          "user_id": {
-            "type": "integer"
           }
         },
         "required": [
           "challenge_token",
-          "credential",
-          "user_id"
+          "credential"
         ]
       },
       "Login": {
@@ -8182,43 +7845,16 @@
           "password"
         ]
       },
-      "AuthError": {
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "string",
-            "description": "Error message"
-          },
-          "message": {
-            "type": "string",
-            "description": "Detailed error description"
-          },
-          "passkey_only": {
-            "type": "boolean",
-            "description": "The account signs in with a passkey only."
-          },
-          "passkey_required": {
-            "type": "boolean",
-            "description": "The account has no TOTP: use the passkey route instead."
-          },
-          "second_factor_required": {
-            "type": "boolean",
-            "description": "The account has no second factor to confirm with."
-          },
-          "step_up_required": {
-            "type": "boolean",
-            "description": "Confirm identity through `/auth/step-up/*`, then retry with the access token it returns."
-          }
-        }
-      },
       "LoginResponse": {
         "type": "object",
         "properties": {
-          "message": {
-            "type": "string"
-          },
           "user": {
-            "$ref": "#/components/schemas/Account"
+            "description": "With the tokens, once signed in",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Account"
+              }
+            ]
           },
           "access_token": {
             "type": "string"
@@ -8228,11 +7864,11 @@
           },
           "mfa_required": {
             "type": "boolean",
-            "description": "Set when the account has TOTP: finish with /mfa/verify."
+            "description": "Set when the account has TOTP: finish with `/mfa/verify`"
           },
           "mfa_token": {
             "type": "string",
-            "description": "Valid 10 minutes, for /mfa/verify only."
+            "description": "Valid 10 minutes, for `/mfa/verify` only"
           }
         },
         "additionalProperties": false
@@ -8242,11 +7878,11 @@
         "properties": {
           "mfa_token": {
             "type": "string",
-            "description": "Token returned by the password step."
+            "description": "Returned by `/login`"
           },
           "code": {
             "type": "string",
-            "description": "Current authenticator-app code."
+            "description": "Current authenticator-app code"
           }
         },
         "required": [
@@ -8259,206 +7895,22 @@
         "properties": {
           "challenge_token": {
             "type": "string",
-            "description": "Token returned with the options."
+            "description": "Returned with the options"
           },
           "credential": {
             "type": "object",
-            "description": "The PublicKeyCredential the browser returned, JSON-encoded.",
+            "description": "The PublicKeyCredential the browser returned, JSON-encoded",
             "additionalProperties": {}
           }
         },
         "required": [
           "challenge_token",
           "credential"
-        ]
-      },
-      "PasskeyRegistration": {
-        "type": "object",
-        "properties": {
-          "challenge_token": {
-            "type": "string",
-            "description": "Token returned with the options."
-          },
-          "credential": {
-            "type": "object",
-            "description": "The PublicKeyCredential the browser returned, JSON-encoded.",
-            "additionalProperties": {}
-          },
-          "device_name": {
-            "type": "string",
-            "maxLength": 100,
-            "description": "At most 100 characters. Derived from the User-Agent when omitted.",
-            "nullable": true
-          }
-        },
-        "required": [
-          "challenge_token",
-          "credential"
-        ]
-      },
-      "Passkey": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer"
-          },
-          "device_name": {
-            "type": "string"
-          },
-          "transports": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          },
-          "last_used_at": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          }
-        },
-        "required": [
-          "device_name",
-          "id",
-          "transports"
-        ],
-        "additionalProperties": false
-      },
-      "PasskeyCreated": {
-        "type": "object",
-        "properties": {
-          "message": {
-            "type": "string"
-          },
-          "passkey": {
-            "$ref": "#/components/schemas/Passkey"
-          }
-        },
-        "required": [
-          "message",
-          "passkey"
-        ],
-        "additionalProperties": false
-      },
-      "PasskeyList": {
-        "type": "object",
-        "properties": {
-          "passkeys": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Passkey"
-            }
-          }
-        },
-        "required": [
-          "passkeys"
-        ],
-        "additionalProperties": false
-      },
-      "Message": {
-        "type": "object",
-        "properties": {
-          "message": {
-            "type": "string",
-            "description": "Success message"
-          }
-        }
-      },
-      "PasskeyRename": {
-        "type": "object",
-        "properties": {
-          "device_name": {
-            "type": "string",
-            "description": "At most 100 characters."
-          }
-        },
-        "required": [
-          "device_name"
-        ]
-      },
-      "PasskeyRenamed": {
-        "type": "object",
-        "properties": {
-          "message": {
-            "type": "string"
-          },
-          "device_name": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "device_name",
-          "message"
-        ],
-        "additionalProperties": false
-      },
-      "ChangePassword": {
-        "type": "object",
-        "properties": {
-          "current_password": {
-            "type": "string"
-          },
-          "new_password": {
-            "type": "string"
-          },
-          "mfa_code": {
-            "type": "string",
-            "description": "Checked when the account has TOTP enabled."
-          }
-        },
-        "required": [
-          "current_password",
-          "mfa_code",
-          "new_password"
-        ]
-      },
-      "PasswordCheck": {
-        "type": "object",
-        "properties": {
-          "current_password": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "current_password"
-        ]
-      },
-      "PasskeyPasswordChange": {
-        "type": "object",
-        "properties": {
-          "challenge_token": {
-            "type": "string",
-            "description": "Token returned with the options."
-          },
-          "credential": {
-            "type": "object",
-            "description": "The PublicKeyCredential the browser returned, JSON-encoded.",
-            "additionalProperties": {}
-          },
-          "new_password": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "challenge_token",
-          "credential",
-          "new_password"
         ]
       },
       "ResetLink": {
         "type": "object",
         "properties": {
-          "valid": {
-            "type": "boolean"
-          },
-          "link_type": {
-            "type": "string"
-          },
           "email": {
             "type": "string",
             "format": "email"
@@ -8473,9 +7925,7 @@
         "required": [
           "email",
           "has_passkeys",
-          "link_type",
-          "mfa_enabled",
-          "valid"
+          "mfa_enabled"
         ],
         "additionalProperties": false
       },
@@ -8484,18 +7934,18 @@
         "properties": {
           "token": {
             "type": "string",
-            "description": "Token from the reset link."
+            "description": "From the reset link"
           },
           "new_password": {
             "type": "string"
           },
-          "mfa_code": {
+          "code": {
             "type": "string",
-            "description": "Current authenticator-app code."
+            "description": "Current authenticator-app code"
           }
         },
         "required": [
-          "mfa_code",
+          "code",
           "new_password",
           "token"
         ]
@@ -8505,7 +7955,7 @@
         "properties": {
           "reset_token": {
             "type": "string",
-            "description": "Token from the reset link."
+            "description": "From the reset link"
           }
         },
         "required": [
@@ -8517,11 +7967,11 @@
         "properties": {
           "challenge_token": {
             "type": "string",
-            "description": "Token returned with the options."
+            "description": "Returned with the options"
           },
           "credential": {
             "type": "object",
-            "description": "The PublicKeyCredential the browser returned, JSON-encoded.",
+            "description": "The PublicKeyCredential the browser returned, JSON-encoded",
             "additionalProperties": {}
           },
           "new_password": {
@@ -8529,7 +7979,7 @@
           },
           "reset_token": {
             "type": "string",
-            "description": "Token from the reset link."
+            "description": "From the reset link"
           }
         },
         "required": [
@@ -8538,43 +7988,6 @@
           "new_password",
           "reset_token"
         ]
-      },
-      "ProfileUpdate": {
-        "type": "object",
-        "properties": {
-          "username": {
-            "type": "string",
-            "description": "Display name: 2 to 50 letters, spaces, hyphens, apostrophes."
-          },
-          "email": {
-            "type": "string",
-            "format": "email",
-            "description": "New sign-in address."
-          }
-        }
-      },
-      "ProfileUpdated": {
-        "type": "object",
-        "properties": {
-          "message": {
-            "type": "string"
-          },
-          "user": {
-            "$ref": "#/components/schemas/Account"
-          },
-          "access_token": {
-            "type": "string",
-            "description": "With `refresh_token`, when the address changed: the session that replaces the caller's, every other one being closed."
-          },
-          "refresh_token": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "message",
-          "user"
-        ],
-        "additionalProperties": false
       },
       "TokenRefresh": {
         "type": "object",
@@ -8588,18 +8001,6 @@
         ],
         "additionalProperties": false
       },
-      "User": {
-        "type": "object",
-        "properties": {
-          "user": {
-            "$ref": "#/components/schemas/Account"
-          }
-        },
-        "required": [
-          "user"
-        ],
-        "additionalProperties": false
-      },
       "SessionTransfer": {
         "type": "object",
         "properties": {
@@ -8608,7 +8009,7 @@
           },
           "expires_in": {
             "type": "integer",
-            "description": "Seconds."
+            "description": "Seconds"
           }
         },
         "required": [
@@ -8634,13 +8035,13 @@
           "password": {
             "type": "string"
           },
-          "mfa_code": {
+          "code": {
             "type": "string",
-            "description": "Current authenticator-app code."
+            "description": "Current authenticator-app code"
           }
         },
         "required": [
-          "mfa_code",
+          "code",
           "password"
         ]
       },
@@ -8649,67 +8050,11 @@
         "properties": {
           "access_token": {
             "type": "string",
-            "description": "Replaces the access token in use. Its `fresh` claim is the time until which the session is confirmed."
+            "description": "Replaces the access token in use. Its `fresh` claim is the time until which the session is confirmed"
           }
         },
         "required": [
           "access_token"
-        ],
-        "additionalProperties": false
-      },
-      "TotpSetup": {
-        "type": "object",
-        "properties": {
-          "qr_code": {
-            "type": "string",
-            "description": "PNG data URI."
-          },
-          "secret": {
-            "type": "string",
-            "description": "For typing into the app instead of scanning."
-          },
-          "enrolment_token": {
-            "type": "string",
-            "description": "Send back with a first code, within 10 minutes."
-          }
-        },
-        "required": [
-          "enrolment_token",
-          "qr_code",
-          "secret"
-        ],
-        "additionalProperties": false
-      },
-      "TotpEnrolmentConfirm": {
-        "type": "object",
-        "properties": {
-          "enrolment_token": {
-            "type": "string",
-            "description": "Token returned by `/mfa/setup`."
-          },
-          "code": {
-            "type": "string",
-            "description": "First code of the app that scanned the secret."
-          }
-        },
-        "required": [
-          "code",
-          "enrolment_token"
-        ]
-      },
-      "AccountUpdate": {
-        "type": "object",
-        "properties": {
-          "message": {
-            "type": "string"
-          },
-          "user": {
-            "$ref": "#/components/schemas/Account"
-          }
-        },
-        "required": [
-          "message",
-          "user"
         ],
         "additionalProperties": false
       },
@@ -8930,6 +8275,39 @@
         ],
         "additionalProperties": false
       },
+      "ProfilePatch": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "Display name: 2 to 50 letters, spaces, hyphens, apostrophes"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "New sign-in address"
+          }
+        }
+      },
+      "Profile": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/Account"
+          },
+          "access_token": {
+            "type": "string",
+            "description": "With `refresh_token`, when the address changed: the session that replaces the caller's, every other one being closed"
+          },
+          "refresh_token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "user"
+        ],
+        "additionalProperties": false
+      },
       "UiPreferences": {
         "type": "object",
         "properties": {
@@ -8944,48 +8322,7 @@
           }
         }
       },
-      "LiveAlert": {
-        "type": "object",
-        "properties": {
-          "key": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
-          "body": {
-            "type": "string"
-          },
-          "severity": {
-            "type": "string",
-            "description": "info | warning | error"
-          },
-          "site_ids": {
-            "type": "array",
-            "items": {
-              "type": "integer"
-            }
-          },
-          "site_names": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      },
-      "LiveAlertList": {
-        "type": "object",
-        "properties": {
-          "alerts": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/LiveAlert"
-            }
-          }
-        }
-      },
-      "InboxPreferences": {
+      "NotificationPreferences": {
         "type": "object",
         "properties": {
           "notify_menu_unpublished": {
@@ -9031,6 +8368,197 @@
             "maximum": 21
           }
         }
+      },
+      "Alert": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "error"
+            ]
+          },
+          "sites": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NamedRef"
+            }
+          }
+        },
+        "required": [
+          "body",
+          "key",
+          "severity",
+          "sites",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "AlertList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Alert"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "Passkey": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "device_name": {
+            "type": "string"
+          },
+          "transports": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "created_at",
+          "device_name",
+          "id",
+          "last_used_at",
+          "transports"
+        ],
+        "additionalProperties": false
+      },
+      "PasskeyList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Passkey"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "PasskeyPatch": {
+        "type": "object",
+        "properties": {
+          "device_name": {
+            "type": "string",
+            "description": "1 to 100 characters"
+          }
+        },
+        "required": [
+          "device_name"
+        ]
+      },
+      "PasswordOptions": {
+        "type": "object",
+        "properties": {
+          "current_password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password"
+        ]
+      },
+      "PasswordChange": {
+        "type": "object",
+        "properties": {
+          "new_password": {
+            "type": "string"
+          },
+          "current_password": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "description": "Current authenticator-app code, if the account has TOTP"
+          },
+          "challenge_token": {
+            "type": "string",
+            "description": "Returned by `POST /v1/user/password/options`"
+          },
+          "credential": {
+            "type": "object",
+            "description": "The PublicKeyCredential the browser returned, JSON-encoded",
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "new_password"
+        ]
+      },
+      "TotpEnrolment": {
+        "type": "object",
+        "properties": {
+          "qr_code": {
+            "type": "string",
+            "description": "PNG data URI"
+          },
+          "secret": {
+            "type": "string",
+            "description": "For typing into the app instead of scanning"
+          },
+          "enrolment_token": {
+            "type": "string",
+            "description": "Send back with a first code, within 10 minutes"
+          }
+        },
+        "required": [
+          "enrolment_token",
+          "qr_code",
+          "secret"
+        ],
+        "additionalProperties": false
+      },
+      "TotpInput": {
+        "type": "object",
+        "properties": {
+          "enrolment_token": {
+            "type": "string",
+            "description": "Returned by `POST /v1/user/totp/enrolment`"
+          },
+          "code": {
+            "type": "string",
+            "description": "First code of the app that scanned the secret"
+          }
+        },
+        "required": [
+          "code",
+          "enrolment_token"
+        ]
       },
       "PushKey": {
         "type": "object",
@@ -9266,22 +8794,6 @@
         ],
         "additionalProperties": false
       },
-      "MemberSite": {
-        "type": "object",
-        "properties": {
-          "slug": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "slug"
-        ],
-        "additionalProperties": false
-      },
       "Member": {
         "type": "object",
         "properties": {
@@ -9323,7 +8835,7 @@
             "description": "None for a supervisor",
             "anyOf": [
               {
-                "$ref": "#/components/schemas/MemberSite"
+                "$ref": "#/components/schemas/NamedRef"
               },
               {
                 "type": "object",

@@ -73,6 +73,7 @@ ignore = ["B008", "E501"]  # B008: Flask default-arg patterns; E501: line length
 "app/__init__.py" = ["F401"]
 # Route modules imported for the routes they register on the blueprint
 "app/routes/auth/__init__.py" = ["F401"]
+"app/routes/user/__init__.py" = ["F401"]
 
 [tool.mypy]
 python_version = "3.11"

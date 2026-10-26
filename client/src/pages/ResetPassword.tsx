@@ -44,16 +44,11 @@ export function ResetPassword() {
       }
       try {
         const data = await authApi.checkResetLink(token);
-        if (data.valid) {
-          setEmail(data.email || '');
-          setMfaEnabled(!!data.mfa_enabled);
-          setHasPasskeys(!!data.has_passkeys);
-          const defaultMethod: VerificationMethod = data.mfa_enabled ? 'totp' : 'passkey';
-          setVerificationMethod(defaultMethod);
-          setStep('form');
-        } else {
-          setStep('invalid');
-        }
+        setEmail(data.email);
+        setMfaEnabled(data.mfa_enabled);
+        setHasPasskeys(data.has_passkeys);
+        setVerificationMethod(data.mfa_enabled ? 'totp' : 'passkey');
+        setStep('form');
       } catch {
         setStep('invalid');
       }

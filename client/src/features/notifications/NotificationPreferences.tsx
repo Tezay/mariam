@@ -1,5 +1,5 @@
 import { Check, Loader2 } from 'lucide-react';
-import type { NotifPreferences } from '@/lib/api/inbox';
+import type { NotifPreferences } from '@/lib/api/user';
 import { Switch } from '@/components/ui/switch';
 
 /** What a row shows while its change travels to the server, and just after. */

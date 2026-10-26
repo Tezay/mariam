@@ -119,7 +119,7 @@ export function AdminLayout() {
         showSearch
         showNotifications
         accountPath="/admin/account"
-        tenant={user?.restaurant_name ? { label: 'Site', name: user.restaurant_name } : undefined}
+        tenant={user?.site ? { label: 'Site', name: user.site.name } : undefined}
       />
       <TourHost
         tour="orientation"

@@ -245,21 +245,19 @@ def create_app(config_class=None):
     from .routes.events import events_bp
     from .routes.holidays import holidays_bp
     from .routes.imports import imports_bp
-    from .routes.inbox import inbox_bp
     from .routes.members import members_bp
     from .routes.menus import menus_bp
     from .routes.orgs import orgs_bp
     from .routes.push_subscriptions import push_bp
     from .routes.sites import sites_bp
     from .routes.taxonomy import taxonomy_bp
-    from .routes.users import users_bp
+    from .routes.user import user_bp
     from .routes.weekly_emails import weekly_emails_bp
 
     api.register_blueprint(auth_bp,          url_prefix='/v1/auth')
     api.register_blueprint(taxonomy_bp,      url_prefix='/v1/taxonomy')
     api.register_blueprint(holidays_bp,      url_prefix='/v1')
-    api.register_blueprint(users_bp,         url_prefix='/v1/users')
-    api.register_blueprint(inbox_bp,         url_prefix='/v1/inbox')
+    api.register_blueprint(user_bp,          url_prefix='/v1/user')
     api.register_blueprint(weekly_emails_bp, url_prefix='/v1/weekly-emails')
     api.register_blueprint(push_bp,          url_prefix='/v1')
     api.register_blueprint(domains_bp,       url_prefix='/v1/domains')

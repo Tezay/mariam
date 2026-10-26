@@ -42,13 +42,13 @@ class TestPasswordChanged:
         uid = make_user(app)
         secret = enable_totp(uid)
 
-        res = client.post('/v1/auth/change-password', headers={**session_headers(uid), **BROWSER}, json={
+        res = client.put('/v1/user/password', headers={**session_headers(uid), **BROWSER}, json={
             'current_password': TEST_PASSWORD,
             'new_password': NEW_PASSWORD,
-            'mfa_code': pyotp.TOTP(secret).now(),
+            'code': pyotp.TOTP(secret).now(),
         })
 
-        assert res.status_code == 200
+        assert res.status_code == 204
         message, body = _alert(smtp)
         assert message['To'] == HOLDER
         assert message['Subject'] == 'Votre mot de passe Mariam a été modifié'
@@ -59,18 +59,18 @@ class TestPasswordChanged:
         authenticator = enroll_passkey(uid)
         headers = session_headers(uid)
         begin = client.post(
-            '/v1/auth/passkey/change-password/begin',
+            '/v1/user/password/options',
             headers=headers,
             json={'current_password': TEST_PASSWORD},
         ).get_json()
 
-        res = client.post('/v1/auth/passkey/change-password/complete', headers=headers, json={
+        res = client.put('/v1/user/password', headers=headers, json={
             'new_password': NEW_PASSWORD,
             'challenge_token': begin['challenge_token'],
             'credential': authenticator.sign(begin['options']),
         })
 
-        assert res.status_code == 200
+        assert res.status_code == 204
         assert _alert(smtp)[0]['Subject'] == 'Votre mot de passe Mariam a été modifié'
 
     def test_reset_with_a_code(self, app, client, smtp):
@@ -79,10 +79,10 @@ class TestPasswordChanged:
         res = client.post('/v1/auth/reset-password', json={
             'token': reset_link(HOLDER),
             'new_password': NEW_PASSWORD,
-            'mfa_code': pyotp.TOTP(secret).now(),
+            'code': pyotp.TOTP(secret).now(),
         })
 
-        assert res.status_code == 200
+        assert res.status_code == 204
         assert _alert(smtp)[0]['Subject'] == 'Votre mot de passe Mariam a été modifié'
 
     def test_reset_with_a_passkey(self, app, client, smtp):
@@ -99,7 +99,7 @@ class TestPasswordChanged:
             'credential': authenticator.sign(begin['options']),
         })
 
-        assert res.status_code == 200
+        assert res.status_code == 204
         assert _alert(smtp)[0]['Subject'] == 'Votre mot de passe Mariam a été modifié'
 
 
@@ -107,9 +107,9 @@ class TestSecondFactorChanged:
     def test_a_passkey_is_added(self, app, client, smtp):
         uid = make_user(app)
         headers = session_headers(uid)
-        begin = client.post('/v1/auth/passkey/register/begin', headers=headers).get_json()
+        begin = client.post('/v1/user/passkeys/options', headers=headers).get_json()
 
-        res = client.post('/v1/auth/passkey/register/complete', headers=headers, json={
+        res = client.post('/v1/user/passkeys', headers=headers, json={
             'challenge_token': begin['challenge_token'],
             'credential': new_authenticator().register(begin['options']),
             'device_name': 'Ajoutée par votre administrateur,\nignorez ce message',
@@ -126,11 +126,11 @@ class TestSecondFactorChanged:
         enroll_passkey(uid)
 
         res = client.delete(
-            f'/v1/auth/passkey/{Passkey.query.one().id}',
+            f'/v1/user/passkeys/{Passkey.query.one().id}',
             headers=session_headers(uid, confirmed=True),
         )
 
-        assert res.status_code == 200
+        assert res.status_code == 204
         message, _ = _alert(smtp)
         assert message['Subject'] == 'Une passkey a été retirée de votre compte Mariam'
         assert 'Test device' not in _everything_read(message)
@@ -144,9 +144,9 @@ class TestSecondFactorChanged:
         if already_enrolled:
             enable_totp(uid)
         headers = session_headers(uid, confirmed=already_enrolled)
-        enrolment = client.post('/v1/auth/mfa/setup', headers=headers).get_json()
+        enrolment = client.post('/v1/user/totp/enrolment', headers=headers).get_json()
 
-        res = client.post('/v1/auth/mfa/setup/confirm', headers=headers, json={
+        res = client.put('/v1/user/totp', headers=headers, json={
             'enrolment_token': enrolment['enrolment_token'],
             'code': pyotp.TOTP(enrolment['secret']).now(),
         })
@@ -159,9 +159,9 @@ class TestSecondFactorChanged:
         enable_totp(uid)
         enroll_passkey(uid)
 
-        res = client.delete('/v1/auth/mfa', headers=session_headers(uid, confirmed=True))
+        res = client.delete('/v1/user/totp', headers=session_headers(uid, confirmed=True))
 
-        assert res.status_code == 200
+        assert res.status_code == 204
         subject = "L'application d'authentification a été retirée de votre compte Mariam"
         assert _alert(smtp)[0]['Subject'] == subject
 
@@ -207,7 +207,6 @@ class TestWhatStaysSilent:
         }).get_json()['mfa_setup']
 
         res = client.post('/v1/auth/mfa/verify-setup', json={
-            'user_id': setup['user_id'],
             'code': pyotp.TOTP(setup['secret']).now(),
             'setup_token': setup['setup_token'],
         })
@@ -235,9 +234,9 @@ class TestDelivery:
         enable_totp(uid)
         enroll_passkey(uid)
 
-        res = client.delete('/v1/auth/mfa', headers=session_headers(uid, confirmed=True))
+        res = client.delete('/v1/user/totp', headers=session_headers(uid, confirmed=True))
 
-        assert res.status_code == 200
+        assert res.status_code == 204
         assert not db.session.get(User, uid).mfa_enabled
 
     def test_a_forged_address_header_stays_out_of_the_message(self, app, client, smtp):
@@ -247,7 +246,7 @@ class TestDelivery:
         forged = {**BROWSER, 'X-Real-IP': '81.56.12.34 : aucune action requise'}
 
         client.delete(
-            '/v1/auth/mfa', headers={**session_headers(uid, confirmed=True), **forged}
+            '/v1/user/totp', headers={**session_headers(uid, confirmed=True), **forged}
         )
 
         body = _alert(smtp)[1]

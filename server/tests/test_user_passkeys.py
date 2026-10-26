@@ -1,3 +1,6 @@
+"""The account's passkeys: registering, renaming, removing."""
+import pytest
+
 from app.models import AuditLog, Passkey
 from conftest import make_user
 from tests.auth_support import enable_totp, enroll_passkey, new_authenticator, session_headers
@@ -7,13 +10,13 @@ from tests.webauthn_authenticator import b64url
 class TestRegistration:
     def _begin(self, client, user_id, confirmed=False):
         return client.post(
-            '/v1/auth/passkey/register/begin',
+            '/v1/user/passkeys/options',
             headers=session_headers(user_id, confirmed=confirmed),
         )
 
     def _complete(self, client, user_id, begin, credential, user_agent='', confirmed=False):
         return client.post(
-            '/v1/auth/passkey/register/complete',
+            '/v1/user/passkeys',
             headers={**session_headers(user_id, confirmed=confirmed), 'User-Agent': user_agent},
             json={'challenge_token': begin['challenge_token'], 'credential': credential},
         )
@@ -37,14 +40,14 @@ class TestRegistration:
             user_agent='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
         )
 
-        assert res.get_json()['passkey']['device_name'] == 'iPhone'
+        assert res.get_json()['device_name'] == 'iPhone'
 
     def test_a_name_over_100_characters_is_refused_by_the_schema(self, app, client):
         uid = make_user(app)
         begin = self._begin(client, uid).get_json()
 
         res = client.post(
-            '/v1/auth/passkey/register/complete',
+            '/v1/user/passkeys',
             headers=session_headers(uid),
             json={
                 'challenge_token': begin['challenge_token'],
@@ -79,6 +82,7 @@ class TestRegistration:
         res = self._complete(client, intruder, begin, new_authenticator().register(begin['options']))
 
         assert res.status_code == 403
+        assert res.get_json()['code'] == 'challenge_invalid'
         assert Passkey.query.count() == 0
 
     def test_an_account_with_a_factor_starts_from_a_confirmed_session(self, app, client):
@@ -123,13 +127,26 @@ class TestRegistration:
         )
 
         assert res.status_code == 403
+        assert res.get_json()['code'] == 'challenge_invalid'
         assert Passkey.query.filter_by(user_id=uid).count() == 1
+
+    def test_a_refused_attestation_does_not_say_why(self, app, client):
+        uid = make_user(app)
+        begin = self._begin(client, uid).get_json()
+        credential = new_authenticator().register(begin['options'])
+        credential['response']['clientDataJSON'] = b64url(b'{"type": "webauthn.get"}')
+
+        res = self._complete(client, uid, begin, credential)
+
+        assert res.status_code == 403
+        assert res.get_json()['detail'] == "La passkey n'a pas pu être vérifiée."
+        assert Passkey.query.count() == 0
 
 
 class TestManagement:
     def _rename(self, client, user_id, passkey_id, name):
         return client.patch(
-            f'/v1/auth/passkey/{passkey_id}',
+            f'/v1/user/passkeys/{passkey_id}',
             headers=session_headers(user_id),
             json={'device_name': name},
         )
@@ -139,9 +156,9 @@ class TestManagement:
         enroll_passkey(uid)
         enroll_passkey(make_user(app, email='other@mariam.app'))
 
-        body = client.get('/v1/auth/passkey', headers=session_headers(uid)).get_json()
+        body = client.get('/v1/user/passkeys', headers=session_headers(uid)).get_json()
 
-        assert len(body['passkeys']) == 1
+        assert [passkey['device_name'] for passkey in body['items']] == ['Test device']
 
     def test_a_passkey_is_renamed_and_the_change_audited(self, app, client):
         uid = make_user(app)
@@ -149,21 +166,28 @@ class TestManagement:
 
         res = self._rename(client, uid, Passkey.query.one().id, 'Téléphone pro')
 
-        assert res.status_code == 200
+        assert res.get_json()['device_name'] == 'Téléphone pro'
         assert Passkey.query.one().device_name == 'Téléphone pro'
         assert AuditLog.query.filter_by(action=AuditLog.ACTION_PASSKEY_RENAMED).count() == 1
 
-    def test_a_blank_name_is_refused(self, app, client):
+    def test_spaces_are_trimmed(self, app, client):
         uid = make_user(app)
         enroll_passkey(uid)
 
-        assert self._rename(client, uid, Passkey.query.one().id, '   ').status_code == 400
+        self._rename(client, uid, Passkey.query.one().id, '  Téléphone   pro ')
 
-    def test_a_name_over_100_characters_is_refused(self, app, client):
+        assert Passkey.query.one().device_name == 'Téléphone pro'
+
+    @pytest.mark.parametrize('name', ['   ', 'x' * 101])
+    def test_a_blank_or_long_name_is_refused_with_a_pointer(self, app, client, name):
         uid = make_user(app)
         enroll_passkey(uid)
 
-        assert self._rename(client, uid, Passkey.query.one().id, 'x' * 101).status_code == 400
+        res = self._rename(client, uid, Passkey.query.one().id, name)
+
+        assert res.status_code == 422
+        assert [issue['pointer'] for issue in res.get_json()['errors']] == ['/device_name']
+        assert Passkey.query.one().device_name == 'Test device'
 
     def test_another_users_passkey_is_out_of_reach(self, app, client):
         enroll_passkey(make_user(app, email='owner@mariam.app'))
@@ -171,9 +195,11 @@ class TestManagement:
         enable_totp(intruder)
         passkey_id = Passkey.query.one().id
 
-        assert self._rename(client, intruder, passkey_id, 'Mine').status_code == 404
+        assert self._rename(client, intruder, passkey_id, 'Mine').get_json()['code'] == (
+            'passkey_not_found'
+        )
         assert client.delete(
-            f'/v1/auth/passkey/{passkey_id}', headers=session_headers(intruder, confirmed=True)
+            f'/v1/user/passkeys/{passkey_id}', headers=session_headers(intruder, confirmed=True)
         ).status_code == 404
         assert Passkey.query.count() == 1
 
@@ -182,9 +208,11 @@ class TestManagement:
         enable_totp(uid)
         enroll_passkey(uid)
 
-        res = client.delete(f'/v1/auth/passkey/{Passkey.query.one().id}', headers=session_headers(uid))
+        res = client.delete(
+            f'/v1/user/passkeys/{Passkey.query.one().id}', headers=session_headers(uid)
+        )
 
-        assert res.status_code == 403
+        assert res.get_json()['code'] == 'step_up_required'
         assert Passkey.query.count() == 1
 
     def test_the_last_passkey_cannot_go_without_totp(self, app, client):
@@ -192,11 +220,11 @@ class TestManagement:
         enroll_passkey(uid)
 
         res = client.delete(
-            f'/v1/auth/passkey/{Passkey.query.one().id}',
+            f'/v1/user/passkeys/{Passkey.query.one().id}',
             headers=session_headers(uid, confirmed=True),
         )
 
-        assert res.status_code == 409
+        assert res.get_json()['code'] == 'last_second_factor'
         assert Passkey.query.count() == 1
 
     def test_a_passkey_goes_when_totp_remains(self, app, client):
@@ -205,10 +233,10 @@ class TestManagement:
         enroll_passkey(uid)
 
         res = client.delete(
-            f'/v1/auth/passkey/{Passkey.query.one().id}',
+            f'/v1/user/passkeys/{Passkey.query.one().id}',
             headers=session_headers(uid, confirmed=True),
         )
 
-        assert res.status_code == 200
+        assert res.status_code == 204
         assert Passkey.query.count() == 0
         assert AuditLog.query.filter_by(action=AuditLog.ACTION_PASSKEY_DELETED).count() == 1
