@@ -1,8 +1,10 @@
 import type { DisplayCategory, MenuItemData, CategorySubstitutionData } from '../menu-types';
 import type { CategoryColor } from '@/lib/category-colors';
-import { MobileItemCard } from './MobileItemCard';
+import { cn } from '@/lib/utils';
+import { ItemCard } from './ItemCard';
+import { SECTION_LABEL, SECTION_RULE, sectionColors } from './section-colors';
 
-interface MobileStandardCategoryProps {
+interface StandardCategoryProps {
   category: DisplayCategory;
   color: CategoryColor;
   onItemTap: (item: MenuItemData) => void;
@@ -25,13 +27,13 @@ function reorderForGrid(items: MenuItemData[]): MenuItemData[] {
   return reordered;
 }
 
-export function MobileStandardCategory({
+export function StandardCategory({
   category,
   color,
   onItemTap,
   hideHeader = false,
   substitutions,
-}: MobileStandardCategoryProps) {
+}: StandardCategoryProps) {
   const items = category.items ?? [];
   if (items.length === 0) return null;
 
@@ -50,36 +52,35 @@ export function MobileStandardCategory({
   const isOdd = total % 2 === 1;
 
   return (
-    <div className="mb-1">
+    <div className="mb-1" style={sectionColors(color)}>
       {!hideHeader && (
-        <div className="mb-3 flex items-center gap-3 px-4">
-          <div className="h-px flex-1" style={{ backgroundColor: color.sectionBorder }} />
-          <span
-            className="text-xs font-bold uppercase tracking-widest"
-            style={{ color: color.sectionLabel }}
-          >
+        <div className="mb-3 flex items-center gap-3 px-4 lg:px-0">
+          <div className={cn('h-px flex-1', SECTION_RULE)} />
+          <h3 className={cn('text-xs font-bold uppercase tracking-widest', SECTION_LABEL)}>
             {category.label}
-          </span>
-          <div className="h-px flex-1" style={{ backgroundColor: color.sectionBorder }} />
+          </h3>
+          <div className={cn('h-px flex-1', SECTION_RULE)} />
         </div>
       )}
 
       {hideHeader && (
         <p
-          className="mb-2 px-4 text-xs font-semibold uppercase tracking-wider"
-          style={{ color: color.sectionLabel }}
+          className={cn(
+            'mb-2 px-4 text-xs font-semibold uppercase tracking-wider lg:px-0',
+            SECTION_LABEL
+          )}
         >
           {category.label}
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-3 px-4">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-4 px-4 lg:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] lg:gap-x-3.5 lg:gap-y-[18px] lg:px-0">
         {orderedItems.map((item, index) => (
           <div
             key={item.id ?? item.dish?.name}
-            className={isOdd && index === total - 1 ? 'col-span-2' : ''}
+            className={isOdd && index === total - 1 ? 'col-span-2 lg:col-span-1' : ''}
           >
-            <MobileItemCard
+            <ItemCard
               item={item}
               categoryColor={color}
               isHighlighted={false}
@@ -92,9 +93,9 @@ export function MobileStandardCategory({
           return (
             <div
               key={`sub-${item.dish?.id ?? i}`}
-              className={isOdd && index === total - 1 ? 'col-span-2' : ''}
+              className={isOdd && index === total - 1 ? 'col-span-2 lg:col-span-1' : ''}
             >
-              <MobileItemCard
+              <ItemCard
                 item={item}
                 categoryColor={color}
                 isHighlighted={false}

@@ -50,6 +50,30 @@ export default {
           DEFAULT: 'hsl(var(--popover))',
           foreground: 'hsl(var(--popover-foreground))',
         },
+        // The public pages' own colours (--site-* in index.css).
+        site: Object.fromEntries(
+          [
+            'page',
+            'surface',
+            'raised',
+            'text',
+            'subtle',
+            'line',
+            'brand',
+            'brand-solid',
+            'brand-soft',
+            'ok',
+            'ok-soft',
+            'soon',
+            'danger',
+            'danger-soft',
+            'danger-line',
+            'note',
+            'note-line',
+            'note-text',
+            'placeholder',
+          ].map((name) => [name, `rgb(var(--site-${name}) / <alpha-value>)`])
+        ),
         // mariam.blue is the primary
         mariam: {
           blue: '#093EAA',

@@ -1,19 +1,15 @@
 import type { DisplayCategory, MenuItemData, CategorySubstitutionData } from '../menu-types';
 import { getCategoryColor } from '@/lib/category-colors';
-import { MobileStandardCategory } from './MobileStandardCategory';
-import { MobileHighlightedCategory } from './MobileHighlightedCategory';
+import { StandardCategory } from './StandardCategory';
+import { HighlightedCategory } from './HighlightedCategory';
 
-interface MobileCategorySectionProps {
+interface CategorySectionProps {
   categories: DisplayCategory[];
   onItemTap: (item: MenuItemData) => void;
   substitutions?: Record<string, CategorySubstitutionData[]>;
 }
 
-export function MobileCategorySection({
-  categories,
-  onItemTap,
-  substitutions,
-}: MobileCategorySectionProps) {
+export function CategorySection({ categories, onItemTap, substitutions }: CategorySectionProps) {
   let standardColorIndex = 0;
 
   return (
@@ -25,7 +21,7 @@ export function MobileCategorySection({
 
         if (category.is_highlighted || (category.subcategories?.length ?? 0) > 0) {
           const result = (
-            <MobileHighlightedCategory
+            <HighlightedCategory
               key={category.id}
               category={category}
               onItemTap={onItemTap}
@@ -43,7 +39,7 @@ export function MobileCategorySection({
         standardColorIndex += 1;
 
         return (
-          <MobileStandardCategory
+          <StandardCategory
             key={category.id}
             category={category}
             color={color}

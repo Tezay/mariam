@@ -3,13 +3,6 @@ import { parseSiteName, SITE_NAME_RULE } from '@/lib/site-name';
 
 export const DAY_NAMES = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
-export const PAYMENT_OPTIONS: { id: PaymentMethod; label: string }[] = [
-  { id: 'izly', label: 'Izly' },
-  { id: 'cb', label: 'Carte bancaire' },
-  { id: 'cash', label: 'Espèces' },
-  { id: 'ticket_restaurant', label: 'Ticket restaurant' },
-];
-
 export function validateSiteName(val: string): string | null {
   return parseSiteName(val) === null ? SITE_NAME_RULE : null;
 }

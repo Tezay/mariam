@@ -114,28 +114,3 @@ export function groupConsecutiveHours(
 
   return groups;
 }
-
-export interface NextOpeningDate {
-  /** "Lun 7 avr." */
-  label: string;
-}
-
-/** From tomorrow on; null without any service day. */
-export function getNextOpeningDate(serviceDays: number[], at?: Date): NextOpeningDate | null {
-  if (serviceDays.length === 0) return null;
-
-  for (let offset = 1; offset <= 7; offset++) {
-    const d = parisNow(at);
-    d.setDate(d.getDate() + offset);
-    const mariamDay = jsDayToMariamDay(d.getDay());
-    if (serviceDays.includes(mariamDay)) {
-      const label = d.toLocaleDateString('fr-FR', {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short',
-      });
-      return { label };
-    }
-  }
-  return null;
-}

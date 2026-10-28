@@ -257,7 +257,7 @@ class TestNotificationPayloads:
 
     def test_today_payload(self):
         from app.services.notification_service import build_today_menu_payload
-        payload = build_today_menu_payload(self._items())
+        payload = build_today_menu_payload(self._items(), '/ru-test')
         assert payload is not None
         assert 'Poulet rôti' in payload['body']
 

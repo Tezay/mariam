@@ -12,11 +12,6 @@ export function parisToday(at: Date = new Date()): string {
   return new Intl.DateTimeFormat('sv', { timeZone: PARIS_TZ }).format(at);
 }
 
-/** 0 is Sunday, as with Date.getDay(). */
-export function parisDayOfWeek(at?: Date): number {
-  return new Date(`${parisToday(at)}T12:00:00`).getDay();
-}
-
 export function addDays(dateStr: string, days: number): string {
   const d = new Date(`${dateStr}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);

@@ -61,11 +61,12 @@ export type EventData = Omit<Event, 'date' | 'images'> & {
 export interface PublicMenuData {
   today: MenuData | null;
   tomorrow: MenuData | null;
+  day: MenuData;
   todayEvent: EventData | null;
   upcomingEvents: EventData[];
   activeClosure: Closure | null;
   upcomingClosures: Closure[];
-  restaurant: RestaurantPublic | null;
+  restaurant: RestaurantPublic;
 }
 
 export interface SitePage {

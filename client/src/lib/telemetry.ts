@@ -6,10 +6,10 @@
  */
 import { API_URL } from './runtime-config';
 
-export type PageKind = 'today' | 'tomorrow' | 'tv' | 'sites';
+export type PageKind = 'today' | 'tomorrow' | 'day' | 'tv' | 'sites';
 
-// One count per rendered page: a refresh is a new visit, switching to "demain"
-// within the same page is not.
+// One count per kind and loaded page: a refresh is a new visit, going from day to
+// day within the same page is not.
 const sent = new Set<string>();
 
 export function trackPageView(pageKind: PageKind, org: string, site?: string): void {

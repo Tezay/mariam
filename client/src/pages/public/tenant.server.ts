@@ -25,9 +25,9 @@ export const loadTenant: MiddlewareFunction<Response> = async ({ request, contex
   context.set(tenantContext, { organization, sites, origin: publicOrigin(request) });
 };
 
-// A single site lives at /menu, several at /<site>/menu. The query survives the
-// redirection, which /<site>/menu?mode=tv needs to reach the display.
-export function siteFor(tenant: Tenant, request: Request, slug: string | undefined, page: string) {
+// A single site lives at /, several at /<site>. The query survives the redirection,
+// which ?mode=tv and the dated links of the notifications need.
+export function siteFor(tenant: Tenant, request: Request, slug: string | undefined, page = '') {
   const multiSite = tenant.sites.length > 1;
   if (!slug && multiSite) throw redirect('/');
   const site = slug ? tenant.sites.find((s) => s.slug === slug) : tenant.sites[0];

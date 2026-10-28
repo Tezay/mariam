@@ -1,11 +1,11 @@
 import { useRef, useEffect } from 'react';
 import { ChefHat } from 'lucide-react';
 
-interface MobileChefNoteProps {
+interface ChefNoteProps {
   note: string;
 }
 
-export function MobileChefNote({ note }: MobileChefNoteProps) {
+export function ChefNote({ note }: ChefNoteProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const animFrameRef = useRef<number>(0);
   const directionRef = useRef<1 | -1>(1);
@@ -51,10 +51,10 @@ export function MobileChefNote({ note }: MobileChefNoteProps) {
   return (
     <div
       ref={scrollRef}
-      className="flex shrink-0 items-center gap-2 overflow-x-auto whitespace-nowrap border-b border-amber-100 bg-amber-50 px-4 py-2 [&::-webkit-scrollbar]:hidden"
+      className="flex shrink-0 items-center gap-2 overflow-x-auto whitespace-nowrap border-b border-site-note-line bg-site-note px-4 py-2.5 text-site-note-text lg:rounded-[14px] lg:border lg:py-3 [&::-webkit-scrollbar]:hidden"
     >
-      <ChefHat className="h-4 w-4 shrink-0 text-amber-600" />
-      <p className="text-sm italic text-amber-800">Note du chef : « {note} »</p>
+      <ChefHat aria-hidden className="h-4 w-4 shrink-0" />
+      <p className="text-sm italic">Note du chef : « {note} »</p>
     </div>
   );
 }

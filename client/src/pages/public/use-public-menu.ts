@@ -13,24 +13,25 @@ import type { PublicMenuData } from './menu-types';
 
 const REFETCH_INTERVAL_MS = 5 * 60 * 1000;
 
+/** The TV reads today and tomorrow; the page, the `date` a visitor chose. */
 export function usePublicMenu(
   org: string,
   site: string,
   mode: 'mobile' | 'tv',
-  initial?: { data: PublicMenuData; fetchedAt: number }
+  { date, initial }: { date?: string; initial?: { data: PublicMenuData; fetchedAt: number } } = {}
 ) {
   return useQuery<PublicMenuData>({
-    queryKey: ['public-menu', org, site, mode],
+    queryKey: ['public-menu', org, site, mode, date ?? null],
     queryFn: async () => {
       const now = nowInstant();
       const today = parisToday(now);
       const [details, menus, events, closures] = await Promise.all([
         sitesApi.get(org, site),
-        menusApi.listPublished({ org, site }, today, addDays(today, 1)),
+        menusApi.listPublished({ org, site }, date ?? today, date ?? addDays(today, 1)),
         eventsApi.listPublished({ org, site }, mode),
         closuresApi.listPublished({ org, site }),
       ]);
-      return publicMenuData({ site: details, menus, events, closures }, now);
+      return publicMenuData({ site: details, menus, events, closures }, now, date);
     },
     initialData: initial?.data,
     initialDataUpdatedAt: initial?.fetchedAt,

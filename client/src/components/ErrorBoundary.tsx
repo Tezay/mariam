@@ -55,17 +55,16 @@ export function AppErrorFallback() {
   );
 }
 
-/** Light-only fallback for public menu pages (public pages never use dark mode). */
 export function PublicErrorFallback() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 px-6 text-center font-sans text-slate-900">
+    <div className="public-page flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
       <h1 className="text-xl font-semibold tracking-tight">Menu momentanément indisponible</h1>
-      <p className="max-w-sm text-sm text-slate-500">
+      <p className="max-w-sm text-sm text-site-subtle">
         Nous n'avons pas pu afficher le menu. Merci de réessayer dans un instant.
       </p>
       <button
         onClick={reload}
-        className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90"
+        className="inline-flex items-center gap-2 rounded-xl bg-site-brand-solid px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
       >
         <RefreshCw className="h-4 w-4" />
         Réessayer

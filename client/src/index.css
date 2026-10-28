@@ -84,6 +84,60 @@
 }
 
 /* ========================================
+   PAGES PUBLIQUES
+   ======================================== */
+/* The colours of the public pages' mockup, apart from the dashboard's: there `dark`
+   follows the system (theme-init.js). On :root, for the dialogs portalled out of the page. */
+:root {
+  --site-page: 244 245 247;
+  --site-surface: 255 255 255;
+  --site-raised: 241 243 246;
+  --site-text: 24 28 37;
+  --site-subtle: 93 100 114;
+  --site-line: 223 226 232;
+  --site-brand: 9 62 170;
+  --site-brand-solid: 9 62 170;
+  --site-brand-soft: 232 238 251;
+  --site-ok: 15 122 90;
+  --site-ok-soft: 227 245 238;
+  --site-soon: 161 92 7;
+  --site-danger: 180 35 24;
+  --site-danger-soft: 254 243 242;
+  --site-danger-line: 254 205 202;
+  --site-note: 255 247 230;
+  --site-note-line: 253 226 167;
+  --site-note-text: 122 74 0;
+  --site-placeholder: 227 230 236;
+}
+
+.dark {
+  --site-page: 18 21 28;
+  --site-surface: 29 33 42;
+  --site-raised: 39 44 56;
+  --site-text: 242 244 247;
+  --site-subtle: 163 169 182;
+  --site-line: 51 57 71;
+  --site-brand: 157 184 255;
+  --site-brand-solid: 36 88 214;
+  --site-brand-soft: 31 44 77;
+  --site-ok: 95 209 168;
+  --site-ok-soft: 22 58 48;
+  --site-soon: 247 190 92;
+  --site-danger: 253 162 155;
+  --site-danger-soft: 59 23 21;
+  --site-danger-line: 92 37 34;
+  --site-note: 58 47 20;
+  --site-note-line: 90 71 24;
+  --site-note-text: 246 210 138;
+  --site-placeholder: 42 48 60;
+}
+
+.public-page {
+  background-color: rgb(var(--site-page));
+  color: rgb(var(--site-text));
+}
+
+/* ========================================
    RESET DE BASE
    ======================================== */
 *,

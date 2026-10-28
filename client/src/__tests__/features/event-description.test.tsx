@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MobileEventSection } from '@/pages/public/mobile/MobileEventSection';
+import { EventSection } from '@/pages/public/menu/EventSection';
 import type { EventData } from '@/pages/public/menu-types';
 
 function event(description: string): EventData {
@@ -9,9 +9,9 @@ function event(description: string): EventData {
 }
 
 async function openDetail(description: string) {
-  const { container } = render(<MobileEventSection upcomingEvents={[event(description)]} />);
+  render(<EventSection upcomingEvents={[event(description)]} />);
   await userEvent.click(screen.getByText('Soirée'));
-  return container.querySelector('.rich-text');
+  return document.querySelector('.rich-text');
 }
 
 describe('event descriptions on the public page', () => {

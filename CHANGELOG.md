@@ -45,6 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`/unsubscribe/<token>`**, the page the weekly email links to.
 - **A site's public page in the API**: tagline, presentation, logo, cover, gallery, access, services and links.
 - **"Page publique"** in the dashboard, for a site's admins: presentation, images, access, services, links and menu window.
+- **A site's page at `/` or `/<site>`**: the menu of each day of its window, practical information, map and gallery.
+- **The public pages follow the system's dark theme**; the TV display stays light.
 
 ### Changed
 
@@ -60,6 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **An event's editor always offers its images** and saves their order with the event; without storage, the upload says so.
 - **Each site sets how far its menus read ahead and back**, 7 and 30 days by default.
 - **Sign-in, activation and reset refusals carry a `code`** (`passkey_only`, `link_expired`…), listed in the specification.
+- **`/menu` and `/<site>/menu` redirect for good** to the site's page, query kept.
 
 - **React Router 7** replaces `react-router-dom` 6; the current page stays visible while the next one loads.
 - **The frontend is built by React Router's framework mode**; the build needs Node 22 alongside Bun.
@@ -114,6 +117,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The supervisors' own actions appear in the organization's audit log.**
 - **A TOTP code holds the night the clocks go back**: it was refused for that hour.
 - **The service page's preview opens the site's own public page**, in an organization of several sites too.
+- **A notification opens its site's page**, on the right day for tomorrow's menu, rather than the list of sites.
 
 ## [0.19.0] - 2026-10-13
 

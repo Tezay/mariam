@@ -1,3 +1,5 @@
+import type { MapTiles } from './runtime-config';
+
 type Env = Record<string, string | undefined>;
 
 // Served to every browser at /config.js: no secret belongs here.
@@ -45,4 +47,9 @@ export function contentSecurityPolicy(nonce: string, env: Env = process.env): st
     "form-action 'self'",
     "object-src 'none'",
   ].join('; ');
+}
+
+export function mapTiles(env: Env = process.env): MapTiles | null {
+  const url = env.MAP_TILE_URL?.trim();
+  return url ? { url, attribution: env.MAP_TILE_ATTRIBUTION?.trim() ?? '' } : null;
 }

@@ -11,9 +11,6 @@ from app.models import MenuCategory, Restaurant
 from app.models.taxonomy import DietaryTag, DietaryTagCategory
 from conftest import auth_headers, get_token, make_category, make_restaurant, make_user, site_path
 
-SETTINGS_SHARED = (
-    Path(__file__).resolve().parents[2] / 'client/src/pages/admin/settings/settings-shared.ts'
-)
 CATEGORY_COLORS = Path(__file__).resolve().parents[2] / 'client/src/lib/category-colors.ts'
 SITE_PROFILE = Path(__file__).resolve().parents[2] / 'client/src/lib/site-profile.ts'
 LINK_LOGOS = Path(__file__).resolve().parents[2] / 'client/public/links'
@@ -251,9 +248,9 @@ class TestCalendarSettings:
         ).status_code == 403
 
 
-@pytest.mark.skipif(not SETTINGS_SHARED.exists(), reason='the client sources are not mounted here')
+@pytest.mark.skipif(not SITE_PROFILE.exists(), reason='the client sources are not mounted here')
 def test_the_client_offers_every_payment_method():
-    offered = re.findall(r"\{ id: '(\w+)'", SETTINGS_SHARED.read_text())
+    offered = re.findall(r"\{ id: '(\w+)', label: '[^']+' \}", SITE_PROFILE.read_text())
 
     assert tuple(offered) == PAYMENT_METHODS
 

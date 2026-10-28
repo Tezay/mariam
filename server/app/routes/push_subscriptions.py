@@ -20,6 +20,7 @@ from ..schemas.notifications import (
 from ..security import limiter
 from ..services.notification_service import get_vapid_public_key, send_push_notification
 from ..utils.time import as_utc
+from ..utils.urls import public_page_path
 from .scope import public_site
 
 push_bp = Blueprint(
@@ -167,7 +168,7 @@ def test_subscription(org: str, site: str, subscription_id: str):
         'body': '✅ Les notifications fonctionnent !',
         'icon': '/web-app-manifest-192x192.png',
         'badge': '/favicon-96x96.png',
-        'url': '/menu',
+        'url': public_page_path(subscription.restaurant),
         'tag': 'test',
     })
     if not sent:

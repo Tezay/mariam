@@ -2314,7 +2314,7 @@
           }
         },
         "summary": "Count one view of a public page.",
-        "description": "Body: `page_kind` (`today`, `tomorrow`, `tv` or `sites`), plus `site`, the\nslug of the site a page belongs to. Read whatever the content type, which\n`navigator.sendBeacon` sets to text/plain to avoid a CORS preflight.\n\nAlways answers 204, even when telemetry is off or the body is wrong: a\nvisitor must never see a page degraded by a counter.",
+        "description": "Body: `page_kind` (`today`, `tomorrow`, `day`, `tv` or `sites`), plus `site`, the\nslug of the site a page belongs to. Read whatever the content type, which\n`navigator.sendBeacon` sets to text/plain to avoid a CORS preflight.\n\nAlways answers 204, even when telemetry is off or the body is wrong: a\nvisitor must never see a page degraded by a counter.",
         "tags": [
           "orgs"
         ],

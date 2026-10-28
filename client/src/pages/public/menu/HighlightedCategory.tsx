@@ -1,9 +1,11 @@
 import type { DisplayCategory, MenuItemData, CategorySubstitutionData } from '../menu-types';
 import { getCategoryColor } from '@/lib/category-colors';
-import { MobileItemCard } from './MobileItemCard';
-import { MobileStandardCategory } from './MobileStandardCategory';
+import { cn } from '@/lib/utils';
+import { ItemCard } from './ItemCard';
+import { SECTION_LABEL, SECTION_RULE, sectionColors } from './section-colors';
+import { StandardCategory } from './StandardCategory';
 
-interface MobileHighlightedCategoryProps {
+interface HighlightedCategoryProps {
   category: DisplayCategory;
   onItemTap: (item: MenuItemData) => void;
   subColorBaseIndex?: number;
@@ -23,37 +25,37 @@ function substitutionCards(
   }));
 }
 
-export function MobileHighlightedCategory({
+const HIGHLIGHTED_GRID =
+  'flex flex-col gap-3.5 px-4 lg:grid lg:grid-cols-[repeat(auto-fill,minmax(300px,1fr))] lg:gap-x-5 lg:gap-y-[18px] lg:px-0';
+
+export function HighlightedCategory({
   category,
   onItemTap,
   subColorBaseIndex = 0,
   substitutions,
-}: MobileHighlightedCategoryProps) {
+}: HighlightedCategoryProps) {
   const hasSubcategories = category.subcategories && category.subcategories.length > 0;
   const color = getCategoryColor(category.color_key, 0);
-  const headerTextColor = hasSubcategories ? '#093EAA' : color.sectionLabel;
-  const headerLineColor = hasSubcategories ? '#C5D2F1' : color.sectionBorder;
+  const headerLabel = hasSubcategories ? 'text-site-brand' : SECTION_LABEL;
+  const headerRule = hasSubcategories ? 'bg-site-brand/25' : SECTION_RULE;
 
   const directItems = category.items ?? [];
   const directSubs = substitutionCards(category, substitutions);
 
   return (
-    <div className="mb-2">
-      <div className="mb-4 flex items-center gap-3 px-4">
-        <div className="h-px flex-1" style={{ backgroundColor: headerLineColor }} />
-        <span
-          className="text-sm font-bold uppercase tracking-widest"
-          style={{ color: headerTextColor }}
-        >
+    <div className="mb-2" style={sectionColors(color)}>
+      <div className="mb-4 flex items-center gap-3 px-4 lg:px-0">
+        <div className={cn('h-px flex-1', headerRule)} />
+        <h3 className={cn('text-sm font-bold uppercase tracking-widest', headerLabel)}>
           {category.label}
-        </span>
-        <div className="h-px flex-1" style={{ backgroundColor: headerLineColor }} />
+        </h3>
+        <div className={cn('h-px flex-1', headerRule)} />
       </div>
 
       {(directItems.length > 0 || directSubs.length > 0) && (
-        <div className="mb-4 flex flex-col gap-3 px-4">
+        <div className={cn('mb-4', HIGHLIGHTED_GRID)}>
           {directItems.map((item, index) => (
-            <MobileItemCard
+            <ItemCard
               key={item.id ?? item.dish?.name}
               item={item}
               categoryColor={color}
@@ -63,7 +65,7 @@ export function MobileHighlightedCategory({
             />
           ))}
           {directSubs.map((item, i) => (
-            <MobileItemCard
+            <ItemCard
               key={`sub-${item.dish?.id ?? i}`}
               item={item}
               categoryColor={color}
@@ -85,18 +87,20 @@ export function MobileHighlightedCategory({
             const subSubs = substitutionCards(sub, substitutions);
             if (items.length === 0 && subSubs.length === 0) return null;
             return (
-              <div key={sub.id} className="mb-4">
+              <div key={sub.id} className="mb-4" style={sectionColors(subColor)}>
                 {subIndex > 0 && (
                   <p
-                    className="mb-3 px-4 text-xs font-semibold uppercase tracking-wider"
-                    style={{ color: subColor.sectionLabel + 'B3' }}
+                    className={cn(
+                      'mb-3 px-4 text-xs font-semibold uppercase tracking-wider opacity-70 lg:px-0',
+                      SECTION_LABEL
+                    )}
                   >
                     {sub.label}
                   </p>
                 )}
-                <div className="flex flex-col gap-3 px-4">
+                <div className={HIGHLIGHTED_GRID}>
                   {items.map((item, index) => (
-                    <MobileItemCard
+                    <ItemCard
                       key={item.id ?? item.dish?.name}
                       item={item}
                       categoryColor={subColor}
@@ -106,7 +110,7 @@ export function MobileHighlightedCategory({
                     />
                   ))}
                   {subSubs.map((item, i) => (
-                    <MobileItemCard
+                    <ItemCard
                       key={`sub-${item.dish?.id ?? i}`}
                       item={item}
                       categoryColor={subColor}
@@ -123,7 +127,7 @@ export function MobileHighlightedCategory({
 
           return (
             <div key={sub.id} className="mb-4">
-              <MobileStandardCategory
+              <StandardCategory
                 category={sub}
                 color={subColor}
                 onItemTap={onItemTap}

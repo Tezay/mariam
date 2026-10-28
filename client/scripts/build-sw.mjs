@@ -31,7 +31,8 @@ const { count, size, warnings } = await injectManifest({
     // Latin covers French, Œ and € included; other subsets load on demand.
     'assets/inter-latin-wght-normal-*.woff2',
   ],
-  globIgnores: [worker],
+  // The map needs its tiles, which no offline copy has.
+  globIgnores: [worker, 'assets/leaflet-*'],
   // Vite already hashes these names.
   dontCacheBustURLsMatching: /^assets\//,
 });
