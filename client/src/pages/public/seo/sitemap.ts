@@ -2,8 +2,8 @@ import type { PublicSiteSummary } from '@/lib/api/sites';
 
 export function sitemapUrls(origin: string, sites: PublicSiteSummary[]): string[] {
   if (sites.length === 0) return [];
-  if (sites.length === 1) return [`${origin}/menu`];
-  return [`${origin}/`, ...sites.map((site) => `${origin}/${site.slug}/menu`)];
+  if (sites.length === 1) return [`${origin}/`];
+  return [`${origin}/`, ...sites.map((site) => `${origin}/${site.slug}`)];
 }
 
 function escapeXml(value: string): string {

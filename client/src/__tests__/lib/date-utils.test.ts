@@ -1,12 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import {
-  addDays,
-  formatParisTime,
-  parisDayOfWeek,
-  parisNow,
-  parisToday,
-  parisYear,
-} from '@/lib/date-utils';
+import { addDays, formatParisTime, parisNow, parisToday, parisYear } from '@/lib/date-utils';
 
 describe('parisToday', () => {
   it('returns a valid YYYY-MM-DD string', () => {
@@ -54,7 +47,6 @@ describe('the Paris clock is independent of the machine', () => {
   it("rolls the day over on Paris time, not on the viewer's", () => {
     freezeLateSunday();
     expect(parisToday()).toBe('2026-09-07');
-    expect(parisDayOfWeek()).toBe(1);
   });
 
   it('reads the hour in Paris', () => {

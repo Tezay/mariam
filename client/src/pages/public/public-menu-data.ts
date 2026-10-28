@@ -34,16 +34,18 @@ function eventOf({ date, ...event }: Event): EventData {
   return { ...event, event_date: date };
 }
 
-/** Today and tomorrow are those of `now`, in Paris. */
+/** Today and tomorrow are those of `now`, in Paris; `date` is the day a visitor chose. */
 export function publicMenuData(
   { site, menus, events, closures }: SitePage,
-  now: Date
+  now: Date,
+  date: string = parisToday(now)
 ): PublicMenuData {
   const today = parisToday(now);
   const restaurant = restaurantOf(site);
   return {
     today: dayOf(today, menus, restaurant),
     tomorrow: dayOf(addDays(today, 1), menus, restaurant),
+    day: dayOf(date, menus, restaurant),
     todayEvent: events.filter((event) => event.date === today).map(eventOf)[0] ?? null,
     upcomingEvents: events
       .filter((event) => event.date > today)

@@ -8,13 +8,20 @@ import {
   Wifi,
   type LucideIcon,
 } from 'lucide-react';
-import type { Site } from '@/lib/api/sites';
+import type { PaymentMethod, Site } from '@/lib/api/sites';
 
 export type Service = Site['services'][number];
 export type SiteLink = Site['links'][number];
 export type LinkKind = SiteLink['kind'];
 
-// Kept in step with SERVICES and LINK_KINDS (server/app/data/site_profile.py).
+// Kept in step with PAYMENT_METHODS, SERVICES and LINK_KINDS (server/app/data/site_profile.py).
+export const PAYMENT_OPTIONS: { id: PaymentMethod; label: string }[] = [
+  { id: 'izly', label: 'Izly' },
+  { id: 'cb', label: 'Carte bancaire' },
+  { id: 'cash', label: 'Espèces' },
+  { id: 'ticket_restaurant', label: 'Ticket restaurant' },
+];
+
 export const SERVICES: { id: Service; label: string; icon: LucideIcon }[] = [
   { id: 'wifi', label: 'Wi-Fi', icon: Wifi },
   { id: 'microwave', label: 'Micro-ondes', icon: Microwave },

@@ -40,6 +40,8 @@ describe('getCategoryColor', () => {
       'label',
       'sectionLabel',
       'sectionBorder',
+      'sectionLabelDark',
+      'sectionBorderDark',
       'addBg',
       'addLabel',
     ];

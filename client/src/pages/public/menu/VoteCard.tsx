@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
  * came to read the menu, and a broken counter must never get in the way. A
  * refusal is different — it is the guard working, and it is explained.
  */
-export function MobileVoteCard({
+export function VoteCard({
   org,
   siteSlug,
   iconPreset,
@@ -94,8 +94,8 @@ export function MobileVoteCard({
 
   if (refusal) {
     return (
-      <section className="mx-4 mb-6 rounded-3xl border border-gray-100 bg-white p-5 text-center shadow-sm">
-        <p className="text-sm text-gray-500">{refusal}</p>
+      <section className="mx-4 mb-6 rounded-3xl border border-site-line bg-site-surface p-5 text-center lg:mx-0 lg:mb-0 lg:rounded-none lg:border-x-0 lg:border-b-0 lg:bg-transparent lg:px-0 lg:pb-0 lg:pt-5">
+        <p className="text-sm text-site-subtle">{refusal}</p>
       </section>
     );
   }
@@ -110,13 +110,11 @@ export function MobileVoteCard({
   const preset = ratingPreset(iconPreset);
 
   return (
-    <section className="mx-4 mb-6 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+    <section className="mx-4 mb-6 rounded-3xl border border-site-line bg-site-surface p-5 lg:mx-0 lg:mb-0 lg:rounded-none lg:border-x-0 lg:border-b-0 lg:bg-transparent lg:px-0 lg:pb-0 lg:pt-5">
       {showLevels ? (
         <>
-          <h2 className="text-center text-base font-semibold text-gray-800">
-            Ce menu vous a plu ?
-          </h2>
-          <p className="mt-1 text-center text-xs text-gray-400">
+          <h2 className="text-center text-base font-semibold">Ce menu vous a plu ?</h2>
+          <p className="mt-1 text-center text-xs text-site-subtle">
             Votre avis, c'est anonyme, et ça aide votre restaurant.
           </p>
           <div className="mt-4 flex items-stretch justify-center gap-3">
@@ -130,8 +128,8 @@ export function MobileVoteCard({
                 className={cn(
                   'flex min-h-[76px] flex-1 flex-col items-center justify-center gap-1.5 rounded-2xl border-2 px-2 py-3 transition-all active:scale-[0.96] disabled:opacity-60',
                   vote?.rating === level.value
-                    ? 'border-primary bg-primary text-white shadow-sm'
-                    : 'border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200'
+                    ? 'border-site-brand-solid bg-site-brand-solid text-white shadow-sm'
+                    : 'border-site-line bg-site-raised text-site-subtle hover:border-site-subtle/40'
                 )}
               >
                 <RatingIcons preset={preset} value={level.value} className="h-7 w-7" />
@@ -184,19 +182,19 @@ function RecordedAnswer({ rating, onEdit }: { rating: RatingValue; onEdit: () =>
   const level = ratingLevel(rating);
   return (
     <div className="flex flex-col items-center gap-3 text-center">
-      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-        <PartyPopper className="h-6 w-6 text-primary" />
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-site-brand-soft">
+        <PartyPopper className="h-6 w-6 text-site-brand" />
       </span>
       <div>
-        <p className="text-base font-semibold text-gray-800">Merci pour votre retour !</p>
-        <p className="mt-0.5 text-sm text-gray-500">
+        <p className="text-base font-semibold">Merci pour votre retour !</p>
+        <p className="mt-0.5 text-sm text-site-subtle">
           Vous avez répondu «&nbsp;{level?.label}&nbsp;»
         </p>
       </div>
       <button
         type="button"
         onClick={onEdit}
-        className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-700 active:scale-[0.97]"
+        className="inline-flex items-center gap-1.5 rounded-xl border border-site-line px-3 py-1.5 text-xs font-medium text-site-subtle transition-colors hover:text-site-text active:scale-[0.97]"
       >
         <Pencil className="h-3 w-3" />
         Modifier ma réponse
@@ -224,14 +222,14 @@ function DishFollowUp({
   };
 
   return (
-    <div className="mt-5 border-t border-gray-100 pt-4">
-      <p className="text-center text-xs font-medium text-gray-500">
-        Vous avez pris quoi ? <span className="font-normal text-gray-400">(facultatif)</span>
+    <div className="mt-5 border-t border-site-line pt-4">
+      <p className="text-center text-xs font-medium text-site-subtle">
+        Vous avez pris quoi ? <span className="font-normal">(facultatif)</span>
       </p>
       {groups.map((group) => (
         <div key={group.category_id} className="mt-3">
           {groups.length > 1 && (
-            <p className="mb-1.5 text-center text-[11px] uppercase tracking-wide text-gray-300">
+            <p className="mb-1.5 text-center text-[11px] uppercase tracking-wide text-site-subtle/70">
               {group.label}
             </p>
           )}
@@ -245,8 +243,8 @@ function DishFollowUp({
                 className={cn(
                   'rounded-xl border px-3 py-2 text-xs transition-colors active:scale-[0.97] disabled:opacity-60',
                   chosen.includes(dish.id)
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-gray-200 text-gray-600'
+                    ? 'border-site-brand bg-site-brand-soft text-site-brand'
+                    : 'border-site-line text-site-subtle'
                 )}
               >
                 {dish.name}
@@ -258,7 +256,7 @@ function DishFollowUp({
       <button
         type="button"
         onClick={onDismiss}
-        className="mx-auto mt-3 block text-xs text-gray-400 underline transition-colors hover:text-gray-600"
+        className="mx-auto mt-3 block text-xs text-site-subtle underline transition-colors hover:text-site-text"
       >
         {chosen.length > 0 ? 'Terminer' : 'Ignorer'}
       </button>

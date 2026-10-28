@@ -1,7 +1,7 @@
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accessibility, CreditCard } from 'lucide-react';
-import { PAYMENT_OPTIONS } from './settings-shared';
+import { PAYMENT_OPTIONS } from '@/lib/site-profile';
 import type { SettingsState } from './useSettingsState';
 
 export function AccessibiliteTab({ state }: { state: SettingsState }) {

@@ -55,6 +55,14 @@ function organization(...sites) {
 
 const HOSTILE_DISH = '</script><script>alert(1)</script>';
 
+const TODAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(new Date());
+
+function addDays(date, days) {
+  const day = new Date(`${date}T12:00:00Z`);
+  day.setUTCDate(day.getUTCDate() + days);
+  return day.toISOString().slice(0, 10);
+}
+
 function menu(date) {
   const item = (id, name) => ({
     id,
@@ -83,14 +91,23 @@ const SITE_ANSWERS = {
   '': (slug) => ({
     slug,
     name: slug,
+    tagline: null,
+    description: null,
     logo_url: null,
+    cover_url: null,
+    photos: [],
+    address_city: null,
+    address_postcode: null,
+    access_info: null,
+    services: [],
+    links: [],
     service_days: [0, 1, 2, 3, 4],
     service_hours: {},
     vote_enabled: false,
     vote_icon_preset: 'thumbs',
     dietary_tags: [],
     certifications: [],
-    menu_window: { from: '2026-01-01', to: '2026-12-31' },
+    menu_window: { from: addDays(TODAY, -30), to: addDays(TODAY, 7) },
   }),
   // The page shows the menu dated as the day it asks for.
   menus: (slug, query) => ({ items: [menu(query.get('from'))] }),
@@ -111,6 +128,10 @@ function answer(url) {
   const [, slug, resource = ''] =
     /^\/v1\/orgs\/demo\/sites\/([^/]+)(?:\/([^/]+))?$/.exec(pathname) ?? [];
   if (!tenant.sites?.includes(slug) || !(resource in SITE_ANSWERS)) return { status: 404 };
+  // As the API does, which the page must never ask for an impossible day.
+  if (resource === 'menus' && addDays(searchParams.get('from'), 0) !== searchParams.get('from')) {
+    return { status: 422 };
+  }
   return { status: 200, body: SITE_ANSWERS[resource](slug, searchParams) };
 }
 
@@ -238,8 +259,8 @@ test('/sitemap.xml lists the sites, asking the API as the visitor', async () => 
 
   assert.match(sitemap.headers['content-type'], /^application\/xml/);
   assert.ok(sitemap.body.includes(`<loc>${ORIGIN}/</loc>`));
-  assert.ok(sitemap.body.includes(`<loc>${ORIGIN}/alpha/menu</loc>`));
-  assert.ok(sitemap.body.includes(`<loc>${ORIGIN}/beta/menu</loc>`));
+  assert.ok(sitemap.body.includes(`<loc>${ORIGIN}/alpha</loc>`));
+  assert.ok(sitemap.body.includes(`<loc>${ORIGIN}/beta</loc>`));
 
   assert.deepEqual(
     apiRequests.map((asked) => asked.url),
@@ -248,11 +269,11 @@ test('/sitemap.xml lists the sites, asking the API as the visitor', async () => 
   for (const asked of apiRequests) assert.equal(asked.headers['x-real-ip'], '203.0.113.7');
 });
 
-test('/sitemap.xml of a single site is its menu at the root', async () => {
+test('/sitemap.xml of a single site is its page at the root', async () => {
   tenant = organization('solo');
   const sitemap = await request('/sitemap.xml');
-  assert.ok(sitemap.body.includes(`<loc>${ORIGIN}/menu</loc>`));
-  assert.ok(!sitemap.body.includes('/solo/'));
+  assert.ok(sitemap.body.includes(`<loc>${ORIGIN}/</loc>`));
+  assert.ok(!sitemap.body.includes('/solo'));
 });
 
 test('/sitemap.xml is empty for an unknown host and unavailable when the API fails', async () => {
@@ -277,21 +298,23 @@ test('static files are cached by how they are named', async () => {
   assert.match((await request('/favicon.svg')).headers['cache-control'], /immutable/);
 });
 
-test('a menu is rendered by the server, with its title, its dishes and its JSON-LD', async () => {
-  const page = await request('/alpha/menu');
+test('a site page is rendered by the server, with its title, its dishes and its JSON-LD', async () => {
+  const page = await request('/alpha');
   assert.equal(page.status, 200);
-  assert.match(page.body, /<title>Menu alpha — Demo<\/title>/);
-  assert.ok(page.body.includes(`<link rel="canonical" href="${ORIGIN}/alpha/menu"/>`));
+  assert.match(page.body, /<title>alpha – Demo : menu du jour, horaires et accès<\/title>/);
+  assert.ok(page.body.includes(`<link rel="canonical" href="${ORIGIN}/alpha"/>`));
+  assert.ok(!page.body.includes('noindex'));
   assert.ok(page.body.includes('Curry de pois chiches'));
   const jsonld = /<script type="application\/ld\+json">(.*?)<\/script>/.exec(page.body)?.[1];
   assert.ok(jsonld, 'no JSON-LD block');
-  assert.equal(JSON.parse(jsonld).hasMenu.hasMenuSection[0].hasMenuItem[1].name, HOSTILE_DISH);
+  const [restaurant] = JSON.parse(jsonld);
+  assert.equal(restaurant.hasMenu.hasMenuSection[0].hasMenuItem[1].name, HOSTILE_DISH);
   // Written as data, never as markup: the name cannot close the script it sits in.
   assert.ok(!page.body.includes(HOSTILE_DISH));
 });
 
 test('a page asks the API as the visitor the proxy named', async () => {
-  await request('/alpha/menu', { headers: { 'X-Real-IP': '203.0.113.7' } });
+  await request('/alpha', { headers: { 'X-Real-IP': '203.0.113.7' } });
   assert.equal(apiRequests.length, 6);
   for (const { headers } of apiRequests) assert.equal(headers['x-real-ip'], '203.0.113.7');
 });
@@ -305,7 +328,7 @@ test('the organization of a host is asked once while the API lets it be kept', a
 });
 
 test('an unknown site answers 404, an unreachable API 503', async () => {
-  const unknown = await request('/nope/menu');
+  const unknown = await request('/nope');
   assert.equal(unknown.status, 404);
   assert.ok(unknown.body.includes('Restaurant introuvable.'));
   tenant = { status: 404 };
@@ -314,16 +337,41 @@ test('an unknown site answers 404, an unreachable API 503', async () => {
   assert.equal((await request('/')).status, 503);
 });
 
-test('a single site is served at /menu, and the TV mode has its own address', async () => {
-  const tv = await request('/alpha/menu?mode=tv');
+test('a dated page is the menu of that day, kept out of the index', async () => {
+  const tomorrow = addDays(TODAY, 1);
+  const page = await request(`/alpha?date=${tomorrow}`);
+  assert.equal(page.status, 200);
+  assert.ok(page.body.includes('<meta name="robots" content="noindex"/>'));
+  assert.ok(page.body.includes(`<link rel="canonical" href="${ORIGIN}/alpha"/>`));
+  assert.ok(apiRequests.some((asked) => asked.url.includes(`from=${tomorrow}&to=${tomorrow}`)));
+
+  for (const date of [TODAY, 'demain', `${TODAY.slice(0, 4)}-02-30`, addDays(TODAY, 8)]) {
+    const moved = await request(`/alpha?date=${date}`);
+    assert.equal(moved.status, 302, date);
+    assert.equal(moved.headers.location, '/alpha', date);
+  }
+});
+
+test('the former addresses lead to the page, and the TV mode to its own', async () => {
+  const menu = await request('/alpha/menu?mode=tv');
+  assert.equal(menu.status, 301);
+  assert.equal(menu.headers.location, '/alpha?mode=tv');
+  const tv = await request('/alpha?mode=tv');
   assert.equal(tv.status, 301);
   assert.equal(tv.headers.location, '/alpha/tv');
 
+  const hostile = await request('/%5Cevil.example/menu');
+  assert.equal(hostile.headers.location, '/%5Cevil.example');
+
   tenant = organization('solo');
-  for (const path of ['/', '/solo/menu']) {
+  for (const [path, status, location] of [
+    ['/menu', 301, '/'],
+    ['/solo/menu', 301, '/solo'],
+    ['/solo?date=x', 302, '/?date=x'],
+  ]) {
     const moved = await request(path);
-    assert.equal(moved.status, 302, path);
-    assert.equal(moved.headers.location, '/menu', path);
+    assert.equal(moved.status, status, path);
+    assert.equal(moved.headers.location, location, path);
   }
-  assert.equal((await request('/menu')).status, 200);
+  assert.equal((await request('/')).status, 200);
 });

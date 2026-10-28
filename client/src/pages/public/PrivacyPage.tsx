@@ -1,39 +1,38 @@
 import { Link } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
-import { PublicShell } from './PublicShell';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-2">
-      <h2 className="text-base font-semibold text-gray-800">{title}</h2>
-      <div className="space-y-2 text-sm leading-relaxed text-gray-600">{children}</div>
+      <h2 className="text-base font-semibold">{title}</h2>
+      <div className="space-y-2 text-sm leading-relaxed text-site-subtle">{children}</div>
     </section>
   );
 }
 
 function Basis({ children }: { children: React.ReactNode }) {
-  return <p className="pt-1 text-xs text-gray-400">{children}</p>;
+  return <p className="pt-1 text-xs text-site-subtle">{children}</p>;
 }
 
 export function PrivacyPage() {
   return (
-    <PublicShell size="narrow">
-      <div className="px-5 py-10">
+    <div className="public-page min-h-screen">
+      <div className="mx-auto max-w-2xl px-5 py-10">
         <Link
           to="/"
-          className="mb-8 inline-flex items-center gap-1.5 text-sm text-gray-400 transition-colors hover:text-gray-600"
+          className="mb-8 inline-flex items-center gap-1.5 text-sm text-site-subtle transition-colors hover:text-site-text"
         >
           <ArrowLeft className="h-4 w-4" />
           Retour au menu
         </Link>
 
-        <h1 className="text-xl font-semibold tracking-tight text-gray-900">Confidentialité</h1>
-        <p className="mt-3 text-[15px] leading-relaxed text-gray-700">
+        <h1 className="text-xl font-semibold tracking-tight">Confidentialité</h1>
+        <p className="mt-3 text-[15px] leading-relaxed">
           Vous consultez le menu sans compte, sans cookie et sans être suivi. Nous comptons les
           visites de façon anonyme. Si vous notez un menu, nous gardons la note, pas votre identité.
           Rien n’est vendu, rien ne sert à la publicité.
         </p>
-        <p className="mt-3 text-sm text-gray-500">
+        <p className="mt-3 text-sm text-site-subtle">
           Cette page s’adresse aux visiteurs des pages de menu, qui n’ont pas de compte.
         </p>
 
@@ -74,15 +73,13 @@ export function PrivacyPage() {
             </p>
             <ul className="ml-4 list-disc space-y-2">
               <li>
-                <strong className="font-medium text-gray-700">Un identifiant aléatoire</strong>,
-                stocké sur votre appareil, qui vous permet de modifier votre vote jusqu’à minuit. Il
-                est répliqué dans plusieurs espaces de stockage du navigateur afin de résister à un
-                effacement partiel, et retiré du vote dès le lendemain.
+                <strong className="font-medium">Un identifiant aléatoire</strong>, stocké sur votre
+                appareil, qui vous permet de modifier votre vote jusqu’à minuit. Il est répliqué
+                dans plusieurs espaces de stockage du navigateur afin de résister à un effacement
+                partiel, et retiré du vote dès le lendemain.
               </li>
               <li>
-                <strong className="font-medium text-gray-700">
-                  Une empreinte technique de votre navigateur
-                </strong>{' '}
+                <strong className="font-medium">Une empreinte technique de votre navigateur</strong>{' '}
                 (configuration d’affichage, langue, fuseau horaire, capacités matérielles), calculée
                 localement au moment du vote et jamais lors d’une simple consultation. Elle est
                 produite par une bibliothèque libre s’exécutant dans votre navigateur ; aucun tiers
@@ -132,7 +129,7 @@ export function PrivacyPage() {
             <p>
               Eliot Cupillard, éditeur de Mariam, est responsable des traitements décrits sur cette
               page. Vous pouvez le contacter à{' '}
-              <a className="text-primary underline" href="mailto:contact@mariam.app">
+              <a className="text-site-brand underline" href="mailto:contact@mariam.app">
                 contact@mariam.app
               </a>
               .
@@ -159,7 +156,7 @@ export function PrivacyPage() {
             </p>
             <p>
               Pour toute question, écrivez-nous à{' '}
-              <a className="text-primary underline" href="mailto:contact@mariam.app">
+              <a className="text-site-brand underline" href="mailto:contact@mariam.app">
                 contact@mariam.app
               </a>
               . Vous pouvez également introduire une réclamation auprès de la Commission nationale
@@ -168,10 +165,10 @@ export function PrivacyPage() {
           </Section>
         </div>
 
-        <p className="mt-10 border-t border-gray-100 pt-5 text-xs text-gray-400">
+        <p className="mt-10 border-t border-site-line pt-5 text-xs text-site-subtle">
           Dernière mise à jour : 15 octobre 2026
         </p>
       </div>
-    </PublicShell>
+    </div>
   );
 }

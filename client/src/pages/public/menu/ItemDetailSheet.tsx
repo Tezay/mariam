@@ -4,13 +4,17 @@ import type { DietaryTag, CertificationItem } from '@/lib/api/taxonomy';
 import { TagIcon } from '@/components/TagIcon';
 
 const TAG_COLOR_CLASSES: Record<string, string> = {
-  green: 'bg-green-100 text-green-700 border-green-200',
-  teal: 'bg-teal-100 text-teal-700 border-teal-200',
-  orange: 'bg-orange-100 text-orange-700 border-orange-200',
-  blue: 'bg-blue-100 text-blue-700 border-blue-200',
-  indigo: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-  amber: 'bg-amber-100 text-amber-700 border-amber-200',
-  cyan: 'bg-cyan-100 text-cyan-700 border-cyan-200',
+  green:
+    'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30',
+  teal: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-500/15 dark:text-teal-300 dark:border-teal-500/30',
+  orange:
+    'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-500/15 dark:text-orange-300 dark:border-orange-500/30',
+  blue: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30',
+  indigo:
+    'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/30',
+  amber:
+    'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30',
+  cyan: 'bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-500/15 dark:text-cyan-300 dark:border-cyan-500/30',
 };
 
 const TAG_CATEGORY_NAMES: Record<string, string> = {
@@ -34,7 +38,7 @@ const SCHEME_LABELS: Record<string, string> = {
 function TagChip({ tag }: { tag: DietaryTag }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${TAG_COLOR_CLASSES[tag.color] || 'border-gray-200 bg-gray-100 text-gray-700'}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${TAG_COLOR_CLASSES[tag.color] || 'border-site-line bg-site-raised text-site-text'}`}
     >
       <TagIcon name={tag.icon} className="h-3 w-3 shrink-0" />
       {tag.label}
@@ -45,20 +49,21 @@ function TagChip({ tag }: { tag: DietaryTag }) {
 function CertRow({ cert }: { cert: CertificationItem }) {
   return (
     <div className="flex items-start gap-3 py-2">
+      {/* The labels' logos are drawn for a light ground. */}
       <img
         src={`/certifications/${cert.logo_filename}`}
         alt={cert.name}
-        className="h-10 w-10 shrink-0 object-contain"
+        className="h-10 w-10 shrink-0 rounded-lg bg-white object-contain p-0.5"
       />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold">{cert.name}</p>
         {cert.official_name && cert.official_name !== cert.name && (
-          <p className="mt-0.5 text-xs text-gray-500">{cert.official_name}</p>
+          <p className="mt-0.5 text-xs text-site-subtle">{cert.official_name}</p>
         )}
         {cert.guarantee && (
-          <p className="mt-1 text-xs leading-snug text-gray-500">{cert.guarantee}</p>
+          <p className="mt-1 text-xs leading-snug text-site-subtle">{cert.guarantee}</p>
         )}
-        <div className="mt-1 flex flex-wrap gap-x-2 text-xs text-gray-400">
+        <div className="mt-1 flex flex-wrap gap-x-2 text-xs text-site-subtle">
           {cert.issuer && <span>{cert.issuer}</span>}
           <span>{JURISDICTION_LABELS[cert.jurisdiction]}</span>
           <span>{SCHEME_LABELS[cert.scheme_type]}</span>
@@ -68,13 +73,13 @@ function CertRow({ cert }: { cert: CertificationItem }) {
   );
 }
 
-interface MobileItemDetailSheetProps {
+interface ItemDetailSheetProps {
   item: MenuItemData | null;
   open: boolean;
   onClose: () => void;
 }
 
-export function MobileItemDetailSheet({ item, open, onClose }: MobileItemDetailSheetProps) {
+export function ItemDetailSheet({ item, open, onClose }: ItemDetailSheetProps) {
   const dishName = item?.dish?.name ?? '';
   const dishImage = item?.dish?.image_url ?? null;
   const tags = item?.dish?.tags ?? [];
@@ -94,7 +99,7 @@ export function MobileItemDetailSheet({ item, open, onClose }: MobileItemDetailS
         if (!open) onClose();
       }}
     >
-      <DrawerContent className="flex h-[70vh] flex-col p-0">
+      <DrawerContent className="flex h-[70vh] flex-col bg-site-surface p-0 text-site-text">
         {item && (
           <>
             <DrawerHeader className="shrink-0 px-5 pb-3 pt-2">
@@ -102,7 +107,7 @@ export function MobileItemDetailSheet({ item, open, onClose }: MobileItemDetailS
                 {dishName}
               </DrawerTitle>
               {isOutOfStock && (
-                <p className="mt-1 text-sm text-red-600">
+                <p className="mt-1 text-sm text-site-danger">
                   Cet article est actuellement en rupture de service.
                 </p>
               )}
@@ -110,7 +115,7 @@ export function MobileItemDetailSheet({ item, open, onClose }: MobileItemDetailS
 
             <div className="flex-1 space-y-5 overflow-y-auto px-5 pb-8">
               {dishImage && (
-                <div className="overflow-hidden rounded-2xl bg-gray-100">
+                <div className="overflow-hidden rounded-2xl bg-site-placeholder">
                   <div className="aspect-[4/3] w-full">
                     <img src={dishImage} alt={dishName} className="h-full w-full object-cover" />
                   </div>
@@ -122,7 +127,7 @@ export function MobileItemDetailSheet({ item, open, onClose }: MobileItemDetailS
                   {Object.entries(tagsByCategory).map(([categoryId, groupTags]) => (
                     <div key={categoryId}>
                       {TAG_CATEGORY_NAMES[categoryId] && (
-                        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-site-subtle">
                           {TAG_CATEGORY_NAMES[categoryId]}
                         </p>
                       )}
@@ -138,10 +143,10 @@ export function MobileItemDetailSheet({ item, open, onClose }: MobileItemDetailS
 
               {certs.length > 0 && (
                 <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-site-subtle">
                     Certifications
                   </p>
-                  <div className="divide-y divide-gray-100">
+                  <div className="divide-y divide-site-line">
                     {certs.map((cert) => (
                       <CertRow key={cert.id} cert={cert} />
                     ))}

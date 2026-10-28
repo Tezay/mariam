@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { contentSecurityPolicy, publicRuntimeConfig } from '@/lib/runtime-config.server';
+import { contentSecurityPolicy, mapTiles, publicRuntimeConfig } from '@/lib/runtime-config.server';
 
 function directive(policy: string, name: string) {
   return policy.split('; ').find((part) => part.startsWith(`${name} `));
@@ -41,5 +41,21 @@ describe('publicRuntimeConfig', () => {
     expect(publicRuntimeConfig({ SENTRY_ENVIRONMENT: 'staging' }).SENTRY_ENVIRONMENT).toBe(
       'staging'
     );
+  });
+});
+
+describe('mapTiles', () => {
+  it('draws no map without its tiles', () => {
+    expect(mapTiles({})).toBeNull();
+    expect(mapTiles({ MAP_TILE_URL: '  ' })).toBeNull();
+  });
+
+  it('takes the tiles and their credit from the environment', () => {
+    expect(
+      mapTiles({
+        MAP_TILE_URL: 'https://tiles.test/{z}/{x}/{y}.png',
+        MAP_TILE_ATTRIBUTION: '© Tiles',
+      })
+    ).toEqual({ url: 'https://tiles.test/{z}/{x}/{y}.png', attribution: '© Tiles' });
   });
 });

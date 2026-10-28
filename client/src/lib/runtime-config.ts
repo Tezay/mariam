@@ -8,3 +8,8 @@ export const APP_VERSION = config?.APP_VERSION || 'dev';
 
 // Set with or without a DSN, so it names the deployment rather than the error tracker.
 export const APP_ENVIRONMENT = config?.SENTRY_ENVIRONMENT || 'development';
+
+export interface MapTiles {
+  url: string;
+  attribution: string;
+}

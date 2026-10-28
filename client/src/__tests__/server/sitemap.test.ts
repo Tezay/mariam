@@ -10,15 +10,15 @@ describe('sitemapUrls', () => {
 
   it('serves a single site at the root', () => {
     expect(sitemapUrls('https://demo.example.test', [site('solo')])).toEqual([
-      'https://demo.example.test/menu',
+      'https://demo.example.test/',
     ]);
   });
 
   it('lists the root, then each site under its slug', () => {
     expect(sitemapUrls('https://demo.example.test', [site('alpha'), site('beta')])).toEqual([
       'https://demo.example.test/',
-      'https://demo.example.test/alpha/menu',
-      'https://demo.example.test/beta/menu',
+      'https://demo.example.test/alpha',
+      'https://demo.example.test/beta',
     ]);
   });
 });

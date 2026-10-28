@@ -29,7 +29,7 @@ export default function TenantLayout() {
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   if (isRouteErrorResponse(error) && error.status === 404) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50 p-6 text-center font-sans text-slate-500">
+      <div className="public-page flex h-screen items-center justify-center p-6 text-center text-site-subtle">
         {error.data === 'site' ? 'Restaurant introuvable.' : 'Organisation introuvable.'}
       </div>
     );

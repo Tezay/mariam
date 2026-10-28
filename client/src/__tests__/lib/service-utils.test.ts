@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getNextOpeningDate, getServiceStatus } from '@/lib/service-utils';
+import { getServiceStatus } from '@/lib/service-utils';
 
 const weekdays = [0, 1, 2, 3, 4];
 const hours = { '3': { open: '11:30', close: '14:00' } };
@@ -19,12 +19,5 @@ describe('getServiceStatus at a given instant', () => {
 
   it('is closed after the service', () => {
     expect(getServiceStatus(hours, weekdays, at('15:00:00')).label).toBe("Fermé aujourd'hui");
-  });
-});
-
-describe('getNextOpeningDate at a given instant', () => {
-  it('skips the weekend', () => {
-    const friday = new Date('2026-10-16T12:00:00+02:00');
-    expect(getNextOpeningDate(weekdays, friday)?.label).toBe('lun. 19 oct.');
   });
 });

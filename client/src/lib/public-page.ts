@@ -1,3 +1,3 @@
 export function publicPagePath(site: string): string {
-  return `/${site}/menu`;
+  return `/${site}`;
 }

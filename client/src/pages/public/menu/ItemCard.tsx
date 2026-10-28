@@ -15,7 +15,7 @@ const TAG_ICON_COLOR: Record<string, { text: string; bg: string }> = {
   purple: { text: 'text-purple-600', bg: 'bg-purple-50' },
 };
 
-interface MobileItemCardProps {
+interface ItemCardProps {
   item: MenuItemData;
   categoryColor: CategoryColor;
   isHighlighted: boolean;
@@ -81,14 +81,14 @@ function BadgesBubble({
   );
 }
 
-export function MobileItemCard({
+export function ItemCard({
   item,
   categoryColor,
   isHighlighted,
   imagePosition = 'right',
   isNew = false,
   onTap,
-}: MobileItemCardProps) {
+}: ItemCardProps) {
   const [imgLoaded, setImgLoaded] = useState(false);
 
   const isOutOfStock = item.is_out_of_stock ?? false;
@@ -107,11 +107,10 @@ export function MobileItemCard({
           onClick={onTap}
           className="flex w-full items-center text-left transition-transform active:scale-[0.98]"
         >
-          {/* Image gauche */}
           {imagePosition === 'left' && showImage && (
-            <div className="relative z-10 h-28 w-28 shrink-0 overflow-hidden rounded-2xl">
+            <div className="relative z-10 h-28 w-28 shrink-0 overflow-hidden rounded-2xl lg:h-32 lg:w-32">
               {!imgLoaded && (
-                <div className="absolute inset-0 animate-pulse rounded-2xl bg-gray-200" />
+                <div className="absolute inset-0 animate-pulse rounded-2xl bg-site-placeholder" />
               )}
               <img
                 src={dishImage}
@@ -122,7 +121,6 @@ export function MobileItemCard({
             </div>
           )}
 
-          {/* Box texte */}
           <div
             className={`relative z-0 flex-1 rounded-2xl px-4 py-4 ${imagePosition === 'left' && showImage ? 'ml-[-12px]' : ''} ${imagePosition === 'right' && showImage ? 'mr-[-12px]' : ''}`}
             style={{
@@ -133,7 +131,7 @@ export function MobileItemCard({
             {isOutOfStock && <StockBubble />}
             {isNew && <NewBubble />}
             <p
-              className={`line-clamp-2 text-base font-bold leading-snug ${isOutOfStock ? 'line-through opacity-60' : ''}`}
+              className={`line-clamp-2 text-base font-bold leading-snug lg:text-[17px] ${isOutOfStock ? 'line-through opacity-60' : ''}`}
               style={{ color: categoryColor.label }}
             >
               {dishName}
@@ -141,11 +139,10 @@ export function MobileItemCard({
             <BadgesBubble tags={tags} certs={certs} />
           </div>
 
-          {/* Image droite */}
           {imagePosition === 'right' && showImage && (
-            <div className="relative z-10 h-28 w-28 shrink-0 overflow-hidden rounded-2xl">
+            <div className="relative z-10 h-28 w-28 shrink-0 overflow-hidden rounded-2xl lg:h-32 lg:w-32">
               {!imgLoaded && (
-                <div className="absolute inset-0 animate-pulse rounded-2xl bg-gray-200" />
+                <div className="absolute inset-0 animate-pulse rounded-2xl bg-site-placeholder" />
               )}
               <img
                 src={dishImage}
@@ -160,13 +157,12 @@ export function MobileItemCard({
     );
   }
 
-  // Mode standard (grille 2 colonnes)
   return (
     <div className="relative">
       <button
         type="button"
         onClick={onTap}
-        className="flex min-h-[52px] w-full items-center rounded-2xl px-3 text-left transition-transform active:scale-[0.97]"
+        className="flex min-h-[52px] w-full items-center rounded-2xl px-3 text-left transition-transform active:scale-[0.97] lg:min-h-[60px] lg:px-3.5"
         style={{
           backgroundColor: categoryColor.bg,
           borderBottom: `4px solid ${categoryColor.border}`,
@@ -177,7 +173,7 @@ export function MobileItemCard({
         {isOutOfStock && <StockBubble />}
         {isNew && <NewBubble />}
         <p
-          className={`line-clamp-1 w-full text-sm font-bold leading-tight ${isOutOfStock ? 'line-through opacity-60' : ''}`}
+          className={`line-clamp-1 w-full text-sm font-bold leading-tight lg:text-[15px] ${isOutOfStock ? 'line-through opacity-60' : ''}`}
           style={{ color: categoryColor.label }}
         >
           {dishName}

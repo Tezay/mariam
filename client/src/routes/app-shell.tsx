@@ -1,6 +1,6 @@
 /**
- * Catch-all for the routes App.tsx declares itself: they render in the browser
- * only, behind their own <Routes>.
+ * Layout of the routes App.tsx declares itself: they render in the browser only,
+ * behind their own <Routes>, from `/` as no path of its own shifts their base.
  */
 import { lazy, Suspense } from 'react';
 import { PageLoader } from '@/components/PageLoader';

@@ -7,6 +7,7 @@ from pywebpush import WebPushException, webpush
 
 from ..utils.push_endpoint import is_push_service_url
 from ..utils.time import format_date_fr, paris_now, paris_today, weekday_fr
+from ..utils.urls import public_page_path
 from .redis_client import acquire_job_lock
 
 logger = logging.getLogger(__name__)
@@ -113,7 +114,7 @@ def _format_menu_body(menu_items: list[dict]) -> str | None:
     return '\n'.join(lines) if lines else None
 
 
-def build_today_menu_payload(menu_items: list[dict]) -> dict | None:
+def build_today_menu_payload(menu_items: list[dict], url: str) -> dict | None:
     """None when there is no menu to announce."""
     body = _format_menu_body(menu_items)
     if body is None:
@@ -124,12 +125,12 @@ def build_today_menu_payload(menu_items: list[dict]) -> dict | None:
         'body': body,
         'icon': '/web-app-manifest-192x192.png',
         'badge': '/favicon-96x96.png',
-        'url': '/menu',
+        'url': url,
         'tag': f"menu-today-{paris_today().isoformat()}",
     }
 
 
-def build_tomorrow_menu_payload(menu_items: list[dict]) -> dict | None:
+def build_tomorrow_menu_payload(menu_items: list[dict], url: str) -> dict | None:
     """None when there is no menu to announce."""
     body = _format_menu_body(menu_items)
     if body is None:
@@ -142,27 +143,22 @@ def build_tomorrow_menu_payload(menu_items: list[dict]) -> dict | None:
         'body': body,
         'icon': '/web-app-manifest-192x192.png',
         'badge': '/favicon-96x96.png',
-        'url': '/menu',
+        'url': url,
         'tag': f"menu-tomorrow-{tomorrow.isoformat()}",
     }
 
 
-def build_event_payload(event_title: str, event_date: str, reminder: str = '') -> dict:
-    """`reminder` is 'tomorrow', '7days' or '', and picks the opening of the body."""
-    if reminder == 'tomorrow':
-        body = f"Demain \u2014 {event_date}"
-    elif reminder == '7days':
-        body = f"Dans une semaine \u2014 {event_date}"
-    else:
-        body = f"\U0001F4C5 {event_date}"
+def build_event_payload(event_title: str, event_date: str, url: str, tomorrow: bool) -> dict:
+    """The reminder a day ahead, or a week ahead."""
+    body = f"{'Demain' if tomorrow else 'Dans une semaine'} \u2014 {event_date}"
 
     return {
         'title': event_title,
         'body': body,
         'icon': '/web-app-manifest-192x192.png',
         'badge': '/favicon-96x96.png',
-        'url': '/menu',
-        'tag': f"event-{event_title[:20]}-{reminder or event_date}",
+        'url': url,
+        'tag': f"event-{event_title[:20]}-{'tomorrow' if tomorrow else '7days'}",
     }
 
 
@@ -209,7 +205,7 @@ def check_and_send_notifications(app):
                     ).first()
 
                     items = [item.to_dict() for item in menu.items] if menu else []
-                    payload = build_today_menu_payload(items)
+                    payload = build_today_menu_payload(items, public_page_path(restaurant))
 
                     if payload is not None:
                         for sub in subs:
@@ -241,7 +237,9 @@ def check_and_send_notifications(app):
                     ).first()
 
                     items = [item.to_dict() for item in menu.items] if menu else []
-                    payload = build_tomorrow_menu_payload(items)
+                    payload = build_tomorrow_menu_payload(
+                        items, public_page_path(restaurant, tomorrow)
+                    )
 
                     if payload is not None:
                         for sub in subs:
@@ -267,6 +265,7 @@ def _check_event_notifications(db, now, sent_count: int) -> int:
     """Send the week and day reminders of published events; returns the updated count."""
     from ..models.event import Event
     from ..models.push_subscription import PushSubscription
+    from ..models.restaurant import Restaurant
 
     today = paris_today()
     target_7d = today + timedelta(days=7)
@@ -286,11 +285,8 @@ def _check_event_notifications(db, now, sent_count: int) -> int:
             continue
 
         date_str = format_date_fr(event.event_date, weekday=True, year=False)
-
-        if is_1d:
-            payload = build_event_payload(event.title, date_str, reminder='tomorrow')
-        else:
-            payload = build_event_payload(event.title, date_str, reminder='7days')
+        url = public_page_path(db.session.get(Restaurant, event.restaurant_id))
+        payload = build_event_payload(event.title, date_str, url, tomorrow=is_1d)
 
         subs = PushSubscription.query.filter(
             PushSubscription.restaurant_id == event.restaurant_id,
@@ -320,6 +316,7 @@ def _check_closure_notifications(db, now, sent_count: int) -> int:
     """Closures go to the subscribers of event reminders: they share notify_events."""
     from ..models.exceptional_closure import ExceptionalClosure
     from ..models.push_subscription import PushSubscription
+    from ..models.restaurant import Restaurant
     from ..utils.time import paris_today
 
     today = paris_today()
@@ -353,7 +350,7 @@ def _check_closure_notifications(db, now, sent_count: int) -> int:
             'body': body,
             'icon': '/web-app-manifest-192x192.png',
             'badge': '/favicon-96x96.png',
-            'url': '/menu',
+            'url': public_page_path(db.session.get(Restaurant, closure.restaurant_id)),
             'tag': f"closure-{closure.id}-{'1d' if is_1d else '7d'}",
         }
 

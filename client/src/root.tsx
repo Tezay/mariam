@@ -45,7 +45,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <meta name="msapplication-TileColor" content="#093EAA" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
         <meta name="theme-color" content="#093EAA" media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#12151c" media="(prefers-color-scheme: dark)" />
         <Meta />
         <Links />
       </head>

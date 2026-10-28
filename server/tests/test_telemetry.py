@@ -1,6 +1,8 @@
 """Page-view telemetry: collection, flush, day close, purge and exposure."""
 import datetime
 
+import pytest
+
 from app.extensions import db
 from app.models import Organization, PageViewRollup, Restaurant, User, VisitorDailyUnique
 from app.services import telemetry
@@ -38,17 +40,18 @@ def _org_with_site(slug='tel-org', code='TEL'):
 
 
 class TestCollection:
-    def test_site_view_counts_and_feeds_uniques(self, app, client, monkeypatch):
+    @pytest.mark.parametrize('kind', ['today', 'day'])
+    def test_site_view_counts_and_feeds_uniques(self, app, client, monkeypatch, kind):
         fake = _use_fake_redis(monkeypatch)
         _, rid = _org_with_site()
 
-        res = _track(client, 'today', 'tel')
+        res = _track(client, kind, 'tel')
         assert res.status_code == 204
 
         day = paris_today().isoformat()
         counters = fake.hashes[f'mariam:pv:r{rid}:{day}']
         assert list(counters.values()) == [1]
-        assert next(iter(counters)).endswith(':today')
+        assert next(iter(counters)).endswith(f':{kind}')
         assert fake.pfcount(f'mariam:uv:{rid}:{day}') == 1
 
     def test_screen_views_are_counted_but_never_as_visitors(self, app, client, monkeypatch):

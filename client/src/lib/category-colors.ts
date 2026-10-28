@@ -4,6 +4,8 @@ export interface CategoryColor {
   label: string;
   sectionLabel: string;
   sectionBorder: string;
+  sectionLabelDark: string;
+  sectionBorderDark: string;
   addBg: string; // The add-a-dish button, at about 10% opacity
   addLabel: string;
 }
@@ -15,6 +17,8 @@ export const COLOR_KEY_MAP: Record<string, CategoryColor> = {
     label: '#FFFFFF',
     sectionLabel: '#2D49B4',
     sectionBorder: '#B8C6F5',
+    sectionLabelDark: '#A9B8F7',
+    sectionBorderDark: '#2C3766',
     addBg: '#4F6BDB1A',
     addLabel: '#2D49B4',
   },
@@ -24,6 +28,8 @@ export const COLOR_KEY_MAP: Record<string, CategoryColor> = {
     label: '#FFFFFF',
     sectionLabel: '#3F7FC7',
     sectionBorder: '#BAD5F5',
+    sectionLabelDark: '#9CC9F5',
+    sectionBorderDark: '#22405F',
     addBg: '#6FA8E81A',
     addLabel: '#3F7FC7',
   },
@@ -33,6 +39,8 @@ export const COLOR_KEY_MAP: Record<string, CategoryColor> = {
     label: '#FFFFFF',
     sectionLabel: '#3E9F7D',
     sectionBorder: '#B5E4D4',
+    sectionLabelDark: '#8FD8BD',
+    sectionBorderDark: '#1E4438',
     addBg: '#6FC3A51A',
     addLabel: '#3E9F7D',
   },
@@ -42,6 +50,8 @@ export const COLOR_KEY_MAP: Record<string, CategoryColor> = {
     label: '#4A2E00',
     sectionLabel: '#C97D00',
     sectionBorder: '#FFD98E',
+    sectionLabelDark: '#F7BE5C',
+    sectionBorderDark: '#5A4514',
     addBg: '#F5A5241A',
     addLabel: '#C97D00',
   },
@@ -51,6 +61,8 @@ export const COLOR_KEY_MAP: Record<string, CategoryColor> = {
     label: '#FFFFFF',
     sectionLabel: '#B04C2A',
     sectionBorder: '#F0C4B5',
+    sectionLabelDark: '#EBA58C',
+    sectionBorderDark: '#55291C',
     addBg: '#D97A5A1A',
     addLabel: '#B04C2A',
   },
@@ -60,6 +72,8 @@ export const COLOR_KEY_MAP: Record<string, CategoryColor> = {
     label: '#FFFFFF',
     sectionLabel: '#6E55A8',
     sectionBorder: '#D4CAF0',
+    sectionLabelDark: '#C9B8EE',
+    sectionBorderDark: '#3B2F5E',
     addBg: '#9E87D11A',
     addLabel: '#6E55A8',
   },

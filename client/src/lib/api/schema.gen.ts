@@ -2628,7 +2628,7 @@ export interface paths {
         put?: never;
         /**
          * Count one view of a public page.
-         * @description Body: `page_kind` (`today`, `tomorrow`, `tv` or `sites`), plus `site`, the
+         * @description Body: `page_kind` (`today`, `tomorrow`, `day`, `tv` or `sites`), plus `site`, the
          *     slug of the site a page belongs to. Read whatever the content type, which
          *     `navigator.sendBeacon` sets to text/plain to avoid a CORS preflight.
          *

@@ -141,7 +141,7 @@ def register_commands(app):
                    f'voting opens at {_DEMO_OPEN_TIME} (Paris time)')
         click.echo(f'  Admin URL    : {frontend_url}/admin/')
         click.echo(f'  TV view      : {frontend_url}{site_path}/tv')
-        click.echo(f'  Mobile view  : {frontend_url}{site_path}/menu')
+        click.echo(f'  Public page  : {frontend_url}{site_path}')
         click.echo('=' * 55)
         click.echo('  Ready for the demo.\n')
 

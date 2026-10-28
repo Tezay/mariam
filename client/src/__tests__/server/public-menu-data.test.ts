@@ -54,6 +54,17 @@ describe('publicMenuData', () => {
     expect(data.tomorrow?.menu?.date).toBe('2026-10-16');
   });
 
+  it('builds the day a visitor chose, today when none', () => {
+    const page = { site, menus: [menu('2026-10-20')], events: [], closures: [] };
+
+    expect(publicMenuData(page, NOW, '2026-10-20').day).toMatchObject({
+      date: '2026-10-20',
+      day_name: 'Mardi',
+      menu: { date: '2026-10-20' },
+    });
+    expect(publicMenuData(page, NOW).day).toMatchObject({ date: '2026-10-15', menu: null });
+  });
+
   it('sets apart the event of the day and the closure under way', () => {
     const data = publicMenuData(
       {
