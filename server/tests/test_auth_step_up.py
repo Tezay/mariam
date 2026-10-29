@@ -5,7 +5,7 @@ from flask_jwt_extended import create_access_token
 
 from app.extensions import db
 from app.models import User
-from conftest import TEST_PASSWORD, auth_headers, make_user, site_path
+from conftest import TEST_PASSWORD, auth_headers, make_user, session_tokens, site_path
 from tests.auth_support import enable_totp, enroll_passkey, new_authenticator, session_headers
 
 
@@ -25,7 +25,9 @@ class TestPassword:
         secret = enable_totp(uid)
 
         assert self._step_up(client, uid, '000000').get_json()['code'] == 'code_invalid'
-        assert 'access_token' in self._step_up(client, uid, pyotp.TOTP(secret).now()).get_json()
+        assert self._step_up(client, uid, pyotp.TOTP(secret).now()).get_json() == {
+            'confirmed_for': 600
+        }
 
     def test_the_password_alone_confirms_nothing_on_a_passkey_account(self, app, client):
         uid = make_user(app)
@@ -69,7 +71,8 @@ class TestPasskey:
         authenticator = enroll_passkey(admin)
         begin = self._begin(client, admin).get_json()
 
-        confirmed = self._complete(client, admin, begin, authenticator).get_json()['access_token']
+        self._complete(client, admin, begin, authenticator)
+        confirmed = session_tokens(client)['access_token']
 
         assert _delete(client, target, auth_headers(confirmed)).status_code == 204
 
@@ -117,9 +120,10 @@ class TestConfirmedSession:
         mfa_token = client.post('/v1/auth/login', json={
             'email': 'admin@mariam.app', 'password': TEST_PASSWORD,
         }).get_json()['mfa_token']
-        return client.post('/v1/auth/mfa/verify', json={
+        client.post('/v1/auth/mfa/verify', json={
             'mfa_token': mfa_token, 'code': pyotp.TOTP(secret).now(),
-        }).get_json()
+        })
+        return session_tokens(client)
 
     def test_an_unconfirmed_session_is_refused(self, app, client):
         admin = make_user(app)
@@ -154,9 +158,8 @@ class TestConfirmedSession:
         target = make_user(app, email='target@mariam.app')
         session = self._sign_in(client, enable_totp(admin))
 
-        refreshed = client.post(
-            '/v1/auth/refresh', headers=auth_headers(session['refresh_token'])
-        ).get_json()['access_token']
+        client.post('/v1/auth/refresh', headers=auth_headers(session['refresh_token']))
+        refreshed = session_tokens(client)['access_token']
 
         assert _delete(client, target, auth_headers(refreshed)).status_code == 403
 

@@ -4,6 +4,7 @@ from pathlib import Path
 
 from flask import Flask
 from flask_cors import CORS
+from flask_jwt_extended.exceptions import CSRFError
 
 from .converters import IsoDateConverter
 from .extensions import db, jwt, migrate
@@ -24,7 +25,7 @@ from .models import (
     User,
 )
 from .problems import Api, Problem, answer_problem, problem_response
-from .security import SESSION_CLAIM, is_token_blacklisted, limiter
+from .security import ACCESS_COOKIE, REFRESH_COOKIE, SESSION_CLAIM, is_token_blacklisted, limiter
 from .services.storage import storage
 from .utils.urls import frontend_base_url
 
@@ -93,6 +94,15 @@ def create_app(config_class=None):
         minutes=int(os.environ.get('JWT_ACCESS_TOKEN_MINUTES', 30))
     )
     app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=7)
+    # The browser holds its session in cookies no script can read; the header
+    # serves every other client.
+    app.config['JWT_TOKEN_LOCATION'] = ['headers', 'cookies']
+    app.config['JWT_ACCESS_COOKIE_NAME'] = ACCESS_COOKIE
+    app.config['JWT_REFRESH_COOKIE_NAME'] = REFRESH_COOKIE
+    app.config['JWT_ACCESS_CSRF_COOKIE_NAME'] = '__Host-csrf-access'
+    app.config['JWT_REFRESH_CSRF_COOKIE_NAME'] = '__Host-csrf-refresh'
+    app.config['JWT_COOKIE_SECURE'] = True
+    app.config['JWT_COOKIE_SAMESITE'] = 'Strict'
     
     app.config['MFA_ISSUER_NAME'] = os.environ.get('MFA_ISSUER_NAME', 'MARIAM')
 
@@ -119,7 +129,7 @@ def create_app(config_class=None):
     # Otherwise Swagger UI sends the spec's address to swagger.io for a badge.
     app.config['OPENAPI_SWAGGER_UI_CONFIG'] = {'validatorUrl': None, 'persistAuthorization': True}
     # A session by default; a route open to anyone says `security=[]`.
-    app.config['API_SPEC_OPTIONS'] = {'security': [{'bearer': []}]}
+    app.config['API_SPEC_OPTIONS'] = {'security': [{'bearer': []}, {'session': []}]}
     
     sentry_dsn = os.environ.get('SENTRY_DSN')
     if sentry_dsn:
@@ -211,6 +221,15 @@ def create_app(config_class=None):
             401, 'token_revoked', 'Votre session a été invalidée, veuillez vous reconnecter.'
         )
 
+    # The library answers 401, after which the client renews a session that is
+    # fine: what is refused is the request.
+    def csrf_refused(error):
+        return problem_response(
+            403, 'csrf_invalid', "La requête n'a pas pu être vérifiée. Rechargez la page."
+        )
+
+    app.register_error_handler(CSRFError, csrf_refused)
+
     frontend_urls = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
     origins = [url.strip() for url in frontend_urls.split(',') if url.strip()]
     
@@ -218,7 +237,7 @@ def create_app(config_class=None):
         app,
         origins=origins,
         supports_credentials=True,
-        allow_headers=['Content-Type', 'Authorization'],
+        allow_headers=['Content-Type', 'Authorization', 'X-CSRF-TOKEN'],
         methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
     )
 
@@ -229,6 +248,9 @@ def create_app(config_class=None):
     app.register_error_handler(Problem, answer_problem)
     api.spec.components.security_scheme(
         'bearer', {'type': 'http', 'scheme': 'bearer', 'bearerFormat': 'JWT'}
+    )
+    api.spec.components.security_scheme(
+        'session', {'type': 'apiKey', 'in': 'cookie', 'name': ACCESS_COOKIE}
     )
     app.url_map.converters['date'] = IsoDateConverter
     api.register_converter(IsoDateConverter, lambda _: {'type': 'string', 'format': 'date'})

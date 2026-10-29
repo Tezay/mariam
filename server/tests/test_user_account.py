@@ -5,7 +5,7 @@ from flask_jwt_extended import decode_token
 from app.extensions import db
 from app.models import ActivationLink, AuditLog, ExceptionalClosure, Organization, Restaurant, User
 from app.utils.time import paris_today
-from conftest import auth_headers, make_restaurant, make_user
+from conftest import auth_headers, make_restaurant, make_user, session_tokens
 from tests.auth_support import (
     confirmed_headers,
     enable_totp,
@@ -50,7 +50,8 @@ class TestConfirmation:
 
     def test_a_new_address_closes_the_confirmation(self, app, client):
         uid = make_user(app)
-        kept = auth_headers(_update(client, uid, email=NEW_ADDRESS).get_json()['access_token'])
+        _update(client, uid, email=NEW_ADDRESS)
+        kept = auth_headers(session_tokens(client)['access_token'])
 
         refused = client.patch('/v1/user', json={'username': 'Jean Dupont'}, headers=kept)
         confirmed = client.patch(
@@ -70,8 +71,8 @@ class TestName:
         res = _update(client, uid, username='  Jean   Dupont ')
 
         assert res.status_code == 200
-        assert res.get_json()['user']['username'] == 'Jean Dupont'
-        assert 'access_token' not in res.get_json()
+        assert res.get_json()['username'] == 'Jean Dupont'
+        assert session_tokens(client)['access_token'] is None
         assert is_signed_in(client, session)
         entry = AuditLog.query.filter_by(action=AuditLog.ACTION_USER_UPDATE).one()
         assert entry.get_details() == {'field': 'username', 'old': 'admin', 'new': 'Jean Dupont'}
@@ -101,7 +102,8 @@ class TestAddress:
         uid = make_user(app)
         elsewhere = issue_session(uid)
 
-        kept = _update(client, uid, email=NEW_ADDRESS).get_json()
+        _update(client, uid, email=NEW_ADDRESS)
+        kept = session_tokens(client)
 
         assert not is_signed_in(client, elsewhere)
         assert _refresh(client, elsewhere['refresh']).status_code == 401
@@ -109,9 +111,11 @@ class TestAddress:
 
     def test_the_kept_session_refreshes(self, app, client):
         uid = make_user(app)
-        kept = _update(client, uid, email=NEW_ADDRESS).get_json()
+        _update(client, uid, email=NEW_ADDRESS)
+        kept = session_tokens(client)
 
-        refreshed = _refresh(client, kept['refresh_token']).get_json()['access_token']
+        _refresh(client, kept['refresh_token'])
+        refreshed = session_tokens(client)['access_token']
 
         assert client.get('/v1/user', headers=auth_headers(refreshed)).status_code == 200
         assert decode_token(refreshed)[User.REVOCATION_MARKER] == (
@@ -120,7 +124,8 @@ class TestAddress:
 
     def test_a_later_revocation_ends_the_session_an_earlier_one_kept(self, app, client):
         uid = make_user(app)
-        kept = _update(client, uid, email=NEW_ADDRESS).get_json()
+        _update(client, uid, email=NEW_ADDRESS)
+        kept = session_tokens(client)
 
         db.session.get(User, uid).revoke_tokens()
         db.session.commit()
@@ -163,10 +168,10 @@ class TestAddress:
 
     def test_a_third_change_within_a_day_is_refused_and_audited(self, app, client):
         uid = make_user(app)
-        first = _update(client, uid, email='first@mariam.app').get_json()
-        second = _update_from(
-            client, uid, first['access_token'], email='second@mariam.app'
-        ).get_json()
+        _update(client, uid, email='first@mariam.app')
+        first = session_tokens(client)
+        _update_from(client, uid, first['access_token'], email='second@mariam.app')
+        second = session_tokens(client)
 
         res = _update_from(client, uid, second['access_token'], email='third@mariam.app')
 
@@ -195,7 +200,7 @@ class TestAddress:
         res = _update(client, uid, email='admin@mariam.app')
 
         assert res.status_code == 200
-        assert 'access_token' not in res.get_json()
+        assert session_tokens(client)['access_token'] is None
         assert is_signed_in(client, session)
 
     def test_pending_reset_links_are_spent(self, app, client):

@@ -1,11 +1,13 @@
 from datetime import timedelta
 
+from flask import request
 from flask_jwt_extended import (
     create_access_token,
     decode_token,
     get_jwt,
     get_jwt_identity,
     jwt_required,
+    unset_jwt_cookies,
 )
 
 from ...extensions import db
@@ -15,7 +17,6 @@ from ...schemas.auth import (
     SessionSchema,
     SessionTransferSchema,
     SessionTransferValidateSchema,
-    TokenRefreshSchema,
 )
 from ...security import (
     SESSION_CLAIM,
@@ -28,9 +29,10 @@ from ..helpers import account_view, get_current_user, step_up_once_enrolled
 from ._common import (
     account_disabled,
     account_not_found,
-    renewed_access_token,
+    forget_session,
+    open_session,
+    renew_session,
     revoke_until_expiry,
-    token_pair,
 )
 from .blueprint import auth_bp
 
@@ -42,17 +44,26 @@ def _transfer_refused() -> Problem:
     return Problem(401, 'transfer_invalid', 'Code de transfert expiré ou invalide.')
 
 
+@auth_bp.after_request
+def _forget_refused_session(response):
+    # Out of the page's reach, the cookies of a refused session would stay until
+    # they expire.
+    if request.endpoint in ('auth.refresh', 'auth.logout') and response.status_code == 401:
+        unset_jwt_cookies(response)
+    return response
+
+
 @auth_bp.route('/refresh', methods=['POST'])
 @limiter.limit('10 per minute')
 @jwt_required(refresh=True)
-@auth_bp.response(200, TokenRefreshSchema)
+@auth_bp.response(204)
 def refresh():
-    """Get a new access token.
+    """Renew the access token of the session.
 
     Authenticated by the refresh token. The new access token is never confirmed:
     only presenting a second factor confirms a session.
     """
-    return {'access_token': renewed_access_token()}
+    renew_session()
 
 
 @auth_bp.route('/logout', methods=['POST'])
@@ -66,6 +77,7 @@ def logout():
     from it.
     """
     revoke_until_expiry(get_jwt())
+    forget_session()
 
     AuditLog.log(
         action=AuditLog.ACTION_LOGOUT,
@@ -150,5 +162,5 @@ def session_transfer_validate(body):
 
     return {
         'user': account_view(user),
-        **token_pair(user, confirmed=claims.get(_CONFIRMED_UNTIL)),
+        **open_session(user, confirmed=claims.get(_CONFIRMED_UNTIL)),
     }

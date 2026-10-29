@@ -131,9 +131,10 @@ def smtp(monkeypatch):
 def documented_auth_responses(app):
     """Fail any test whose auth or account route answers something its OpenAPI doc does not declare.
 
-    Two answers are left out: 422, which flask-smorest writes from the request
-    schema, and the 401 of a route behind a session, which only ever speaks of
-    the session its security requirement documents.
+    Three answers are left out: 422, which flask-smorest writes from the request
+    schema, and the 401 of a route behind a session and the 403 `csrf_invalid` of
+    a cookie session, which only ever speak of the session its security
+    requirement documents.
     """
     from flask import current_app, request
 
@@ -146,6 +147,8 @@ def documented_auth_responses(app):
         apidoc = current_app.view_functions[endpoint]._apidoc
         anonymous = (apidoc.get('manual_doc') or {}).get('security') == []
         if response.status_code == 401 and not anonymous:
+            return response
+        if response.status_code == 403 and response.get_json().get('code') == 'csrf_invalid':
             return response
         declared = apidoc['response']['responses']
         assert response.status_code in declared, (
@@ -386,13 +389,35 @@ def make_category(app, restaurant_id, label='Plat principal', order=0):
     return category.id
 
 
+SESSION_COOKIES = {
+    'access_token': '__Host-Http-access',
+    'refresh_token': '__Host-Http-refresh',
+    'csrf_access': '__Host-csrf-access',
+    'csrf_refresh': '__Host-csrf-refresh',
+}
+
+
+def session_tokens(client) -> dict[str, str | None]:
+    """What the responses so far handed the browser, taken out of the client's cookies.
+
+    The tests then speak through the header: a client left holding the cookies
+    would turn its anonymous probes into sessions.
+    """
+    tokens = {}
+    for key, name in SESSION_COOKIES.items():
+        cookie = client.get_cookie(name)
+        tokens[key] = cookie.value if cookie else None
+        client.delete_cookie(name)
+    return tokens
+
+
 def get_token(client, email=None, password=None):
     res = client.post('/v1/auth/login', json={
         'email': email or 'admin@mariam.app',
         'password': password or TEST_PASSWORD,
     })
     assert res.status_code == 200, f'Login failed: {res.get_json()}'
-    return res.get_json()['access_token']
+    return session_tokens(client)['access_token']
 
 
 def auth_headers(token):

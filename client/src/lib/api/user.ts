@@ -1,6 +1,6 @@
 import { api } from './client';
 import type { components } from './schema.gen';
-import { storeTokens } from './tokens';
+import { forgetConfirmation } from './session';
 
 type Schemas = components['schemas'];
 
@@ -16,11 +16,11 @@ export type WebAuthnOptions = Schemas['WebAuthnOptions'];
 export const userApi = {
   get: async (): Promise<Account> => (await api.get('/user')).data,
 
-  /** A changed address comes back with the session that replaces the caller's. */
+  /** A new address comes with a session of its own, not confirmed. */
   update: async (changes: { username?: string; email?: string }): Promise<Account> => {
-    const { user, access_token, refresh_token } = (await api.patch('/user', changes)).data;
-    if (access_token && refresh_token) storeTokens(access_token, refresh_token);
-    return user;
+    const account = (await api.patch('/user', changes)).data;
+    if (changes.email) forgetConfirmation();
+    return account;
   },
 
   getUiPreferences: async (): Promise<UiPreferences> =>

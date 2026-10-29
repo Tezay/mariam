@@ -162,7 +162,8 @@ curl -k https://crous-example.localhost:5173/sitemap.xml
 
 - MFA required on every management account, TOTP or passkey
 - Passwords of 12 characters or more, mixed case, digit and symbol
-- 30-minute sessions by default, revoked tokens blacklisted in Redis
+- The browser's session in `HttpOnly` cookies no script reads, each write signed with a CSRF
+  token; 30-minute access tokens by default, revoked tokens blacklisted in Redis
 - Step-up authentication on destructive actions
 - Audit log on every sensitive action, purged past `AUDIT_RETENTION_DAYS`
 - HTTPS mandatory in production, and required by Web Push

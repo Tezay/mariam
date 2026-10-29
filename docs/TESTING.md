@@ -59,6 +59,10 @@ on a revoked or single-use token takes the `revocations` fixture, which keeps th
 memory. A test that expects an email takes `smtp`, which records the messages instead of
 sending them. A test that uploads an image takes `bucket`, which keeps what would be stored.
 
+A sign-in hands its tokens over in cookies. `get_token` and `session_tokens` take them out of
+the test client and leave it without them: the tests speak through the `Authorization` header,
+and a client left holding the cookies would turn its anonymous requests into sessions.
+
 ### Writing one
 
 ```python

@@ -1,7 +1,7 @@
 """Sign-in, refresh, sign-out, rate limits and TOTP."""
 import pytest
 from app.extensions import db
-from conftest import make_user, make_restaurant, TEST_PASSWORD
+from conftest import make_user, make_restaurant, session_tokens, TEST_PASSWORD
 
 
 class TestLogin:
@@ -13,10 +13,9 @@ class TestLogin:
             'password': TEST_PASSWORD,
         })
         assert res.status_code == 200
-        data = res.get_json()
-        assert 'access_token' in data
-        assert 'refresh_token' in data
-        assert data['user']['email'] == 'admin@mariam.app'
+        assert res.get_json()['user']['email'] == 'admin@mariam.app'
+        tokens = session_tokens(client)
+        assert tokens['access_token'] and tokens['refresh_token']
 
     def test_login_wrong_password(self, app, client):
         make_restaurant(app)
@@ -95,7 +94,7 @@ class TestMFA:
             'code': code,
         })
         assert res2.status_code == 200
-        assert 'access_token' in res2.get_json()
+        assert session_tokens(client)['access_token']
 
     def test_mfa_verify_wrong_code(self, app, client):
         import pyotp
@@ -127,8 +126,9 @@ class TestRefreshAndLogout:
             'email': 'admin@mariam.app',
             'password': TEST_PASSWORD,
         })
-        refresh_token = login_res.get_json()['refresh_token']
+        assert login_res.status_code == 200
+        refresh_token = session_tokens(client)['refresh_token']
         res = client.post('/v1/auth/refresh',
                           headers={'Authorization': f'Bearer {refresh_token}'})
-        assert res.status_code == 200
-        assert 'access_token' in res.get_json()
+        assert res.status_code == 204
+        assert session_tokens(client)['access_token']

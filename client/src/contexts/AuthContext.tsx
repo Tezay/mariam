@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authApi } from '@/lib/api/auth';
+import { dropStoredTokens, hasSession, onSessionEnd } from '@/lib/api/session';
 import { userApi, type Account } from '@/lib/api/user';
 
 interface AuthContextType {
@@ -11,7 +12,7 @@ interface AuthContextType {
   loginWithPasskey: (challengeToken: string, credential: unknown) => Promise<Account>;
   activateComplete: (user: Account) => void;
   refreshUser: () => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,19 +30,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    dropStoredTokens();
+    const stop = onSessionEnd(() => setUser(null));
     const initAuth = async () => {
-      if (authApi.isAuthenticated()) {
+      if (hasSession()) {
         try {
-          const currentUser = await userApi.get();
-          setUser(currentUser);
+          setUser(await userApi.get());
         } catch {
-          authApi.logout();
+          setUser(null);
         }
       }
       setIsLoading(false);
     };
 
     initAuth();
+    return stop;
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -72,8 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(currentUser);
   };
 
-  const logout = () => {
-    authApi.logout();
+  const logout = async () => {
+    await authApi.logout();
     setUser(null);
   };
 

@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.models import ActivationLink, AuditLog, Organization, Passkey, User
-from conftest import make_restaurant, make_user
+from conftest import make_restaurant, make_user, session_tokens
 from tests.auth_support import (
     enroll_passkey,
     invite_link,
@@ -276,7 +276,9 @@ class TestTotpSetup:
 
         res = _verify(client, setup_token, pyotp.TOTP(secret).now())
 
-        assert {'access_token', 'refresh_token'} <= res.get_json().keys()
+        assert res.status_code == 200
+        tokens = session_tokens(client)
+        assert tokens['access_token'] and tokens['refresh_token']
         user = db.session.get(User, user_id)
         assert (user.mfa_enabled, user.mfa_secret) == (True, secret)
 
@@ -361,7 +363,7 @@ class TestPasskeySetup:
         )
 
         assert res.status_code == 200
-        assert 'access_token' in res.get_json()
+        assert session_tokens(client)['access_token']
         assert Passkey.query.filter_by(user_id=user_id).count() == 1
         assert db.session.get(User, user_id).mfa_secret is None
         assert AuditLog.query.filter_by(action=AuditLog.ACTION_PASSKEY_SETUP).count() == 1
@@ -397,11 +399,11 @@ class TestPasskeySetup:
     @pytest.mark.parametrize('token', ['forged', None])
     def test_the_setup_requires_the_activation_token(self, app, client, token):
         _activated(client)
-        session = client.post('/v1/auth/login', json={
+        client.post('/v1/auth/login', json={
             'email': 'new@mariam.app', 'password': STRONG_PASSWORD,
-        }).get_json()
+        })
 
-        res = self._begin(client, token or session['access_token'])
+        res = self._begin(client, token or session_tokens(client)['access_token'])
 
         assert res.get_json()['code'] == 'setup_token_invalid'
 

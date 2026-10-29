@@ -1,15 +1,11 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { API_URL } from '../runtime-config';
 import { isConfirmationRequired } from './errors';
-import {
-  clearTokens,
-  forgetConfirmation,
-  getAccessToken,
-  getRefreshToken,
-  setAccessToken,
-} from './tokens';
+import { csrfToken, endSession, forgetConfirmation, hasSession } from './session';
 
 export const PUBLIC_API_TIMEOUT_MS = 20000;
+
+const WRITES = new Set(['post', 'put', 'patch', 'delete']);
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -20,115 +16,78 @@ export const api = axios.create({
   withCredentials: true,
 });
 
-api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = getAccessToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const token = WRITES.has(config.method ?? '') ? csrfToken('access') : null;
+  if (token) config.headers['X-CSRF-TOKEN'] = token;
+  return config;
+});
 
-let isRefreshing = false;
-let failedQueue: Array<{
-  resolve: (token: string) => void;
-  reject: (error: Error) => void;
-}> = [];
+let renewal: Promise<void> | null = null;
 
-const processQueue = (error: Error | null, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else if (token) {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-};
+// One renewal answers every request refused meanwhile. Outside `api`: a 401 here
+// would wait for itself.
+function renewSession(): Promise<void> {
+  renewal ??= axios
+    .post(`${API_URL}/auth/refresh`, null, {
+      withCredentials: true,
+      headers: { 'X-CSRF-TOKEN': csrfToken('refresh') ?? '' },
+    })
+    .then(() => forgetConfirmation())
+    .finally(() => {
+      renewal = null;
+    });
+  return renewal;
+}
 
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const request = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
     // These run before a session exists, so no refresh can cure their 401.
     const isAuthEndpoint =
-      originalRequest.url?.includes('/auth/login') ||
-      originalRequest.url?.includes('/auth/activate') ||
-      originalRequest.url?.includes('/auth/mfa/verify') ||
-      originalRequest.url?.includes('/auth/passkey/login') ||
-      originalRequest.url?.includes('/auth/passkey/setup') ||
-      originalRequest.url?.includes('/auth/reset-password') ||
-      originalRequest.url?.includes('/auth/passkey/reset-password') ||
-      originalRequest.url?.includes('/auth/session-transfer/validate');
+      request.url?.includes('/auth/login') ||
+      request.url?.includes('/auth/activate') ||
+      request.url?.includes('/auth/mfa/verify') ||
+      request.url?.includes('/auth/passkey/login') ||
+      request.url?.includes('/auth/passkey/setup') ||
+      request.url?.includes('/auth/reset-password') ||
+      request.url?.includes('/auth/passkey/reset-password') ||
+      request.url?.includes('/auth/session-transfer/validate');
 
     if (isAuthEndpoint) {
       return Promise.reject(error);
     }
 
-    const status = error.response?.status;
-
     if (isConfirmationRequired(error)) forgetConfirmation();
 
-    if (status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((token) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            return api(originalRequest);
-          })
-          .catch((err) => Promise.reject(err));
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      const refreshToken = getRefreshToken();
-
-      if (!refreshToken) {
-        clearTokens();
-        window.location.href = '/login';
-        return Promise.reject(error);
-      }
-
-      try {
-        // Not through `api`: its request interceptor would overwrite this header,
-        // and a 401 here would wait in the refresh queue for itself.
-        const response = await axios.post(`${API_URL}/auth/refresh`, null, {
-          headers: {
-            Authorization: `Bearer ${refreshToken}`,
-          },
-        });
-
-        const newAccessToken = response.data.access_token;
-        setAccessToken(newAccessToken);
-        processQueue(null, newAccessToken);
-
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-        return api(originalRequest);
-      } catch (refreshError) {
-        processQueue(refreshError as Error, null);
-        clearTokens();
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
-      }
+    if (error.response?.status !== 401 || request._retry) {
+      return Promise.reject(error);
     }
 
-    return Promise.reject(error);
+    request._retry = true;
+    const renewed =
+      hasSession() &&
+      (await renewSession().then(
+        () => true,
+        () => false
+      ));
+    if (!renewed) {
+      endSession();
+      return Promise.reject(error);
+    }
+    return api(request);
   }
 );
 
-// No token and no refresh: a public page must neither carry a staff session nor
-// send a visitor to the login.
+// No session and no refresh: a public page must neither read as a member, drafts
+// included, nor send a visitor to the login. Only `fetch` can leave out the cookies
+// of a request to the same origin.
 export const publicAxios = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
+  adapter: 'fetch',
+  withCredentials: false,
 });
 
 export interface OrgRef {

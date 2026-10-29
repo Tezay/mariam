@@ -4,7 +4,7 @@ from ...extensions import db
 from ...models import Passkey
 from ...problems import Problem
 from ...schemas.auth import (
-    ConfirmedTokenSchema,
+    ConfirmationSchema,
     PasskeyAssertionSchema,
     StepUpPasswordSchema,
     WebAuthnOptionsSchema,
@@ -19,7 +19,7 @@ from ._common import (
     code_refusal,
     credential_unreadable,
     passkey_refused,
-    renewed_access_token,
+    renew_session,
 )
 from .blueprint import auth_bp
 
@@ -28,7 +28,7 @@ from .blueprint import auth_bp
 @limiter.limit('5 per minute')
 @jwt_required()
 @auth_bp.arguments(StepUpPasswordSchema)
-@auth_bp.response(200, ConfirmedTokenSchema)
+@auth_bp.response(200, ConfirmationSchema)
 @auth_bp.problem(
     403, 'passkey_required', 'second_factor_required', 'password_invalid', 'code_invalid',
     'code_used',
@@ -37,8 +37,8 @@ from .blueprint import auth_bp
 def step_up_password(body):
     """Confirm identity with the password and the TOTP code.
 
-    Returns an access token that replaces the caller's and opens the routes asking
-    for a confirmed session, for ten minutes. A confirmation always attests a second
+    Replaces the access cookie with one that opens the routes asking for a
+    confirmed session, for ten minutes. A confirmation always attests a second
     factor: an account without TOTP confirms through `/step-up/passkey/*`.
     """
     user = get_current_user()
@@ -54,7 +54,7 @@ def step_up_password(body):
         raise Problem(403, 'password_invalid', 'Mot de passe incorrect.')
     if refusal := code_refusal(user.id, user.mfa_secret, body['code'], 403):
         raise refusal
-    return {'access_token': renewed_access_token(confirmed=CONFIRMATION_WINDOW)}
+    return renew_session(confirmed=CONFIRMATION_WINDOW)
 
 
 @auth_bp.route('/step-up/passkey/begin', methods=['POST'])
@@ -75,10 +75,10 @@ def step_up_passkey_begin():
 @limiter.limit('5 per minute')
 @jwt_required()
 @auth_bp.arguments(PasskeyAssertionSchema)
-@auth_bp.response(200, ConfirmedTokenSchema)
+@auth_bp.response(200, ConfirmationSchema)
 @auth_bp.problem(403, 'challenge_invalid', 'passkey_refused')
 def step_up_passkey_complete(body):
-    """Finish confirming identity with a passkey; the same token as `/step-up/password`."""
+    """Finish confirming identity with a passkey; the same session as `/step-up/password`."""
     user = get_current_user()
     try:
         owner_id, challenge = passkeys.read_challenge(body['challenge_token'], Ceremony.STEP_UP)
@@ -99,4 +99,4 @@ def step_up_passkey_complete(body):
         raise passkey_refused(403) from None
 
     db.session.commit()
-    return {'access_token': renewed_access_token(confirmed=CONFIRMATION_WINDOW)}
+    return renew_session(confirmed=CONFIRMATION_WINDOW)

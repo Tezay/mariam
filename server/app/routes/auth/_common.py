@@ -2,12 +2,16 @@ import hashlib
 import time
 from datetime import timedelta
 
+from flask import after_this_request, current_app
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
     get_jti,
     get_jwt,
     get_jwt_identity,
+    set_access_cookies,
+    set_refresh_cookies,
+    unset_jwt_cookies,
 )
 from limits import parse
 
@@ -33,28 +37,60 @@ CONFIRMATION_WINDOW = timedelta(minutes=10)
 WRONG_CODES = parse('10 per hour')
 
 
-def token_pair(
+def _lifetime(setting: str) -> int | None:
+    expires = current_app.config[setting]
+    return int(expires.total_seconds()) if expires else None
+
+
+def _hand_over(access_token: str, refresh_token: str | None = None) -> None:
+    @after_this_request
+    def set_cookies(response):
+        # Runs on an error response too, which must not open a session.
+        if response.status_code >= 400:
+            return response
+        # As long as the token lives, rather than the library's year or the
+        # browsing session: an app installed from the browser inherits them.
+        set_access_cookies(
+            response, access_token, max_age=_lifetime('JWT_ACCESS_TOKEN_EXPIRES')
+        )
+        if refresh_token:
+            set_refresh_cookies(
+                response, refresh_token, max_age=_lifetime('JWT_REFRESH_TOKEN_EXPIRES')
+            )
+        return response
+
+
+def _confirmed_for(confirmed: timedelta | float | None) -> int:
+    if isinstance(confirmed, timedelta):
+        return int(confirmed.total_seconds())
+    return max(0, int(confirmed - time.time())) if confirmed else 0
+
+
+def open_session(
     user: User, *, confirmed: timedelta | float | None = None, claims: dict | None = None
-) -> dict[str, str]:
-    """`confirmed` is `CONFIRMATION_WINDOW` for a caller that has just presented a
+) -> dict[str, int]:
+    """Hands the browser a new session, in its cookies.
+
+    `confirmed` is `CONFIRMATION_WINDOW` for a caller that has just presented a
     second factor, or the Unix time an earlier confirmation runs until.
     """
     identity = str(user.id)
     refresh_token = create_refresh_token(identity=identity, additional_claims=claims)
-    return {
-        'access_token': create_access_token(
+    _hand_over(
+        create_access_token(
             identity=identity,
             fresh=confirmed or False,
             additional_claims={**(claims or {}), SESSION_CLAIM: get_jti(refresh_token)},
         ),
-        'refresh_token': refresh_token,
-    }
+        refresh_token,
+    )
+    return {'confirmed_for': _confirmed_for(confirmed)}
 
 
-def renewed_access_token(*, confirmed: timedelta | None = None) -> str:
+def renew_session(*, confirmed: timedelta | None = None) -> dict[str, int]:
     """A new access token for the session of the token that authenticates the request.
 
-    `confirmed` as for `token_pair`.
+    `confirmed` as for `open_session`.
     """
     presented = get_jwt()
     carried = {
@@ -65,21 +101,29 @@ def renewed_access_token(*, confirmed: timedelta | None = None) -> str:
             presented['jti'] if presented['type'] == 'refresh' else presented.get(SESSION_CLAIM)
         ),
     }
-    return create_access_token(
+    _hand_over(create_access_token(
         identity=get_jwt_identity(),
         fresh=confirmed or False,
         additional_claims={name: value for name, value in carried.items() if value},
-    )
+    ))
+    return {'confirmed_for': _confirmed_for(confirmed)}
 
 
-def reissued_token_pair(user: User) -> dict[str, str]:
+def reopen_session(user: User) -> None:
     """Ends every session of the account and opens one for the caller.
 
     The new session is not confirmed: what follows a change of sign-in address
     asks for the second factor again.
     """
     user.revoke_tokens()
-    return token_pair(user, claims={User.REVOCATION_MARKER: user.revocation_marker()})
+    open_session(user, claims={User.REVOCATION_MARKER: user.revocation_marker()})
+
+
+def forget_session() -> None:
+    @after_this_request
+    def unset_cookies(response):
+        unset_jwt_cookies(response)
+        return response
 
 
 def revoke_until_expiry(claims: dict) -> None:
@@ -123,7 +167,7 @@ def complete_login(user: User) -> dict:
         'user': account_view(user),
         # A password alone, on an account still without a second factor,
         # confirms nothing.
-        **token_pair(user, confirmed=CONFIRMATION_WINDOW if user.has_second_factor() else None),
+        **open_session(user, confirmed=CONFIRMATION_WINDOW if user.has_second_factor() else None),
     }
 
 

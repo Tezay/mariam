@@ -18,6 +18,11 @@ except ImportError:
 # it replaced included, and its transfers in flight.
 SESSION_CLAIM = 'sid'
 
+# The prefix holds a browser to Secure, Path=/ and no Domain: each organization's
+# host keeps its own session.
+ACCESS_COOKIE = '__Host-Http-access'
+REFRESH_COOKIE = '__Host-Http-refresh'
+
 _redis_blacklist = None
 
 

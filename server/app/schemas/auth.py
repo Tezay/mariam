@@ -88,22 +88,21 @@ class PasskeyPasswordResetSchema(PasskeyAssertionSchema):
 
 class SessionSchema(Schema):
     user = fields.Nested(AccountSchema, required=True)
-    access_token = fields.Str(required=True)
-    refresh_token = fields.Str(required=True)
+    confirmed_for = fields.Int(
+        required=True,
+        metadata={'description': "Seconds the session stays confirmed, 0 when it is not"},
+    )
 
 
 class LoginResponseSchema(Schema):
-    user = fields.Nested(AccountSchema, metadata={'description': "With the tokens, once signed in"})
-    access_token = fields.Str()
-    refresh_token = fields.Str()
+    user = fields.Nested(AccountSchema, metadata={'description': "Once signed in"})
+    confirmed_for = fields.Int(
+        metadata={'description': "Seconds the session stays confirmed, 0 when it is not"}
+    )
     mfa_required = fields.Bool(
         metadata={'description': "Set when the account has TOTP: finish with `/mfa/verify`"}
     )
     mfa_token = fields.Str(metadata={'description': "Valid 10 minutes, for `/mfa/verify` only"})
-
-
-class TokenRefreshSchema(Schema):
-    access_token = fields.Str(required=True)
 
 
 class ActivationLinkSchema(Schema):
@@ -148,13 +147,10 @@ class WebAuthnOptionsSchema(Schema):
     )
 
 
-class ConfirmedTokenSchema(Schema):
-    access_token = fields.Str(
+class ConfirmationSchema(Schema):
+    confirmed_for = fields.Int(
         required=True,
-        metadata={
-            'description': "Replaces the access token in use. Its `fresh` claim is the time "
-                           "until which the session is confirmed"
-        },
+        metadata={'description': "Seconds the session stays confirmed, 0 when it is not"},
     )
 
 

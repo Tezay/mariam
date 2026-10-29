@@ -8,7 +8,7 @@ from app.extensions import db
 from app.models import ActivationLink, Passkey, User
 from app.routes.auth._common import CONFIRMATION_WINDOW
 from app.security import SESSION_CLAIM
-from conftest import TEST_PASSWORD, auth_headers
+from conftest import TEST_PASSWORD, auth_headers, session_tokens
 from tests.webauthn_authenticator import SoftAuthenticator
 
 
@@ -60,7 +60,8 @@ def confirmed_headers(
         headers=headers or session_headers(user_id),
         json={'password': TEST_PASSWORD, 'code': pyotp.TOTP(secret).now()},
     )
-    return auth_headers(res.get_json()['access_token'])
+    assert res.status_code == 200, res.get_json()
+    return auth_headers(session_tokens(client)['access_token'])
 
 
 def new_authenticator() -> SoftAuthenticator:
