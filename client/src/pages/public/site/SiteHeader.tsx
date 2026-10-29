@@ -24,10 +24,17 @@ function siteStatus(site: RestaurantPublic, closure: Closure | null, now: Date) 
   return { label: status.label, tone: STATUS_TONES[status.color] };
 }
 
-export function NotificationsLink({ href, className }: { href: string; className?: string }) {
+export function NotificationsButton({
+  onClick,
+  className,
+}: {
+  onClick: () => void;
+  className?: string;
+}) {
   return (
-    <Link
-      to={href}
+    <button
+      type="button"
+      onClick={onClick}
       className={cn(
         'flex h-11 items-center justify-center gap-2 rounded-xl bg-site-brand-soft px-4 text-sm font-bold text-site-brand transition-opacity hover:opacity-90',
         className
@@ -35,7 +42,7 @@ export function NotificationsLink({ href, className }: { href: string; className
     >
       <Bell aria-hidden className="h-4 w-4" />
       Recevoir le menu chaque jour
-    </Link>
+    </button>
   );
 }
 
@@ -45,7 +52,7 @@ interface SiteHeaderProps {
   site: RestaurantPublic;
   closure: Closure | null;
   now: Date;
-  notificationsHref: string;
+  onOpenNotifications: () => void;
 }
 
 export function SiteHeader({
@@ -54,7 +61,7 @@ export function SiteHeader({
   site,
   closure,
   now,
-  notificationsHref,
+  onOpenNotifications,
 }: SiteHeaderProps) {
   const status = siteStatus(site, closure, now);
   const address = addressLines(site);
@@ -82,7 +89,7 @@ export function SiteHeader({
               </>
             )}
           </p>
-          <NotificationsLink href={notificationsHref} />
+          <NotificationsButton onClick={onOpenNotifications} />
         </nav>
 
         <div className="flex items-center gap-3 py-3 pl-4 pr-2 lg:gap-8 lg:px-0 lg:pb-9 lg:pt-5">
@@ -158,13 +165,14 @@ export function SiteHeader({
             />
           )}
 
-          <Link
-            to={notificationsHref}
+          <button
+            type="button"
+            onClick={onOpenNotifications}
             aria-label="Recevoir les notifications"
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-site-subtle transition-colors hover:bg-site-raised lg:hidden"
           >
             <Bell aria-hidden className="h-5 w-5" />
-          </Link>
+          </button>
         </div>
       </div>
     </header>

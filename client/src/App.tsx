@@ -16,9 +16,6 @@ const ResetPassword = lazy(() =>
 const Unsubscribe = lazy(() =>
   import('./pages/Unsubscribe').then((m) => ({ default: m.Unsubscribe }))
 );
-const NotificationsPage = lazy(() =>
-  import('./pages/public/NotificationsPage').then((m) => ({ default: m.NotificationsPage }))
-);
 const AdminLayout = lazy(() =>
   import('./components/AdminLayout').then((m) => ({ default: m.AdminLayout }))
 );
@@ -217,8 +214,6 @@ function App() {
       <ResponsiveToaster />
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          <Route path="/notifications" element={<NotificationsPage />} />
-
           <Route
             path="/login"
             element={

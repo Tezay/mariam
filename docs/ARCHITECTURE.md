@@ -76,7 +76,7 @@ origin, which avoids CORS entirely. It is the only service that receives outside
 
 ## Frontend server
 
-`client/server.js` serves the build on port 3000: static files, the pages, and four paths it
+`client/server.js` serves the build on port 3000: static files, the pages, and five paths it
 answers itself.
 
 | Path | Content |
@@ -84,19 +84,26 @@ answers itself.
 | `/config.js` | The deployment's public settings, read from the environment at each request |
 | `/robots.txt` | Crawl rules, pointing at the sitemap of the requested host |
 | `/sitemap.xml` | The organization's active sites, asked from the API |
+| `/app.webmanifest?site=` | The app manifest of a site's page, under the site's name |
 | `/healthz` | Liveness, for the container healthcheck |
 
 The public pages are rendered by the server, then hydrated in the browser:
 
 | Path | Page |
 |---|---|
-| `/` | The organization's sites; a single-site organization goes to `/menu` |
-| `/menu`, `/<site>/menu` | A site's menu: `/menu` for a single site, `/<site>/menu` otherwise |
+| `/` | A single-site organization's page, or the list of its sites |
+| `/<site>` | A site's page; `?date=` picks a day of its menu window |
+| `/menu`, `/<site>/menu` | Permanent redirects to the site's page, query kept |
 | `/tv`, `/<site>/tv` | The display screen, rendered in the browser only and not indexed |
 | `/privacy` | The privacy notice for visitors |
 
-The other paths (the dashboard, sign-in, `/notifications`) answer a loading indicator, and the
-application renders them in the browser.
+The other paths (the dashboard, sign-in) answer a loading indicator, and the application renders
+them in the browser.
+
+Each context is an app of its own: a site's page installs the site's app, `/admin` the
+dashboard (`manifest-admin.webmanifest`) and `/org` the supervision (`manifest-org.webmanifest`);
+the other pages link no manifest. An account installs the app of its own dashboard, from
+`/admin/install` or `/org/install`.
 
 To reach the API the server uses `API_INTERNAL_URL` when the deployment sets one and `API_URL`
 otherwise. It passes on the visitor's address in `X-Real-IP`, and only when that header came from
@@ -193,9 +200,9 @@ Browser ──(1) subscribe──→ Backend ──(2) signed message──→ P
                           (3) delivery ─────────────────────────-─┘
 ```
 
-1. The user subscribes from `/notifications`; the browser issues a push endpoint. The backend
-   accepts one only on a browser push service (`server/app/utils/push_endpoint.py`) and posts
-   to no other host.
+1. The visitor subscribes from the notifications panel of a site's page; the browser issues a
+   push endpoint. The backend accepts one only on a browser push service
+   (`server/app/utils/push_endpoint.py`) and posts to no other host.
 2. The scheduler checks every minute what should go out, signs with the VAPID private key and
    posts to the push service.
 3. The push service delivers to the device.

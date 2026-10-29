@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet, isRouteErrorResponse } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PublicErrorFallback } from '@/components/ErrorBoundary';
+import { PwaInstallProvider } from '@/contexts/PwaInstallContext';
 import { loadTenant, tenantContext } from './tenant.server';
 import type { Route } from './+types/tenant-layout';
 
@@ -21,7 +22,9 @@ export default function TenantLayout() {
   );
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <PwaInstallProvider>
+        <Outlet />
+      </PwaInstallProvider>
     </QueryClientProvider>
   );
 }

@@ -5,8 +5,8 @@
  */
 import { precacheAndRoute } from 'workbox-precaching';
 
-// Active immédiatement et diffuse SW_UPDATED aux pages ouvertes lors d'une mise à jour,
-// afin de forcer le rechargement du nouveau bundle JS même sur des clients sans handler dédié.
+// Takes over at once and, on an update, posts SW_UPDATED so that every open page
+// reloads onto the new build.
 let isUpdate = false;
 self.addEventListener('install', () => {
   if (self.registration.active) isUpdate = true;
@@ -23,42 +23,8 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// ========================================
-// Manifest dynamique selon le rôle utilisateur
-// ========================================
-// The React client stores the role in CacheStorage after each sign-in.
-self.addEventListener('fetch', (event) => {
-  const { pathname } = new URL(event.request.url);
-  if (pathname === '/manifest.webmanifest' || pathname === '/site.webmanifest') {
-    event.respondWith(resolveDynamicManifest());
-  }
-});
-
-async function resolveDynamicManifest() {
-  try {
-    const cache = await caches.open('mariam-config');
-    const roleRes = await cache.match('/user-role');
-    if (roleRes) {
-      const role = await roleRes.text();
-      if (role === 'org_admin') {
-        return fetch('/manifest-org.webmanifest');
-      }
-      if (role === 'admin' || role === 'editor') {
-        return fetch('/manifest-admin.webmanifest');
-      }
-    }
-  } catch (_) {}
-  return fetch('/site.webmanifest');
-}
-
-// ========================================
-// Précache des assets statiques (injecté par Workbox au build)
-// ========================================
 precacheAndRoute(self.__WB_MANIFEST);
 
-// ========================================
-// Réception des notifications push
-// ========================================
 self.addEventListener('push', (event) => {
   if (!event.data) return;
 
@@ -79,32 +45,24 @@ self.addEventListener('push', (event) => {
     tag: payload.tag || 'mariam-notification',
     renotify: true,
     data: {
-      url: payload.url || '/menu',
+      url: payload.url || '/',
     },
   };
 
   event.waitUntil(self.registration.showNotification(payload.title || 'Mariam', options));
 });
 
-// ========================================
-// Clic sur une notification
-// ========================================
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-
-  const targetUrl = event.notification.data?.url || '/menu';
+  const target = new URL(event.notification.data?.url || '/', self.location.origin);
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      // Si un onglet MARIAM est déjà ouvert, le focus
-      for (const client of clients) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          client.navigate(targetUrl);
-          return client.focus();
-        }
-      }
-      // Sinon, ouvrir un nouvel onglet
-      return self.clients.openWindow(targetUrl);
+      // Only a tab already on that page is reused: another may hold unsaved work,
+      // a dashboard's edits for one.
+      const page = clients.find((client) => new URL(client.url).pathname === target.pathname);
+      if (page) return page.focus().then((client) => client.navigate(target.href));
+      return self.clients.openWindow(target.href);
     })
   );
 });

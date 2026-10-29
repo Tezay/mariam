@@ -20,33 +20,8 @@ export type ResetLink = Schemas['ResetLink'];
 export type Activation = Schemas['Activation'];
 type Session = Schemas['Session'];
 
-// In CacheStorage because the service worker, which cannot read localStorage, picks
-// the app manifest from this role. Best-effort: without it, the public one is served.
-function setManifestRole(role: string | null): void {
-  if (!('caches' in window)) return;
-  if (role === 'admin' || role === 'editor' || role === 'org_admin') {
-    caches
-      .open('mariam-config')
-      .then((cache) =>
-        cache.put(
-          '/user-role',
-          new Response(role, {
-            headers: { 'Content-Type': 'text/plain' },
-          })
-        )
-      )
-      .catch(() => {});
-  } else {
-    caches
-      .open('mariam-config')
-      .then((cache) => cache.delete('/user-role'))
-      .catch(() => {});
-  }
-}
-
 function openSession({ access_token, refresh_token, user }: Session): Account {
   storeTokens(access_token, refresh_token);
-  setManifestRole(user.role);
   return user;
 }
 
@@ -78,7 +53,6 @@ export const authApi = {
   logout: () => {
     const refreshToken = getRefreshToken();
     clearTokens();
-    setManifestRole(null);
     // Outside the interceptors, with the refresh token as credential: revoking it
     // ends every access token issued from it.
     if (refreshToken) {

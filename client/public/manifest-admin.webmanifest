@@ -2,6 +2,7 @@
   "name": "Mariam - Gestion",
   "short_name": "Gestion",
   "description": "Tableau de bord de gestion MARIAM.",
+  "id": "/admin/calendar",
   "start_url": "/admin/calendar",
   "scope": "/",
   "display": "standalone",

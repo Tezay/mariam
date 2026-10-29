@@ -4,7 +4,7 @@
 (function () {
   try {
     var path = location.pathname;
-    var dashboard = /^\/(admin|org|login|activate|reset-password|notifications|unsubscribe)(\/|$)/;
+    var dashboard = /^\/(admin|org|login|activate|reset-password|unsubscribe)(\/|$)/;
     var tv = /^\/([^/]+\/)?tv\/?$/;
     var system = window.matchMedia('(prefers-color-scheme: dark)');
     var root = document.documentElement;

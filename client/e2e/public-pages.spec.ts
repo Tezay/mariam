@@ -116,6 +116,35 @@ test('the former TV address opens the TV display', async ({ page, request }) => 
   await expect(page.getByText(site.name, { exact: true })).toBeVisible();
 });
 
+test.describe('the notifications panel', () => {
+  test('opens from the bell on a phone', async ({ page, request }) => {
+    const [site] = await sitesOf(request, 'demo');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await proxyApi(page);
+    const errors = collectErrors(page);
+    await page.goto(at('demo', `/${site.slug}`), { waitUntil: 'networkidle' });
+
+    await page.getByRole('button', { name: 'Recevoir les notifications' }).click();
+    const panel = page.getByRole('dialog', { name: 'Notifications' });
+    await expect(panel.getByText(site.name)).toBeVisible();
+    await expect(panel).toHaveCSS('bottom', '0px');
+    expect(errors).toEqual([]);
+  });
+
+  test('opens beside the page on a wide screen', async ({ page, request }) => {
+    const [site] = await sitesOf(request, 'demo');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await proxyApi(page);
+    await page.goto(at('demo', `/${site.slug}`), { waitUntil: 'networkidle' });
+
+    await page.getByRole('button', { name: 'Recevoir le menu chaque jour' }).first().click();
+    const panel = page.getByRole('dialog', { name: 'Notifications' });
+    await expect(panel.getByText(site.name)).toBeVisible();
+    await expect(panel).toHaveCSS('right', '0px');
+    await expect(panel).toHaveCSS('top', '0px');
+  });
+});
+
 test.describe('under a dark system theme', () => {
   test.use({ colorScheme: 'dark' });
 
