@@ -1,7 +1,8 @@
 {
-  "name": "Mariam — Supervision",
+  "name": "Mariam - Supervision",
   "short_name": "Supervision",
   "description": "Suivi de tous les sites d'une organisation MARIAM.",
+  "id": "/org",
   "start_url": "/org",
   "scope": "/",
   "display": "standalone",

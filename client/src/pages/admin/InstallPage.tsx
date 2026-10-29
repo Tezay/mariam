@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router';
+import { Navigate, useLocation, useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
-import { dashboardPathForRole } from '@/lib/dashboard-routes';
+import { dashboardPathForRole, installPathForRole } from '@/lib/dashboard-routes';
 import { QRCodeSVG } from 'qrcode.react';
 import { authApi } from '@/lib/api/auth';
 import { needsSecuritySetup } from '@/hooks/useSecurityOnboarding';
+import { markInstallSeen } from '@/hooks/usePwaOnboarding';
 import { useIdentityConfirmed, useStepUp } from '@/hooks/useStepUp';
-import { detectPlatform } from '@/lib/push';
-import { usePwaInstall } from '@/contexts/PwaInstallContext';
+import { detectPlatform, type InstallMethod } from '@/lib/app-install';
+import { dashboardApp, type DashboardApp } from '@/lib/app-manifest';
+import { useInstallMethod, usePwaInstall } from '@/contexts/PwaInstallContext';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,15 +22,10 @@ import {
   ArrowRight,
   Share,
   Ellipsis,
+  EllipsisVertical,
   SquarePlus,
 } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
-
-const INSTALL_DONE_KEY = 'mariam-pwa-install-done';
-
-function markDone() {
-  localStorage.setItem(INSTALL_DONE_KEY, '1');
-}
 
 function SkipButton({ label, onClick }: { label?: string; onClick: () => void }) {
   return (
@@ -54,69 +51,57 @@ function IconHeader({ title, subtitle }: { title: string; subtitle: string }) {
   );
 }
 
-function IosInstructions({ isSafari, onDone }: { isSafari: boolean; onDone: () => void }) {
+function IosInstructions({ app, onDone }: { app: DashboardApp; onDone: () => void }) {
+  const method = useInstallMethod();
+
   return (
     <div className="w-full max-w-2xl space-y-6 rounded-lg border border-border bg-card p-8 shadow-lg">
       <IconHeader
-        title="Installez Mariam - Gestion"
-        subtitle="Accédez au tableau de bord directement depuis votre écran d'accueil."
+        title={`Installez ${app.name}`}
+        subtitle="Ouvrez-la directement depuis votre écran d'accueil."
       />
 
+      {method === 'open-in-safari' && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-800 dark:text-amber-300">
+          Pour installer l'application, ouvrez cette page dans <strong>Safari</strong>.
+        </div>
+      )}
+
       <div className="flex flex-col gap-3">
-        {isSafari ? (
-          <>
-            <Step
-              number={1}
-              text={
-                <span className="inline-flex flex-wrap items-center gap-1">
-                  Appuyez sur <Ellipsis className="inline h-4 w-4 shrink-0" /> à droite de la barre
-                  d'adresse
-                </span>
-              }
-            />
-            <Step
-              number={2}
-              text={
-                <span className="inline-flex flex-wrap items-center gap-1">
-                  Appuyez sur <Share className="inline h-4 w-4 shrink-0" />{' '}
-                  <strong>Partager</strong>
-                </span>
-              }
-            />
-            <Step
-              number={3}
-              text={
-                <span className="inline-flex flex-wrap items-center gap-1">
-                  Sélectionnez <SquarePlus className="inline h-4 w-4 shrink-0" />{' '}
-                  <strong>Sur l'écran d'accueil</strong>
-                </span>
-              }
-            />
-          </>
-        ) : (
-          <>
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-800 dark:text-amber-300">
-              Pour installer l'application, ouvrez cette page dans <strong>Safari</strong>.
-            </div>
-            <Step
-              number={1}
-              text={
-                <span className="inline-flex flex-wrap items-center gap-1">
-                  Appuyez sur <Share className="inline h-4 w-4 shrink-0" /> dans votre navigateur
-                </span>
-              }
-            />
-            <Step
-              number={2}
-              text={
-                <span className="inline-flex flex-wrap items-center gap-1">
-                  Sélectionnez <SquarePlus className="inline h-4 w-4 shrink-0" />{' '}
-                  <strong>Sur l'écran d'accueil</strong>
-                </span>
-              }
-            />
-          </>
-        )}
+        <Step
+          number={1}
+          text={
+            <span className="inline-flex flex-wrap items-center gap-1">
+              Appuyez sur <Ellipsis className="inline h-4 w-4 shrink-0" /> à côté de l'adresse, puis
+              sur <Share className="inline h-4 w-4 shrink-0" /> <strong>Partager</strong>
+            </span>
+          }
+        />
+        <Step
+          number={2}
+          text={
+            <span className="inline-flex flex-wrap items-center gap-1">
+              Sélectionnez <SquarePlus className="inline h-4 w-4 shrink-0" />{' '}
+              <strong>Sur l'écran d'accueil</strong>
+            </span>
+          }
+        />
+        <Step
+          number={3}
+          text={
+            <>
+              Appuyez sur <strong>Ajouter</strong>
+            </>
+          }
+        />
+        <Step
+          number={4}
+          text={
+            <>
+              Lancez <strong>{app.title}</strong> depuis votre écran d'accueil
+            </>
+          }
+        />
       </div>
 
       <div className="rounded-lg border bg-muted/40 p-3 text-center text-xs text-muted-foreground">
@@ -134,8 +119,9 @@ function IosInstructions({ isSafari, onDone }: { isSafari: boolean; onDone: () =
   );
 }
 
-function AndroidInstructions({ onDone }: { onDone: () => void }) {
-  const { installPrompt, triggerInstall } = usePwaInstall();
+function AndroidInstructions({ app, onDone }: { app: DashboardApp; onDone: () => void }) {
+  const method = useInstallMethod();
+  const { triggerInstall } = usePwaInstall();
   const [installing, setInstalling] = useState(false);
 
   const handleInstall = async () => {
@@ -148,41 +134,61 @@ function AndroidInstructions({ onDone }: { onDone: () => void }) {
   return (
     <div className="w-full max-w-sm space-y-6 rounded-lg border border-border bg-card p-8 shadow-lg">
       <IconHeader
-        title="Installez Mariam - Gestion"
-        subtitle="Accédez au tableau de bord directement depuis votre écran d'accueil."
+        title={`Installez ${app.name}`}
+        subtitle="Ouvrez-la directement depuis votre écran d'accueil."
       />
 
       <div className="flex flex-col gap-3">
-        <Step number={1} text={<>Appuyez sur le bouton ci-dessous</>} />
-        <Step
-          number={2}
-          text={
-            <>
-              Confirmez en appuyant sur <strong>« Installer »</strong>
-            </>
-          }
-        />
+        {method === 'offer' ? (
+          <>
+            <Step number={1} text={<>Appuyez sur le bouton ci-dessous</>} />
+            <Step
+              number={2}
+              text={
+                <>
+                  Confirmez en appuyant sur <strong>« Installer »</strong>
+                </>
+              }
+            />
+          </>
+        ) : (
+          <>
+            <Step
+              number={1}
+              text={
+                <span className="inline-flex flex-wrap items-center gap-1">
+                  Ouvrez le menu <EllipsisVertical className="inline h-4 w-4 shrink-0" /> du
+                  navigateur
+                </span>
+              }
+            />
+            <Step
+              number={2}
+              text={
+                <>
+                  Choisissez <strong>Installer l'application</strong> ou{' '}
+                  <strong>Ajouter à l'écran d'accueil</strong>
+                </>
+              }
+            />
+          </>
+        )}
         <Step
           number={3}
           text={
             <>
-              Lancez <strong>Mariam - Gestion</strong> depuis votre écran d'accueil
+              Lancez <strong>{app.title}</strong> depuis votre écran d'accueil
             </>
           }
         />
       </div>
 
       <div className="flex flex-col items-center gap-3">
-        {installPrompt ? (
+        {method === 'offer' && (
           <Button className="w-full gap-2" onClick={handleInstall} disabled={installing}>
             <Smartphone className="h-4 w-4" />
             {installing ? 'Installation...' : 'Installer maintenant'}
           </Button>
-        ) : (
-          <div className="w-full rounded-lg border bg-muted/40 p-3 text-center text-xs text-muted-foreground">
-            Le navigateur n'a pas encore proposé l'installation. Réessayez dans quelques instants ou
-            installez via le menu du navigateur.
-          </div>
         )}
         <SkipButton onClick={onDone} />
       </div>
@@ -190,12 +196,58 @@ function AndroidInstructions({ onDone }: { onDone: () => void }) {
   );
 }
 
+function computerGuide(method: InstallMethod) {
+  switch (method) {
+    case 'installed':
+      return <>L'application est installée sur cet ordinateur.</>;
+    case 'dock':
+      return (
+        <>
+          Dans la barre des menus, choisissez <strong>Fichier</strong>, puis{' '}
+          <strong>Ajouter au Dock</strong>. Vous vous reconnecterez à sa première ouverture.
+        </>
+      );
+    case 'browser-menu':
+      return (
+        <>
+          Cliquez sur l'icône d'installation à droite de la barre d'adresse. Si l'application est
+          déjà installée, ouvrez-la depuis le Dock (Mac) ou le menu Démarrer (Windows).
+        </>
+      );
+    default:
+      return (
+        <>
+          Ce navigateur n'installe pas d'application : ouvrez cette page dans Chrome, Edge ou Safari
+          pour l'installer.
+        </>
+      );
+  }
+}
+
+function ComputerInstall({ onDone }: { onDone: () => void }) {
+  const method = useInstallMethod();
+  const { triggerInstall } = usePwaInstall();
+
+  const install = async () => {
+    if ((await triggerInstall()) === 'accepted') onDone();
+  };
+
+  return method === 'offer' ? (
+    <Button variant="outline" className="w-full gap-2" onClick={install}>
+      <Monitor className="h-4 w-4" />
+      Installer sur cet ordinateur
+    </Button>
+  ) : (
+    <p className="text-sm text-muted-foreground">{computerGuide(method)}</p>
+  );
+}
+
 // The phone inherits what is left of this session's confirmation: enough for
+// the code to be scanned as it expires, and a passkey registered after that.
 const HAND_OVER_HEADROOM_MS = 7 * 60 * 1000;
 
-function DesktopInstructions({ onDone }: { onDone: () => void }) {
+function DesktopInstructions({ app, onDone }: { app: DashboardApp; onDone: () => void }) {
   const { user } = useAuth();
-  const { installPrompt, triggerInstall } = usePwaInstall();
   const confirmIdentity = useStepUp();
   const confirmedForHandOver = useIdentityConfirmed(HAND_OVER_HEADROOM_MS);
   // The server asks nothing of an account without a second factor.
@@ -268,17 +320,14 @@ function DesktopInstructions({ onDone }: { onDone: () => void }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDesktopInstall = async () => {
-    await triggerInstall();
-    onDone();
-  };
-
   return (
     <div className="w-full max-w-2xl space-y-6 rounded-lg border border-border bg-card p-8 shadow-lg">
       <IconHeader
-        title="Installez Mariam sur votre téléphone 🚀"
-        subtitle="Scannez ce QR code avec votre téléphone pour avoir accès à Mariam de n'importe où !"
+        title={`Installez ${app.name}`}
+        subtitle="Sur votre téléphone ou sur cet ordinateur, pour l'ouvrir sans passer par le navigateur."
       />
+
+      <h3 className="text-sm font-semibold text-foreground">Sur votre téléphone</h3>
 
       <div className="flex flex-col items-center gap-3">
         {asksConfirmation ? (
@@ -349,13 +398,12 @@ function DesktopInstructions({ onDone }: { onDone: () => void }) {
         </div>
       </div>
 
-      <div className="flex flex-col items-center gap-3 border-t pt-4">
-        {installPrompt && (
-          <Button variant="outline" className="w-full gap-2" onClick={handleDesktopInstall}>
-            <Monitor className="h-4 w-4" />
-            Installer sur cet ordinateur
-          </Button>
-        )}
+      <div className="space-y-3 border-t pt-4">
+        <h3 className="text-sm font-semibold text-foreground">Sur cet ordinateur</h3>
+        <ComputerInstall onDone={onDone} />
+      </div>
+
+      <div className="flex justify-center border-t pt-4">
         <SkipButton label="Continuer sans installer" onClick={onDone} />
       </div>
     </div>
@@ -375,14 +423,16 @@ function Step({ number, text }: { number: number; text: React.ReactNode }) {
 
 export function InstallPage() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { user } = useAuth();
-  const platform = detectPlatform();
-  const ua = navigator.userAgent;
-  const isIosSafari =
-    platform === 'ios' && /Safari/.test(ua) && !/CriOS|FxiOS|OPiOS|EdgiOS|Chrome/.test(ua);
+  const ownPath = installPathForRole(user?.role);
+  const app = dashboardApp(pathname);
 
+  if (!app || pathname !== ownPath) return <Navigate to={ownPath} replace />;
+
+  const platform = detectPlatform();
   const handleDone = () => {
-    markDone();
+    markInstallSeen();
     navigate(dashboardPathForRole(user?.role), { replace: true });
   };
 
@@ -390,9 +440,9 @@ export function InstallPage() {
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 px-6 py-12">
       <Logo className="h-20 w-auto" />
 
-      {platform === 'ios' && <IosInstructions isSafari={isIosSafari} onDone={handleDone} />}
-      {platform === 'android' && <AndroidInstructions onDone={handleDone} />}
-      {platform === 'desktop' && <DesktopInstructions onDone={handleDone} />}
+      {platform === 'ios' && <IosInstructions app={app} onDone={handleDone} />}
+      {platform === 'android' && <AndroidInstructions app={app} onDone={handleDone} />}
+      {platform === 'desktop' && <DesktopInstructions app={app} onDone={handleDone} />}
     </div>
   );
 }

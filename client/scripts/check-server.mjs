@@ -245,6 +245,32 @@ test('/config.js exposes the public settings only', async () => {
   );
 });
 
+test('a site page installs its own app, named after it', async () => {
+  const manifest = await request('/app.webmanifest?site=alpha');
+  assert.equal(manifest.status, 200);
+  assert.match(manifest.headers['content-type'], /^application\/manifest\+json/);
+  const app = JSON.parse(manifest.body);
+  assert.deepEqual([app.id, app.start_url, app.name], ['/alpha', '/alpha', 'alpha']);
+  assert.equal((await request('/app.webmanifest?site=nope')).status, 404);
+
+  tenant = organization('solo');
+  assert.equal(JSON.parse((await request('/app.webmanifest?site=solo')).body).start_url, '/');
+});
+
+test('each context links the manifest of its own app, and the others none', async () => {
+  const manifestOf = async (path) =>
+    /<link rel="manifest" href="([^"]+)"/.exec((await request(path)).body)?.[1] ?? null;
+  assert.equal(await manifestOf('/alpha'), '/app.webmanifest?site=alpha');
+  assert.equal(await manifestOf('/admin/users'), '/manifest-admin.webmanifest');
+  assert.equal(await manifestOf('/org'), '/manifest-org.webmanifest');
+  assert.equal(await manifestOf('/privacy'), null);
+  assert.equal(await manifestOf('/'), null);
+
+  const title = /<meta name="apple-mobile-web-app-title" content="([^"]+)"/;
+  assert.equal(title.exec((await request('/admin/users')).body)?.[1], 'Gestion');
+  assert.equal(title.exec((await request('/alpha')).body)?.[1], 'alpha');
+});
+
 test('/robots.txt points at the sitemap of the requested host', async () => {
   const robots = await request('/robots.txt');
   assert.match(robots.headers['content-type'], /^text\/plain/);

@@ -1,14 +1,6 @@
 // The API stays open to crawlers, which fetch it to render the pages; its
 // responses carry X-Robots-Tag: noindex.
-const PRIVATE_PATHS = [
-  '/admin',
-  '/org',
-  '/login',
-  '/activate',
-  '/reset-password',
-  '/notifications',
-  '/unsubscribe',
-];
+const PRIVATE_PATHS = ['/admin', '/org', '/login', '/activate', '/reset-password', '/unsubscribe'];
 
 export function robotsTxt(origin: string): string {
   return [

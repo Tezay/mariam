@@ -1,4 +1,7 @@
+import { isAxiosError } from 'axios';
+import { detectPlatform } from './app-install';
 import type { SiteRef } from './api/client';
+import { getApiErrorMessage } from './api/errors';
 import {
   pushSubscriptionsApi,
   type NotificationPreferences,
@@ -6,8 +9,6 @@ import {
 } from './api/push-subscriptions';
 
 export type { NotificationPreferences } from './api/push-subscriptions';
-
-export type Platform = 'ios' | 'android' | 'desktop';
 
 export const DEFAULT_PREFERENCES: NotificationPreferences = {
   notify_today_menu: true,
@@ -17,34 +18,8 @@ export const DEFAULT_PREFERENCES: NotificationPreferences = {
   notify_events: true,
 };
 
-export function detectPlatform(): Platform {
-  const ua = navigator.userAgent || '';
-  if (
-    /iPad|iPhone|iPod/.test(ua) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  ) {
-    return 'ios';
-  }
-  if (/Android/.test(ua)) {
-    return 'android';
-  }
-  return 'desktop';
-}
-
-export function isPwaInstalled(): boolean {
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    (window.navigator as unknown as { standalone?: boolean }).standalone === true
-  );
-}
-
 export function isPushSupported(): boolean {
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
-}
-
-// iOS delivers push to an installed web app only.
-export function requiresPwaForPush(): boolean {
-  return detectPlatform() === 'ios' && !isPwaInstalled();
 }
 
 // The worker activates once its precache is downloaded: on a first visit, a slow
@@ -173,7 +148,17 @@ function humanizePushSubscribeError(err: unknown, permissionWasGranted: boolean)
   return err instanceof Error ? err.message : "Erreur inconnue lors de l'enregistrement push.";
 }
 
-export async function getExistingSubscription(): Promise<PushSubscription | null> {
+function failureMessage(err: unknown): string {
+  if (isAxiosError(err)) {
+    return getApiErrorMessage(
+      err,
+      'Le service est momentanément indisponible. Réessayez dans un instant.'
+    );
+  }
+  return err instanceof Error ? err.message : 'Erreur inconnue';
+}
+
+async function getExistingSubscription(): Promise<PushSubscription | null> {
   if (!isPushSupported()) return null;
   const reg = await getRegistration();
   if (!reg) return null;
@@ -231,8 +216,7 @@ export async function subscribeToPush(
     return { success: true };
   } catch (err: unknown) {
     console.error('Push subscription failed:', err);
-    const message = err instanceof Error ? err.message : 'Erreur inconnue';
-    return { success: false, error: message };
+    return { success: false, error: failureMessage(err) };
   }
 }
 
@@ -252,8 +236,7 @@ export async function unsubscribeFromPush(
     return { success: true };
   } catch (err: unknown) {
     console.error('Push unsubscription failed:', err);
-    const message = err instanceof Error ? err.message : 'Erreur inconnue';
-    return { success: false, error: message };
+    return { success: false, error: failureMessage(err) };
   }
 }
 
@@ -272,8 +255,7 @@ export async function updatePreferences(
     return { success: true };
   } catch (err: unknown) {
     console.error('Saving the notification preferences failed:', err);
-    const message = err instanceof Error ? err.message : 'Erreur inconnue';
-    return { success: false, error: message };
+    return { success: false, error: failureMessage(err) };
   }
 }
 
@@ -302,7 +284,6 @@ export async function sendTestNotification(
     return { success: true };
   } catch (err: unknown) {
     console.error('Sending the test notification failed:', err);
-    const message = err instanceof Error ? err.message : 'Erreur inconnue';
-    return { success: false, error: message };
+    return { success: false, error: failureMessage(err) };
   }
 }

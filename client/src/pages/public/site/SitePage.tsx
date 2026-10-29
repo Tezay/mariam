@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import type { Closure } from '@/lib/api/closures';
 import type { PublicOrg } from '@/lib/api/sites';
@@ -14,7 +14,9 @@ import { AboutSection } from './AboutSection';
 import { dayStrip, openDays } from './days';
 import { MenuBoard } from './MenuBoard';
 import { PracticalInfo } from './PracticalInfo';
-import { NotificationsLink, SiteHeader } from './SiteHeader';
+import { NotificationsPanel } from './notifications/NotificationsPanel';
+import { useLaunchOffer } from './notifications/useLaunchOffer';
+import { NotificationsButton, SiteHeader } from './SiteHeader';
 
 const CLOSURES_AHEAD_DAYS = 14;
 const CLOSURES_SHOWN = 5;
@@ -46,6 +48,13 @@ export function SitePage({
   });
   const menu = data ?? initial;
   const site = menu.restaurant;
+  const siteRef = useMemo(
+    () => ({ org: organization.slug, site: siteSlug }),
+    [organization.slug, siteSlug]
+  );
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const openNotifications = useCallback(() => setNotificationsOpen(true), []);
+  useLaunchOffer(siteRef, openNotifications);
 
   useEffect(() => {
     const kind = date === today ? 'today' : date === addDays(today, 1) ? 'tomorrow' : 'day';
@@ -59,7 +68,6 @@ export function SitePage({
   const soonClosures = menu.upcomingClosures
     .filter((closure) => closure.start_date <= addDays(today, CLOSURES_AHEAD_DAYS))
     .slice(0, CLOSURES_SHOWN);
-  const notificationsHref = `/notifications?${new URLSearchParams({ org: organization.slug, site: siteSlug })}`;
 
   return (
     <div className="public-page min-h-screen text-sm leading-normal lg:text-[15px]">
@@ -70,7 +78,7 @@ export function SitePage({
         site={site}
         closure={menu.activeClosure}
         now={now}
-        notificationsHref={notificationsHref}
+        onOpenNotifications={openNotifications}
       />
 
       <main className="mx-auto grid max-w-[1200px] grid-cols-[minmax(0,1fr)] gap-8 pb-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-[auto_auto_1fr] lg:px-6 lg:pt-8">
@@ -105,7 +113,7 @@ export function SitePage({
 
       <footer className="border-t border-site-line">
         <div className="mx-auto flex max-w-[1200px] flex-col items-center gap-3.5 px-4 py-6 lg:flex-row lg:justify-between lg:px-6 lg:py-5">
-          <NotificationsLink href={notificationsHref} className="w-full lg:hidden" />
+          <NotificationsButton onClick={openNotifications} className="w-full lg:hidden" />
           <div className="flex gap-4 text-xs text-site-subtle lg:w-full lg:justify-between lg:text-[13px]">
             <a
               href="https://mariam.app"
@@ -121,6 +129,13 @@ export function SitePage({
           </div>
         </div>
       </footer>
+
+      <NotificationsPanel
+        site={siteRef}
+        siteName={site.name}
+        open={notificationsOpen}
+        onOpenChange={setNotificationsOpen}
+      />
     </div>
   );
 }

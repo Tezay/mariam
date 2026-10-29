@@ -5,6 +5,7 @@ import { getApiErrorMessage, isConfirmationRequired } from '@/lib/api/errors';
 import { userApi } from '@/lib/api/user';
 import { passkeyRegistrationError } from '@/lib/passkey-errors';
 import { useAuth } from '@/contexts/AuthContext';
+import { installPathForRole } from '@/lib/dashboard-routes';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, AlertCircle, Fingerprint } from 'lucide-react';
@@ -18,7 +19,7 @@ type State = 'validating' | 'success' | 'passkey_pending' | 'passkey_done' | 'er
 
 export function SetupTransferPage() {
   const [searchParams] = useSearchParams();
-  const { refreshUser } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [state, setState] = useState<State>('validating');
   const [errorMsg, setErrorMsg] = useState('');
   const [passkeyError, setPasskeyError] = useState('');
@@ -69,7 +70,7 @@ export function SetupTransferPage() {
   };
 
   const handleContinue = () => {
-    window.location.href = '/admin/install';
+    window.location.href = installPathForRole(user?.role);
   };
 
   return (

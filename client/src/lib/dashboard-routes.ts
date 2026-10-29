@@ -9,3 +9,8 @@ export function dashboardPathForRole(role: Role | undefined): string {
 export function accountPathForRole(role: Role | undefined): string {
   return `${dashboardPathForRole(role)}/account`;
 }
+
+/** Each account installs the app of its own dashboard, whose manifest this page names. */
+export function installPathForRole(role: Role | undefined): string {
+  return `${dashboardPathForRole(role)}/install`;
+}

@@ -1,4 +1,11 @@
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
 interface Window {
+  /** Set by /install-prompt.js. */
+  __installPrompt?: BeforeInstallPromptEvent | null;
   /** Set by /config.js, which the server writes from its environment. */
   __RUNTIME_CONFIG__?: {
     API_URL?: string;

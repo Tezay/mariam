@@ -33,7 +33,7 @@ self.addEventListener('push', function (event) {
     tag: payload.tag || 'mariam-notification',
     renotify: true,
     data: {
-      url: payload.url || '/menu',
+      url: payload.url || '/',
     },
   };
 
@@ -42,20 +42,21 @@ self.addEventListener('push', function (event) {
 
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
-
-  var targetUrl =
-    event.notification.data && event.notification.data.url ? event.notification.data.url : '/menu';
+  var data = event.notification.data;
+  var target = new URL((data && data.url) || '/', self.location.origin);
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clients) {
+      // Only a tab already on that page is reused: another may hold unsaved work,
+      // a dashboard's edits for one.
       for (var i = 0; i < clients.length; i++) {
-        var client = clients[i];
-        if (client.url.indexOf(self.location.origin) !== -1 && 'focus' in client) {
-          client.navigate(targetUrl);
-          return client.focus();
+        if (new URL(clients[i].url).pathname === target.pathname) {
+          return clients[i].focus().then(function (client) {
+            return client.navigate(target.href);
+          });
         }
       }
-      return self.clients.openWindow(targetUrl);
+      return self.clients.openWindow(target.href);
     })
   );
 });

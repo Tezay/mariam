@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **"Page publique"** in the dashboard, for a site's admins: presentation, images, access, services, links and menu window.
 - **A site's page at `/` or `/<site>`**: the menu of each day of its window, practical information, map and gallery.
 - **The public pages follow the system's dark theme**; the TV display stays light.
+- **A notifications panel over a site's page**, with every step to turn them on, blocked notifications included.
 
 ### Changed
 
@@ -63,6 +64,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Each site sets how far its menus read ahead and back**, 7 and 30 days by default.
 - **Sign-in, activation and reset refusals carry a `code`** (`passkey_only`, `link_expired`…), listed in the specification.
 - **`/menu` and `/<site>/menu` redirect for good** to the site's page, query kept.
+- **Each page installs its own app**: a site's page under the site's name, the dashboard and the supervision under theirs.
+- **The install page guides every browser on a computer**: Chrome and Edge in one click, Safari to the Dock.
 
 - **React Router 7** replaces `react-router-dom` 6; the current page stays visible while the next one loads.
 - **The frontend is built by React Router's framework mode**; the build needs Node 22 alongside Bun.
@@ -105,6 +108,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Site ids**: the API and the supervisor's screens name a site by its slug.
 - **A menu's photos**, which no page showed; dishes keep theirs, and a special meal is an event.
 - **`/v1/auth/me`, the second factors and password change under `/v1/auth`, `/v1/users/me` and `/v1/inbox`**, moved to `/v1/user`.
+- **The `/notifications` page**, replaced by the panel of a site's page.
 
 ### Fixed
 
@@ -118,6 +122,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A TOTP code holds the night the clocks go back**: it was refused for that hour.
 - **The service page's preview opens the site's own public page**, in an organization of several sites too.
 - **A notification opens its site's page**, on the right day for tomorrow's menu, rather than the list of sites.
+- **Each account installs its own dashboard's app**: not the public one on an iPhone, nor "Gestion" for a supervisor.
+- **Turning notifications on says why it failed**, rather than an HTTP status in English.
+- **Chrome's install offer is no longer lost** when it comes before the page is ready.
+- **Clicking a notification no longer takes over an open dashboard tab.**
 
 ## [0.19.0] - 2026-10-13
 

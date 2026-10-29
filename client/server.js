@@ -35,7 +35,7 @@ function fromInternalPeer(address = '') {
 
 function cachePublicFile(res, filePath) {
   if (filePath.endsWith('.js')) {
-    // The service worker and theme-init.js keep their name from one build to the next.
+    // The service worker and the head scripts keep their name from one build to the next.
     res.setHeader('Cache-Control', 'no-cache');
   } else if (LONG_LIVED.test(filePath)) {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');

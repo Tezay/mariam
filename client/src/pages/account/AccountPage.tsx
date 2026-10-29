@@ -1,6 +1,7 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { installPathForRole } from '@/lib/dashboard-routes';
 import { RoleBadge } from '@/components/dashboard/RoleBadge';
 import { APP_ENVIRONMENT, APP_VERSION } from '@/lib/runtime-config';
 import { getApiErrorMessage } from '@/lib/api/errors';
@@ -102,6 +103,8 @@ function NotificationSection() {
 }
 
 function AppInstallSection() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const { isInstalled } = usePwaInstall();
 
   return (
@@ -114,7 +117,7 @@ function AppInstallSection() {
           <div>
             <p className="font-medium text-green-800 dark:text-green-300">Application installée</p>
             <p className="text-xs text-green-700 dark:text-green-400">
-              Mariam - Gestion est installée sur cet appareil.
+              Vous l'utilisez en ce moment sur cet appareil.
             </p>
           </div>
         </div>
@@ -123,12 +126,7 @@ function AppInstallSection() {
           <p className="text-sm text-muted-foreground">
             Installez Mariam sur votre appareil pour un accès rapide sans passer par le navigateur.
           </p>
-          <Button
-            onClick={() => {
-              window.location.href = '/admin/install';
-            }}
-            className="gap-2"
-          >
+          <Button onClick={() => navigate(installPathForRole(user?.role))} className="gap-2">
             <Smartphone className="h-4 w-4" />
             Installer l'application
           </Button>
