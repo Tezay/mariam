@@ -30,8 +30,8 @@ from ._common import (
     challenge_refused,
     code_refusal,
     complete_login,
+    open_session,
     passkey_refused,
-    token_pair,
 )
 from .blueprint import auth_bp
 
@@ -236,7 +236,7 @@ def verify_mfa_setup(body):
 
     return {
         'user': account_view(user),
-        **token_pair(user, confirmed=CONFIRMATION_WINDOW),
+        **open_session(user, confirmed=CONFIRMATION_WINDOW),
     }
 
 

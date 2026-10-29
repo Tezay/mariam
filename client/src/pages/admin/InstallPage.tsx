@@ -104,10 +104,6 @@ function IosInstructions({ app, onDone }: { app: DashboardApp; onDone: () => voi
         />
       </div>
 
-      <div className="rounded-lg border bg-muted/40 p-3 text-center text-xs text-muted-foreground">
-        iOS vous demandera de vous reconnecter au premier lancement depuis l'écran d'accueil.
-      </div>
-
       <div className="flex flex-col items-center gap-3">
         <Button className="w-full gap-2" onClick={onDone}>
           <CheckCircle className="h-4 w-4" />
@@ -204,7 +200,7 @@ function computerGuide(method: InstallMethod) {
       return (
         <>
           Dans la barre des menus, choisissez <strong>Fichier</strong>, puis{' '}
-          <strong>Ajouter au Dock</strong>. Vous vous reconnecterez à sa première ouverture.
+          <strong>Ajouter au Dock</strong>.
         </>
       );
     case 'browser-menu':

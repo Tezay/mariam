@@ -37,15 +37,6 @@ class ProfilePatchSchema(RequestSchema):
             raise ValidationError('Aucune modification demandée.')
 
 
-class ProfileSchema(Schema):
-    user = fields.Nested(AccountSchema, required=True)
-    access_token = fields.Str(
-        metadata={'description': "With `refresh_token`, when the address changed: the session "
-                                 "that replaces the caller's, every other one being closed"}
-    )
-    refresh_token = fields.Str()
-
-
 class UiPreferencesSchema(RequestSchema):
     tour_done = fields.Bool()
     tour_catalog_done = fields.Bool()

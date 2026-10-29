@@ -2,6 +2,9 @@
   "security": [
     {
       "bearer": []
+    },
+    {
+      "session": []
     }
   ],
   "paths": {
@@ -884,21 +887,14 @@
     "/v1/auth/refresh": {
       "post": {
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenRefresh"
-                }
-              }
-            }
+          "204": {
+            "description": "No Content"
           },
           "default": {
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Get a new access token.",
+        "summary": "Renew the access token of the session.",
         "description": "Authenticated by the refresh token. The new access token is never confirmed:\nonly presenting a second factor confirms a session.",
         "tags": [
           "auth"
@@ -1055,7 +1051,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ConfirmedToken"
+                  "$ref": "#/components/schemas/Confirmation"
                 }
               }
             }
@@ -1075,7 +1071,7 @@
           }
         },
         "summary": "Confirm identity with the password and the TOTP code.",
-        "description": "Returns an access token that replaces the caller's and opens the routes asking\nfor a confirmed session, for ten minutes. A confirmation always attests a second\nfactor: an account without TOTP confirms through `/step-up/passkey/*`.",
+        "description": "Replaces the access cookie with one that opens the routes asking for a\nconfirmed session, for ten minutes. A confirmation always attests a second\nfactor: an account without TOTP confirms through `/step-up/passkey/*`.",
         "tags": [
           "auth"
         ]
@@ -1135,7 +1131,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ConfirmedToken"
+                  "$ref": "#/components/schemas/Confirmation"
                 }
               }
             }
@@ -1154,7 +1150,7 @@
             }
           }
         },
-        "summary": "Finish confirming identity with a passkey; the same token as `/step-up/password`.",
+        "summary": "Finish confirming identity with a passkey; the same session as `/step-up/password`.",
         "tags": [
           "auth"
         ]
@@ -1335,7 +1331,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Profile"
+                  "$ref": "#/components/schemas/Account"
                 }
               }
             }
@@ -1355,7 +1351,7 @@
           }
         },
         "summary": "Change the display name or the sign-in address, from a confirmed session.",
-        "description": "A new address ends every other session and comes back with the tokens of the\none that replaces the caller's, which is not confirmed; the previous address is\ntold by email. An account changes address twice a day at most.",
+        "description": "A new address ends every other session and opens a new one for the caller,\nwhich is not confirmed; the previous address is told by email. An account\nchanges address twice a day at most.",
         "tags": [
           "user"
         ]
@@ -2288,6 +2284,9 @@
           {},
           {
             "bearer": []
+          },
+          {
+            "session": []
           }
         ]
       },
@@ -4274,6 +4273,9 @@
           {},
           {
             "bearer": []
+          },
+          {
+            "session": []
           }
         ]
       },
@@ -4792,6 +4794,9 @@
           {},
           {
             "bearer": []
+          },
+          {
+            "session": []
           }
         ]
       },
@@ -4841,6 +4846,9 @@
           {},
           {
             "bearer": []
+          },
+          {
+            "session": []
           }
         ]
       },
@@ -6757,6 +6765,9 @@
           {},
           {
             "bearer": []
+          },
+          {
+            "session": []
           }
         ]
       },
@@ -6840,6 +6851,9 @@
           {},
           {
             "bearer": []
+          },
+          {
+            "session": []
           }
         ]
       },
@@ -7325,6 +7339,9 @@
           {},
           {
             "bearer": []
+          },
+          {
+            "session": []
           }
         ]
       },
@@ -7908,16 +7925,13 @@
           "user": {
             "$ref": "#/components/schemas/Account"
           },
-          "access_token": {
-            "type": "string"
-          },
-          "refresh_token": {
-            "type": "string"
+          "confirmed_for": {
+            "type": "integer",
+            "description": "Seconds the session stays confirmed, 0 when it is not"
           }
         },
         "required": [
-          "access_token",
-          "refresh_token",
+          "confirmed_for",
           "user"
         ],
         "additionalProperties": false
@@ -7996,18 +8010,16 @@
         "type": "object",
         "properties": {
           "user": {
-            "description": "With the tokens, once signed in",
+            "description": "Once signed in",
             "allOf": [
               {
                 "$ref": "#/components/schemas/Account"
               }
             ]
           },
-          "access_token": {
-            "type": "string"
-          },
-          "refresh_token": {
-            "type": "string"
+          "confirmed_for": {
+            "type": "integer",
+            "description": "Seconds the session stays confirmed, 0 when it is not"
           },
           "mfa_required": {
             "type": "boolean",
@@ -8136,18 +8148,6 @@
           "reset_token"
         ]
       },
-      "TokenRefresh": {
-        "type": "object",
-        "properties": {
-          "access_token": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "access_token"
-        ],
-        "additionalProperties": false
-      },
       "SessionTransfer": {
         "type": "object",
         "properties": {
@@ -8192,16 +8192,16 @@
           "password"
         ]
       },
-      "ConfirmedToken": {
+      "Confirmation": {
         "type": "object",
         "properties": {
-          "access_token": {
-            "type": "string",
-            "description": "Replaces the access token in use. Its `fresh` claim is the time until which the session is confirmed"
+          "confirmed_for": {
+            "type": "integer",
+            "description": "Seconds the session stays confirmed, 0 when it is not"
           }
         },
         "required": [
-          "access_token"
+          "confirmed_for"
         ],
         "additionalProperties": false
       },
@@ -8435,25 +8435,6 @@
             "description": "New sign-in address"
           }
         }
-      },
-      "Profile": {
-        "type": "object",
-        "properties": {
-          "user": {
-            "$ref": "#/components/schemas/Account"
-          },
-          "access_token": {
-            "type": "string",
-            "description": "With `refresh_token`, when the address changed: the session that replaces the caller's, every other one being closed"
-          },
-          "refresh_token": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "user"
-        ],
-        "additionalProperties": false
       },
       "UiPreferences": {
         "type": "object",
@@ -12765,6 +12746,11 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT"
+      },
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__Host-Http-access"
       }
     }
   }

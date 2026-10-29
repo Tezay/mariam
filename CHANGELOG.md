@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **No TOTP secret is stored before its first code**; a migration clears those never confirmed.
 - **A refused passkey answers a fixed sentence**: the WebAuthn library's reason no longer reaches the caller.
 - **A site's logo is uploaded:** never an outside address.
+- **The session lives in `HttpOnly` cookies**: no script on a page reads a token any more.
+- **Each write of a cookie session carries a CSRF token**, signed into the session.
 
 ### Added
 
@@ -66,6 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`/menu` and `/<site>/menu` redirect for good** to the site's page, query kept.
 - **Each page installs its own app**: a site's page under the site's name, the dashboard and the supervision under theirs.
 - **The install page guides every browser on a computer**: Chrome and Edge in one click, Safari to the Dock.
+- **A session answers `confirmed_for` instead of its tokens**, and `/v1/auth/refresh` answers `204`.
+- **`PATCH /v1/user` returns the account**, as `GET /v1/user` does.
 
 - **React Router 7** replaces `react-router-dom` 6; the current page stays visible while the next one loads.
 - **The frontend is built by React Router's framework mode**; the build needs Node 22 alongside Bun.
@@ -126,6 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Turning notifications on says why it failed**, rather than an HTTP status in English.
 - **Chrome's install offer is no longer lost** when it comes before the page is ready.
 - **Clicking a notification no longer takes over an open dashboard tab.**
+- **The dashboard installed on an iPhone or a Mac opens signed in**, after a QR code hand-over too.
 
 ## [0.19.0] - 2026-10-13
 

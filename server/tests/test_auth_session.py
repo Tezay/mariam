@@ -2,7 +2,7 @@ from flask_jwt_extended import decode_token
 
 from app.extensions import db
 from app.models import AuditLog, User
-from conftest import TEST_PASSWORD, auth_headers, make_user
+from conftest import TEST_PASSWORD, auth_headers, make_user, session_tokens
 from tests.auth_support import confirmed_headers, enable_totp, issue_session, session_headers
 
 
@@ -13,7 +13,7 @@ class TestRefresh:
         res = client.post('/v1/auth/refresh', headers=auth_headers(session['access']))
 
         assert res.status_code == 401
-        assert 'access_token' not in res.get_json()
+        assert session_tokens(client)['access_token'] is None
 
     def test_a_disabled_account_has_no_session(self, app, client):
         uid = make_user(app)
@@ -56,9 +56,8 @@ class TestLogout:
     def test_every_access_token_of_the_session_ends_with_it(self, app, client, revocations):
         uid = make_user(app)
         session = issue_session(uid)
-        refreshed = auth_headers(client.post(
-            '/v1/auth/refresh', headers=auth_headers(session['refresh'])
-        ).get_json()['access_token'])
+        client.post('/v1/auth/refresh', headers=auth_headers(session['refresh']))
+        refreshed = auth_headers(session_tokens(client)['access_token'])
         confirmed = confirmed_headers(client, uid, refreshed)
 
         self._logout(client, session)
@@ -69,9 +68,10 @@ class TestLogout:
     def test_a_sign_in_ties_the_access_token_to_its_session(self, app, client):
         make_user(app)
 
-        session = client.post('/v1/auth/login', json={
+        client.post('/v1/auth/login', json={
             'email': 'admin@mariam.app', 'password': TEST_PASSWORD,
-        }).get_json()
+        })
+        session = session_tokens(client)
 
         assert decode_token(session['access_token'])['sid'] == (
             decode_token(session['refresh_token'])['jti']
@@ -102,7 +102,8 @@ class TestSessionTransfer:
 
         assert res.status_code == 200
         assert res.get_json()['user']['id'] == uid
-        assert {'access_token', 'refresh_token'} <= res.get_json().keys()
+        tokens = session_tokens(client)
+        assert tokens['access_token'] and tokens['refresh_token']
 
     def test_a_transfer_token_works_once(self, app, client, revocations):
         token = self._transfer_token(client, make_user(app))
@@ -156,7 +157,8 @@ class TestSessionTransfer:
         session = issue_session(uid, confirmed=True)
         token = self._generate(client, auth_headers(session['access'])).get_json()['transfer_token']
 
-        received = self._validate(client, token).get_json()['access_token']
+        self._validate(client, token)
+        received = session_tokens(client)['access_token']
 
         assert decode_token(received)['fresh'] == decode_token(session['access'])['fresh']
         assert client.post(
@@ -170,7 +172,8 @@ class TestSessionTransfer:
         token = self._transfer_token(client, uid)
         enable_totp(uid)
 
-        received = self._validate(client, token).get_json()['access_token']
+        self._validate(client, token)
+        received = session_tokens(client)['access_token']
 
         assert client.post(
             '/v1/user/passkeys/options', headers=auth_headers(received)
@@ -178,9 +181,10 @@ class TestSessionTransfer:
 
     def test_a_password_alone_confirms_nothing(self, app, client):
         uid = make_user(app)
-        session = client.post('/v1/auth/login', json={
+        client.post('/v1/auth/login', json={
             'email': 'admin@mariam.app', 'password': TEST_PASSWORD,
-        }).get_json()
+        })
+        session = session_tokens(client)
         enable_totp(uid)
 
         assert self._generate(client, auth_headers(session['access_token'])).status_code == 403

@@ -4,11 +4,12 @@ from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 
 from ..models import Organization, Restaurant
 from ..problems import Problem
+from ..security import ACCESS_COOKIE
 from ..services.access import accessible_restaurant_ids
 from .helpers import get_current_user
 
 # Documents a route open to anyone, where a session sees more.
-SESSION_OPTIONAL: list[dict] = [{}, {'bearer': []}]
+SESSION_OPTIONAL: list[dict] = [{}, {'bearer': []}, {'session': []}]
 
 
 def _site_not_found() -> Problem:
@@ -89,7 +90,8 @@ def finish_public_read(response: Response) -> Response:
     hold drafts. Writes are left to the application's CORS list, which skips a
     response that already names its allowed origin.
     """
-    if request.method not in ('GET', 'HEAD') or 'Authorization' in request.headers:
+    carries_session = 'Authorization' in request.headers or ACCESS_COOKIE in request.cookies
+    if request.method not in ('GET', 'HEAD') or carries_session:
         return response
     response.headers.setdefault('Access-Control-Allow-Origin', '*')
     if response.status_code == 200:

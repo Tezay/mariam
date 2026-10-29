@@ -1,16 +1,8 @@
-import axios from 'axios';
+import axios, { isAxiosError } from 'axios';
 import { API_URL } from '../runtime-config';
 import { api } from './client';
 import type { components } from './schema.gen';
-import {
-  clearTokens,
-  confirmedUntil,
-  getAccessToken,
-  getRefreshToken,
-  onTokensChange,
-  setAccessToken,
-  storeTokens,
-} from './tokens';
+import { confirmedUntil, csrfToken, endSession, onSessionChange, setConfirmation } from './session';
 import type { Account, WebAuthnOptions } from './user';
 
 type Schemas = components['schemas'];
@@ -20,8 +12,8 @@ export type ResetLink = Schemas['ResetLink'];
 export type Activation = Schemas['Activation'];
 type Session = Schemas['Session'];
 
-function openSession({ access_token, refresh_token, user }: Session): Account {
-  storeTokens(access_token, refresh_token);
+function openSession({ user, confirmed_for }: Session): Account {
+  setConfirmation(confirmed_for);
   return user;
 }
 
@@ -50,22 +42,19 @@ export const authApi = {
   verifyMfaSetup: async (setupToken: string, code: string): Promise<Account> =>
     openSession((await api.post('/auth/mfa/verify-setup', { setup_token: setupToken, code })).data),
 
-  logout: () => {
-    const refreshToken = getRefreshToken();
-    clearTokens();
-    // Outside the interceptors, with the refresh token as credential: revoking it
-    // ends every access token issued from it.
-    if (refreshToken) {
-      axios
-        .post(`${API_URL}/auth/logout`, null, {
-          headers: { Authorization: `Bearer ${refreshToken}` },
-        })
-        .catch(() => {});
+  /** Only the API can clear the cookies: an unreachable one leaves the session open. */
+  logout: async () => {
+    try {
+      // Outside the interceptors, with the refresh token as credential: revoking it
+      // ends every access token issued from it.
+      await axios.post(`${API_URL}/auth/logout`, null, {
+        withCredentials: true,
+        headers: { 'X-CSRF-TOKEN': csrfToken('refresh') ?? '' },
+      });
+    } catch (error) {
+      if (!isAxiosError(error) || error.response?.status !== 401) throw error;
     }
-  },
-
-  isAuthenticated: () => {
-    return !!getAccessToken();
+    endSession();
   },
 
   confirmedUntil,
@@ -73,11 +62,11 @@ export const authApi = {
   /** Whether the routes asking for a confirmed session would take it for `forMs` more. */
   isConfirmed: (forMs = 0) => confirmedUntil() - forMs > Date.now(),
 
-  onSessionChange: onTokensChange,
+  onSessionChange,
 
   stepUpWithPassword: async (password: string, code: string) => {
     const response = await api.post('/auth/step-up/password', { password, code });
-    setAccessToken(response.data.access_token);
+    setConfirmation(response.data.confirmed_for);
   },
 
   stepUpPasskeyBegin: async (): Promise<WebAuthnOptions> =>
@@ -88,7 +77,7 @@ export const authApi = {
       challenge_token: challengeToken,
       credential,
     });
-    setAccessToken(response.data.access_token);
+    setConfirmation(response.data.confirmed_for);
   },
 
   checkResetLink: async (token: string): Promise<ResetLink> =>

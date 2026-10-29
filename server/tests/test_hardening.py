@@ -7,9 +7,11 @@ from flask_limiter.util import get_qualified_name
 from app import create_app
 from app.extensions import db
 from app.models import Organization, User
-from app.security import limiter
-from conftest import TEST_PASSWORD, auth_headers, get_token, make_restaurant, make_user, probe_path
-from tests.auth_support import session_headers
+from app.security import ACCESS_COOKIE, REFRESH_COOKIE, limiter
+from conftest import (
+    TEST_PASSWORD, auth_headers, get_token, make_restaurant, make_user, probe_path, session_tokens,
+)
+from tests.auth_support import issue_session, session_headers
 
 
 class TestLoginHardening:
@@ -51,7 +53,7 @@ class TestMfaTokenSingleUse:
         code = pyotp.TOTP(secret).now()
         first = client.post('/v1/auth/mfa/verify', json={'mfa_token': mfa_token, 'code': code})
         assert first.status_code == 200
-        assert 'access_token' in first.get_json()
+        assert session_tokens(client)['access_token']
 
         # Replaying the same MFA token must be rejected (single-use).
         replay = client.post('/v1/auth/mfa/verify',
@@ -171,6 +173,29 @@ class TestUnauthorizedSpeaksOfTheSession:
         ]
 
         assert refused == []
+
+
+class TestCookieWritesCarryTheirCsrfToken:
+    def test_a_cookie_session_without_its_token_writes_nowhere(self, app, client):
+        make_restaurant(app)
+        session = issue_session(make_user(app))
+        behind_a_session = [
+            (rule.rule, method)
+            for rule in app.url_map.iter_rules()
+            for method in sorted(rule.methods & {'POST', 'PUT', 'PATCH', 'DELETE'})
+            if client.open(probe_path(rule.rule), method=method, json=[]).status_code == 401
+        ]
+        client.set_cookie(ACCESS_COOKIE, session['access'])
+        client.set_cookie(REFRESH_COOKIE, session['refresh'])
+
+        written = [
+            f'{method} {path}'
+            for path, method in behind_a_session
+            if (client.open(probe_path(path), method=method, json=[]).get_json() or {}).get('code')
+            != 'csrf_invalid'
+        ]
+
+        assert behind_a_session and written == []
 
 
 class TestResponseHeaders:

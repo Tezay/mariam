@@ -6,7 +6,7 @@ import pytest
 
 from app.extensions import db
 from app.models import AuditLog, Passkey, User
-from conftest import TEST_PASSWORD, auth_headers, make_user
+from conftest import TEST_PASSWORD, auth_headers, make_user, session_tokens
 from tests.auth_support import enable_totp, enroll_passkey, new_authenticator
 
 
@@ -39,7 +39,7 @@ class TestPasswordLogin:
 
         assert res.status_code == 403
         assert res.get_json()['code'] == 'passkey_only'
-        assert 'access_token' not in res.get_json()
+        assert session_tokens(client)['access_token'] is None
 
     def test_the_address_is_matched_whatever_its_case(self, app, client):
         make_user(app)
@@ -83,7 +83,7 @@ class TestTotpStep:
         res = self._verify(client, mfa_token, pyotp.TOTP(secret).now())
 
         assert res.status_code == 401
-        assert 'access_token' not in res.get_json()
+        assert session_tokens(client)['access_token'] is None
 
     def test_no_code_matches_once_totp_is_off(self, app, client, revocations):
         uid = make_user(app)

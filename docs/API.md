@@ -9,12 +9,14 @@ under `/v1`.
 drifts from the code.
 
 **Authentication:** a route needs a session unless the specification says otherwise
-(`security: []`, no padlock in `/v1/docs`). The session is the `access_token` of a sign-in, sent
-as `Authorization: Bearer <token>`.
+(`security: []`, no padlock in `/v1/docs`). A browser holds its session in the `HttpOnly`
+cookies a sign-in sets, and signs each write with a CSRF token (see Session cookies). Any other
+client sends the access token as `Authorization: Bearer <token>`, which needs no CSRF token.
 
 **Trying it:** in `/v1/docs`, *Try it out* calls the API it is served by. *Authorize* takes the
-`access_token` of `POST /v1/auth/login` (then `POST /v1/auth/mfa/verify` for an account with an
-authenticator app) and sends it to every route with a padlock. A route without one is open to
+access token, the value of the `__Host-Http-access` cookie that `POST /v1/auth/login` sets
+(then `POST /v1/auth/mfa/verify` for an account with an authenticator app), as the browser's
+developer tools show it, and sends it to every route with a padlock. A route without one is open to
 anyone. A padlock shown closed before any token is given marks a route open to anyone where a
 session sees more (a site's drafts); Swagger UI counts its anonymous option as already met.
 
@@ -109,16 +111,32 @@ needs. What the account itself holds lives under `/v1/user` (see The signed-in a
 | `POST` | `/v1/auth/mfa/verify` | `mfa_token` | `{mfa_token, code}`; opens the session |
 | `POST` | `/v1/auth/passkey/login/begin` | none | A discoverable WebAuthn challenge |
 | `POST` | `/v1/auth/passkey/login/complete` | challenge | The assertion; the passkey names the account |
-| `POST` | `/v1/auth/refresh` | refresh token | A new access token, never confirmed |
-| `POST` | `/v1/auth/logout` | refresh token | `204`; revokes the refresh token and every access token issued from it |
+| `POST` | `/v1/auth/refresh` | refresh token | `204`; a new access token, never confirmed |
+| `POST` | `/v1/auth/logout` | refresh token | `204`; revokes the refresh token and every access token issued from it, and clears the cookies |
 
-A session answers `{user, access_token, refresh_token}`, `user` being the account as
-`GET /v1/user` reads it. The `mfa_token` serves once, within ten minutes.
+A session answers `{user, confirmed_for}`: `user` is the account as `GET /v1/user` reads it,
+`confirmed_for` the seconds the session stays confirmed, `0` when it is not. The tokens come in
+cookies. The `mfa_token` serves once, within ten minutes.
 
 - A wrong address or password answers `401 credentials_invalid`, an unknown address alike.
 - An account protected by a passkey only answers `403 passkey_only` to the password route.
 - A disabled account answers `403 account_disabled`, once its password or passkey checked. It
   has no session either: its tokens are refused, refresh included.
+
+### Session cookies
+
+| Cookie | Holds | Attributes |
+|--------|-------|------------|
+| `__Host-Http-access` | The access token | `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/`, for its 30 minutes |
+| `__Host-Http-refresh` | The refresh token | The same, for its 7 days |
+| `__Host-csrf-access`, `__Host-csrf-refresh` | The CSRF token of each | Readable by the page |
+
+A write the cookies authenticate carries `X-CSRF-TOKEN`: the value of `__Host-csrf-access`, or
+of `__Host-csrf-refresh` for `/v1/auth/refresh` and `/v1/auth/logout`. Without it, or with
+another, it answers `403 csrf_invalid`. A refused refresh clears the cookies.
+
+Each host has a session of its own, and the pages reach the API on their own site (`/v1` by
+default): a browser keeps no cookie for an API on another one.
 
 ### Codes
 
@@ -172,7 +190,7 @@ with its passkey (`409 passkey_required` on the code route); one with neither ca
 
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
-| `POST` | `/v1/auth/session-transfer/generate` | bearer, confirmed once enrolled | Generate a single-use transfer token, valid 5 minutes or until this session signs out |
+| `POST` | `/v1/auth/session-transfer/generate` | session, confirmed once enrolled | Generate a single-use transfer token, valid 5 minutes or until this session signs out |
 | `POST` | `/v1/auth/session-transfer/validate` | none | Exchange the token for a session on another device |
 
 The receiving device has no second factor of its own to confirm with: the session it opens
@@ -196,8 +214,8 @@ neither using the session nor `POST /v1/auth/refresh`, whose token is never conf
 it.
 
 The confirmation travels in the access token, whose `fresh` claim holds the Unix time it runs
-until, or `false`. The routes below return an `access_token` that replaces the caller's; the
-refresh token stays. From an unconfirmed session, a guarded route answers `403` with the code
+until, or `false`. The routes below set an access cookie that replaces the caller's and answer
+`{confirmed_for}`; the refresh token stays. From an unconfirmed session, a guarded route answers `403` with the code
 `step_up_required`.
 
 On a route the session authenticates, `401` speaks of the session alone, and is the one
@@ -219,9 +237,9 @@ neither cannot confirm (`403 second_factor_required`).
 
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
-| `POST` | `/v1/auth/step-up/password` | bearer | `{password, code}`; returns a confirmed access token |
-| `POST` | `/v1/auth/step-up/passkey/begin` | bearer | Challenge the caller's passkeys (`409 no_passkey` without one) |
-| `POST` | `/v1/auth/step-up/passkey/complete` | bearer | Verify the assertion; returns a confirmed access token |
+| `POST` | `/v1/auth/step-up/password` | session | `{password, code}`; a confirmed access token |
+| `POST` | `/v1/auth/step-up/passkey/begin` | session | Challenge the caller's passkeys (`409 no_passkey` without one) |
+| `POST` | `/v1/auth/step-up/passkey/complete` | session | Verify the assertion; a confirmed access token |
 
 ---
 
@@ -232,7 +250,7 @@ neither cannot confirm (`403 second_factor_required`).
 | Method | Route | Description |
 |--------|-------|-------------|
 | `GET` | `U` | The account; `site` and `organization` as `{slug, name}`, `null` when it has none |
-| `PATCH` | `U` | Display name or sign-in address (*confirmed*); `{user}`, with tokens when the address changed |
+| `PATCH` | `U` | Display name or sign-in address (*confirmed*); the account |
 | `GET`, `PATCH` | `U/ui-preferences` | Interface state carried by the account: the guided tours already seen |
 | `GET`, `PATCH` | `U/notification-preferences` | Which alerts the account sees, and when its weekly email lands |
 | `GET` | `U/alerts` | The account's active alerts, computed now |
@@ -249,8 +267,8 @@ neither cannot confirm (`403 second_factor_required`).
 
 A site's team reads its organization through its site. The account carries no id of either.
 
-**Address.** A new address ends every other session of the account: the response carries the
-access and refresh tokens of the session that replaces the caller's, which is not confirmed.
+**Address.** A new address ends every other session of the account: the response sets the
+cookies of the session that replaces the caller's, which is not confirmed.
 Pending password-reset links are spent, and the previous address is told by email. An account
 changes address twice a day at most (`429 email_change_limit`, with `Retry-After`); the rescue
 account never does (`403 rescue_account`).

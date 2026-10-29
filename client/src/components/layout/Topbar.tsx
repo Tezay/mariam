@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { useSidebar } from '@/contexts/SidebarContext';
 import { roleLabel } from '@/lib/roles';
+import { notify } from '@/lib/toast';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -58,9 +59,13 @@ export function Topbar({
   const navigate = useNavigate();
   const title = usePageTitle(pageTitles, fallbackTitle);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch {
+      notify.error("La déconnexion n'a pas abouti. Vérifiez la connexion et réessayez.");
+    }
   };
 
   return (

@@ -11,10 +11,6 @@ export function stubLocalStorage(): void {
   });
 }
 
-export function accessToken(claims: Record<string, unknown>): string {
-  const payload = btoa(JSON.stringify(claims))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-  return `header.${payload}.signature`;
+export function stubCookies(cookies: string): void {
+  Object.defineProperty(document, 'cookie', { value: cookies, configurable: true });
 }

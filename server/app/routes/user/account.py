@@ -11,14 +11,13 @@ from ...schemas.user import (
     AlertListSchema,
     NotificationPreferencesSchema,
     ProfilePatchSchema,
-    ProfileSchema,
     UiPreferencesSchema,
 )
 from ...security import get_client_ip, limiter, seconds_until_reset, spend
 from ...services.access import accessible_restaurant_ids
 from ...services.account import change_email, notify_email_changed
 from ...services.alerts import live_alerts
-from ..auth._common import reissued_token_pair
+from ..auth._common import reopen_session
 from ..helpers import account_view, get_current_user, step_up_required
 from .blueprint import user_bp
 
@@ -62,16 +61,16 @@ def get_account():
 @jwt_required()
 @step_up_required
 @user_bp.arguments(ProfilePatchSchema)
-@user_bp.response(200, ProfileSchema)
+@user_bp.response(200, AccountSchema)
 @user_bp.problem(403, 'step_up_required', 'rescue_account')
 @user_bp.problem(409, 'email_taken')
 @user_bp.problem(429, 'email_change_limit')
 def patch_account(body):
     """Change the display name or the sign-in address, from a confirmed session.
 
-    A new address ends every other session and comes back with the tokens of the
-    one that replaces the caller's, which is not confirmed; the previous address is
-    told by email. An account changes address twice a day at most.
+    A new address ends every other session and opens a new one for the caller,
+    which is not confirmed; the previous address is told by email. An account
+    changes address twice a day at most.
     """
     user = get_current_user()
     name, email = body.get('username'), body.get('email')
@@ -99,10 +98,10 @@ def patch_account(body):
         })
         user.username = name
 
-    previous_email, tokens = None, {}
+    previous_email = None
     if moves:
         previous_email = change_email(user, email)
-        tokens = reissued_token_pair(user)
+        reopen_session(user)
         _audit(user, AuditLog.ACTION_EMAIL_CHANGE, {
             'success': True, 'old': previous_email, 'new': email,
         })
@@ -119,7 +118,7 @@ def patch_account(body):
 
     if previous_email:
         notify_email_changed(previous_email, email)
-    return {'user': account_view(user), **tokens}
+    return account_view(user)
 
 
 @user_bp.route('/ui-preferences', methods=['GET'])

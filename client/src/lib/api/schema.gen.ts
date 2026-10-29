@@ -953,7 +953,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Get a new access token.
+         * Renew the access token of the session.
          * @description Authenticated by the refresh token. The new access token is never confirmed:
          *     only presenting a second factor confirms a session.
          */
@@ -966,14 +966,12 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description OK */
-                200: {
+                /** @description No Content */
+                204: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content: {
-                        "application/json": components["schemas"]["TokenRefresh"];
-                    };
+                    content?: never;
                 };
                 default: components["responses"]["DEFAULT_ERROR"];
             };
@@ -1159,8 +1157,8 @@ export interface paths {
         put?: never;
         /**
          * Confirm identity with the password and the TOTP code.
-         * @description Returns an access token that replaces the caller's and opens the routes asking
-         *     for a confirmed session, for ten minutes. A confirmation always attests a second
+         * @description Replaces the access cookie with one that opens the routes asking for a
+         *     confirmed session, for ten minutes. A confirmation always attests a second
          *     factor: an account without TOTP confirms through `/step-up/passkey/*`.
          */
         post: {
@@ -1182,7 +1180,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ConfirmedToken"];
+                        "application/json": components["schemas"]["Confirmation"];
                     };
                 };
                 /** @description `passkey_required`, `second_factor_required`, `password_invalid`, `code_invalid`, `code_used` */
@@ -1268,7 +1266,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Finish confirming identity with a passkey; the same token as `/step-up/password`. */
+        /** Finish confirming identity with a passkey; the same session as `/step-up/password`. */
         post: {
             parameters: {
                 query?: never;
@@ -1288,7 +1286,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ConfirmedToken"];
+                        "application/json": components["schemas"]["Confirmation"];
                     };
                 };
                 /** @description `challenge_invalid`, `passkey_refused` */
@@ -1480,9 +1478,9 @@ export interface paths {
         head?: never;
         /**
          * Change the display name or the sign-in address, from a confirmed session.
-         * @description A new address ends every other session and comes back with the tokens of the
-         *     one that replaces the caller's, which is not confirmed; the previous address is
-         *     told by email. An account changes address twice a day at most.
+         * @description A new address ends every other session and opens a new one for the caller,
+         *     which is not confirmed; the previous address is told by email. An account
+         *     changes address twice a day at most.
          */
         patch: {
             parameters: {
@@ -1503,7 +1501,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Profile"];
+                        "application/json": components["schemas"]["Account"];
                     };
                 };
                 /** @description `step_up_required`, `rescue_account` */
@@ -6757,8 +6755,8 @@ export interface components {
         };
         Session: {
             user: components["schemas"]["Account"];
-            access_token: string;
-            refresh_token: string;
+            /** @description Seconds the session stays confirmed, 0 when it is not */
+            confirmed_for: number;
         };
         SetupToken: {
             /** @description Returned by `/activate` */
@@ -6788,10 +6786,10 @@ export interface components {
             password: string;
         };
         LoginResponse: {
-            /** @description With the tokens, once signed in */
+            /** @description Once signed in */
             user?: components["schemas"]["Account"];
-            access_token?: string;
-            refresh_token?: string;
+            /** @description Seconds the session stays confirmed, 0 when it is not */
+            confirmed_for?: number;
             /** @description Set when the account has TOTP: finish with `/mfa/verify` */
             mfa_required?: boolean;
             /** @description Valid 10 minutes, for `/mfa/verify` only */
@@ -6839,9 +6837,6 @@ export interface components {
             /** @description From the reset link */
             reset_token: string;
         };
-        TokenRefresh: {
-            access_token: string;
-        };
         SessionTransfer: {
             transfer_token: string;
             /** @description Seconds */
@@ -6855,9 +6850,9 @@ export interface components {
             /** @description Current authenticator-app code */
             code: string;
         };
-        ConfirmedToken: {
-            /** @description Replaces the access token in use. Its `fresh` claim is the time until which the session is confirmed */
-            access_token: string;
+        Confirmation: {
+            /** @description Seconds the session stays confirmed, 0 when it is not */
+            confirmed_for: number;
         };
         DietaryTag: {
             id: string;
@@ -6924,12 +6919,6 @@ export interface components {
              * @description New sign-in address
              */
             email?: string;
-        };
-        Profile: {
-            user: components["schemas"]["Account"];
-            /** @description With `refresh_token`, when the address changed: the session that replaces the caller's, every other one being closed */
-            access_token?: string;
-            refresh_token?: string;
         };
         UiPreferences: {
             tour_done?: boolean;
