@@ -25,15 +25,11 @@ def _refuse_supervisor_writes(user) -> None:
 
 
 def editor_required(f):
-    """Editors and admins of the site; a supervisor reads but never writes."""
+    """Any account of the site; a supervisor reads but never writes."""
     @wraps(f)
     @jwt_required()
     def decorated_function(*args, **kwargs):
-        current_user_id = int(get_jwt_identity())
-        user = db.session.get(User, current_user_id)
-        if not user.is_editor():
-            raise Problem(403, 'editor_required', 'Accès réservé aux éditeurs.')
-        _refuse_supervisor_writes(user)
+        _refuse_supervisor_writes(get_current_user())
         return f(*args, **kwargs)
     return decorated_function
 

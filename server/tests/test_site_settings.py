@@ -228,10 +228,10 @@ class TestSiteName:
 class TestCalendarSettings:
     def test_a_member_reads_them_and_an_admin_changes_them(self, app, client):
         rid, path, headers = _site(app, client)
-        make_user(app, email='reader@mariam.app', role='reader', restaurant_id=rid)
-        reader = auth_headers(get_token(client, email='reader@mariam.app'))
+        make_user(app, email='editor@mariam.app', role='editor', restaurant_id=rid)
+        editor = auth_headers(get_token(client, email='editor@mariam.app'))
 
-        assert client.get(f'{path}/calendar-settings', headers=reader).get_json() == {
+        assert client.get(f'{path}/calendar-settings', headers=editor).get_json() == {
             'show_public_holidays': True, 'show_school_vacations': False, 'school_vacation_zone': None,
         }
         changed = client.patch(
@@ -244,7 +244,7 @@ class TestCalendarSettings:
             f'{path}/calendar-settings', json={'school_vacation_zone': 'D'}, headers=headers
         ).status_code == 422
         assert client.patch(
-            f'{path}/calendar-settings', json={'show_public_holidays': False}, headers=reader
+            f'{path}/calendar-settings', json={'show_public_holidays': False}, headers=editor
         ).status_code == 403
 
 

@@ -1,4 +1,5 @@
 """The analytics reports, of one site or of the sites of an organization."""
+from flask_jwt_extended import jwt_required
 from flask_smorest import Blueprint
 
 from ..models import Restaurant
@@ -20,7 +21,7 @@ from ..services.analytics_stats import (
     satisfaction_stats,
     traffic_stats,
 )
-from .helpers import admin_required, org_admin_required
+from .helpers import org_admin_required
 from .scope import member_org, member_site
 
 analytics_bp = Blueprint(
@@ -61,7 +62,7 @@ def _org_report(name: str, query: dict, org: str):
 
 
 @analytics_bp.route('/<org>/sites/<site>/analytics/overview', methods=['GET'])
-@admin_required
+@jwt_required()
 @analytics_bp.arguments(AnalyticsQuerySchema, location='query')
 @analytics_bp.response(200, OverviewReportSchema)
 def site_overview(query, org: str, site: str):
@@ -70,7 +71,7 @@ def site_overview(query, org: str, site: str):
 
 
 @analytics_bp.route('/<org>/sites/<site>/analytics/publications', methods=['GET'])
-@admin_required
+@jwt_required()
 @analytics_bp.arguments(AnalyticsQuerySchema, location='query')
 @analytics_bp.response(200, PublicationsReportSchema)
 def site_publications(query, org: str, site: str):
@@ -79,7 +80,7 @@ def site_publications(query, org: str, site: str):
 
 
 @analytics_bp.route('/<org>/sites/<site>/analytics/traffic', methods=['GET'])
-@admin_required
+@jwt_required()
 @analytics_bp.arguments(AnalyticsQuerySchema, location='query')
 @analytics_bp.response(200, TrafficReportSchema)
 def site_traffic(query, org: str, site: str):
@@ -88,7 +89,7 @@ def site_traffic(query, org: str, site: str):
 
 
 @analytics_bp.route('/<org>/sites/<site>/analytics/satisfaction', methods=['GET'])
-@admin_required
+@jwt_required()
 @analytics_bp.arguments(SatisfactionQuerySchema, location='query')
 @analytics_bp.response(200, SatisfactionReportSchema)
 def site_satisfaction(query, org: str, site: str):

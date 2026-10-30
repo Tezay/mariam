@@ -11,7 +11,7 @@ def accessible_restaurant_ids(user) -> set[int]:
     """Ids of the restaurants the user may act on.
 
     - org_admin: every restaurant of its organization.
-    - admin / editor / reader: only its own restaurant.
+    - admin / editor: only its own restaurant.
     - unassigned: empty set (no access).
     """
     if user is None:

@@ -67,7 +67,7 @@ export function OrgLayout() {
   const { user } = useAuth();
 
   useSecurityOnboarding(user, '/org/security');
-  usePwaOnboarding('/org/install', user?.role === 'org_admin');
+  usePwaOnboarding('/org/install');
 
   return (
     <DashboardShell

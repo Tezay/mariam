@@ -147,20 +147,6 @@ function SiteDashboardRoute({ children }: { children: React.ReactNode }) {
   return <SiteProvider site={{ org, site }}>{children}</SiteProvider>;
 }
 
-function EditorRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
-
-  if (isLoading) {
-    return <PageLoader />;
-  }
-
-  if (user?.role !== 'admin' && user?.role !== 'editor') {
-    return <Forbidden />;
-  }
-
-  return <>{children}</>;
-}
-
 // Sends a signed-in user to the dashboard.
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -296,104 +282,27 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route
-              index
-              element={
-                <EditorRoute>
-                  <CalendarPage />
-                </EditorRoute>
-              }
-            />
-            <Route
-              path="calendar"
-              element={
-                <EditorRoute>
-                  <CalendarPage />
-                </EditorRoute>
-              }
-            />
+            <Route index element={<CalendarPage />} />
+            <Route path="calendar" element={<CalendarPage />} />
 
             {/* Former addresses, kept for bookmarks */}
             <Route path="menus" element={<Navigate to="/admin/calendar" replace />} />
 
             <Route path="account" element={<AccountPage />} />
 
-            <Route
-              path="service"
-              element={
-                <EditorRoute>
-                  <ServicePage />
-                </EditorRoute>
-              }
-            />
+            <Route path="service" element={<ServicePage />} />
 
-            <Route
-              path="events"
-              element={
-                <EditorRoute>
-                  <EventsPage />
-                </EditorRoute>
-              }
-            />
-            <Route
-              path="events/new"
-              element={
-                <EditorRoute>
-                  <EventEditPage />
-                </EditorRoute>
-              }
-            />
-            <Route
-              path="events/:id/edit"
-              element={
-                <EditorRoute>
-                  <EventEditPage />
-                </EditorRoute>
-              }
-            />
+            <Route path="events" element={<EventsPage />} />
+            <Route path="events/new" element={<EventEditPage />} />
+            <Route path="events/:id/edit" element={<EventEditPage />} />
 
-            <Route
-              path="closures"
-              element={
-                <EditorRoute>
-                  <ClosuresPage />
-                </EditorRoute>
-              }
-            />
+            <Route path="closures" element={<ClosuresPage />} />
 
-            <Route
-              path="catalogue"
-              element={
-                <EditorRoute>
-                  <CataloguePage />
-                </EditorRoute>
-              }
-            />
-            <Route
-              path="catalogue/compare"
-              element={
-                <EditorRoute>
-                  <ComparePage />
-                </EditorRoute>
-              }
-            />
-            <Route
-              path="catalogue/:id"
-              element={
-                <EditorRoute>
-                  <DishDetailPage />
-                </EditorRoute>
-              }
-            />
+            <Route path="catalogue" element={<CataloguePage />} />
+            <Route path="catalogue/compare" element={<ComparePage />} />
+            <Route path="catalogue/:id" element={<DishDetailPage />} />
 
-            <Route
-              path="stats"
-              element={
-                <AdminRoute>
-                  <StatsPage />
-                </AdminRoute>
-              }
-            />
+            <Route path="stats" element={<StatsPage />} />
 
             <Route
               path="users"

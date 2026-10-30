@@ -155,9 +155,9 @@ redirections, 404 and 503. Run it after `bun run build`.
 Playwright drives Chromium against the built server and a real API, seeded with the demo
 organization. The scenarios, in `client/e2e/`, read the public pages with and without JavaScript,
 check that they hydrate without an error, and open the display screen and the dashboard. One flow
-signs in with a password, then with passkeys held by Chrome's virtual authenticators: a phone's,
-then the computer's own, created from the offer that follows. It adds passkeys to the demo account,
-so it runs once per freshly seeded database.
+signs in with a password, enrols the passkey the account must have on a virtual authenticator of
+Chrome, then signs in with it from the address field. It adds a passkey to the demo account, so it
+runs once per freshly seeded database.
 
 ```bash
 cd server && uv run flask db upgrade

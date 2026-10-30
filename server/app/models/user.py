@@ -22,8 +22,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     username = db.Column(db.String(80), nullable=True)
     
-    # Roles: org_admin, admin, editor, reader
-    role = db.Column(db.String(20), nullable=False, default='reader')
+    role = db.Column(db.String(20), nullable=False, default='editor')
 
     # MFA/TOTP — encrypted at rest (see services/crypto.py). Never filter on it.
     mfa_secret = db.Column(EncryptedSecret, nullable=True)
@@ -54,8 +53,7 @@ class User(db.Model):
     ROLE_ORG_ADMIN = 'org_admin'  # Supervisor: every site of its organization
     ROLE_ADMIN = 'admin'          # Admin of a single restaurant (site)
     ROLE_EDITOR = 'editor'
-    ROLE_READER = 'reader'
-    VALID_ROLES = [ROLE_ORG_ADMIN, ROLE_ADMIN, ROLE_EDITOR, ROLE_READER]
+    VALID_ROLES = [ROLE_ORG_ADMIN, ROLE_ADMIN, ROLE_EDITOR]
 
     REVOCATION_MARKER = 'revocation_marker'
 
@@ -114,10 +112,6 @@ class User(db.Model):
     def is_admin(self):
         """Return True if the user has admin rights (org_admin or site admin)."""
         return self.role in (self.ROLE_ORG_ADMIN, self.ROLE_ADMIN)
-
-    def is_editor(self):
-        """Return True if the user can edit (org_admin, admin or editor)."""
-        return self.role in (self.ROLE_ORG_ADMIN, self.ROLE_ADMIN, self.ROLE_EDITOR)
 
     def revoke_tokens(self):
         """Invalidate every token issued so far, refresh tokens included."""

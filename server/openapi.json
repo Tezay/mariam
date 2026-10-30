@@ -7724,8 +7724,7 @@
             "enum": [
               "org_admin",
               "admin",
-              "editor",
-              "reader"
+              "editor"
             ]
           },
           "site": {
@@ -7808,8 +7807,7 @@
             "enum": [
               "org_admin",
               "admin",
-              "editor",
-              "reader"
+              "editor"
             ]
           },
           "is_active": {
@@ -9006,8 +9004,7 @@
             "enum": [
               "org_admin",
               "admin",
-              "editor",
-              "reader"
+              "editor"
             ]
           },
           "is_active": {
@@ -9087,8 +9084,7 @@
             "type": "string",
             "enum": [
               "admin",
-              "editor",
-              "reader"
+              "editor"
             ]
           },
           "is_active": {
@@ -9137,8 +9133,7 @@
             "enum": [
               "org_admin",
               "admin",
-              "editor",
-              "reader"
+              "editor"
             ]
           },
           "expires_at": {
@@ -9200,8 +9195,7 @@
             "default": "editor",
             "enum": [
               "admin",
-              "editor",
-              "reader"
+              "editor"
             ]
           }
         }

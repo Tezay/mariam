@@ -99,6 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Logs and command output** reworded, without emoji; the scheduled jobs carry new names.
 - **`?mode=tv` redirects to `/tv`**, and a wide screen no longer switches to the display on its own.
 - **An unknown site answers 404**, and a page the API cannot serve 503.
+- **An editor reads the site's statistics**, as its admin does.
 
 ### Removed
 
@@ -120,6 +121,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A menu's photos**, which no page showed; dishes keep theirs, and a special meal is an event.
 - **`/v1/auth/me`, the second factors and password change under `/v1/auth`, `/v1/users/me` and `/v1/inbox`**, moved to `/v1/user`.
 - **The `/notifications` page**, replaced by the panel of a site's page.
+- **The reader role**, which opened no page.
 
 ### Fixed
 

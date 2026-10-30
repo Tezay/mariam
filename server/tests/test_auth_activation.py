@@ -202,14 +202,14 @@ class TestActivation:
 
     def test_the_role_and_the_tenant_come_from_the_link(self, app, client):
         rid = make_restaurant(app)
-        link = ActivationLink.create_invite_link(role='reader', restaurant_id=rid)
+        link = ActivationLink.create_invite_link(role='editor', restaurant_id=rid)
         db.session.add(link)
         db.session.commit()
 
         _activate(client, link.token, role='admin', restaurant_id=rid + 1)
 
         user = User.query.one()
-        assert (user.role, user.restaurant_id) == ('reader', rid)
+        assert (user.role, user.restaurant_id) == ('editor', rid)
 
     def test_the_audit_entry_ties_the_account_to_its_invitation(self, app, client):
         inviter = make_user(app)

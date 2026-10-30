@@ -8,11 +8,10 @@ export function markInstallSeen() {
   localStorage.setItem(SEEN_KEY, '1');
 }
 
-export function usePwaOnboarding(installPath: string, enabled: boolean) {
+export function usePwaOnboarding(installPath: string) {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    if (!enabled) return;
     if (localStorage.getItem(SEEN_KEY)) return;
 
     if (isPwaInstalled()) return;
@@ -20,5 +19,5 @@ export function usePwaOnboarding(installPath: string, enabled: boolean) {
     if (pathname === installPath || pathname === '/admin/setup') return;
 
     window.location.replace(installPath);
-  }, [enabled, installPath, pathname]);
+  }, [installPath, pathname]);
 }

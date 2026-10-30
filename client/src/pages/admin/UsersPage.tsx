@@ -576,7 +576,7 @@ function InviteModal({
 }) {
   const confirmIdentity = useStepUp();
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<'admin' | 'editor' | 'reader'>('editor');
+  const [role, setRole] = useState<(typeof SITE_ROLES)[number]>('editor');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<Invitation | null>(null);
   const [copied, setCopied] = useState(false);
@@ -725,12 +725,12 @@ function InviteModal({
             ) : (
               <div>
                 <Label>Rôle</Label>
-                <div className="mt-2 grid grid-cols-3 gap-2">
+                <div className="mt-2 grid grid-cols-2 gap-2">
                   {SITE_ROLES.map((key) => (
                     <button
                       key={key}
                       type="button"
-                      onClick={() => setRole(key as 'admin' | 'editor' | 'reader')}
+                      onClick={() => setRole(key)}
                       className={`rounded-lg border p-3 text-left transition-all ${
                         role === key
                           ? 'border-primary ring-2 ring-primary/20'
@@ -829,7 +829,7 @@ function EditUserModal({
           ) : (
             <div>
               <Label>Niveau d'accès</Label>
-              <div className="mt-2 grid grid-cols-3 gap-2">
+              <div className="mt-2 grid grid-cols-2 gap-2">
                 {SITE_ROLES.map((key) => (
                   <button
                     key={key}

@@ -1,4 +1,4 @@
-import { BookOpen, Eye, Pencil, Shield, type LucideIcon } from 'lucide-react';
+import { Eye, Pencil, Shield, type LucideIcon } from 'lucide-react';
 import type { Role } from '@/lib/api/user';
 
 interface RoleDefinition {
@@ -20,18 +20,13 @@ export const ROLES: Record<Role, RoleDefinition> = {
   },
   editor: {
     label: 'Éditeur',
-    description: 'Crée et modifie les menus',
+    description: 'Crée et modifie les menus, consulte les statistiques',
     icon: Pencil,
-  },
-  reader: {
-    label: 'Lecteur',
-    description: 'Consultation uniquement',
-    icon: BookOpen,
   },
 };
 
 /** Roles a site admin may invite; a supervisor invites only its peers. */
-export const SITE_ROLES = ['admin', 'editor', 'reader'] as const;
+export const SITE_ROLES = ['admin', 'editor'] as const;
 
 export function roleLabel(role: string | undefined): string {
   return ROLES[role as Role]?.label ?? role ?? '';

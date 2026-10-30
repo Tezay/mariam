@@ -39,7 +39,6 @@ const PAGE_TITLES: PageTitleMap = [
 const BOTTOM_NAV_PATHS = ['/admin/calendar', '/admin/service', '/admin/catalogue', '/admin/stats'];
 
 const ADMIN_ONLY_PATHS = [
-  '/admin/stats',
   '/admin/users',
   '/admin/settings',
   '/admin/public-page',
@@ -54,7 +53,7 @@ export function AdminLayout() {
   const [duringService, setDuringService] = useState(false);
 
   useSecurityOnboarding(user, '/admin/security');
-  usePwaOnboarding('/admin/install', user?.role === 'admin' || user?.role === 'editor');
+  usePwaOnboarding('/admin/install');
 
   // Identify in Umami by role — intentionally re-runs on id change only
   useEffect(() => {
@@ -135,11 +134,7 @@ export function AdminLayout() {
         accountPath="/admin/account"
         tenant={user?.site ? { label: 'Site', name: user.site.name } : undefined}
       />
-      <TourHost
-        tour="orientation"
-        enabled={onCalendar && (user?.role === 'admin' || user?.role === 'editor')}
-        canSeeStats={user?.role === 'admin'}
-      />
+      <TourHost tour="orientation" enabled={onCalendar} canSeeStats={user?.role === 'admin'} />
     </>
   );
 }
