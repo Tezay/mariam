@@ -11,11 +11,13 @@ from webauthn.helpers.cose import COSEAlgorithmIdentifier
 from webauthn.helpers.structs import (
     AuthenticationCredential,
     AuthenticatorAssertionResponse,
+    AuthenticatorAttachment,
     AuthenticatorAttestationResponse,
     AuthenticatorSelectionCriteria,
     AuthenticatorTransport,
     PublicKeyCredentialCreationOptions,
     PublicKeyCredentialDescriptor,
+    PublicKeyCredentialHint,
     PublicKeyCredentialRequestOptions,
     RegistrationCredential,
     ResidentKeyRequirement,
@@ -84,7 +86,7 @@ def read_challenge(token: str, ceremony: Ceremony) -> tuple[int, bytes]:
     return int(claims['sub']), base64url_to_bytes(claims['webauthn_challenge'])
 
 
-def begin_registration(user: User, ceremony: Ceremony) -> dict:
+def begin_registration(user: User, ceremony: Ceremony, *, this_device: bool = False) -> dict:
     options = webauthn.generate_registration_options(
         rp_id=current_app.config['WEBAUTHN_RP_ID'],
         rp_name=current_app.config['WEBAUTHN_RP_NAME'],
@@ -95,9 +97,11 @@ def begin_registration(user: User, ceremony: Ceremony) -> dict:
         # Any passkey may end up the account's only factor, so it has to serve
         # passwordless login: discoverable, and verifying the user.
         authenticator_selection=AuthenticatorSelectionCriteria(
+            authenticator_attachment=AuthenticatorAttachment.PLATFORM if this_device else None,
             resident_key=ResidentKeyRequirement.REQUIRED,
             user_verification=UserVerificationRequirement.REQUIRED,
         ),
+        hints=[PublicKeyCredentialHint.CLIENT_DEVICE] if this_device else None,
         supported_pub_key_algs=_ALGORITHMS,
     )
     return _ceremony_start(options, user.id, ceremony)

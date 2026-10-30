@@ -7,10 +7,7 @@ interface AuthContextType {
   user: Account | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ user: Account } | { mfaToken: string }>;
-  verifyMfa: (mfaToken: string, code: string) => Promise<Account>;
-  loginWithPasskey: (challengeToken: string, credential: unknown) => Promise<Account>;
-  activateComplete: (user: Account) => void;
+  signIn: (user: Account) => void;
   refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -47,29 +44,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return stop;
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const result = await authApi.login(email, password);
-    // Returned as well as stored: the caller redirects on the role before the next render.
-    if ('user' in result) setUser(result.user);
-    return result;
-  };
-
-  const verifyMfa = async (mfaToken: string, code: string) => {
-    const loggedUser = await authApi.verifyMfa(mfaToken, code);
-    setUser(loggedUser);
-    return loggedUser;
-  };
-
-  const loginWithPasskey = async (challengeToken: string, credential: unknown) => {
-    const loggedUser = await authApi.passkeyLoginComplete(challengeToken, credential);
-    setUser(loggedUser);
-    return loggedUser;
-  };
-
-  const activateComplete = (user: Account) => {
-    setUser(user);
-  };
-
   const refreshUser = async () => {
     const currentUser = await userApi.get();
     setUser(currentUser);
@@ -84,10 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     isLoading,
     isAuthenticated: !!user,
-    login,
-    verifyMfa,
-    loginWithPasskey,
-    activateComplete,
+    signIn: setUser,
     refreshUser,
     logout,
   };

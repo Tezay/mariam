@@ -25,7 +25,7 @@ export function NotFound() {
 
       <div className="flex flex-col items-center gap-3">
         <Button asChild size="lg" className="gap-2">
-          <Link to="/menu">
+          <Link to="/">
             <Home className="h-4 w-4" />
             Retour au menu
           </Link>

@@ -5,7 +5,12 @@ from ...extensions import db
 from ...models import AuditLog, Passkey
 from ...problems import Problem
 from ...schemas.auth import PasskeyRegistrationSchema, WebAuthnOptionsSchema
-from ...schemas.user import PasskeyListSchema, PasskeyPatchSchema, PasskeySchema
+from ...schemas.user import (
+    PasskeyListSchema,
+    PasskeyOptionsInputSchema,
+    PasskeyPatchSchema,
+    PasskeySchema,
+)
 from ...security import get_client_ip, limiter
 from ...services import passkeys
 from ...services.account import SecurityEvent, notify_security_event
@@ -45,16 +50,20 @@ def list_passkeys():
 @limiter.limit('10 per minute')
 @jwt_required()
 @step_up_once_enrolled
+@user_bp.arguments(PasskeyOptionsInputSchema, required=False)
 @user_bp.response(200, WebAuthnOptionsSchema)
 @user_bp.problem(403, 'step_up_required')
-def passkey_options():
+def passkey_options(body):
     """Options to create a passkey with, and the challenge to send back.
 
     From a confirmed session once the account has a second factor; its first is
     enrolled freely. The options leave out the passkeys already registered, and ask
-    for one that serves passwordless sign-in.
+    for one that serves passwordless sign-in. `this_device` asks for this device's
+    own authenticator.
     """
-    return passkeys.begin_registration(get_current_user(), Ceremony.REGISTER)
+    return passkeys.begin_registration(
+        get_current_user(), Ceremony.REGISTER, this_device=body['this_device']
+    )
 
 
 @user_bp.route('/passkeys', methods=['POST'])

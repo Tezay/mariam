@@ -2,17 +2,13 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { authApi } from '@/lib/api/auth';
 import { getApiErrorMessage, isConfirmationRequired } from '@/lib/api/errors';
-import { userApi } from '@/lib/api/user';
 import { passkeyRegistrationError } from '@/lib/passkey-errors';
+import { registerPasskey } from '@/lib/passkey-registration';
 import { useAuth } from '@/contexts/AuthContext';
 import { installPathForRole } from '@/lib/dashboard-routes';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, AlertCircle, Fingerprint } from 'lucide-react';
-import {
-  startRegistration,
-  type PublicKeyCredentialCreationOptionsJSON,
-} from '@simplewebauthn/browser';
 import { Spinner } from '@/components/ui/spinner';
 
 type State = 'validating' | 'success' | 'passkey_pending' | 'passkey_done' | 'error';
@@ -50,11 +46,7 @@ export function SetupTransferPage() {
     setIsRegistering(true);
     setPasskeyError('');
     try {
-      const { options, challenge_token } = await userApi.passkeyOptions();
-      const credential = await startRegistration({
-        optionsJSON: options as unknown as PublicKeyCredentialCreationOptionsJSON,
-      });
-      await userApi.createPasskey(challenge_token, credential);
+      await registerPasskey();
       setState('passkey_done');
     } catch (err) {
       // This device has no second factor of its own to confirm with: only a new

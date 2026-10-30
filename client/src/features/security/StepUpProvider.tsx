@@ -22,6 +22,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordInput } from '@/components/PasswordInput';
 
 export function StepUpProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -142,12 +143,19 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
           )}
 
           {asksFactor && hasTotp ? (
-            <form onSubmit={confirmWithPassword} className="space-y-3">
+            <form method="post" onSubmit={confirmWithPassword} className="space-y-3">
+              {/* Tells a password manager whose password to fill. */}
+              <input
+                type="email"
+                autoComplete="username"
+                value={user?.email ?? ''}
+                readOnly
+                hidden
+              />
               <div className="space-y-1.5">
                 <Label htmlFor="step-up-password">Votre mot de passe</Label>
-                <Input
+                <PasswordInput
                   id="step-up-password"
-                  type="password"
                   autoComplete="current-password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}

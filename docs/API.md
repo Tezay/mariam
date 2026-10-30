@@ -255,7 +255,7 @@ neither cannot confirm (`403 second_factor_required`).
 | `GET`, `PATCH` | `U/notification-preferences` | Which alerts the account sees, and when its weekly email lands |
 | `GET` | `U/alerts` | The account's active alerts, computed now |
 | `GET` | `U/passkeys` | The account's passkeys |
-| `POST` | `U/passkeys/options` | Creation options and a `challenge_token` (*confirmed once enrolled*) |
+| `POST` | `U/passkeys/options` | Creation options and a `challenge_token` (*confirmed once enrolled*); `this_device` for this device's own authenticator |
 | `POST` | `U/passkeys` | `201`, the passkey the browser created from them (*confirmed once enrolled*) |
 | `PATCH` | `U/passkeys/{passkey_id}` | Rename a passkey |
 | `DELETE` | `U/passkeys/{passkey_id}` | `204` (*confirmed*) |

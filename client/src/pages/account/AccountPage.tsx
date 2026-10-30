@@ -19,6 +19,7 @@ import { useUpdateUiPreferences } from '@/hooks/useUiPreferences';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordInput } from '@/components/PasswordInput';
 import {
   Dialog,
   DialogContent,
@@ -404,6 +405,8 @@ export function AccountPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [mfaCode, setMfaCode] = useState('');
   const [verificationMethod, setVerificationMethod] = useState<VerificationMethod>(defaultMethod);
+  const withPasskey =
+    hasPasskeys && passkeySupported && (!hasMfa || verificationMethod === 'passkey');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -614,123 +617,136 @@ export function AccountPage() {
                     </DialogDescription>
                   </DialogHeader>
 
-                  {message && (
-                    <div
-                      className={`flex items-center gap-2 rounded-lg p-3 text-sm ${
-                        message.type === 'success'
-                          ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                          : 'bg-destructive/10 text-destructive'
-                      }`}
-                    >
-                      {message.type === 'success' ? (
-                        <Check className="h-4 w-4 shrink-0" />
-                      ) : (
-                        <AlertCircle className="h-4 w-4 shrink-0" />
-                      )}
-                      {message.text}
-                    </div>
-                  )}
+                  <form
+                    method="post"
+                    onSubmit={withPasskey ? handleChangeWithPasskey : handleChangeWithTotp}
+                    className="grid gap-4"
+                  >
+                    {/* Tells a password manager which saved entry the new password replaces. */}
+                    <input
+                      type="email"
+                      autoComplete="username"
+                      value={user?.email ?? ''}
+                      readOnly
+                      hidden
+                    />
 
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="currentPassword">Mot de passe actuel</Label>
-                      <Input
-                        id="currentPassword"
-                        type="password"
-                        value={currentPassword}
-                        onChange={(e) => setCurrentPassword(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="newPassword">Nouveau mot de passe</Label>
-                      <Input
-                        id="newPassword"
-                        type="password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        required
-                        minLength={12}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Min. 12 caractères, majuscule, minuscule, chiffre, symbole.
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="confirmPassword">Confirmer</Label>
-                      <Input
-                        id="confirmPassword"
-                        type="password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {canUseBoth && (
-                    <div className="flex overflow-hidden rounded-xl border border-border text-sm">
-                      <button
-                        type="button"
-                        onClick={() => setVerificationMethod('totp')}
-                        className={`flex-1 px-3 py-2 transition-colors ${
-                          verificationMethod === 'totp'
-                            ? 'bg-primary font-medium text-primary-foreground'
-                            : 'bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                    {message && (
+                      <div
+                        className={`flex items-center gap-2 rounded-lg p-3 text-sm ${
+                          message.type === 'success'
+                            ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                            : 'bg-destructive/10 text-destructive'
                         }`}
                       >
-                        Code application
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setVerificationMethod('passkey')}
-                        className={`flex-1 border-l border-border px-3 py-2 transition-colors ${
-                          verificationMethod === 'passkey'
-                            ? 'bg-primary font-medium text-primary-foreground'
-                            : 'bg-muted/30 text-muted-foreground hover:bg-muted/60'
-                        }`}
-                      >
-                        Cet appareil
-                      </button>
-                    </div>
-                  )}
+                        {message.type === 'success' ? (
+                          <Check className="h-4 w-4 shrink-0" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 shrink-0" />
+                        )}
+                        {message.text}
+                      </div>
+                    )}
 
-                  {hasMfa && (!canUseBoth || verificationMethod === 'totp') && (
-                    <form onSubmit={handleChangeWithTotp} className="space-y-4">
+                    <div className="space-y-3">
                       <div className="space-y-2">
-                        <Label htmlFor="mfaCode">Code à 6 chiffres</Label>
-                        <Input
-                          id="mfaCode"
-                          value={mfaCode}
-                          onChange={(e) =>
-                            setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))
-                          }
-                          placeholder="000000"
-                          maxLength={6}
-                          inputMode="numeric"
-                          className="text-center font-mono text-lg tracking-widest"
+                        <Label htmlFor="currentPassword">Mot de passe actuel</Label>
+                        <PasswordInput
+                          id="currentPassword"
+                          autoComplete="current-password"
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
                           required
                         />
                       </div>
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() => setIsDialogOpen(false)}
-                        >
-                          Annuler
-                        </Button>
-                        <Button type="submit" disabled={isSubmitting || mfaCode.length !== 6}>
-                          {isSubmitting ? 'Enregistrement…' : 'Enregistrer'}
-                        </Button>
+                      <div className="space-y-2">
+                        <Label htmlFor="newPassword">Nouveau mot de passe</Label>
+                        <PasswordInput
+                          id="newPassword"
+                          autoComplete="new-password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          required
+                          minLength={12}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Min. 12 caractères, majuscule, minuscule, chiffre, symbole.
+                        </p>
                       </div>
-                    </form>
-                  )}
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">Confirmer</Label>
+                        <PasswordInput
+                          id="confirmPassword"
+                          autoComplete="new-password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
 
-                  {hasPasskeys &&
-                    passkeySupported &&
-                    (!hasMfa || verificationMethod === 'passkey') && (
-                      <form onSubmit={handleChangeWithPasskey} className="space-y-4">
+                    {canUseBoth && (
+                      <div className="flex overflow-hidden rounded-xl border border-border text-sm">
+                        <button
+                          type="button"
+                          onClick={() => setVerificationMethod('totp')}
+                          className={`flex-1 px-3 py-2 transition-colors ${
+                            verificationMethod === 'totp'
+                              ? 'bg-primary font-medium text-primary-foreground'
+                              : 'bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                          }`}
+                        >
+                          Code application
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setVerificationMethod('passkey')}
+                          className={`flex-1 border-l border-border px-3 py-2 transition-colors ${
+                            verificationMethod === 'passkey'
+                              ? 'bg-primary font-medium text-primary-foreground'
+                              : 'bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                          }`}
+                        >
+                          Cet appareil
+                        </button>
+                      </div>
+                    )}
+
+                    {hasMfa && (!canUseBoth || verificationMethod === 'totp') && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="mfaCode">Code à 6 chiffres</Label>
+                          <Input
+                            id="mfaCode"
+                            value={mfaCode}
+                            onChange={(e) =>
+                              setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))
+                            }
+                            placeholder="000000"
+                            maxLength={6}
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                            className="text-center font-mono text-lg tracking-widest"
+                            required
+                          />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => setIsDialogOpen(false)}
+                          >
+                            Annuler
+                          </Button>
+                          <Button type="submit" disabled={isSubmitting || mfaCode.length !== 6}>
+                            {isSubmitting ? 'Enregistrement…' : 'Enregistrer'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {withPasskey && (
+                      <div className="space-y-4">
                         <p className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Fingerprint className="h-4 w-4 shrink-0 text-primary" />
                           Votre appareil vous demandera de confirmer votre identité.
@@ -754,8 +770,9 @@ export function AccountPage() {
                             {isSubmitting ? 'Vérification…' : 'Confirmer avec cet appareil'}
                           </Button>
                         </div>
-                      </form>
+                      </div>
                     )}
+                  </form>
                 </DialogContent>
               </Dialog>
             </div>

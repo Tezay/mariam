@@ -154,20 +154,24 @@ redirections, 404 and 503. Run it after `bun run build`.
 
 Playwright drives Chromium against the built server and a real API, seeded with the demo
 organization. The scenarios, in `client/e2e/`, read the public pages with and without JavaScript,
-check that they hydrate without an error, and open the display screen and the dashboard.
+check that they hydrate without an error, and open the display screen and the dashboard. One flow
+signs in with a password, then with passkeys held by Chrome's virtual authenticators: a phone's,
+then the computer's own, created from the offer that follows. It adds passkeys to the demo account,
+so it runs once per freshly seeded database.
 
 ```bash
 cd server && uv run flask db upgrade
-uv run flask seed-demo
-uv run flask run --port 5000
+uv run flask seed-demo --password e2e-demo-password
+WEBAUTHN_RP_ID=demo.localhost WEBAUTHN_ORIGIN=http://demo.localhost:3000 uv run flask run --port 5000
 
 cd client && bun run build
 API_INTERNAL_URL=http://localhost:5000/v1 node server.js
 bunx playwright install chromium   # once
-bunx playwright test
+E2E_PASSWORD=e2e-demo-password bunx playwright test
 ```
 
-`E2E_PORT`, `E2E_SCHEME` and `E2E_API` point the tests at another server or API.
+`E2E_PORT`, `E2E_SCHEME` and `E2E_API` point the tests at another server or API. Without
+`E2E_PASSWORD`, the sign-in flow is skipped.
 
 ## API contract
 

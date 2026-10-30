@@ -9,6 +9,7 @@ import { roleLabel } from '@/lib/roles';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordInput } from '@/components/PasswordInput';
 import { Logo } from '@/components/Logo';
 import { X } from 'lucide-react';
 import {
@@ -26,7 +27,7 @@ type Step = 'loading' | 'invalid' | 'password' | 'second-factor';
 export function Activate() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
-  const { activateComplete } = useAuth();
+  const { signIn } = useAuth();
 
   const [step, setStep] = useState<Step>('loading');
   const [linkInfo, setLinkInfo] = useState<ActivationLink | null>(null);
@@ -118,13 +119,13 @@ export function Activate() {
         optionsJSON: options as unknown as PublicKeyCredentialCreationOptionsJSON,
       });
       const user = await authApi.passkeySetupComplete(challenge_token, credential);
-      activateComplete(user);
+      signIn(user);
       navigate('/admin');
     },
     beginTotp: async () => ({ qrCode, secret: mfaSecret }),
     confirmTotp: async (code) => {
       const user = await authApi.verifyMfaSetup(setupToken, code);
-      activateComplete(user);
+      signIn(user);
       navigate('/admin');
     },
   };
@@ -166,7 +167,7 @@ export function Activate() {
 
         <div className="rounded-lg border border-border bg-card p-8 shadow-lg">
           {step === 'password' && (
-            <form onSubmit={handlePasswordSubmit} className="space-y-5">
+            <form method="post" onSubmit={handlePasswordSubmit} className="space-y-5">
               {destination && (
                 <p className="rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
                   Vous rejoignez <strong>{destination}</strong> en tant{' '}
@@ -200,7 +201,7 @@ export function Activate() {
                 <Input
                   id="email"
                   type="email"
-                  autoComplete="email"
+                  autoComplete="username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -217,9 +218,8 @@ export function Activate() {
 
               <div>
                 <Label htmlFor="password">Mot de passe</Label>
-                <Input
+                <PasswordInput
                   id="password"
-                  type="password"
                   autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -242,9 +242,8 @@ export function Activate() {
 
               <div>
                 <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
-                <Input
+                <PasswordInput
                   id="confirmPassword"
-                  type="password"
                   autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
