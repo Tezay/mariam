@@ -152,34 +152,6 @@ class TestCatalogCrud:
             assert key in data
 
 
-class TestCatalogRoles:
-    """Writing to the catalog takes the editor or admin role."""
-
-    def test_reader_cannot_create_dish(self, app, client):
-        make_restaurant(app)
-        make_user(app, email='reader@mariam.app', role='reader')
-        token = get_token(client, email='reader@mariam.app')
-        res = _create_dish(client, token)
-        assert res.status_code == 403
-
-    def test_reader_cannot_delete_dish(self, app, client):
-        make_restaurant(app)
-        make_user(app)
-        make_user(app, email='reader@mariam.app', role='reader')
-        admin_token = get_token(client)
-        dish_id = _create_dish(client, admin_token).get_json()['id']
-        reader_token = get_token(client, email='reader@mariam.app')
-        res = client.delete(f'{_dishes(client, reader_token)}/{dish_id}', headers=auth_headers(reader_token))
-        assert res.status_code == 403
-
-    def test_reader_can_list_dishes(self, app, client):
-        make_restaurant(app)
-        make_user(app, email='reader@mariam.app', role='reader')
-        token = get_token(client, email='reader@mariam.app')
-        res = client.get(f'{_dishes(client, token)}', headers=auth_headers(token))
-        assert res.status_code == 200
-
-
 class TestCatalogTenantIsolation:
     """Each site sees and changes its own catalog only."""
 

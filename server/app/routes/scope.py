@@ -73,9 +73,9 @@ def member_site(org_slug: str, site_slug: str) -> Restaurant:
 
 
 def readable_site(org_slug: str, site_slug: str) -> tuple[Restaurant, bool]:
-    """The site, and whether the caller reads its drafts: an editor of the site does."""
+    """The site, and whether the caller reads its drafts: a member of the site does."""
     verify_jwt_in_request(optional=True)
-    if get_jwt_identity() is not None and get_current_user().is_editor():
+    if get_jwt_identity() is not None:
         try:
             return member_site(org_slug, site_slug), True
         except Problem:

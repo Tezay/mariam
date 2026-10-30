@@ -20,12 +20,6 @@ def _upload_csv(client, token, content='Plat principal\nPoulet rôti, Riz pilaf\
 
 
 class TestCsvImport:
-    def test_upload_requires_editor(self, app, client):
-        make_restaurant(app)
-        make_user(app, email='reader@mariam.app', role='reader')
-        token = get_token(client, email='reader@mariam.app')
-        assert _upload_csv(client, token).status_code == 403
-
     def test_upload_parses_columns(self, app, client):
         make_restaurant(app)
         make_user(app)
@@ -112,13 +106,6 @@ def _seed_vegetarian_tag(app):
 
 
 class TestCatalogImportUpload:
-    def test_upload_requires_editor(self, app, client):
-        make_restaurant(app)
-        make_user(app, email='reader@mariam.app', role='reader')
-        token = get_token(client, email='reader@mariam.app')
-        res = _upload_catalog(client, token, 'Nom du plat\nPoulet rôti\n')
-        assert res.status_code == 403
-
     def test_upload_parses_and_suggests_name_column(self, app, client):
         make_restaurant(app)
         make_user(app)

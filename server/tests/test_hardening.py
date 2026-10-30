@@ -157,7 +157,6 @@ class TestUnauthorizedSpeaksOfTheSession:
         sessions = {
             'site admin': session_headers(make_user(app, email='admin@mariam.app')),
             'editor': session_headers(make_user(app, email='editor@mariam.app', role='editor')),
-            'reader': session_headers(make_user(app, email='reader@mariam.app', role='reader')),
             'supervisor': session_headers(supervisor),
         }
 

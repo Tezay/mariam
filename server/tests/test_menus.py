@@ -121,21 +121,18 @@ class TestPublish:
 
 
 class TestRead:
-    def test_an_editor_reads_drafts_and_anyone_else_the_published(self, app, client):
+    def test_a_member_reads_drafts_and_anyone_else_the_published(self, app, client):
         rid, path, headers = _editor_site(app, client)
         _menu_with_item(app, client, headers, path, rid, day=_day(0))
         _menu_with_item(app, client, headers, path, rid, day=_day(1), name='Brouillon')
         client.post(f'{path}/menus/{_day(0)}/publish', headers=headers)
-        make_user(app, email='reader@mariam.app', role='reader', restaurant_id=rid)
-        reader = auth_headers(get_token(client, email='reader@mariam.app'))
 
         mine = client.get(f'{path}/menus?from={_day(0)}&to={_day(1)}', headers=headers).get_json()
         assert [menu['status'] for menu in mine['items']] == ['published', 'draft']
-        for caller in ({}, reader):
-            seen = client.get(f'{path}/menus?from={_day(0)}&to={_day(1)}', headers=caller).get_json()
-            assert [menu['date'] for menu in seen['items']] == [_day(0)]
-            assert 'status' not in seen['items'][0]
-            assert client.get(f'{path}/menus/{_day(1)}', headers=caller).status_code == 404
+        seen = client.get(f'{path}/menus?from={_day(0)}&to={_day(1)}').get_json()
+        assert [menu['date'] for menu in seen['items']] == [_day(0)]
+        assert 'status' not in seen['items'][0]
+        assert client.get(f'{path}/menus/{_day(1)}').status_code == 404
 
     def test_an_editor_reads_past_the_window(self, app, client):
         rid, path, headers = _editor_site(app, client)

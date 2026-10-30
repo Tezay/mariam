@@ -6702,7 +6702,7 @@ export interface components {
              */
             email: string | null;
             /** @enum {string} */
-            role: "org_admin" | "admin" | "editor" | "reader";
+            role: "org_admin" | "admin" | "editor";
             /** @description The site the account will belong to, if any */
             site: components["schemas"]["NamedRef"] | (Record<string, never> | null);
             organization: (Record<string, never> | null) | components["schemas"]["NamedRef"];
@@ -6726,7 +6726,7 @@ export interface components {
             /** @description Display name */
             username: string | null;
             /** @enum {string} */
-            role: "org_admin" | "admin" | "editor" | "reader";
+            role: "org_admin" | "admin" | "editor";
             is_active: boolean;
             /** @description An authenticator app is set up */
             mfa_enabled: boolean;
@@ -7101,7 +7101,7 @@ export interface components {
             /** @description Display name */
             username: string | null;
             /** @enum {string} */
-            role: "org_admin" | "admin" | "editor" | "reader";
+            role: "org_admin" | "admin" | "editor";
             is_active: boolean;
             /** @description An authenticator app is set up */
             mfa_enabled: boolean;
@@ -7120,7 +7120,7 @@ export interface components {
         };
         MemberPatch: {
             /** @enum {string} */
-            role?: "admin" | "editor" | "reader";
+            role?: "admin" | "editor";
             /** @description False ends the account's sessions */
             is_active?: boolean;
         };
@@ -7140,7 +7140,7 @@ export interface components {
              */
             email: string | null;
             /** @enum {string} */
-            role: "org_admin" | "admin" | "editor" | "reader";
+            role: "org_admin" | "admin" | "editor";
             /** Format: date-time */
             expires_at: string;
             /** @description Whether it was emailed to `email` */
@@ -7166,7 +7166,7 @@ export interface components {
              * @default editor
              * @enum {string}
              */
-            role?: "admin" | "editor" | "reader";
+            role?: "admin" | "editor";
         };
         SupervisorPatch: {
             /** @description False ends the account's sessions */

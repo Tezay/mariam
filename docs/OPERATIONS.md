@@ -68,7 +68,7 @@ docker compose exec backend \
 ```
 
 The command prints an activation URL (`/activate/<token>`, valid 72 hours, single use).
-`user invite` works for any role (`org_admin`, `admin`, `editor`, `reader`) and is the generic
+`user invite` works for any role (`org_admin`, `admin`, `editor`) and is the generic
 way to create an account in production when inviting from the UI is not possible, such as the
 first user of a new organization.
 

@@ -304,7 +304,7 @@ class TestSupervisorManagesOnlyPeers:
         answers = [
             client.delete(site, headers=headers),
             client.delete(f'{site}/second-factors', headers=headers),
-            client.patch(site, json={'role': 'reader'}, headers=headers),
+            client.patch(site, json={'role': 'editor'}, headers=headers),
             client.delete(org, headers=headers),
             client.post(f'{org}/password-reset', headers=headers),
             client.patch(org, json={'is_active': False}, headers=headers),
@@ -644,10 +644,14 @@ class TestAnalyticsScope:
         res = client.get('/v1/orgs/an6b/analytics/overview', headers=auth_headers(token))
         assert res.get_json()['code'] == 'org_not_found'
 
-    def test_editor_is_forbidden(self, app, client):
-        org, rids = self._org_sites('an7', ['AN7A'])
+    def test_an_editor_reads_its_own_site(self, app, client):
+        org, rids = self._org_sites('an7', ['AN7A', 'AN7B'])
         _make_user('ed@mariam.app', 'editor', rids[0], org)
-        token = get_token(client, email='ed@mariam.app')
-        for report in ('overview', 'publications'):
-            res = client.get(f'{site_path(rids[0])}/analytics/{report}', headers=auth_headers(token))
-            assert res.status_code == 403
+        headers = auth_headers(get_token(client, email='ed@mariam.app'))
+
+        for report in ('overview', 'publications', 'traffic', 'satisfaction'):
+            res = client.get(f'{site_path(rids[0])}/analytics/{report}', headers=headers)
+            assert res.status_code == 200
+        assert client.get(f'{site_path(rids[1])}/analytics/overview', headers=headers).status_code == 404
+        organization = client.get('/v1/orgs/an7/analytics/overview', headers=headers)
+        assert organization.get_json()['code'] == 'supervisor_required'

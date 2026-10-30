@@ -50,10 +50,10 @@ class TestSiteMembers:
         assert client.get(f'{path}/members').status_code == 401
 
     def test_only_an_admin_lists_them(self, app, client):
-        reader = make_user(app, role='reader')
-        path = site_path(db.session.get(User, reader).restaurant_id)
+        editor = make_user(app, role='editor')
+        path = site_path(db.session.get(User, editor).restaurant_id)
 
-        res = client.get(f'{path}/members', headers=session_headers(reader))
+        res = client.get(f'{path}/members', headers=session_headers(editor))
 
         assert res.status_code == 403
 
@@ -81,36 +81,36 @@ class TestSiteMembers:
 
     def test_a_role_changes(self, app, client):
         admin, path = _site_admin(app)
-        target = make_user(app, role='reader', email='reader@mariam.app')
+        target = make_user(app, role='editor', email='editor@mariam.app')
 
         res = client.patch(
-            f'{path}/members/{target}', json={'role': 'editor'}, headers=session_headers(admin)
+            f'{path}/members/{target}', json={'role': 'admin'}, headers=session_headers(admin)
         )
 
-        assert res.get_json()['role'] == 'editor'
-        assert db.session.get(User, target).role == 'editor'
+        assert res.get_json()['role'] == 'admin'
+        assert db.session.get(User, target).role == 'admin'
 
     def test_a_role_outside_those_of_a_site_is_refused(self, app, client):
         admin, path = _site_admin(app)
-        target = make_user(app, role='reader', email='reader@mariam.app')
+        target = make_user(app, role='editor', email='editor@mariam.app')
 
         for role in ('superuser', 'org_admin'):
             res = client.patch(
                 f'{path}/members/{target}', json={'role': role}, headers=session_headers(admin)
             )
             assert res.status_code == 422
-        assert db.session.get(User, target).role == 'reader'
+        assert db.session.get(User, target).role == 'editor'
 
     def test_an_admin_cannot_rename_another_account(self, app, client):
         admin, path = _site_admin(app)
-        target = make_user(app, role='reader', email='reader@mariam.app')
+        target = make_user(app, role='editor', email='editor@mariam.app')
 
         client.patch(
             f'{path}/members/{target}', json={'username': 'Someone Else'},
             headers=session_headers(admin),
         )
 
-        assert db.session.get(User, target).username == 'reader'
+        assert db.session.get(User, target).username == 'editor'
 
     def test_a_suspension_ends_the_sessions_for_good(self, app, client):
         admin, path = _site_admin(app)
@@ -271,7 +271,7 @@ class TestInvitations:
         path = site_path(db.session.get(User, editor).restaurant_id)
 
         res = client.post(
-            f'{path}/invitations', json={'role': 'reader'}, headers=confirmed_headers(client, editor)
+            f'{path}/invitations', json={'role': 'editor'}, headers=confirmed_headers(client, editor)
         )
 
         assert res.status_code == 403

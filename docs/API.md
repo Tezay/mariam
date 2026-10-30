@@ -80,7 +80,7 @@ Any route may answer these:
 |---|---|---|
 | 401 | `token_missing`, `token_invalid`, `token_expired`, `token_revoked` | No session, or one that no longer holds |
 | 401 | `token_restricted`, `authentication_incomplete` | A token issued for one step of a flow, shown as a session |
-| 403 | `admin_required`, `editor_required`, `supervisor_required`, `supervisor_read_only` | The account's role does not allow it |
+| 403 | `admin_required`, `supervisor_required`, `supervisor_read_only` | The account's role does not allow it |
 | 403 | `step_up_required` | The route needs a confirmed session |
 | 404 | `not_found` | No such route or resource |
 | 405 | `method_not_allowed` | The route exists; `Allow` lists its methods |
@@ -547,8 +547,8 @@ Catalogue notes:
 
 ## Analytics
 
-One site's reports under `S`, for its admin and the organization's supervisors; the
-organization's under `O`, for its supervisors.
+One site's reports under `S`, for its admin, its editors and the organization's supervisors;
+the organization's under `O`, for its supervisors.
 
 | Method | Route | Description |
 |--------|-------|-------------|
@@ -666,7 +666,7 @@ site's accounts but never changes them (`403 supervisor_read_only`).
 | Method | Route | Description |
 |--------|-------|-------------|
 | `GET` | `S/members` | The site's accounts, newest first; paginated (`page`, `per_page` up to 200, `Link`) |
-| `PATCH` | `S/members/{user_id}` | `role` (`admin`, `editor`, `reader`) and `is_active`; turning an account off ends its sessions |
+| `PATCH` | `S/members/{user_id}` | `role` (`admin` or `editor`) and `is_active`; turning an account off ends its sessions |
 | `DELETE` | `S/members/{user_id}` | Delete an account (*confirmed*); `204` |
 | `DELETE` | `S/members/{user_id}/second-factors` | Remove its TOTP and passkeys and end its sessions (*confirmed*); `204` |
 | `POST` | `S/members/{user_id}/password-reset` | Email it a link to choose a new password, returned as `reset_url` only when it could not be emailed (*confirmed*); `201` |

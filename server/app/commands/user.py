@@ -195,7 +195,7 @@ def show_user(email):
 
 @user_cli.command('invite')
 @click.argument('email')
-@click.option('--role', required=True, help='org_admin | admin | editor | reader')
+@click.option('--role', required=True, help='org_admin | admin | editor')
 @click.option('--restaurant', default=None, help='Target site (id or slug) — site roles')
 @click.option('--org', default=None, help='Organization (id or slug) — org_admin role')
 def invite_user(email, role, restaurant, org):

@@ -3,7 +3,7 @@ from marshmallow import EXCLUDE, Schema, ValidationError, fields, validate, vali
 from ..models import User
 from .common import NamedRefSchema, NormalizedEmail
 
-SITE_ROLES = (User.ROLE_ADMIN, User.ROLE_EDITOR, User.ROLE_READER)
+SITE_ROLES = (User.ROLE_ADMIN, User.ROLE_EDITOR)
 
 
 class MemberSchema(Schema):
