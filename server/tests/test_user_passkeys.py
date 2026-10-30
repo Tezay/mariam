@@ -31,6 +31,19 @@ class TestRegistration:
         assert Passkey.query.filter_by(user_id=uid).count() == 1
         assert AuditLog.query.filter_by(action=AuditLog.ACTION_PASSKEY_REGISTERED).count() == 1
 
+    def test_the_offer_after_a_sign_in_asks_for_this_device_only(self, app, client):
+        uid = make_user(app)
+
+        offered = client.post(
+            '/v1/user/passkeys/options', headers=session_headers(uid), json={'this_device': True}
+        ).get_json()['options']
+        plain = self._begin(client, uid).get_json()['options']
+
+        assert offered['authenticatorSelection']['authenticatorAttachment'] == 'platform'
+        assert offered['hints'] == ['client-device']
+        assert 'authenticatorAttachment' not in plain['authenticatorSelection']
+        assert 'hints' not in plain
+
     def test_an_unnamed_passkey_is_named_after_the_device(self, app, client):
         uid = make_user(app)
         begin = self._begin(client, uid).get_json()

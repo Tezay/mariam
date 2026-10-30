@@ -1565,6 +1565,9 @@
     "/v1/user/passkeys/options": {
       "post": {
         "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
           "403": {
             "description": "`step_up_required`",
             "content": {
@@ -1589,8 +1592,18 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyOptionsInput"
+              }
+            }
+          }
+        },
         "summary": "Options to create a passkey with, and the challenge to send back.",
-        "description": "From a confirmed session once the account has a second factor; its first is\nenrolled freely. The options leave out the passkeys already registered, and ask\nfor one that serves passwordless sign-in.",
+        "description": "From a confirmed session once the account has a second factor; its first is\nenrolled freely. The options leave out the passkeys already registered, and ask\nfor one that serves passwordless sign-in. `this_device` asks for this device's\nown authenticator.",
         "tags": [
           "user"
         ]
@@ -8597,6 +8610,16 @@
           "items"
         ],
         "additionalProperties": false
+      },
+      "PasskeyOptionsInput": {
+        "type": "object",
+        "properties": {
+          "this_device": {
+            "type": "boolean",
+            "default": false,
+            "description": "Create it with this device's own authenticator only"
+          }
+        }
       },
       "PasskeyPatch": {
         "type": "object",

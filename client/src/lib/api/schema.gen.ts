@@ -1789,7 +1789,8 @@ export interface paths {
          * Options to create a passkey with, and the challenge to send back.
          * @description From a confirmed session once the account has a second factor; its first is
          *     enrolled freely. The options leave out the passkeys already registered, and ask
-         *     for one that serves passwordless sign-in.
+         *     for one that serves passwordless sign-in. `this_device` asks for this device's
+         *     own authenticator.
          */
         post: {
             parameters: {
@@ -1798,7 +1799,11 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["PasskeyOptionsInput"];
+                };
+            };
             responses: {
                 /** @description OK */
                 200: {
@@ -1818,6 +1823,7 @@ export interface paths {
                         "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
                 default: components["responses"]["DEFAULT_ERROR"];
             };
         };
@@ -6961,6 +6967,13 @@ export interface components {
         };
         PasskeyList: {
             items: components["schemas"]["Passkey"][];
+        };
+        PasskeyOptionsInput: {
+            /**
+             * @description Create it with this device's own authenticator only
+             * @default false
+             */
+            this_device?: boolean;
         };
         PasskeyPatch: {
             /** @description 1 to 100 characters */

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/Logo';
+import { PasswordInput } from '@/components/PasswordInput';
 import { Fingerprint } from 'lucide-react';
 import {
   startAuthentication,
@@ -35,6 +36,8 @@ export function ResetPassword() {
 
   const passkeySupported = typeof window !== 'undefined' && !!window.PublicKeyCredential;
   const canUseBoth = mfaEnabled && hasPasskeys && passkeySupported;
+  const withPasskey =
+    hasPasskeys && passkeySupported && (!mfaEnabled || verificationMethod === 'passkey');
 
   useEffect(() => {
     const checkLink = async () => {
@@ -194,17 +197,28 @@ export function ResetPassword() {
           <p className="mt-4 text-muted-foreground">Réinitialisation du mot de passe</p>
         </div>
 
-        <div className="space-y-6 rounded-lg border border-border bg-card p-8 shadow-lg">
+        <form
+          method="post"
+          onSubmit={withPasskey ? handleSubmitPasskey : handleSubmitTotp}
+          className="space-y-6 rounded-lg border border-border bg-card p-8 shadow-lg"
+        >
           <div>
             <Label htmlFor="email">Adresse email</Label>
-            <Input id="email" type="email" value={email} disabled className="mt-1 bg-muted" />
+            <Input
+              id="email"
+              type="email"
+              autoComplete="username"
+              value={email}
+              readOnly
+              className="mt-1 bg-muted"
+            />
           </div>
 
           <div>
             <Label htmlFor="password">Nouveau mot de passe</Label>
-            <Input
+            <PasswordInput
               id="password"
-              type="password"
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -226,9 +240,9 @@ export function ResetPassword() {
 
           <div>
             <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
-            <Input
+            <PasswordInput
               id="confirmPassword"
-              type="password"
+              autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
@@ -269,7 +283,7 @@ export function ResetPassword() {
           )}
 
           {mfaEnabled && (!canUseBoth || verificationMethod === 'totp') && (
-            <form onSubmit={handleSubmitTotp} className="space-y-4">
+            <div className="space-y-4">
               <div>
                 <Label htmlFor="mfaCode">Code d'authentification (A2F)</Label>
                 <Input
@@ -282,6 +296,7 @@ export function ResetPassword() {
                   className="mt-1 text-center font-mono text-2xl tracking-widest"
                   maxLength={6}
                   inputMode="numeric"
+                  autoComplete="one-time-code"
                 />
                 <p className="mt-1 text-center text-xs text-muted-foreground">
                   Entrez le code à 6 chiffres de votre application d'authentification
@@ -303,11 +318,11 @@ export function ResetPassword() {
               >
                 {isLoading ? 'Réinitialisation...' : 'Réinitialiser mon mot de passe'}
               </Button>
-            </form>
+            </div>
           )}
 
-          {hasPasskeys && passkeySupported && (!mfaEnabled || verificationMethod === 'passkey') && (
-            <form onSubmit={handleSubmitPasskey} className="space-y-4">
+          {withPasskey && (
+            <div className="space-y-4">
               <p className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Fingerprint className="h-4 w-4 shrink-0 text-primary" />
                 Votre appareil vous demandera de confirmer votre identité.
@@ -327,9 +342,9 @@ export function ResetPassword() {
                 <Fingerprint className="h-4 w-4" />
                 {isLoading ? 'Vérification...' : 'Confirmer avec cet appareil'}
               </Button>
-            </form>
+            </div>
           )}
-        </div>
+        </form>
       </div>
     </div>
   );

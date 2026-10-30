@@ -409,6 +409,9 @@ jobs:
       JWT_SECRET_KEY: ci-jwt-secret-key
       FLASK_APP: run.py
       FLASK_ENV: development
+      WEBAUTHN_RP_ID: demo.localhost
+      WEBAUTHN_ORIGIN: http://demo.localhost:3000
+      E2E_PASSWORD: ci-demo-password
     steps:
       - uses: actions/checkout@v7
 
@@ -423,7 +426,7 @@ jobs:
         working-directory: server
         run: |
           uv run flask db upgrade
-          uv run flask seed-demo
+          uv run flask seed-demo --password "$E2E_PASSWORD"
 
       - name: Start the backend
         working-directory: server

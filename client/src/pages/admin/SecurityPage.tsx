@@ -7,10 +7,6 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { ShieldAlert } from 'lucide-react';
-import {
-  startRegistration,
-  type PublicKeyCredentialCreationOptionsJSON,
-} from '@simplewebauthn/browser';
 import { Logo } from '@/components/Logo';
 import {
   SecondFactorSetup,
@@ -20,6 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { needsSecuritySetup } from '@/hooks/useSecurityOnboarding';
 import { userApi } from '@/lib/api/user';
 import { dashboardPathForRole } from '@/lib/dashboard-routes';
+import { registerPasskey } from '@/lib/passkey-registration';
 
 export default function SecurityPage() {
   const { user, refreshUser } = useAuth();
@@ -36,11 +33,7 @@ export default function SecurityPage() {
 
   const enrolment: SecondFactorEnrolment = {
     registerPasskey: async () => {
-      const { options, challenge_token } = await userApi.passkeyOptions();
-      const credential = await startRegistration({
-        optionsJSON: options as unknown as PublicKeyCredentialCreationOptionsJSON,
-      });
-      await userApi.createPasskey(challenge_token, credential);
+      await registerPasskey();
       await refreshUser();
     },
     beginTotp: async () => {

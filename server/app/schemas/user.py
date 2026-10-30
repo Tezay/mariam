@@ -82,6 +82,13 @@ class PasskeyListSchema(Schema):
     items = fields.List(fields.Nested(PasskeySchema), required=True)
 
 
+class PasskeyOptionsInputSchema(RequestSchema):
+    this_device = fields.Bool(
+        load_default=False,
+        metadata={'description': "Create it with this device's own authenticator only"},
+    )
+
+
 class PasskeyPatchSchema(RequestSchema):
     device_name = DeviceName(required=True, metadata={'description': "1 to 100 characters"})
 

@@ -39,8 +39,8 @@ export const userApi = {
 
   listPasskeys: async (): Promise<Passkey[]> => (await api.get('/user/passkeys')).data.items,
 
-  passkeyOptions: async (): Promise<WebAuthnOptions> =>
-    (await api.post('/user/passkeys/options')).data,
+  passkeyOptions: async (thisDevice = false): Promise<WebAuthnOptions> =>
+    (await api.post('/user/passkeys/options', { this_device: thisDevice })).data,
 
   createPasskey: async (
     challengeToken: string,

@@ -1,61 +1,130 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { PasskeyOffer } from '@/features/security/PasskeyOffer';
+import { usePasskeyAutofill } from '@/hooks/usePasskeyAutofill';
+import { needsSecuritySetup } from '@/hooks/useSecurityOnboarding';
+import { detectPlatform } from '@/lib/app-install';
 import { dashboardPathForRole } from '@/lib/dashboard-routes';
 import { authApi } from '@/lib/api/auth';
 import { getApiErrorMessage, getProblemCode } from '@/lib/api/errors';
+import type { Account } from '@/lib/api/user';
+import { readOfferAnswer, shouldOfferPasskey } from '@/lib/passkey-offer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/Logo';
-import { Fingerprint, ShieldCheck } from 'lucide-react';
+import { PasswordInput } from '@/components/PasswordInput';
+import { ChevronDown, Fingerprint, ShieldCheck } from 'lucide-react';
 import {
+  platformAuthenticatorIsAvailable,
   startAuthentication,
+  type AuthenticationResponseJSON,
+  type AuthenticatorAttachment,
   type PublicKeyCredentialRequestOptionsJSON,
 } from '@simplewebauthn/browser';
 
-type LoginMode = 'passkey-first' | 'password' | 'mfa';
+type Step = 'identify' | 'password' | 'mfa' | 'offer';
+
+function passkeySignInError(err: unknown): string {
+  if ((err as { name?: string }).name === 'NotAllowedError') {
+    return 'Authentification annulée ou expirée. Réessayez.';
+  }
+  if (getProblemCode(err) === 'passkey_unknown') {
+    return 'Cette passkey ne correspond à aucun compte. Connectez-vous avec votre mot de passe.';
+  }
+  return getApiErrorMessage(err, "Échec de l'authentification.");
+}
 
 export function Login() {
   const navigate = useNavigate();
-  const { login, verifyMfa, loginWithPasskey } = useAuth();
-
+  const { signIn } = useAuth();
   const passkeySupported = typeof window !== 'undefined' && !!window.PublicKeyCredential;
-  const [mode, setMode] = useState<LoginMode>(passkeySupported ? 'passkey-first' : 'password');
 
+  const [step, setStep] = useState<Step>('identify');
   const [email, setEmail] = useState('');
+  const [addressFocused, setAddressFocused] = useState(false);
   const [password, setPassword] = useState('');
-
   const [mfaToken, setMfaToken] = useState('');
   const [mfaCode, setMfaCode] = useState('');
-
+  const [signedIn, setSignedIn] = useState<Account | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [passkeyOnly, setPasskeyOnly] = useState(false);
 
-  const handlePasskeyLogin = async () => {
+  const goTo = (next: Step) => {
+    setError('');
+    setPasskeyOnly(false);
+    setStep(next);
+  };
+
+  // Told only now: the route sends a signed-in account to its dashboard at once,
+  // which would leave no time for the offer.
+  const enter = (account: Account) => {
+    signIn(account);
+    navigate(dashboardPathForRole(account.role));
+  };
+
+  const finishSignIn = async (
+    account: Account,
+    method: 'passkey' | 'password',
+    attachment?: AuthenticatorAttachment
+  ) => {
+    const now = Date.now();
+    const offer = shouldOfferPasskey({
+      method,
+      attachment,
+      platformAvailable: await platformAuthenticatorIsAvailable(),
+      answer: readOfferAnswer(now),
+      hasSecondFactor: !needsSecuritySetup(account),
+      now,
+    });
+    if (!offer) {
+      enter(account);
+      return;
+    }
+    setSignedIn(account);
+    setStep('offer');
+  };
+
+  const completePasskeySignIn = async (
+    challengeToken: string,
+    credential: AuthenticationResponseJSON
+  ) => {
+    const account = await authApi.passkeyLoginComplete(challengeToken, credential);
+    window.umami?.track('login-success', { method: 'passkey' });
+    await finishSignIn(account, 'passkey', credential.authenticatorAttachment);
+  };
+
+  const signInWith = async (attempt: () => Promise<void>) => {
     setError('');
     setIsLoading(true);
-
     try {
+      await attempt();
+    } catch (err: unknown) {
+      window.umami?.track('login-failure', { method: 'passkey' });
+      setError(passkeySignInError(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  usePasskeyAutofill(step === 'identify' && !isLoading, (challengeToken, credential) =>
+    signInWith(() => completePasskeySignIn(challengeToken, credential))
+  );
+
+  const handlePasskeyButton = () =>
+    signInWith(async () => {
       const { options, challenge_token } = await authApi.passkeyLoginBegin();
       const credential = await startAuthentication({
         optionsJSON: options as unknown as PublicKeyCredentialRequestOptionsJSON,
       });
-      const loggedUser = await loginWithPasskey(challenge_token, credential);
-      window.umami?.track('login-success', { method: 'passkey' });
-      navigate(dashboardPathForRole(loggedUser?.role));
-    } catch (err: unknown) {
-      window.umami?.track('login-failure', { method: 'passkey' });
-      if ((err as { name?: string }).name === 'NotAllowedError') {
-        setError('Authentification annulée ou expirée. Réessayez.');
-      } else if (getProblemCode(err) === 'passkey_unknown') {
-        setError('Aucune passkey trouvée. Connectez-vous avec votre mot de passe.');
-      } else {
-        setError(getApiErrorMessage(err, "Échec de l'authentification."));
-      }
-    } finally {
-      setIsLoading(false);
-    }
+      await completePasskeySignIn(challenge_token, credential);
+    });
+
+  const handleEmailSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    goTo('password');
   };
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
@@ -64,22 +133,20 @@ export function Login() {
     setIsLoading(true);
 
     try {
-      const result = await login(email, password);
+      const result = await authApi.login(email, password);
 
       if ('mfaToken' in result) {
         setMfaToken(result.mfaToken);
-        setMode('mfa');
+        setStep('mfa');
       } else {
         window.umami?.track('login-success', { method: 'password' });
-        navigate(dashboardPathForRole(result.user.role));
+        await finishSignIn(result.user, 'password');
       }
     } catch (err: unknown) {
       window.umami?.track('login-failure', { method: 'password' });
       if (getProblemCode(err) === 'passkey_only') {
-        setError(
-          'Ce compte utilise la connexion par passkey. ' +
-            'Veuillez utiliser un appareil compatible (empreinte digitale, Face ID…).'
-        );
+        setPasskeyOnly(true);
+        setError('Ce compte se connecte avec une passkey, pas avec un mot de passe.');
       } else {
         setError(getApiErrorMessage(err, 'Email ou mot de passe incorrect.'));
       }
@@ -94,9 +161,9 @@ export function Login() {
     setIsLoading(true);
 
     try {
-      const loggedUser = await verifyMfa(mfaToken, mfaCode);
+      const account = await authApi.verifyMfa(mfaToken, mfaCode);
       window.umami?.track('login-success', { method: 'password+mfa' });
-      navigate(dashboardPathForRole(loggedUser?.role));
+      await finishSignIn(account, 'password');
     } catch (err: unknown) {
       window.umami?.track('login-failure', { method: 'mfa' });
       setError(getApiErrorMessage(err, 'Code invalide. Réessayez.'));
@@ -105,137 +172,175 @@ export function Login() {
     }
   };
 
+  const errorBox = error && (
+    <div role="alert" className="rounded bg-destructive/10 p-3 text-sm text-destructive">
+      {error}
+    </div>
+  );
+
+  const addressFirst = !passkeySupported || addressFocused || email !== '';
+
+  const passkeyButton = (
+    <Button
+      type="button"
+      variant={step === 'identify' && addressFirst ? 'outline' : 'default'}
+      size="lg"
+      className="w-full px-4"
+      onClick={handlePasskeyButton}
+      disabled={isLoading}
+    >
+      <Fingerprint />
+      {isLoading ? 'Vérification…' : 'Se connecter avec cet appareil'}
+    </Button>
+  );
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8">
+    <div className="flex min-h-dvh items-center justify-center bg-background px-4 py-4 sm:py-6">
+      <div className="w-full max-w-md space-y-4 sm:space-y-6">
         <div className="flex flex-col items-center text-center">
-          <Logo className="h-20 w-auto" />
-          <p className="mt-4 text-muted-foreground">Plateforme de gestion des menus</p>
+          <Logo className="h-12 w-auto sm:h-16" />
+          <p className="mt-2 text-sm text-muted-foreground">Plateforme de gestion des menus</p>
         </div>
 
-        <div className="rounded-lg border border-border bg-card p-8 shadow-lg">
-          {mode === 'passkey-first' && (
-            <div className="space-y-6">
-              <div className="text-center">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                  <Fingerprint className="h-8 w-8 text-primary" />
-                </div>
-                <h2 className="text-lg font-semibold text-foreground">Bienvenue</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Utilisez votre empreinte digitale, Face ID ou Windows Hello pour accéder à votre
-                  compte.
-                </p>
-              </div>
+        <div className="rounded-lg border border-border bg-card p-4 shadow-lg sm:p-6">
+          {(step === 'identify' || step === 'password') && (
+            <form
+              method="post"
+              onSubmit={step === 'identify' ? handleEmailSubmit : handlePasswordSubmit}
+              className="space-y-4"
+            >
+              {step === 'identify' ? (
+                <>
+                  <div className="text-center">
+                    <h2 className="text-lg font-semibold text-foreground">Bienvenue</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {passkeySupported
+                        ? "Utilisez l'empreinte, le visage ou le code de cet appareil."
+                        : 'Connectez-vous avec votre adresse e-mail.'}
+                    </p>
+                  </div>
 
-              {error && (
-                <div className="rounded bg-destructive/10 p-3 text-sm text-destructive">
-                  {error}
+                  {errorBox}
+
+                  {passkeySupported && (
+                    <>
+                      {passkeyButton}
+
+                      {detectPlatform() === 'desktop' && (
+                        <details className="group text-center text-sm">
+                          <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+                            Votre passkey est sur votre téléphone ?
+                            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                          </summary>
+                          <p className="mt-2 text-muted-foreground">
+                            Cliquez sur « Se connecter avec cet appareil », choisissez l'option du
+                            téléphone dans la fenêtre qui s'ouvre, puis scannez le code avec lui. Le
+                            Bluetooth doit être activé sur les deux appareils.
+                          </p>
+                        </details>
+                      )}
+
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="h-px flex-1 bg-border" />
+                        ou
+                        <span className="h-px flex-1 bg-border" />
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                <div className="text-center">
+                  <h2 className="text-lg font-semibold text-foreground">Bienvenue</h2>
+                  <p className="mt-1 flex items-center justify-center gap-2 text-sm">
+                    <span className="truncate text-muted-foreground">{email}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPassword('');
+                        goTo('identify');
+                      }}
+                      className="shrink-0 font-medium text-primary hover:underline"
+                    >
+                      Modifier
+                    </button>
+                  </p>
                 </div>
               )}
 
-              <Button
-                type="button"
-                className="w-full"
-                onClick={handlePasskeyLogin}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  'Vérification en cours…'
-                ) : (
-                  <span className="flex items-center justify-center gap-2">
-                    <Fingerprint className="h-4 w-4" />
-                    Se connecter avec cet appareil
-                  </span>
-                )}
-              </Button>
-
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError('');
-                    setMode('password');
-                  }}
-                  className="text-sm text-muted-foreground hover:text-foreground"
-                >
-                  Se connecter avec mon mot de passe →
-                </button>
-              </div>
-            </div>
-          )}
-
-          {mode === 'password' && (
-            <form onSubmit={handlePasswordSubmit} className="space-y-6">
-              <div>
-                <h2 className="mb-4 text-lg font-semibold text-foreground">Connexion</h2>
-              </div>
-
-              <div>
-                <Label htmlFor="email">Adresse email</Label>
+              {/* Stays in the form once hidden, so a password manager saves it with the password. */}
+              <div hidden={step !== 'identify'}>
+                <Label htmlFor="email">Adresse e-mail</Label>
                 <Input
                   id="email"
+                  name="email"
                   type="email"
+                  autoComplete={step === 'identify' ? 'username webauthn' : 'username'}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="mt-1"
-                  autoFocus
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="password">Mot de passe</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onFocus={() => setAddressFocused(true)}
+                  onBlur={() => setAddressFocused(false)}
                   required
                   className="mt-1"
                 />
               </div>
 
-              {error && (
-                <div className="rounded bg-destructive/10 p-3 text-sm text-destructive">
-                  {error}
-                </div>
-              )}
+              {step === 'identify' ? (
+                <Button
+                  type="submit"
+                  variant={addressFirst ? 'default' : 'outline'}
+                  className="w-full"
+                  disabled={isLoading}
+                >
+                  Continuer
+                </Button>
+              ) : (
+                <>
+                  <div>
+                    <Label htmlFor="password">Mot de passe</Label>
+                    <PasswordInput
+                      id="password"
+                      name="password"
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      autoFocus
+                      className="mt-1"
+                    />
+                  </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Connexion…' : 'Se connecter'}
-              </Button>
+                  {errorBox}
 
-              <p className="text-center text-sm text-muted-foreground">
-                Mot de passe oublié ? Contactez l'administrateur de votre établissement, ou écrivez
-                à{' '}
-                <a className="text-primary underline" href="mailto:contact@mariam.app">
-                  contact@mariam.app
-                </a>
-                .
-              </p>
+                  {passkeyOnly ? (
+                    passkeySupported && passkeyButton
+                  ) : (
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? 'Connexion…' : 'Se connecter'}
+                    </Button>
+                  )}
 
-              {passkeySupported && (
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setError('');
-                      setMode('passkey-first');
-                    }}
-                    className="text-sm text-muted-foreground hover:text-foreground"
-                  >
-                    ← Retour
-                  </button>
-                </div>
+                  <p className="text-center text-sm text-muted-foreground">
+                    Mot de passe oublié ? Contactez l'administrateur de votre établissement, ou
+                    écrivez à{' '}
+                    <a className="text-primary underline" href="mailto:contact@mariam.app">
+                      contact@mariam.app
+                    </a>
+                    .
+                  </p>
+                </>
               )}
             </form>
           )}
 
-          {mode === 'mfa' && (
+          {step === 'offer' && signedIn && (
+            <PasskeyOffer account={signedIn} onDone={() => enter(signedIn)} />
+          )}
+
+          {step === 'mfa' && (
             <div className="space-y-6">
               <div className="text-center">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                  <ShieldCheck className="h-8 w-8 text-primary" />
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                  <ShieldCheck className="h-6 w-6 text-primary" />
                 </div>
                 <h2 className="text-lg font-semibold text-foreground">Code de sécurité</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -257,14 +362,11 @@ export function Login() {
                     maxLength={6}
                     autoFocus
                     inputMode="numeric"
+                    autoComplete="one-time-code"
                   />
                 </div>
 
-                {error && (
-                  <div className="rounded bg-destructive/10 p-3 text-sm text-destructive">
-                    {error}
-                  </div>
-                )}
+                {errorBox}
 
                 <Button
                   type="submit"
@@ -279,9 +381,8 @@ export function Login() {
                 <button
                   type="button"
                   onClick={() => {
-                    setMode('password');
                     setMfaCode('');
-                    setError('');
+                    goTo('password');
                   }}
                   className="text-sm text-muted-foreground hover:text-foreground"
                 >
@@ -292,11 +393,13 @@ export function Login() {
           )}
         </div>
 
-        <div className="text-center">
-          <Link to="/menu" className="text-sm text-muted-foreground hover:text-primary">
-            Consulter le menu du jour →
-          </Link>
-        </div>
+        {step === 'identify' && (
+          <div className="text-center">
+            <Link to="/" className="text-sm text-muted-foreground hover:text-primary">
+              Consulter le menu du jour →
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { useIdentityConfirmed, useStepUp } from '@/hooks/useStepUp';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import { userApi, type Passkey } from '@/lib/api/user';
 import { passkeyRegistrationError } from '@/lib/passkey-errors';
+import { registerPasskey } from '@/lib/passkey-registration';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -15,10 +16,6 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  startRegistration,
-  type PublicKeyCredentialCreationOptionsJSON,
-} from '@simplewebauthn/browser';
 import { Fingerprint, Trash2, Plus, AlertCircle, Check, Pencil, X } from 'lucide-react';
 
 function formatDate(dateStr: string | null): string {
@@ -83,11 +80,7 @@ export function PasskeyManager() {
 
     setIsRegistering(true);
     try {
-      const { options, challenge_token } = await userApi.passkeyOptions();
-      const credential = await startRegistration({
-        optionsJSON: options as unknown as PublicKeyCredentialCreationOptionsJSON,
-      });
-      await userApi.createPasskey(challenge_token, credential, deviceName.trim() || undefined);
+      await registerPasskey({ deviceName: deviceName.trim() || undefined });
 
       setMessage({ type: 'success', text: 'Passkey enregistrée avec succès !' });
       setDeviceName('');

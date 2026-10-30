@@ -128,6 +128,12 @@ export function TotpManager() {
             <p className="mt-0.5 text-sm text-muted-foreground">
               Codes à 6 chiffres via Google Authenticator, Microsoft Authenticator, etc.
             </p>
+            {!mfaEnabled && passkeysCount > 0 && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                En secours de vos passkeys : pour vous connecter d'un ordinateur quand votre
+                téléphone n'est pas à portée.
+              </p>
+            )}
             <span
               className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
                 mfaEnabled

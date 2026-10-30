@@ -81,7 +81,8 @@ _DEMO_CLOSE_TIME = '14:00'
 
 def register_commands(app):
     @app.cli.command('seed-demo')
-    def seed_demo():
+    @click.option('--password', help='Password of the demo accounts; random if omitted.')
+    def seed_demo(password: str | None):
         """Create demo restaurant, admin user, and a published week of menus."""
         click.echo('\nChecking reference taxonomy...')
         _upsert_dietary_tag_categories()
@@ -94,7 +95,7 @@ def register_commands(app):
 
         organization = _ensure_demo_organization()
         db.session.commit()
-        password = _generate_password()
+        password = password or _generate_password()
         restaurants = []
         menu_count = item_count = view_count = vote_count = 0
 

@@ -91,7 +91,7 @@ export function InlineError({
           </Button>
         )}
         <Link
-          to="/menu"
+          to="/"
           className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <Home className="h-3 w-3" />

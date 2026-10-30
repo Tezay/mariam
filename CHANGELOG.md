@@ -48,8 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A site's public page in the API**: tagline, presentation, logo, cover, gallery, access, services and links.
 - **"Page publique"** in the dashboard, for a site's admins: presentation, images, access, services, links and menu window.
 - **A site's page at `/` or `/<site>`**: the menu of each day of its window, practical information, map and gallery.
+- **Every password field can show what was typed.**
 - **The public pages follow the system's dark theme**; the TV display stays light.
 - **A notifications panel over a site's page**, with every step to turn them on, blocked notifications included.
+- **After a sign-in from the phone, a computer offers a passkey of its own**, again two months after a refusal.
 
 ### Changed
 
@@ -70,6 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The install page guides every browser on a computer**: Chrome and Edge in one click, Safari to the Dock.
 - **A session answers `confirmed_for` instead of its tokens**, and `/v1/auth/refresh` answers `204`.
 - **`PATCH /v1/user` returns the account**, as `GET /v1/user` does.
+- **Sign-in asks for one thing at a time**: the device's passkey first, or the address then the password.
+- **An account with passkeys only is offered the authenticator app as a backup.**
 
 - **React Router 7** replaces `react-router-dom` 6; the current page stays visible while the next one loads.
 - **The frontend is built by React Router's framework mode**; the build needs Node 22 alongside Bun.
@@ -131,6 +135,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Chrome's install offer is no longer lost** when it comes before the page is ready.
 - **Clicking a notification no longer takes over an open dashboard tab.**
 - **The dashboard installed on an iPhone or a Mac opens signed in**, after a QR code hand-over too.
+- **Password managers save a reset or changed password**: its fields now sit in the form they are sent with.
 
 ## [0.19.0] - 2026-10-13
 
