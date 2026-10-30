@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { authApi } from '@/lib/api/auth';
 import { dropStoredTokens, hasSession, onSessionEnd } from '@/lib/api/session';
 import { userApi, type Account } from '@/lib/api/user';
+import { signalAcceptedPasskeys } from '@/lib/passkey-signals';
 
 interface AuthContextType {
   user: Account | null;
@@ -58,7 +59,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     isLoading,
     isAuthenticated: !!user,
-    signIn: setUser,
+    signIn: (account: Account) => {
+      setUser(account);
+      void signalAcceptedPasskeys();
+    },
     refreshUser,
     logout,
   };

@@ -5,6 +5,7 @@ import { getApiErrorMessage } from '@/lib/api/errors';
 import { userApi } from '@/lib/api/user';
 import { DISPLAY_NAME_RULE, parseDisplayName } from '@/lib/display-name';
 import { EMAIL_RULE, canonicalEmail } from '@/lib/email-address';
+import { signalAcceptedPasskeys } from '@/lib/passkey-signals';
 import { notify } from '@/lib/toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -67,6 +68,7 @@ export function ProfileDialog({
       notify.success('Profil mis à jour');
     }
     onOpenChange(false);
+    void signalAcceptedPasskeys();
     // Saved already: a failure to re-read the profile must not read as a failed save.
     refreshUser().catch(() => {});
   };

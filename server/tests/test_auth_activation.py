@@ -5,6 +5,7 @@ import pytest
 from cryptography.fernet import Fernet
 from flask_jwt_extended import decode_token
 from sqlalchemy.exc import IntegrityError
+from webauthn.helpers import base64url_to_bytes
 
 from app.extensions import db
 from app.models import ActivationLink, AuditLog, Organization, Passkey, User
@@ -367,6 +368,15 @@ class TestPasskeySetup:
         assert Passkey.query.filter_by(user_id=user_id).count() == 1
         assert db.session.get(User, user_id).mfa_secret is None
         assert AuditLog.query.filter_by(action=AuditLog.ACTION_PASSKEY_SETUP).count() == 1
+
+    def test_the_account_keeps_the_handle_of_its_activation_passkey(self, app, client):
+        user_id, _, setup_token = _activated(client)
+
+        handle = self._begin(client, setup_token).get_json()['options']['user']['id']
+        # The suite's requests share one session: a rollback stands for the end of the request.
+        db.session.rollback()
+
+        assert db.session.get(User, user_id).webauthn_user_id == base64url_to_bytes(handle)
 
     def test_the_passkey_must_be_discoverable_and_verified(self, app, client):
         _, _, setup_token = _activated(client)

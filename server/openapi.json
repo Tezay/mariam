@@ -1512,7 +1512,7 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "The account's passkeys.",
+        "summary": "The account's passkeys, and what a browser needs to bring its own in line with them.",
         "tags": [
           "user"
         ]
@@ -8561,14 +8561,45 @@
         ],
         "additionalProperties": false
       },
+      "WebAuthnUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "base64url; null until the account first asks for a passkey",
+            "nullable": true
+          },
+          "name": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "display_name",
+          "id",
+          "name"
+        ],
+        "additionalProperties": false
+      },
       "Passkey": {
         "type": "object",
         "properties": {
           "id": {
             "type": "integer"
           },
+          "credential_id": {
+            "type": "string",
+            "description": "base64url"
+          },
           "device_name": {
             "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "description": "The password manager that holds it, when its AAGUID is known",
+            "nullable": true
           },
           "transports": {
             "type": "array",
@@ -8589,9 +8620,11 @@
         },
         "required": [
           "created_at",
+          "credential_id",
           "device_name",
           "id",
           "last_used_at",
+          "provider",
           "transports"
         ],
         "additionalProperties": false
@@ -8599,6 +8632,12 @@
       "PasskeyList": {
         "type": "object",
         "properties": {
+          "rp_id": {
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/WebAuthnUser"
+          },
           "items": {
             "type": "array",
             "items": {
@@ -8607,7 +8646,9 @@
           }
         },
         "required": [
-          "items"
+          "items",
+          "rp_id",
+          "user"
         ],
         "additionalProperties": false
       },

@@ -29,6 +29,8 @@ class User(db.Model):
     mfa_secret = db.Column(EncryptedSecret, nullable=True)
     mfa_enabled = db.Column(db.Boolean, default=False)
 
+    webauthn_user_id = db.Column(db.LargeBinary, unique=True, nullable=True)
+
     is_active = db.Column(db.Boolean, default=True)
     is_rescue_account = db.Column(db.Boolean, default=False)
 

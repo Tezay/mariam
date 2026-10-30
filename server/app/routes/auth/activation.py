@@ -252,7 +252,9 @@ def verify_mfa_setup(body):
 def passkey_setup_begin(body):
     """Start registering a passkey at activation, in place of TOTP."""
     user, _ = _setup_account(body['setup_token'])
-    return passkeys.begin_registration(user, Ceremony.SETUP)
+    options = passkeys.begin_registration(user, Ceremony.SETUP)
+    db.session.commit()
+    return options
 
 
 @auth_bp.route('/passkey/setup/complete', methods=['POST'])

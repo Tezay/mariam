@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A site's logo is uploaded:** never an outside address.
 - **The session lives in `HttpOnly` cookies**: no script on a page reads a token any more.
 - **Each write of a cookie session carries a CSRF token**, signed into the session.
+- **An account's passkeys carry a random handle**, no longer its database id.
 
 ### Added
 
@@ -49,6 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **"Page publique"** in the dashboard, for a site's admins: presentation, images, access, services, links and menu window.
 - **A site's page at `/` or `/<site>`**: the menu of each day of its window, practical information, map and gallery.
 - **Every password field can show what was typed.**
+- **Each passkey names the password manager that holds it** in "Mon compte", when known.
+- **Password managers learn of a deleted passkey or a new name**, in browsers with the Signal API.
 - **The public pages follow the system's dark theme**; the TV display stays light.
 - **A notifications panel over a site's page**, with every step to turn them on, blocked notifications included.
 - **After a sign-in from the phone, a computer offers a passkey of its own**, again two months after a refusal.

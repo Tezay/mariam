@@ -10,6 +10,7 @@ export type UiPreferences = Required<Schemas['UiPreferences']>;
 export type NotifPreferences = Required<Schemas['NotificationPreferences']>;
 export type Alert = Schemas['Alert'];
 export type Passkey = Schemas['Passkey'];
+export type PasskeyList = Schemas['PasskeyList'];
 export type TotpEnrolment = Schemas['TotpEnrolment'];
 export type WebAuthnOptions = Schemas['WebAuthnOptions'];
 
@@ -37,7 +38,7 @@ export const userApi = {
 
   listAlerts: async (): Promise<Alert[]> => (await api.get('/user/alerts')).data.items,
 
-  listPasskeys: async (): Promise<Passkey[]> => (await api.get('/user/passkeys')).data.items,
+  listPasskeys: async (): Promise<PasskeyList> => (await api.get('/user/passkeys')).data,
 
   passkeyOptions: async (thisDevice = false): Promise<WebAuthnOptions> =>
     (await api.post('/user/passkeys/options', { this_device: thisDevice })).data,

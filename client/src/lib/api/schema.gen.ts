@@ -1711,7 +1711,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The account's passkeys. */
+        /** The account's passkeys, and what a browser needs to bring its own in line with them. */
         get: {
             parameters: {
                 query?: never;
@@ -6956,9 +6956,19 @@ export interface components {
         AlertList: {
             items: components["schemas"]["Alert"][];
         };
+        WebAuthnUser: {
+            /** @description base64url; null until the account first asks for a passkey */
+            id: string | null;
+            name: string;
+            display_name: string;
+        };
         Passkey: {
             id: number;
+            /** @description base64url */
+            credential_id: string;
             device_name: string;
+            /** @description The password manager that holds it, when its AAGUID is known */
+            provider: string | null;
             transports: string[];
             /** Format: date-time */
             created_at: string | null;
@@ -6966,6 +6976,8 @@ export interface components {
             last_used_at: string | null;
         };
         PasskeyList: {
+            rp_id: string;
+            user: components["schemas"]["WebAuthnUser"];
             items: components["schemas"]["Passkey"][];
         };
         PasskeyOptionsInput: {

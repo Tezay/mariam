@@ -1,4 +1,5 @@
 import json
+import secrets
 from collections.abc import Iterable
 from datetime import timedelta
 from enum import StrEnum
@@ -34,6 +35,7 @@ _ALGORITHMS = [
     COSEAlgorithmIdentifier.RSASSA_PKCS1_v1_5_SHA_256,
 ]
 _KNOWN_TRANSPORTS = {transport.value for transport in AuthenticatorTransport}
+_ANONYMOUS_AAGUID = '00000000-0000-0000-0000-000000000000'
 
 
 class Ceremony(StrEnum):
@@ -87,12 +89,15 @@ def read_challenge(token: str, ceremony: Ceremony) -> tuple[int, bytes]:
 
 
 def begin_registration(user: User, ceremony: Ceremony, *, this_device: bool = False) -> dict:
+    """Gives the account its handle at its first passkey; the caller commits."""
+    if user.webauthn_user_id is None:
+        user.webauthn_user_id = secrets.token_bytes(32)
     options = webauthn.generate_registration_options(
         rp_id=current_app.config['WEBAUTHN_RP_ID'],
         rp_name=current_app.config['WEBAUTHN_RP_NAME'],
-        user_id=str(user.id).encode(),
+        user_id=user.webauthn_user_id,
         user_name=user.email,
-        user_display_name=user.username or user.email,
+        user_display_name=_display_name(user),
         exclude_credentials=_descriptors(user.passkeys),
         # Any passkey may end up the account's only factor, so it has to serve
         # passwordless login: discoverable, and verifying the user.
@@ -137,8 +142,17 @@ def verify_registration(
         public_key=verification.credential_public_key,
         sign_count=verification.sign_count,
         transports=list(transports),
+        aaguid=None if verification.aaguid == _ANONYMOUS_AAGUID else verification.aaguid,
         device_name=name or describe_device(user_agent),
     )
+
+
+def user_entity(user: User) -> dict:
+    return {
+        'id': bytes_to_base64url(user.webauthn_user_id) if user.webauthn_user_id else None,
+        'name': user.email,
+        'display_name': _display_name(user),
+    }
 
 
 def begin_authentication(user_id: int, passkeys: Iterable[Passkey], ceremony: Ceremony) -> dict:
@@ -225,6 +239,10 @@ def describe_device(user_agent: str) -> str:
     if os_name and browser:
         return f'{os_name} · {browser}'
     return os_name or browser or 'Appareil inconnu'
+
+
+def _display_name(user: User) -> str:
+    return user.username or user.email
 
 
 def _descriptors(passkeys: Iterable[Passkey]) -> list[PublicKeyCredentialDescriptor]:

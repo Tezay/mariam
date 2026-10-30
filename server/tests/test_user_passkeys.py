@@ -1,7 +1,11 @@
 """The account's passkeys: registering, renaming, removing."""
-import pytest
+import uuid
 
-from app.models import AuditLog, Passkey
+import pytest
+from webauthn.helpers import base64url_to_bytes
+
+from app.extensions import db
+from app.models import AuditLog, Passkey, User
 from conftest import make_user
 from tests.auth_support import enable_totp, enroll_passkey, new_authenticator, session_headers
 from tests.webauthn_authenticator import b64url
@@ -43,6 +47,55 @@ class TestRegistration:
         assert offered['hints'] == ['client-device']
         assert 'authenticatorAttachment' not in plain['authenticatorSelection']
         assert 'hints' not in plain
+
+    @pytest.mark.parametrize('aaguid, provider', [
+        ('ea9b8d66-4d01-1d21-3ce4-b6b48cb575d4', 'Gestionnaire de mots de passe Google'),
+        ('00000000-0000-0000-0000-000000000000', None),
+        ('0d4b6b44-1f5a-4b0a-9a2e-6f1e8c0b9a7d', None),
+    ])
+    def test_a_passkey_names_its_password_manager_when_known(self, app, client, aaguid, provider):
+        uid = make_user(app)
+        begin = self._begin(client, uid).get_json()
+        authenticator = new_authenticator(uuid.UUID(aaguid).bytes)
+        self._complete(client, uid, begin, authenticator.register(begin['options']))
+
+        [passkey] = client.get('/v1/user/passkeys', headers=session_headers(uid)).get_json()['items']
+
+        assert passkey['provider'] == provider
+        assert passkey['credential_id'] == b64url(authenticator.credential_id)
+
+    def test_the_list_carries_the_account_as_its_passkeys_know_it(self, app, client):
+        uid = make_user(app)
+        options = self._begin(client, uid).get_json()['options']
+
+        listed = client.get('/v1/user/passkeys', headers=session_headers(uid)).get_json()
+
+        assert listed['rp_id'] == options['rp']['id']
+        assert listed['user'] == {
+            'id': options['user']['id'],
+            'name': options['user']['name'],
+            'display_name': options['user']['displayName'],
+        }
+
+    def test_each_account_gets_a_random_handle_of_its_own_that_stays(self, app, client):
+        first, second = make_user(app), make_user(app, email='second@example.org')
+
+        handle = self._begin(client, first).get_json()['options']['user']['id']
+        # The suite's requests share one session: a rollback stands for the end of the request.
+        db.session.rollback()
+
+        assert len(base64url_to_bytes(handle)) == 32
+        assert self._begin(client, first).get_json()['options']['user']['id'] == handle
+        assert self._begin(client, second).get_json()['options']['user']['id'] != handle
+
+    def test_an_account_keeps_the_handle_its_passkeys_carry(self, app, client):
+        uid = make_user(app)
+        db.session.get(User, uid).webauthn_user_id = str(uid).encode()
+        db.session.commit()
+
+        options = self._begin(client, uid).get_json()['options']
+
+        assert base64url_to_bytes(options['user']['id']) == str(uid).encode()
 
     def test_an_unnamed_passkey_is_named_after_the_device(self, app, client):
         uid = make_user(app)

@@ -64,9 +64,9 @@ def confirmed_headers(
     return auth_headers(session_tokens(client)['access_token'])
 
 
-def new_authenticator() -> SoftAuthenticator:
+def new_authenticator(aaguid: bytes = bytes(16)) -> SoftAuthenticator:
     return SoftAuthenticator(
-        current_app.config['WEBAUTHN_RP_ID'], current_app.config['WEBAUTHN_ORIGIN']
+        current_app.config['WEBAUTHN_RP_ID'], current_app.config['WEBAUTHN_ORIGIN'], aaguid
     )
 
 

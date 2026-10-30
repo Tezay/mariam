@@ -23,6 +23,8 @@ class Passkey(db.Model):
 
     transports = db.Column(db.ARRAY(db.String), nullable=True)
 
+    aaguid = db.Column(db.String(36), nullable=True)
+
     device_name = db.Column(db.String(100), nullable=True)
 
     created_at = db.Column(db.DateTime, default=utc_now_naive)
