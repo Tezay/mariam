@@ -15,7 +15,6 @@ from cryptography.hazmat.primitives.asymmetric import ec
 _USER_PRESENT = 0x01
 _USER_VERIFIED = 0x04
 _ATTESTED_CREDENTIAL = 0x40
-_ANONYMOUS_AAGUID = bytes(16)
 
 
 def b64url(data: bytes) -> str:
@@ -23,9 +22,10 @@ def b64url(data: bytes) -> str:
 
 
 class SoftAuthenticator:
-    def __init__(self, rp_id: str, origin: str):
+    def __init__(self, rp_id: str, origin: str, aaguid: bytes = bytes(16)):
         self.rp_id = rp_id
         self.origin = origin
+        self.aaguid = aaguid
         self.credential_id = os.urandom(16)
         self.sign_count = 0
         self._key = ec.generate_private_key(ec.SECP256R1())
@@ -45,7 +45,7 @@ class SoftAuthenticator:
 
     def register(self, options: dict) -> dict:
         attested = (
-            _ANONYMOUS_AAGUID
+            self.aaguid
             + len(self.credential_id).to_bytes(2, 'big')
             + self.credential_id
             + self.public_key

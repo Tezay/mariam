@@ -15,6 +15,8 @@ const account = {
 const signIn = vi.fn();
 const registerPasskey = vi.fn();
 const login = vi.fn();
+const passkeyLoginComplete = vi.fn();
+const signalUnknownPasskey = vi.fn();
 let attachment: string;
 let platform: 'desktop' | 'ios';
 
@@ -29,14 +31,18 @@ vi.mock('@/lib/passkey-registration', () => ({
 vi.mock('@/lib/api/auth', () => ({
   authApi: {
     login: (email: string, password: string) => login(email, password),
-    passkeyLoginBegin: async () => ({ options: {}, challenge_token: 'challenge' }),
-    passkeyLoginComplete: async () => account,
+    passkeyLoginBegin: async () => ({ options: { rpId: 'mariam.test' }, challenge_token: 'c' }),
+    passkeyLoginComplete: () => passkeyLoginComplete(),
   },
+}));
+vi.mock('@/lib/passkey-signals', () => ({
+  signalUnknownPasskey: (rpId: string, credentialId: string) =>
+    signalUnknownPasskey(rpId, credentialId),
 }));
 vi.mock('@simplewebauthn/browser', () => ({
   browserSupportsWebAuthnAutofill: async () => false,
   platformAuthenticatorIsAvailable: async () => true,
-  startAuthentication: async () => ({ authenticatorAttachment: attachment }),
+  startAuthentication: async () => ({ id: 'credential-id', authenticatorAttachment: attachment }),
   WebAuthnAbortService: { cancelCeremony: () => {} },
 }));
 
@@ -55,6 +61,17 @@ async function signInWithPasskey() {
   await userEvent.click(screen.getByRole('button', { name: 'Se connecter avec cet appareil' }));
 }
 
+function problem(status: number, code: string) {
+  const config = { headers: new AxiosHeaders() };
+  return new AxiosError('Request failed', 'ERR_BAD_REQUEST', config, null, {
+    data: { title: 'Refused', status, detail: '', code },
+    status,
+    statusText: 'Refused',
+    headers: {},
+    config,
+  });
+}
+
 async function continueWith(address: string) {
   await userEvent.type(screen.getByLabelText('Adresse e-mail'), address);
   await userEvent.click(screen.getByRole('button', { name: 'Continuer' }));
@@ -66,6 +83,8 @@ beforeEach(() => {
   signIn.mockClear();
   registerPasskey.mockReset();
   login.mockReset();
+  passkeyLoginComplete.mockReset().mockResolvedValue(account);
+  signalUnknownPasskey.mockClear();
   attachment = 'cross-platform';
   platform = 'desktop';
 });
@@ -100,6 +119,17 @@ describe("after a sign-in with the phone's passkey", () => {
     expect(signIn).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: 'Continuer' }));
     expect(signIn).toHaveBeenCalledWith(account);
+  });
+});
+
+describe('with a passkey the account no longer has', () => {
+  it('tells the device to forget it', async () => {
+    passkeyLoginComplete.mockRejectedValue(problem(401, 'passkey_unknown'));
+
+    await signInWithPasskey();
+
+    expect(await screen.findByText(/ne correspond à aucun compte/)).toBeDefined();
+    expect(signalUnknownPasskey).toHaveBeenCalledWith('mariam.test', 'credential-id');
   });
 });
 
@@ -149,16 +179,7 @@ describe('signing in with an address', () => {
   });
 
   it('offers the passkey in place of the password to an account that has only passkeys', async () => {
-    const config = { headers: new AxiosHeaders() };
-    login.mockRejectedValue(
-      new AxiosError('Request failed', 'ERR_BAD_REQUEST', config, null, {
-        data: { title: 'Forbidden', status: 403, detail: '', code: 'passkey_only' },
-        status: 403,
-        statusText: 'Forbidden',
-        headers: {},
-        config,
-      })
-    );
+    login.mockRejectedValue(problem(403, 'passkey_only'));
     openLogin();
     await continueWith('eliot@example.org');
     await userEvent.type(screen.getByLabelText('Mot de passe'), 'secret');

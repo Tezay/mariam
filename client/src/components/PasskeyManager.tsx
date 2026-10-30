@@ -5,6 +5,7 @@ import { getApiErrorMessage } from '@/lib/api/errors';
 import { userApi, type Passkey } from '@/lib/api/user';
 import { passkeyRegistrationError } from '@/lib/passkey-errors';
 import { registerPasskey } from '@/lib/passkey-registration';
+import { signalAcceptedPasskeys } from '@/lib/passkey-signals';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -48,8 +49,7 @@ export function PasskeyManager() {
 
   const loadPasskeys = useCallback(async () => {
     try {
-      const list = await userApi.listPasskeys();
-      setPasskeys(list);
+      setPasskeys((await userApi.listPasskeys()).items);
     } catch {
       // The list then shows empty.
     } finally {
@@ -151,6 +151,7 @@ export function PasskeyManager() {
     try {
       await userApi.deletePasskey(passkey.id);
       setPasskeys((prev) => prev.filter((p) => p.id !== passkey.id));
+      void signalAcceptedPasskeys();
       await refreshUser();
     } catch (err: unknown) {
       setDeleteError(getApiErrorMessage(err, 'Erreur lors de la suppression'));
@@ -231,6 +232,7 @@ export function PasskeyManager() {
                       {pk.device_name || 'Appareil sans nom'}
                     </p>
                     <p className="text-xs text-muted-foreground">
+                      {pk.provider && `${pk.provider} · `}
                       Ajoutée le {formatDate(pk.created_at)}
                       {pk.last_used_at && ` · Utilisée le ${formatDate(pk.last_used_at)}`}
                     </p>

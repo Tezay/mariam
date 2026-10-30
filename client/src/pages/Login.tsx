@@ -10,6 +10,7 @@ import { authApi } from '@/lib/api/auth';
 import { getApiErrorMessage, getProblemCode } from '@/lib/api/errors';
 import type { Account } from '@/lib/api/user';
 import { readOfferAnswer, shouldOfferPasskey } from '@/lib/passkey-offer';
+import { signalUnknownPasskey } from '@/lib/passkey-signals';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -89,9 +90,18 @@ export function Login() {
 
   const completePasskeySignIn = async (
     challengeToken: string,
-    credential: AuthenticationResponseJSON
+    credential: AuthenticationResponseJSON,
+    rpId?: string
   ) => {
-    const account = await authApi.passkeyLoginComplete(challengeToken, credential);
+    let account: Account;
+    try {
+      account = await authApi.passkeyLoginComplete(challengeToken, credential);
+    } catch (err: unknown) {
+      if (rpId && getProblemCode(err) === 'passkey_unknown') {
+        void signalUnknownPasskey(rpId, credential.id);
+      }
+      throw err;
+    }
     window.umami?.track('login-success', { method: 'passkey' });
     await finishSignIn(account, 'passkey', credential.authenticatorAttachment);
   };
@@ -109,17 +119,16 @@ export function Login() {
     }
   };
 
-  usePasskeyAutofill(step === 'identify' && !isLoading, (challengeToken, credential) =>
-    signInWith(() => completePasskeySignIn(challengeToken, credential))
+  usePasskeyAutofill(step === 'identify' && !isLoading, (challengeToken, credential, rpId) =>
+    signInWith(() => completePasskeySignIn(challengeToken, credential, rpId))
   );
 
   const handlePasskeyButton = () =>
     signInWith(async () => {
       const { options, challenge_token } = await authApi.passkeyLoginBegin();
-      const credential = await startAuthentication({
-        optionsJSON: options as unknown as PublicKeyCredentialRequestOptionsJSON,
-      });
-      await completePasskeySignIn(challenge_token, credential);
+      const optionsJSON = options as unknown as PublicKeyCredentialRequestOptionsJSON;
+      const credential = await startAuthentication({ optionsJSON });
+      await completePasskeySignIn(challenge_token, credential, optionsJSON.rpId);
     });
 
   const handleEmailSubmit = (e: React.FormEvent) => {

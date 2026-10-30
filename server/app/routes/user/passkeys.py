@@ -1,6 +1,8 @@
-from flask import request
+from flask import current_app, request
 from flask_jwt_extended import jwt_required
+from webauthn.helpers import bytes_to_base64url
 
+from ...data.passkey_providers import PASSKEY_PROVIDERS
 from ...extensions import db
 from ...models import AuditLog, Passkey
 from ...problems import Problem
@@ -24,7 +26,9 @@ from .blueprint import user_bp
 def passkey_view(passkey) -> dict:
     return {
         'id': passkey.id,
+        'credential_id': bytes_to_base64url(passkey.credential_id),
         'device_name': passkey.device_name or 'Appareil inconnu',
+        'provider': PASSKEY_PROVIDERS.get(passkey.aaguid),
         'transports': passkey.transports or [],
         'created_at': as_utc(passkey.created_at),
         'last_used_at': as_utc(passkey.last_used_at),
@@ -42,8 +46,13 @@ def _own_passkey(user_id: int, passkey_id: int):
 @jwt_required()
 @user_bp.response(200, PasskeyListSchema)
 def list_passkeys():
-    """The account's passkeys."""
-    return {'items': [passkey_view(passkey) for passkey in get_current_user().passkeys]}
+    """The account's passkeys, and what a browser needs to bring its own in line with them."""
+    user = get_current_user()
+    return {
+        'rp_id': current_app.config['WEBAUTHN_RP_ID'],
+        'user': passkeys.user_entity(user),
+        'items': [passkey_view(passkey) for passkey in user.passkeys],
+    }
 
 
 @user_bp.route('/passkeys/options', methods=['POST'])
@@ -61,9 +70,11 @@ def passkey_options(body):
     for one that serves passwordless sign-in. `this_device` asks for this device's
     own authenticator.
     """
-    return passkeys.begin_registration(
+    options = passkeys.begin_registration(
         get_current_user(), Ceremony.REGISTER, this_device=body['this_device']
     )
+    db.session.commit()
+    return options
 
 
 @user_bp.route('/passkeys', methods=['POST'])

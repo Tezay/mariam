@@ -254,7 +254,7 @@ neither cannot confirm (`403 second_factor_required`).
 | `GET`, `PATCH` | `U/ui-preferences` | Interface state carried by the account: the guided tours already seen |
 | `GET`, `PATCH` | `U/notification-preferences` | Which alerts the account sees, and when its weekly email lands |
 | `GET` | `U/alerts` | The account's active alerts, computed now |
-| `GET` | `U/passkeys` | The account's passkeys |
+| `GET` | `U/passkeys` | The account's passkeys, with `rp_id` and the account as they know it (`user`) |
 | `POST` | `U/passkeys/options` | Creation options and a `challenge_token` (*confirmed once enrolled*); `this_device` for this device's own authenticator |
 | `POST` | `U/passkeys` | `201`, the passkey the browser created from them (*confirmed once enrolled*) |
 | `PATCH` | `U/passkeys/{passkey_id}` | Rename a passkey |
@@ -266,6 +266,11 @@ neither cannot confirm (`403 second_factor_required`).
 | `PUT` | `U/password` | `204`; ends every session of the account, this one included |
 
 A site's team reads its organization through its site. The account carries no id of either.
+
+**Passkeys.** Each one carries its `credential_id` (base64url) and `provider`, the password manager
+its authenticator names, or `null`. Unattested, that name serves display only. `user.id` is the
+account's random WebAuthn handle, `null` until it first asks for a passkey: with `rp_id` and the
+list, it is what a browser's Signal API takes.
 
 **Address.** A new address ends every other session of the account: the response sets the
 cookies of the session that replaces the caller's, which is not confirmed.

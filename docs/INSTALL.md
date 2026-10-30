@@ -25,7 +25,8 @@ names it. Generate random values with `openssl rand -hex 32`.
 - `MARIAM_TAG` is the release checked out above.
 - `WEBAUTHN_RP_ID` is the **apex domain**, not a tenant host. A passkey is sealed to the value used
   when it was registered: scoped to a tenant subdomain, every passkey dies the day that tenant is
-  renamed.
+  renamed. Another installation under the same domain (demo, staging) takes its own host, so a
+  device never mixes the passkeys of two databases.
 - `MFA_ENCRYPTION_KEY` encrypts the stored TOTP secrets; see [OPERATIONS.md](OPERATIONS.md) to
   generate it, and keep a copy offline.
 - `S3_PUBLIC_URL` is the public address of the media bucket: images are served from it directly.

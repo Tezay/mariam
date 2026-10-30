@@ -72,13 +72,31 @@ class AlertListSchema(Schema):
 
 class PasskeySchema(Schema):
     id = fields.Int(required=True)
+    credential_id = fields.Str(required=True, metadata={'description': 'base64url'})
     device_name = fields.Str(required=True)
+    provider = fields.Str(
+        required=True,
+        allow_none=True,
+        metadata={'description': 'The password manager that holds it, when its AAGUID is known'},
+    )
     transports = fields.List(fields.Str(), required=True)
     created_at = fields.DateTime(required=True, allow_none=True)
     last_used_at = fields.DateTime(required=True, allow_none=True)
 
 
+class WebAuthnUserSchema(Schema):
+    id = fields.Str(
+        required=True,
+        allow_none=True,
+        metadata={'description': 'base64url; null until the account first asks for a passkey'},
+    )
+    name = fields.Str(required=True)
+    display_name = fields.Str(required=True)
+
+
 class PasskeyListSchema(Schema):
+    rp_id = fields.Str(required=True)
+    user = fields.Nested(WebAuthnUserSchema, required=True)
     items = fields.List(fields.Nested(PasskeySchema), required=True)
 
 

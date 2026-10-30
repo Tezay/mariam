@@ -13,7 +13,11 @@ const RENEWAL_MS = 100_000;
 
 export function usePasskeyAutofill(
   active: boolean,
-  onCredential: (challengeToken: string, credential: AuthenticationResponseJSON) => void
+  onCredential: (
+    challengeToken: string,
+    credential: AuthenticationResponseJSON,
+    rpId?: string
+  ) => void
 ) {
   const latest = useRef(onCredential);
   useEffect(() => {
@@ -32,12 +36,10 @@ export function usePasskeyAutofill(
       try {
         const { options, challenge_token } = await authApi.passkeyLoginBegin();
         if (stopped) return;
-        const credential = await startAuthentication({
-          optionsJSON: options as unknown as PublicKeyCredentialRequestOptionsJSON,
-          useBrowserAutofill: true,
-        });
+        const optionsJSON = options as unknown as PublicKeyCredentialRequestOptionsJSON;
+        const credential = await startAuthentication({ optionsJSON, useBrowserAutofill: true });
         clearTimeout(renewal);
-        if (!stopped) latest.current(challenge_token, credential);
+        if (!stopped) latest.current(challenge_token, credential, optionsJSON.rpId);
       } catch {
         // Aborted by a renewal, the passkey button or leaving the step.
       }
