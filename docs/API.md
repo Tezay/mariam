@@ -1,5 +1,7 @@
 # API Reference
 
+> To read menus from an intranet, a portal or a bot, start with [INTEGRATING.md](INTEGRATING.md).
+
 One API serves the Mariam frontend and any other client. A published menu reads without an
 account; a session adds what its account may see and do, on the same routes. Every route is
 under `/v1`.

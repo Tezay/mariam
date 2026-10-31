@@ -69,16 +69,14 @@ Voir [docs/INSTALL.md](docs/INSTALL.md) pour la production.
 
 ## Documentation
 
-| Document | Contenu |
+| Public | Pour commencer |
 |---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Conception du système, multi-tenant, modèle de données |
-| [docs/INSTALL.md](docs/INSTALL.md) | Installation et configuration en production |
-| [docs/OPERATIONS.md](docs/OPERATIONS.md) | Déploiement, sauvegardes, supervision, provisionnement |
-| [docs/API.md](docs/API.md) | Référence REST |
-| [docs/TESTING.md](docs/TESTING.md) | Suites de tests et exécution |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Environnement de développement et conventions |
-| [SECURITY.md](SECURITY.md) | Signalement de vulnérabilité |
-| [CHANGELOG.md](CHANGELOG.md) | Historique des versions |
+| Intégrer l'API (intranet, portail, bot) | [docs/INTEGRATING.md](docs/INTEGRATING.md), puis [docs/API.md](docs/API.md) |
+| Faire tourner une instance, usage non commercial seulement ([licence](LICENSE.md)) | [docs/INSTALL.md](docs/INSTALL.md), puis [docs/OPERATIONS.md](docs/OPERATIONS.md) |
+| Contribuer | [CONTRIBUTING.md](CONTRIBUTING.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/TESTING.md](docs/TESTING.md) |
+
+Tous les documents : [docs/](docs/README.md). Ainsi que [SECURITY.md](SECURITY.md) pour signaler une vulnérabilité,
+et [CHANGELOG.md](CHANGELOG.md) pour l'historique des versions.
 
 ## Organisation du dépôt
 

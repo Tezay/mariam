@@ -68,16 +68,14 @@ See [docs/INSTALL.md](docs/INSTALL.md) for production.
 
 ## Documentation
 
-| Document | Contents |
+| Audience | Start with |
 |---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, multi-tenancy, data model |
-| [docs/INSTALL.md](docs/INSTALL.md) | Production installation and configuration |
-| [docs/OPERATIONS.md](docs/OPERATIONS.md) | Deployment, backups, monitoring, provisioning |
-| [docs/API.md](docs/API.md) | REST reference |
-| [docs/TESTING.md](docs/TESTING.md) | Test suites and how to run them |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup and conventions |
-| [SECURITY.md](SECURITY.md) | Vulnerability reporting |
-| [CHANGELOG.md](CHANGELOG.md) | Release history |
+| Integrate the API (intranet, portal, bot) | [docs/INTEGRATING.md](docs/INTEGRATING.md), then [docs/API.md](docs/API.md) |
+| Run an instance, non-commercial use only ([license](LICENSE.md)) | [docs/INSTALL.md](docs/INSTALL.md), then [docs/OPERATIONS.md](docs/OPERATIONS.md) |
+| Contribute | [CONTRIBUTING.md](CONTRIBUTING.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/TESTING.md](docs/TESTING.md) |
+
+Every document: [docs/](docs/README.md). Also [SECURITY.md](SECURITY.md) to report a vulnerability, and
+[CHANGELOG.md](CHANGELOG.md) for the release history.
 
 ## Repository layout
 
