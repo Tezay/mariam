@@ -45,10 +45,7 @@ function closure(id: number, start_date: string, end_date: string): Closure {
 
 describe('publicMenuData', () => {
   it('takes today and tomorrow from the Paris date of the instant', () => {
-    const data = publicMenuData(
-      { site, menus: [menu('2026-10-16')], events: [], closures: [] },
-      NOW
-    );
+    const data = publicMenuData({ site, menus: [menu('2026-10-16')], news: [], closures: [] }, NOW);
 
     expect(data.today).toMatchObject({ date: '2026-10-15', day_name: 'Jeudi', menu: null });
     expect(data.tomorrow).toMatchObject({ date: '2026-10-16', day_name: 'Vendredi' });
@@ -56,7 +53,7 @@ describe('publicMenuData', () => {
   });
 
   it('builds the day a visitor chose, today when none', () => {
-    const page = { site, menus: [menu('2026-10-20')], events: [], closures: [] };
+    const page = { site, menus: [menu('2026-10-20')], news: [], closures: [] };
 
     expect(publicMenuData(page, NOW, '2026-10-20').day).toMatchObject({
       date: '2026-10-20',
@@ -66,19 +63,20 @@ describe('publicMenuData', () => {
     expect(publicMenuData(page, NOW).day).toMatchObject({ date: '2026-10-15', menu: null });
   });
 
-  it('sets apart the event of the day and the closure under way', () => {
+  it('keeps the news in order and sets apart the item of the day and the closure under way', () => {
     const data = publicMenuData(
       {
         site,
         menus: [],
-        events: [event(1, '2026-10-15'), event(2, '2026-10-20')],
+        news: [event(2, '2026-10-20'), event(1, '2026-10-15')],
         closures: [closure(3, '2026-10-14', '2026-10-15'), closure(4, '2026-10-19', '2026-10-19')],
       },
       NOW
     );
 
     expect(data.todayEvent?.id).toBe(1);
-    expect(data.upcomingEvents.map((e) => e.event_date)).toEqual(['2026-10-20']);
+    expect(data.news.map((n) => n.id)).toEqual([2, 1]);
+    expect(data.upcomingEvents.map((e) => e.date)).toEqual(['2026-10-20']);
     expect(data.activeClosure?.id).toBe(3);
     expect(data.upcomingClosures.map((c) => c.id)).toEqual([4]);
   });

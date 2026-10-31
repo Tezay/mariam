@@ -1,27 +1,31 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { EventSection } from '@/pages/public/menu/EventSection';
-import type { EventData } from '@/pages/public/menu-types';
+import type { News } from '@/lib/api/news';
+import { NewsSection } from '@/pages/public/menu/NewsSection';
+import { newsLabel } from '@/pages/public/menu/news-label';
 
-function event(description: string): EventData {
+const TODAY = '2026-09-23';
+
+function item(fields: Partial<News> = {}): News {
   return {
     id: 1,
     title: 'Soirée',
-    description,
-    event_date: '2026-09-23',
+    date: TODAY,
     pinned: false,
-    published_at: null,
+    published_at: '2026-10-09T08:00:00Z',
+    images: [],
+    ...fields,
   };
 }
 
 async function openDetail(description: string) {
-  render(<EventSection upcomingEvents={[event(description)]} />);
+  render(<NewsSection news={[item({ description })]} today={TODAY} />);
   await userEvent.click(screen.getByText('Soirée'));
   return document.querySelector('.rich-text');
 }
 
-describe('event descriptions on the public page', () => {
+describe('news descriptions on the public page', () => {
   it('renders what the editor wrote as markup, not as text', async () => {
     const block = await openDetail('<p><strong>Bon appétit</strong></p>');
 
@@ -40,5 +44,21 @@ describe('event descriptions on the public page', () => {
 
     expect(block?.textContent).toContain('Rendez-vous à 12h30.');
     expect(block?.querySelector('br')).not.toBeNull();
+  });
+});
+
+describe('the line above a news title', () => {
+  it('names the day, today, or the day it was published', () => {
+    expect(newsLabel(item(), TODAY)).toBe("Aujourd'hui");
+    expect(newsLabel(item({ date: '2026-10-15' }), TODAY)).toBe('Jeudi 15 octobre');
+    expect(newsLabel(item({ date: null, pinned: true }), TODAY)).toBe(
+      'À la une · Publiée le 9 octobre'
+    );
+  });
+
+  it('shows an undated pinned item on the page', () => {
+    render(<NewsSection news={[item({ date: null, pinned: true })]} today={TODAY} />);
+
+    expect(screen.getByText('À la une · Publiée le 9 octobre')).toBeTruthy();
   });
 });

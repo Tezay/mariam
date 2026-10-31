@@ -21,9 +21,9 @@ import type {
   MenuItemData,
   DisplayCategory,
   MenuResponse,
-  EventData,
   CategorySubstitutionData,
 } from '../menu-types';
+import type { DatedNews } from '@/lib/api/news';
 import { usePublicMenu } from '../use-public-menu';
 
 const TAG_CATEGORY_NAMES: Record<string, string> = {
@@ -120,7 +120,7 @@ function TvImageCarousel({
   );
 }
 
-function TvTodayEventBanner({ event }: { event: EventData }) {
+function TvTodayEventBanner({ event }: { event: DatedNews }) {
   const palette = generateEventPalette(event.color || '#3498DB');
   const hasImages = event.images && event.images.length > 0;
 
@@ -162,7 +162,7 @@ function TvTodayEventBanner({ event }: { event: EventData }) {
   );
 }
 
-function TvUpcomingEventFooter({ event }: { event: EventData }) {
+function TvUpcomingEventFooter({ event }: { event: DatedNews }) {
   const palette = generateEventPalette(event.color || '#3498DB');
   const hasImage = event.images && event.images.length > 0;
 
@@ -201,7 +201,7 @@ function TvUpcomingEventFooter({ event }: { event: EventData }) {
           style={{ color: palette.accent }}
         >
           <Calendar className="h-5 w-5" />{' '}
-          {new Date(event.event_date).toLocaleDateString('fr-FR', {
+          {new Date(event.date).toLocaleDateString('fr-FR', {
             weekday: 'long',
             day: 'numeric',
             month: 'long',

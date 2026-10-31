@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { isRichTextHtml } from '@/lib/rich-text';
-import type { EventData } from '../menu-types';
+import type { News } from '@/lib/api/news';
+import { newsLabel } from './news-label';
 
 // The result is injected as HTML: escape before the Markdown rules add their tags.
 function escapeHtml(text: string): string {
@@ -10,7 +11,7 @@ function escapeHtml(text: string): string {
 }
 
 // The editor's HTML is sanitised server side; only rows written before it hold Markdown.
-function formatEventDescription(text: string): string {
+function formatDescription(text: string): string {
   if (isRichTextHtml(text)) return text;
   return `<p>${markdownToHtml(text)}</p>`;
 }
@@ -29,26 +30,19 @@ function markdownToHtml(text: string): string {
     .replace(/\n/g, '<br/>');
 }
 
-function eventDay(date: string): string {
-  const label = new Date(`${date}T12:00:00`).toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}
-
-function EventDialog({
-  event,
+function NewsDialog({
+  item,
+  today,
   open,
   onOpenChange,
 }: {
-  event: EventData;
+  item: News;
+  today: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const [imgIndex, setImgIndex] = useState(0);
-  const images = event.images ?? [];
+  const images = item.images;
   const step = (by: number) => setImgIndex((index) => (index + by + images.length) % images.length);
 
   return (
@@ -82,18 +76,18 @@ function EventDialog({
         <div className="flex flex-col gap-3 overflow-y-auto p-5">
           <p className="flex items-center gap-2 text-sm font-medium text-site-brand">
             <CalendarDays aria-hidden className="h-4 w-4 shrink-0" />
-            {eventDay(event.event_date)}
+            {newsLabel(item, today)}
           </p>
-          <DialogTitle className="text-xl font-bold leading-snug">{event.title}</DialogTitle>
-          {event.summary && (
+          <DialogTitle className="text-xl font-bold leading-snug">{item.title}</DialogTitle>
+          {item.summary && (
             <DialogDescription className="text-sm text-site-subtle">
-              {event.summary}
+              {item.summary}
             </DialogDescription>
           )}
-          {event.description && (
+          {item.description && (
             <div
               className="rich-text leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: formatEventDescription(event.description) }}
+              dangerouslySetInnerHTML={{ __html: formatDescription(item.description) }}
             />
           )}
         </div>
@@ -102,9 +96,9 @@ function EventDialog({
   );
 }
 
-export function TodayEvent({ event }: { event: EventData }) {
+export function TodayEvent({ item, today }: { item: News; today: string }) {
   const [open, setOpen] = useState(false);
-  const image = event.images?.[0];
+  const image = item.images[0];
 
   return (
     <>
@@ -112,15 +106,15 @@ export function TodayEvent({ event }: { event: EventData }) {
         type="button"
         onClick={() => setOpen(true)}
         className="flex w-full items-stretch overflow-hidden rounded-[20px] border border-site-line bg-site-surface text-left transition-opacity active:opacity-90"
-        style={{ borderLeft: `4px solid ${event.color || '#F5A524'}` }}
+        style={{ borderLeft: `4px solid ${item.color || '#F5A524'}` }}
       >
         <span className="flex min-w-0 flex-1 flex-col gap-1.5 p-4">
           <span className="w-fit rounded-full bg-[#F5A524] px-2 py-0.5 text-[11px] font-bold text-[#4A2E00]">
             Aujourd'hui
           </span>
-          <span className="text-base font-bold leading-snug">{event.title}</span>
-          {event.summary && <span className="text-sm text-site-subtle">{event.summary}</span>}
-          {event.description && (
+          <span className="text-base font-bold leading-snug">{item.title}</span>
+          {item.summary && <span className="text-sm text-site-subtle">{item.summary}</span>}
+          {item.description && (
             <span className="flex items-center gap-1 text-sm font-semibold text-site-brand">
               En savoir plus <ChevronRight aria-hidden className="h-4 w-4" />
             </span>
@@ -128,21 +122,21 @@ export function TodayEvent({ event }: { event: EventData }) {
         </span>
         {image && <img src={image.url} alt="" className="w-28 shrink-0 object-cover" />}
       </button>
-      <EventDialog event={event} open={open} onOpenChange={setOpen} />
+      <NewsDialog item={item} today={today} open={open} onOpenChange={setOpen} />
     </>
   );
 }
 
-function EventCard({ event }: { event: EventData }) {
+function NewsCard({ item, today }: { item: News; today: string }) {
   const [open, setOpen] = useState(false);
-  const image = event.images?.[0];
+  const image = item.images[0];
 
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-[264px] shrink-0 flex-col overflow-hidden rounded-[20px] border border-site-line bg-site-surface text-left transition-opacity active:opacity-90 lg:w-auto"
+        className="flex w-[264px] shrink-0 snap-start flex-col overflow-hidden rounded-[20px] border border-site-line bg-site-surface text-left transition-opacity active:opacity-90 lg:w-auto"
       >
         {image ? (
           <img src={image.url} alt="" className="h-[140px] w-full object-cover lg:h-[150px]" />
@@ -150,33 +144,31 @@ function EventCard({ event }: { event: EventData }) {
           <span
             aria-hidden
             className="h-1.5 w-full"
-            style={{ background: event.color || '#F5A524' }}
+            style={{ background: item.color || '#F5A524' }}
           />
         )}
         <span className="flex flex-col gap-1.5 p-3.5 lg:p-4">
-          <span className="text-xs text-site-subtle lg:text-[13px]">
-            {eventDay(event.event_date)}
-          </span>
-          <span className="text-[15px] font-bold leading-snug lg:text-base">{event.title}</span>
-          {event.summary && (
-            <span className="text-[13px] text-site-subtle lg:text-sm">{event.summary}</span>
+          <span className="text-xs text-site-subtle lg:text-[13px]">{newsLabel(item, today)}</span>
+          <span className="text-[15px] font-bold leading-snug lg:text-base">{item.title}</span>
+          {item.summary && (
+            <span className="text-[13px] text-site-subtle lg:text-sm">{item.summary}</span>
           )}
         </span>
       </button>
-      <EventDialog event={event} open={open} onOpenChange={setOpen} />
+      <NewsDialog item={item} today={today} open={open} onOpenChange={setOpen} />
     </>
   );
 }
 
-export function EventSection({ upcomingEvents }: { upcomingEvents: EventData[] }) {
-  if (upcomingEvents.length === 0) return null;
+export function NewsSection({ news, today }: { news: News[]; today: string }) {
+  if (news.length === 0) return null;
 
   return (
     <section className="flex flex-col gap-3 lg:gap-4">
-      <h2 className="text-lg font-bold lg:text-2xl lg:tracking-tight">Événements</h2>
-      <div className="-mx-4 flex gap-3 overflow-x-auto px-4 lg:mx-0 lg:grid lg:grid-cols-[repeat(auto-fill,minmax(230px,1fr))] lg:gap-4 lg:overflow-visible lg:px-0">
-        {upcomingEvents.map((event) => (
-          <EventCard key={event.id} event={event} />
+      <h2 className="text-lg font-bold lg:text-2xl lg:tracking-tight">Actualités</h2>
+      <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 lg:mx-0 lg:grid lg:grid-cols-3 lg:items-start lg:gap-4 lg:overflow-visible lg:px-0">
+        {news.map((item) => (
+          <NewsCard key={item.id} item={item} today={today} />
         ))}
       </div>
     </section>

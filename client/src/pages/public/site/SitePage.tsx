@@ -11,7 +11,7 @@ import type { MapTiles } from '@/lib/runtime-config';
 import { trackPageView } from '@/lib/telemetry';
 import { useNow } from '@/lib/use-now';
 import { ClosureSection } from '../menu/ClosureSection';
-import { EventSection } from '../menu/EventSection';
+import { NewsSection } from '../menu/NewsSection';
 import type { PublicMenuData } from '../menu-types';
 import { usePublicMenu } from '../use-public-menu';
 import { AboutSection } from './AboutSection';
@@ -116,9 +116,9 @@ export function SitePage({
           />
         </div>
 
-        {(menu.upcomingEvents.length > 0 || soonClosures.length > 0) && (
+        {(menu.news.length > 0 || soonClosures.length > 0) && (
           <div className="flex flex-col gap-8 px-4 lg:col-start-1 lg:row-start-2 lg:px-0">
-            <EventSection upcomingEvents={menu.upcomingEvents} />
+            <NewsSection news={menu.news} today={today} />
             <ClosureSection closures={soonClosures} />
           </div>
         )}

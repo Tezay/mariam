@@ -4,10 +4,11 @@ import { CalendarOff } from 'lucide-react';
 import type { Closure } from '@/lib/api/closures';
 import { CategorySection } from '../menu/CategorySection';
 import { ChefNote } from '../menu/ChefNote';
-import { TodayEvent } from '../menu/EventSection';
+import { TodayEvent } from '../menu/NewsSection';
 import { ItemDetailSheet } from '../menu/ItemDetailSheet';
 import { VoteCard } from '../menu/VoteCard';
-import type { EventData, MenuData, MenuItemData, RestaurantPublic } from '../menu-types';
+import type { News } from '@/lib/api/news';
+import type { MenuData, MenuItemData, RestaurantPublic } from '../menu-types';
 import { DayNav } from './DayNav';
 import { dayHref, dayLabel, isServed, longDay, type DayStrip } from './days';
 
@@ -81,7 +82,7 @@ interface MenuBoardProps {
   strip: DayStrip;
   closure: Closure | null;
   nextOpen: string | null;
-  todayEvent: EventData | null;
+  todayEvent: News | null;
 }
 
 export function MenuBoard({
@@ -121,7 +122,7 @@ export function MenuBoard({
 
       {isToday && todayEvent && (
         <div className="px-4 pt-4 lg:mb-6 lg:px-0 lg:pt-0">
-          <TodayEvent event={todayEvent} />
+          <TodayEvent item={todayEvent} today={today} />
         </div>
       )}
 
