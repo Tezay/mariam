@@ -42,7 +42,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   let page, live, quality;
   try {
     [page, live, quality] = await Promise.all([
-      fetchSitePage(request, org, site.slug, date, date),
+      fetchSitePage(request, org, site.slug, date, date, today),
       // The page stands without these: the gauge then shows the capacity alone, and the
       // quality section is left out.
       fetchLiveStatus(request, org, site.slug).catch(() => null),

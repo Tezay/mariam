@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, X, ArrowLeft, ArrowRight, AlertCircle } from 'lucide-react';
-import type { StoredImage } from '@/lib/api/events';
+import type { StoredImage } from '@/lib/api/news';
 import { IMAGE_ACCEPT, IMAGE_MAX_MB, imageFileProblem } from '@/lib/image-files';
 
 interface ImageUploaderProps {

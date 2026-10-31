@@ -15,7 +15,7 @@ import {
   CornerDownRight,
 } from 'lucide-react';
 import { dishesApi } from '@/lib/api/dishes';
-import { eventsApi } from '@/lib/api/events';
+import { newsApi } from '@/lib/api/news';
 import { closuresApi } from '@/lib/api/closures';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useAuth } from '@/contexts/AuthContext';
@@ -170,7 +170,7 @@ export function GlobalSearch() {
 
       const [dishes, events, closures] = await Promise.allSettled([
         site ? dishesApi.list(site, { q: q.trim(), per_page: 5 }) : Promise.reject(),
-        site ? eventsApi.list(site) : Promise.reject(),
+        site ? newsApi.list(site, { sort: 'date' }) : Promise.reject(),
         site ? closuresApi.list(site) : Promise.reject(),
       ]);
 
@@ -199,7 +199,7 @@ export function GlobalSearch() {
       if (events.status === 'fulfilled') {
         let eventCount = 0;
         for (const e of events.value) {
-          if (fuzzyMatches(e.title, q) && eventCount < 3) {
+          if (e.date && fuzzyMatches(e.title, q) && eventCount < 3) {
             next.push({ kind: 'event', id: e.id, label: e.title, date: e.date });
             eventCount++;
           }

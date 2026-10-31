@@ -25,6 +25,10 @@ vi.mock('@/lib/api/user', () => ({
   },
 }));
 
+let account = { mfa_enabled: true, passkeys_count: 0 };
+
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: account }) }));
+
 import { TourHost } from '@/features/tour/TourHost';
 
 beforeAll(() => {
@@ -58,6 +62,7 @@ beforeEach(() => {
     tour_stats_done: false,
   });
   writeFails = false;
+  account = { mfa_enabled: true, passkeys_count: 0 };
   queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
 });
 
@@ -104,6 +109,16 @@ describe('dismissing a tour with the cross', () => {
 
     view.rerender(<Calendar visited={false} />);
     view.rerender(<Calendar visited />);
+    await settle();
+
+    expect(cross()).toBeNull();
+  });
+});
+
+describe('an account without a second factor', () => {
+  it('is shown no tour on its way to the enrolment page', async () => {
+    account = { mfa_enabled: false, passkeys_count: 0 };
+    render(<Calendar visited />);
     await settle();
 
     expect(cross()).toBeNull();

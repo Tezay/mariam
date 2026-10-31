@@ -226,13 +226,17 @@ class MenuRangeQuerySchema(Schema):
                 raise ValidationError(f'{MAX_RANGE_DAYS} jours au plus.', 'to')
 
 
-class PublicEventSchema(Schema):
+class PublicNewsSchema(Schema):
     id = fields.Int(required=True)
     title = fields.Str(required=True)
-    subtitle = fields.Str(allow_none=True)
+    summary = fields.Str(allow_none=True)
     description = fields.Str(allow_none=True)
     color = fields.Str(allow_none=True)
-    date = fields.Date(attribute='event_date', required=True)
+    date = fields.Date(required=True, allow_none=True, metadata={'description': "None if undated"})
+    pinned = fields.Bool(required=True)
+    published_at = fields.DateTime(
+        required=True, allow_none=True, metadata={'description': "None for a draft"}
+    )
     images = fields.List(fields.Nested(PublicImageSchema), required=True)
 
 

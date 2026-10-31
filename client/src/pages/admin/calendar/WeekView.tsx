@@ -77,7 +77,7 @@ interface WeekViewProps {
   categories: MenuCategory[];
   onReload: () => void;
   onDirtyChange?: (dirty: boolean) => void;
-  onEditEvent?: (event: import('@/lib/api/events').Event) => void;
+  onEditEvent?: (event: import('@/lib/api/news').News) => void;
   onStartOnboarding?: (date: string) => void;
 }
 

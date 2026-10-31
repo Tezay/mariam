@@ -15,10 +15,12 @@ class Event(db.Model):
     description = db.Column(db.Text, nullable=True)
     color = db.Column(db.String(7), nullable=True, default='#3498DB')  # Hex (#RRGGBB)
 
-    event_date = db.Column(db.Date, nullable=False, index=True)
+    event_date = db.Column(db.Date, nullable=True, index=True)
     status = db.Column(db.String(20), default='draft')  # draft, published
     visibility = db.Column(db.String(20), default='all')  # tv, mobile, all
     is_active = db.Column(db.Boolean, default=True)
+    pinned = db.Column(db.Boolean, nullable=False, default=False, server_default='false')
+    published_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     notified_7d = db.Column(db.Boolean, default=False, nullable=False)
     notified_1d = db.Column(db.Boolean, default=False, nullable=False)

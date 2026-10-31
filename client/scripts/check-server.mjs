@@ -113,7 +113,7 @@ const SITE_ANSWERS = {
   }),
   // The page shows the menu dated as the day it asks for.
   menus: (slug, query) => ({ items: [menu(query.get('from'))] }),
-  events: () => ({ items: [] }),
+  news: () => ({ items: [] }),
   closures: () => ({ items: [] }),
   'live-status': () => ({ capacity_reached: false, reached_at: null }),
   quality: () => ({

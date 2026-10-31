@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Copy, Plus } from 'lucide-react';
 import { closuresApi } from '@/lib/api/closures';
-import type { Event } from '@/lib/api/events';
+import type { News } from '@/lib/api/news';
 import type { Closure } from '@/lib/api/closures';
 import type { MenuCategory } from '@/lib/api/categories';
 import { editorItems, type EditorItem } from '@/pages/admin/calendar/day/useMenuEditor';
@@ -88,7 +88,7 @@ interface MonthViewProps {
   categories: MenuCategory[];
   onNavigate: (view: DesktopView | MobileView, date: string) => void;
   onReload: () => void;
-  onEditEvent?: (event: Event) => void;
+  onEditEvent?: (event: News) => void;
 }
 
 export function MonthView({

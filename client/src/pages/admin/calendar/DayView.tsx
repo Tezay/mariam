@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CalendarOff, Pencil } from 'lucide-react';
-import type { Event } from '@/lib/api/events';
+import type { News } from '@/lib/api/news';
 import type { MenuCategory } from '@/lib/api/categories';
 import { addDays, parisToday } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
@@ -116,7 +116,7 @@ interface DayViewProps {
   onDateChange: (date: string) => void;
   onReload: () => void;
   onDirtyChange?: (dirty: boolean) => void;
-  onEditEvent?: (event: Event) => void;
+  onEditEvent?: (event: News) => void;
   onStartOnboarding?: (date: string) => void;
 }
 

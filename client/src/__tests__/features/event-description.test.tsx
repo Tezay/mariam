@@ -5,7 +5,14 @@ import { EventSection } from '@/pages/public/menu/EventSection';
 import type { EventData } from '@/pages/public/menu-types';
 
 function event(description: string): EventData {
-  return { id: 1, title: 'Soirée', description, event_date: '2026-09-23' };
+  return {
+    id: 1,
+    title: 'Soirée',
+    description,
+    event_date: '2026-09-23',
+    pinned: false,
+    published_at: null,
+  };
 }
 
 async function openDetail(description: string) {

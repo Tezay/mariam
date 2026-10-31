@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { needsSecuritySetup } from '@/hooks/useSecurityOnboarding';
 import { useUiPreferences, useUpdateUiPreferences } from '@/hooks/useUiPreferences';
 import { TOUR_FLAGS, type TourName } from './steps';
 
 const MOBILE_QUERY = '(max-width: 1023px)';
 
 export function useTour(tour: TourName, enabled: boolean) {
+  const { user } = useAuth();
+  // Such an account is on its way to the enrolment page, which would leave the tour pointing at nothing.
+  const active = enabled && !needsSecuritySetup(user);
   const [mobile, setMobile] = useState(() => window.matchMedia(MOBILE_QUERY).matches);
-  const { data: prefs } = useUiPreferences(enabled);
+  const { data: prefs } = useUiPreferences(active);
   const update = useUpdateUiPreferences();
 
   useEffect(() => {
@@ -22,7 +27,7 @@ export function useTour(tour: TourName, enabled: boolean) {
   }, [flag, update]);
 
   return {
-    running: enabled && prefs !== undefined && !prefs[flag],
+    running: active && prefs !== undefined && !prefs[flag],
     mobile,
     finish,
   };

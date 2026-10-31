@@ -188,7 +188,7 @@ class TestMenus:
 
 
 class TestEventsAndClosures:
-    def test_events_are_published_upcoming_and_for_the_screen(self, client):
+    def test_news_items_are_published_and_for_the_screen(self, client):
         site = _site(_org())
         today = paris_today()
         for days, status, visibility in ((-1, 'published', 'all'), (0, 'published', 'tv'),
@@ -199,11 +199,12 @@ class TestEventsAndClosures:
             ))
         db.session.commit()
 
-        events = client.get(f'{SITE}/events?visibility=mobile').get_json()['items']
+        items = client.get(f'{SITE}/news?visibility=mobile&sort=date').get_json()['items']
 
-        assert [event['title'] for event in events] == ['1 published all']
-        assert set(events[0]) == {
-            'id', 'title', 'subtitle', 'description', 'color', 'date', 'images',
+        assert [item['title'] for item in items] == ['-1 published all', '1 published all']
+        assert set(items[0]) == {
+            'id', 'title', 'summary', 'description', 'color', 'date', 'pinned', 'published_at',
+            'images',
         }
 
     def test_closures_under_way_and_to_come(self, client):

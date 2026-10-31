@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { eventsApi, Event } from '@/lib/api/events';
+import { isDated, newsApi, type DatedNews } from '@/lib/api/news';
 import { notify } from '@/lib/toast';
 import { addDays, parisToday } from '@/lib/date-utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -41,7 +41,7 @@ export function EventsPage() {
   const navigate = useNavigate();
   const canEdit = user?.role === 'admin' || user?.role === 'editor';
 
-  const [events, setEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<DatedNews[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
   const [filter, setFilter] = useState<FilterMode>('upcoming');
@@ -59,7 +59,7 @@ export function EventsPage() {
           : filter === 'past'
             ? { to: addDays(today, -1) }
             : {};
-      setEvents(await eventsApi.list(site, range));
+      setEvents((await newsApi.list(site, { sort: 'date', ...range })).filter(isDated));
     } catch (err) {
       console.error('Loading the events failed:', err);
       setError(err);
@@ -74,7 +74,7 @@ export function EventsPage() {
 
   const handleDelete = async (id: number) => {
     try {
-      await eventsApi.remove(site, id);
+      await newsApi.remove(site, id);
       await loadEvents();
       notify.success('Événement supprimé');
     } catch {
@@ -84,9 +84,9 @@ export function EventsPage() {
     }
   };
 
-  const handleDuplicate = async (event: Event) => {
+  const handleDuplicate = async (event: DatedNews) => {
     try {
-      await eventsApi.duplicate(site, event.id);
+      await newsApi.duplicate(site, event.id);
       await loadEvents();
       notify.success('Événement dupliqué');
     } catch {
@@ -94,13 +94,13 @@ export function EventsPage() {
     }
   };
 
-  const handleTogglePublish = async (event: Event) => {
+  const handleTogglePublish = async (event: DatedNews) => {
     try {
       const wasPublished = event.status === 'published';
       if (wasPublished) {
-        await eventsApi.unpublish(site, event.id);
+        await newsApi.unpublish(site, event.id);
       } else {
-        await eventsApi.publish(site, event.id);
+        await newsApi.publish(site, event.id);
         window.umami?.track('event-publish');
       }
       await loadEvents();
@@ -137,7 +137,7 @@ export function EventsPage() {
     return dateStr < parisToday();
   };
 
-  const renderStatusBadge = (event: Event) => {
+  const renderStatusBadge = (event: DatedNews) => {
     if (event.status === 'published') {
       return (
         <Badge className="gap-1 bg-green-500/10 text-green-600 hover:bg-green-500/10 dark:text-green-400">
@@ -155,7 +155,7 @@ export function EventsPage() {
     );
   };
 
-  const renderEventCard = (event: Event) => {
+  const renderEventCard = (event: DatedNews) => {
     const palette = generateEventPalette(event.color || '#3498DB');
     const today = isToday(event.date);
     const past = isPast(event.date);
@@ -252,9 +252,9 @@ export function EventsPage() {
             <h3 className="text-lg font-bold leading-tight" style={{ color: palette.text }}>
               {event.title}
             </h3>
-            {event.subtitle && (
+            {event.summary && (
               <p className="mt-0.5 text-sm" style={{ color: palette.textMuted }}>
-                {event.subtitle}
+                {event.summary}
               </p>
             )}
           </div>

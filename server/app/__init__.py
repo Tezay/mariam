@@ -264,11 +264,11 @@ def create_app(config_class=None):
     from .routes.dish_groups import dish_groups_bp
     from .routes.dishes import dishes_bp
     from .routes.domains import domains_bp
-    from .routes.events import events_bp
     from .routes.holidays import holidays_bp
     from .routes.imports import imports_bp
     from .routes.members import members_bp
     from .routes.menus import menus_bp
+    from .routes.news import news_bp
     from .routes.orgs import orgs_bp
     from .routes.push_subscriptions import push_bp
     from .routes.quality import quality_bp
@@ -294,7 +294,7 @@ def create_app(config_class=None):
     api.register_blueprint(dishes_bp,        url_prefix='/v1/orgs/<org>/sites/<site>/dishes')
     api.register_blueprint(imports_bp,       url_prefix='/v1/orgs/<org>/sites/<site>')
     api.register_blueprint(categories_bp,    url_prefix='/v1/orgs/<org>/sites/<site>/categories')
-    api.register_blueprint(events_bp,        url_prefix='/v1/orgs/<org>/sites/<site>/events')
+    api.register_blueprint(news_bp,          url_prefix='/v1/orgs/<org>/sites/<site>/news')
     api.register_blueprint(closures_bp,      url_prefix='/v1/orgs/<org>/sites/<site>/closures')
     api.register_blueprint(quality_bp,       url_prefix='/v1/orgs/<org>/sites/<site>')
     api.register_blueprint(devices_bp,       url_prefix='/v1/devices')

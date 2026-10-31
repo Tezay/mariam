@@ -336,7 +336,7 @@ campus behind a single address rather than for one visitor.
 | `GET` | `/v1/orgs/{org}/sites/{site}` | A site: its page (tagline, presentation, logo, cover, gallery, access, services, links), address, contact, hours, vote settings, the labels in use, `menu_window` |
 | `GET` | `/v1/orgs/{org}/sites/{site}/menus` | Published menus from `from` to `to`, both included (today to the window's end by default; 62 days at most) |
 | `GET` | `/v1/orgs/{org}/sites/{site}/menus/{date}` | The published menu of a day |
-| `GET` | `/v1/orgs/{org}/sites/{site}/events` | Published events from today on (`visibility` = `tv` or `mobile`, `limit` up to 100); `{event_id}` for one |
+| `GET` | `/v1/orgs/{org}/sites/{site}/news` | Published news, eight at most (`sort`, `from`, `to`, `visibility` = `tv` or `mobile`); `{news_id}` for one |
 | `GET` | `/v1/orgs/{org}/sites/{site}/closures` | Exceptional closures under way or to come |
 | `GET` | `/v1/orgs/{org}/sites/{site}/menus/{date}/vote` | What the device in `Device-Id` may rate today, and its own vote |
 | `PUT` | `/v1/orgs/{org}/sites/{site}/menus/{date}/vote` | Rate today's meal: `rating` 1-3, optional `dish_ids` and `fingerprint`; `201` for the first vote, `200` for a change |
@@ -424,26 +424,27 @@ answer `502 holidays_unavailable`. Both are cached for a day.
 
 ---
 
-## Events
+## News
 
-The `GET` routes of a site's events serve a session too: an editor of the site reads its
-drafts, past events without `from`, and the editors' fields (`status`, `visibility`,
-`created_at`, `updated_at`, the `id` of each image). Writes require the `editor` role on the
-site; a supervisor reads but never writes.
+A news item may carry a date: a dated one also shows in the calendar and the TV banner, and its
+subscribers are reminded of it. The `GET` routes serve a session too: an editor of the site
+reads its drafts and the editors' fields (`status`, `visibility`, `created_at`, `updated_at`,
+the `id` of each image). Writes require the `editor` role on the site; a supervisor reads but
+never writes.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `S/events?from=&to=&visibility=&limit=` | Events in date order; anyone gets the published ones from today on |
-| `GET` | `S/events/{event_id}` | One event: published for anyone, any for the site's editors |
-| `POST` | `S/events` | Add an event (`title`, `date`, optional `subtitle`, `description`, `color` `#RRGGBB`, `status`, `visibility`); `201` and `Location` |
-| `PATCH` | `S/events/{event_id}` | Change an event; a new `date` sends its reminders again |
-| `DELETE` | `S/events/{event_id}` | Delete it and its images |
-| `POST` | `S/events/{event_id}/publish` | Publish |
-| `POST` | `S/events/{event_id}/unpublish` | Back to draft; `409 event_not_published` for a draft |
-| `POST` | `S/events/{event_id}/duplicate` | Copy as a draft, without images, a week later unless `date` says otherwise; `201` and `Location` |
-| `POST` | `S/events/{event_id}/images` | Add an image (multipart `file`), six per event |
-| `PUT` | `S/events/{event_id}/images/order` | New order of the images: every `image_ids`, once |
-| `DELETE` | `S/events/{event_id}/images/{image_id}` | Remove an image |
+| `GET` | `S/news?sort=&from=&to=&visibility=&limit=` | `sort=published` (default): pinned first, then the latest published, drafts first for an editor; `sort=date`: the dated items, soonest first. `from` and `to` keep the dated items. Anyone reads the published ones, eight at most |
+| `GET` | `S/news/{news_id}` | One item: published for anyone, any for the site's editors |
+| `POST` | `S/news` | Add an item (`title`, optional `date`, `summary`, `description`, `color` `#RRGGBB`, `pinned`, `status`, `visibility`); `201` and `Location` |
+| `PATCH` | `S/news/{news_id}` | Change an item; a new `date` sends its reminders again, `null` removes it |
+| `DELETE` | `S/news/{news_id}` | Delete it and its images |
+| `POST` | `S/news/{news_id}/publish` | Publish; `published_at` tells when |
+| `POST` | `S/news/{news_id}/unpublish` | Back to draft, `published_at` cleared; `409 news_not_published` for a draft |
+| `POST` | `S/news/{news_id}/duplicate` | Copy as an unpinned draft, without images, a week later if dated unless `date` says otherwise; `201` and `Location` |
+| `POST` | `S/news/{news_id}/images` | Add an image (multipart `file`), six per item |
+| `PUT` | `S/news/{news_id}/images/order` | New order of the images: every `image_ids`, once |
+| `DELETE` | `S/news/{news_id}/images/{image_id}` | Remove an image |
 
 A description is HTML, sanitised when written and again when read. Without storage
 configured, an image answers `503 storage_unavailable`.

@@ -1,7 +1,7 @@
 import type { SitePage } from '@/pages/public/menu-types';
 import type { Menu } from './menus';
 import type { Closure } from './closures';
-import type { Event } from './events';
+import type { News } from './news';
 import type { Quality } from './quality';
 import type { LiveStatus, PublicOrg, PublicSiteSummary, Site } from './sites';
 
@@ -82,13 +82,14 @@ export async function fetchSitePage(
   org: string,
   slug: string,
   from: string,
-  to: string
+  to: string,
+  today: string
 ): Promise<SitePage | null> {
   const path = sitePath(org, slug);
   const [site, menus, events, closures] = await Promise.all([
     getJson<Site>(request, path),
     getJson<{ items: Menu[] }>(request, `${path}/menus?from=${from}&to=${to}`),
-    getJson<{ items: Event[] }>(request, `${path}/events?visibility=mobile`),
+    getJson<{ items: News[] }>(request, `${path}/news?visibility=mobile&sort=date&from=${today}`),
     getJson<{ items: Closure[] }>(request, `${path}/closures`),
   ]);
   if (!site) return null;
