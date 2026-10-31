@@ -38,12 +38,12 @@ class TestRead:
 
 class TestPatch:
     def test_an_admin_changes_the_details(self, app, client):
-        rid, path, headers = _site(app, client)
+        _, path, headers = _site(app, client)
 
-        res = client.patch(path, json={'name': 'RU Nord', 'capacity': 120}, headers=headers)
+        res = client.patch(path, json={'name': 'RU Nord', 'service_capacity': 120}, headers=headers)
 
         assert res.get_json()['name'] == 'RU Nord'
-        assert db.session.get(Restaurant, rid).capacity == 120
+        assert client.get(path).get_json()['service_capacity'] == 120
 
     def test_only_an_admin_changes_them(self, app, client):
         _, path, headers = _site(app, client, role='editor')
@@ -60,7 +60,8 @@ class TestPatch:
         {'service_hours': {'7': {'open': '11:30', 'close': '14:00'}}},
         {'payment_methods': ['cheque']},
         {'email': 'pas-une-adresse'},
-        {'capacity': -1},
+        {'service_capacity': 0},
+        {'service_capacity': 10_001},
     ])
     def test_a_value_out_of_its_rule_is_refused(self, app, client, body):
         _, path, headers = _site(app, client)

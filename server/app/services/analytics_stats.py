@@ -5,6 +5,7 @@ Every query groups by site so their number stays constant as sites are added.
 import hashlib
 import json
 import os
+import statistics
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
@@ -19,6 +20,7 @@ from ..models import (
     MenuVote,
     PageViewRollup,
     Restaurant,
+    ServiceLiveStatus,
     VisitorDailyUnique,
     menu_vote_dishes,
 )
@@ -651,6 +653,7 @@ def traffic_stats(scope: Scope, organization_id=None) -> dict:
             'granularity': 'day',
             'series': [], 'by_site': [], 'by_page_kind': [], 'hour_profile': [],
             'totals': {'views': 0, 'unique_visitors': 0, 'org_root_views': 0},
+            'capacity_reached': {'services': 0, 'sites': 0, 'usual_time': None},
         }
 
     site_ids = scope.site_ids
@@ -726,6 +729,30 @@ def traffic_stats(scope: Scope, organization_id=None) -> dict:
             'unique_visitors': sum(uniques_by_site.values()),
             'org_root_views': _org_root_views(organization_id, scope.start, scope.end),
         },
+        'capacity_reached': _capacity_reached(site_ids, scope.start, scope.end),
+    }
+
+
+def _capacity_reached(site_ids, start: date, end: date) -> dict:
+    rows = (
+        ServiceLiveStatus.query
+        .with_entities(ServiceLiveStatus.restaurant_id, ServiceLiveStatus.capacity_reached_at)
+        .filter(
+            ServiceLiveStatus.restaurant_id.in_(site_ids),
+            ServiceLiveStatus.day.between(start, end),
+            ServiceLiveStatus.capacity_reached_at.isnot(None),
+        )
+        .all()
+    )
+    if not rows:
+        return {'services': 0, 'sites': 0, 'usual_time': None}
+    times = [reached.astimezone(PARIS_TZ) for _, reached in rows]
+    minutes = [time.hour * 60 + time.minute for time in times]
+    usual = 5 * round(statistics.median(minutes) / 5)
+    return {
+        'services': len(rows),
+        'sites': len({site_id for site_id, _ in rows}),
+        'usual_time': f'{usual // 60:02d}:{usual % 60:02d}',
     }
 
 

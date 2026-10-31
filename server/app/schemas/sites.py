@@ -2,10 +2,16 @@ from urllib.parse import urlsplit
 
 from marshmallow import EXCLUDE, Schema, ValidationError, fields, validate, validates_schema
 
-from ..data.site_profile import LINK_KINDS, LINKS_MAX, PAYMENT_METHODS, SERVICES
+from ..data.site_profile import (
+    LINK_KINDS,
+    LINKS_MAX,
+    PAYMENT_METHODS,
+    SERVICE_CAPACITY_MAX,
+    SERVICES,
+)
 from ..models.menu_vote import VOTE_ICON_PRESETS
 from ..services.menu_window import DAYS_AHEAD_MAX, DAYS_BACK_MAX
-from .common import FileUploadSchema, HttpsUrl, PlainText, SiteName
+from .common import FileUploadSchema, HttpsUrl, PlainText, RequestSchema, SiteName
 from .public import PublicSitePhotoSchema, PublicSiteSchema
 
 DAYS = [str(day) for day in range(7)]
@@ -83,7 +89,9 @@ class SitePatchSchema(Schema):
     address_lon = fields.Float(allow_none=True, validate=validate.Range(min=-180, max=180))
     email = fields.Email(allow_none=True, validate=validate.Length(max=150))
     phone = fields.Str(allow_none=True, validate=validate.Length(max=30))
-    capacity = fields.Int(allow_none=True, validate=validate.Range(min=0))
+    service_capacity = fields.Int(
+        allow_none=True, validate=validate.Range(min=1, max=SERVICE_CAPACITY_MAX)
+    )
     payment_methods = fields.List(
         fields.Str(validate=validate.OneOf(PAYMENT_METHODS)), allow_none=True
     )
@@ -126,6 +134,10 @@ class SitePatchSchema(Schema):
         kinds = [link['kind'] for link in data.get('links', []) if LINK_KINDS[link['kind']]]
         if len(kinds) != len(set(kinds)):
             raise ValidationError('Un seul lien de chaque type, hors site web.', 'links')
+
+
+class LiveStatusInputSchema(RequestSchema):
+    capacity_reached = fields.Bool(required=True)
 
 
 class SitePhotoAltSchema(Schema):

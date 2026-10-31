@@ -4489,6 +4489,78 @@ export interface paths {
         };
         trace?: never;
     };
+    "/v1/orgs/{org}/sites/{site}/live-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /** Whether the team says today's service has reached its capacity. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LiveStatus"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        /** Say whether today's service has reached its capacity; it lapses with the day. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LiveStatusInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LiveStatus"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/orgs/{org}/sites/{site}/menus": {
         parameters: {
             query?: never;
@@ -7339,6 +7411,12 @@ export interface components {
             unique_visitors: number;
             org_root_views: number;
         };
+        CapacityReached: {
+            services: number;
+            sites: number;
+            /** @description HH:MM, Paris time */
+            usual_time: string | null;
+        };
         TrafficReport: {
             /** @enum {string} */
             granularity: "day" | "hour";
@@ -7347,6 +7425,8 @@ export interface components {
             by_page_kind: components["schemas"]["PageKindViews"][];
             hour_profile: components["schemas"]["HourViews"][];
             totals: components["schemas"]["TrafficTotals"];
+            /** @description The services whose team said the capacity was reached */
+            capacity_reached: components["schemas"]["CapacityReached"];
         };
         Distribution: {
             1: number;
@@ -7504,8 +7584,8 @@ export interface components {
             links: components["schemas"]["SiteLink"][];
             email?: string | null;
             phone?: string | null;
-            /** @description Seats */
-            capacity?: number | null;
+            /** @description Meals the team can serve in one service */
+            service_capacity?: number | null;
             payment_methods?: ("izly" | "cb" | "cash" | "ticket_restaurant")[] | null;
             /** @description None when unknown */
             pmr_access?: boolean | null;
@@ -7548,7 +7628,7 @@ export interface components {
             /** Format: email */
             email?: string | null;
             phone?: string | null;
-            capacity?: number | null;
+            service_capacity?: number | null;
             payment_methods?: ("izly" | "cb" | "cash" | "ticket_restaurant")[] | null;
             /** @description None when unknown */
             pmr_access?: boolean | null;
@@ -7610,6 +7690,17 @@ export interface components {
             show_school_vacations?: boolean;
             /** @enum {string|null} */
             school_vacation_zone?: "A" | "B" | "C" | null;
+        };
+        LiveStatus: {
+            capacity_reached: boolean;
+            /**
+             * Format: date-time
+             * @description When it was reached today
+             */
+            reached_at: string | null;
+        };
+        LiveStatusInput: {
+            capacity_reached: boolean;
         };
         PublicDish: {
             id: number;

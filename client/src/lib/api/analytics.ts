@@ -11,6 +11,7 @@ export type PublicationsReport = Schemas['PublicationsReport'];
 export type TrafficSeriesPoint = Schemas['TrafficPoint'];
 export type TrafficSiteRow = Schemas['TrafficSite'];
 export type TrafficReport = Schemas['TrafficReport'];
+export type CapacityReached = Schemas['CapacityReached'];
 export type SatisfactionSiteRow = Schemas['SatisfactionSite'];
 export type SatisfactionDishRow = Schemas['DishRow'];
 export type SatisfactionReport = Schemas['SatisfactionReport'];

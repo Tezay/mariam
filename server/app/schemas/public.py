@@ -77,7 +77,9 @@ class PublicSiteSchema(Schema):
     links = fields.List(fields.Nested(SiteLinkSchema), required=True)
     email = fields.Str(allow_none=True)
     phone = fields.Str(allow_none=True)
-    capacity = fields.Int(allow_none=True, metadata={'description': "Seats"})
+    service_capacity = fields.Int(
+        allow_none=True, metadata={'description': "Meals the team can serve in one service"}
+    )
     payment_methods = fields.List(
         fields.Str(validate=validate.OneOf(PAYMENT_METHODS)), allow_none=True
     )
@@ -96,6 +98,13 @@ class PublicSiteSchema(Schema):
         MenuWindowSchema,
         required=True,
         metadata={'description': "The dates whose published menus can be read"},
+    )
+
+
+class LiveStatusSchema(Schema):
+    capacity_reached = fields.Bool(required=True)
+    reached_at = fields.DateTime(
+        required=True, allow_none=True, metadata={'description': "When it was reached today"}
     )
 
 

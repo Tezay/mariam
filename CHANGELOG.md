@@ -50,6 +50,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **"Page publique"** in the dashboard, for a site's admins: presentation, images, access, services, links and menu window.
 - **A site's page at `/` or `/<site>`**: the menu of each day of its window, practical information, map and gallery.
 - **Every password field can show what was typed.**
+- **A site's page shows its maximum capacity**, meals per service, on a dial that turns red when it is reached.
+- **"Capacité atteinte" in "Service en cours"**: the site's page and its header say so until the service ends.
+- **"Consultations" tells how often the maximum capacity was reached**, and at what time, once it has been.
 - **Each passkey names the password manager that holds it** in "Mon compte", when known.
 - **Password managers learn of a deleted passkey or a new name**, in browsers with the Signal API.
 - **The public pages follow the system's dark theme**; the TV display stays light.
@@ -122,6 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`/v1/auth/me`, the second factors and password change under `/v1/auth`, `/v1/users/me` and `/v1/inbox`**, moved to `/v1/user`.
 - **The `/notifications` page**, replaced by the panel of a site's page.
 - **The reader role**, which opened no page.
+- **The seating capacity** (`capacity`), which the maximum capacity replaces.
 
 ### Fixed
 

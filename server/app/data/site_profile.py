@@ -19,3 +19,4 @@ LINK_KINDS: dict[str, tuple[str, ...] | None] = {
     'youtube': ('youtube.com', 'youtu.be'),
 }
 LINKS_MAX = 6
+SERVICE_CAPACITY_MAX = 10_000

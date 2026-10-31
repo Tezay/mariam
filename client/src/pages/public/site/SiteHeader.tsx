@@ -1,11 +1,11 @@
 import { Link } from 'react-router';
-import { Bell, ChevronRight, MapPin } from 'lucide-react';
+import { Bell, ChevronRight, Gauge, MapPin } from 'lucide-react';
 import type { Closure } from '@/lib/api/closures';
 import type { PublicOrg } from '@/lib/api/sites';
-import { getServiceStatus } from '@/lib/service-utils';
 import { cn } from '@/lib/utils';
 import type { RestaurantPublic } from '../menu-types';
 import { addressLines } from './address';
+import { siteStatus, type SiteStatus } from './site-status';
 
 const TONES = {
   ok: { text: 'text-site-ok', dot: 'bg-site-ok', pill: 'bg-site-ok-soft' },
@@ -13,15 +13,10 @@ const TONES = {
   subtle: { text: 'text-site-subtle', dot: 'bg-site-subtle', pill: 'bg-site-raised' },
   danger: { text: 'text-site-danger', dot: 'bg-site-danger', pill: 'bg-site-danger-soft' },
 };
-const STATUS_TONES = { green: TONES.ok, amber: TONES.soon, gray: TONES.subtle };
 
-function siteStatus(site: RestaurantPublic, closure: Closure | null, now: Date) {
-  if (closure) {
-    return { label: `Fermé · ${closure.reason ?? 'fermeture exceptionnelle'}`, tone: TONES.danger };
-  }
-  if (site.service_days.length === 0) return null;
-  const status = getServiceStatus(site.service_hours, site.service_days, now);
-  return { label: status.label, tone: STATUS_TONES[status.color] };
+function StatusMark({ status }: { status: SiteStatus }) {
+  if (status.full) return <Gauge aria-hidden className="h-4 w-4 shrink-0" />;
+  return <span aria-hidden className={cn('h-2 w-2 rounded-full', TONES[status.tone].dot)} />;
 }
 
 export function NotificationsButton({
@@ -52,6 +47,7 @@ interface SiteHeaderProps {
   site: RestaurantPublic;
   closure: Closure | null;
   now: Date;
+  capacityReached: boolean;
   onOpenNotifications: () => void;
 }
 
@@ -61,9 +57,10 @@ export function SiteHeader({
   site,
   closure,
   now,
+  capacityReached,
   onOpenNotifications,
 }: SiteHeaderProps) {
-  const status = siteStatus(site, closure, now);
+  const status = siteStatus(site, closure, now, capacityReached);
   const address = addressLines(site);
   const orgName = multiSite ? (
     <Link to="/" className="hover:text-site-text">
@@ -113,10 +110,10 @@ export function SiteHeader({
                   <p
                     className={cn(
                       'flex items-center gap-1.5 text-[13px] font-semibold lg:hidden',
-                      status.tone.text
+                      TONES[status.tone].text
                     )}
                   >
-                    <span aria-hidden className={cn('h-2 w-2 rounded-full', status.tone.dot)} />
+                    <StatusMark status={status} />
                     {status.label}
                   </p>
                 )}
@@ -139,11 +136,11 @@ export function SiteHeader({
                   <span
                     className={cn(
                       'flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-bold',
-                      status.tone.text,
-                      status.tone.pill
+                      TONES[status.tone].text,
+                      TONES[status.tone].pill
                     )}
                   >
-                    <span aria-hidden className={cn('h-2 w-2 rounded-full', status.tone.dot)} />
+                    <StatusMark status={status} />
                     {status.label}
                   </span>
                 )}

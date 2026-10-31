@@ -15,6 +15,7 @@ export type VoteIconPreset = Site['vote_icon_preset'];
 export type CalendarSettings = Schemas['CalendarSettings'];
 export type CalendarSettingsPatch = Schemas['CalendarSettingsPatch'];
 export type SitePhoto = Schemas['SitePhoto'];
+export type LiveStatus = Schemas['LiveStatus'];
 
 const UPLOAD = { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 };
 
@@ -34,6 +35,16 @@ export const sitesApi = {
 
   update: async (ref: SiteRef, patch: SitePatch): Promise<Site> =>
     (await api.patch(sitePath(ref), patch)).data,
+
+  getLiveStatus: async (ref: SiteRef): Promise<LiveStatus> =>
+    (await publicAxios.get(`${sitePath(ref)}/live-status`, { timeout: PUBLIC_API_TIMEOUT_MS }))
+      .data,
+
+  getOwnLiveStatus: async (ref: SiteRef): Promise<LiveStatus> =>
+    (await api.get(`${sitePath(ref)}/live-status`)).data,
+
+  setLiveStatus: async (ref: SiteRef, capacityReached: boolean): Promise<LiveStatus> =>
+    (await api.put(`${sitePath(ref)}/live-status`, { capacity_reached: capacityReached })).data,
 
   getCalendarSettings: async (ref: SiteRef): Promise<CalendarSettings> =>
     (await api.get(`${sitePath(ref)}/calendar-settings`)).data,

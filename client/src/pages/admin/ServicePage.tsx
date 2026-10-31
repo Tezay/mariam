@@ -26,6 +26,7 @@ import {
   ExternalLink,
   PackageX,
 } from 'lucide-react';
+import { CapacityCard } from './service/CapacityCard';
 
 const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 const MONTH_NAMES = [
@@ -272,6 +273,7 @@ export function ServicePage() {
   const [menu, setMenu] = useState<Menu | null>(null);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [serviceHours, setServiceHours] = useState<ServiceHours>({});
+  const [capacity, setCapacity] = useState<number | null>(null);
   const [closure, setClosure] = useState<{ closed: boolean; reason?: string }>({ closed: false });
   const [loading, setLoading] = useState(true);
 
@@ -317,6 +319,7 @@ export function ServicePage() {
       setChefNote(menuRes?.chef_note ?? '');
       setCategories(catRes);
       setServiceHours(own?.service_hours ?? {});
+      setCapacity(own?.service_capacity ?? null);
       setLastUpdated(nowInstant());
     } finally {
       setLoading(false);
@@ -434,7 +437,7 @@ export function ServicePage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
+      <div className="grid gap-6 lg:grid-cols-[1fr_380px] lg:items-start">
         <div className="order-2 min-w-0 lg:order-1">
           {closure.closed && !published ? (
             <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-border py-16 text-center">
@@ -478,6 +481,7 @@ export function ServicePage() {
             totalCount={totalCount}
             hasMenu={published}
           />
+          {!closure.closed && capacity != null && <CapacityCard capacity={capacity} />}
           {published && (
             <ChefNoteCard
               value={chefNote}
