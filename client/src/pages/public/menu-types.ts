@@ -5,7 +5,7 @@
  */
 import type { Menu } from '@/lib/api/menus';
 import type { Closure } from '@/lib/api/closures';
-import type { Event } from '@/lib/api/events';
+import type { News } from '@/lib/api/news';
 import type { Site } from '@/lib/api/sites';
 import type { components } from '@/lib/api/schema.gen';
 
@@ -53,7 +53,7 @@ export interface MenuData {
   restaurant: RestaurantPublic;
 }
 
-export type EventData = Omit<Event, 'date' | 'images'> & {
+export type EventData = Omit<News, 'date' | 'images'> & {
   event_date: string;
   images?: Schemas['Image'][];
 };
@@ -72,6 +72,6 @@ export interface PublicMenuData {
 export interface SitePage {
   site: Site;
   menus: Menu[];
-  events: Event[];
+  events: News[];
   closures: Closure[];
 }

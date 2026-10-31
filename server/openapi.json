@@ -6790,13 +6790,27 @@
         ]
       }
     },
-    "/v1/orgs/{org}/sites/{site}/events": {
+    "/v1/orgs/{org}/sites/{site}/news": {
       "get": {
         "parameters": [
           {
             "in": "query",
+            "name": "sort",
+            "description": "`published`: pinned first, then the latest published; `date`: the dated items only, the soonest first",
+            "schema": {
+              "type": "string",
+              "default": "published",
+              "enum": [
+                "published",
+                "date"
+              ]
+            },
+            "required": false
+          },
+          {
+            "in": "query",
             "name": "from",
-            "description": "Today, at the earliest, for anyone but the site's editors",
+            "description": "The dated items only",
             "schema": {
               "type": "string",
               "format": "date"
@@ -6816,7 +6830,7 @@
           {
             "in": "query",
             "name": "visibility",
-            "description": "Only the events shown on that screen",
+            "description": "Only the items shown on that screen",
             "schema": {
               "type": "string",
               "enum": [
@@ -6829,6 +6843,7 @@
           {
             "in": "query",
             "name": "limit",
+            "description": "Eight at most for anyone but the site's editors",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -6846,7 +6861,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EventList"
+                  "$ref": "#/components/schemas/NewsList"
                 }
               }
             }
@@ -6855,10 +6870,10 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Events in date order, soonest first.",
-        "description": "Anyone reads the published ones from today on. The site's editors read the\ndrafts too, and any range: without `from`, past events as well.",
+        "summary": "News items, pinned first then the latest published, or by their date (`sort=date`).",
+        "description": "Anyone reads the published ones, eight at most. The site's editors read the drafts\ntoo, first, and as many as they ask.",
         "tags": [
-          "events"
+          "news"
         ],
         "security": [
           {},
@@ -6900,7 +6915,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Event"
+                  "$ref": "#/components/schemas/News"
                 }
               }
             }
@@ -6914,18 +6929,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EventInput"
+                "$ref": "#/components/schemas/NewsInput"
               }
             }
           }
         },
-        "summary": "Add an event, a draft unless `status` says otherwise.",
+        "summary": "Add a news item, a draft unless `status` says otherwise.",
         "tags": [
-          "events"
+          "news"
         ]
       }
     },
-    "/v1/orgs/{org}/sites/{site}/events/{event_id}": {
+    "/v1/orgs/{org}/sites/{site}/news/{news_id}": {
       "get": {
         "responses": {
           "200": {
@@ -6933,7 +6948,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Event"
+                  "$ref": "#/components/schemas/News"
                 }
               }
             }
@@ -6942,9 +6957,9 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "One event: published for anyone, any for the site's editors.",
+        "summary": "A news item: published for anyone, drafts too for the site's editors.",
         "tags": [
-          "events"
+          "news"
         ],
         "security": [
           {},
@@ -6977,7 +6992,7 @@
         },
         {
           "in": "path",
-          "name": "event_id",
+          "name": "news_id",
           "required": true,
           "schema": {
             "type": "integer",
@@ -6995,7 +7010,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Event"
+                  "$ref": "#/components/schemas/News"
                 }
               }
             }
@@ -7009,14 +7024,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EventPatch"
+                "$ref": "#/components/schemas/NewsPatch"
               }
             }
           }
         },
-        "summary": "Change an event; a new date sends its reminders again.",
+        "summary": "Change a news item; a new date sends its reminders again.",
         "tags": [
-          "events"
+          "news"
         ]
       },
       "delete": {
@@ -7028,13 +7043,13 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Delete an event and its images.",
+        "summary": "Delete a news item and its images.",
         "tags": [
-          "events"
+          "news"
         ]
       }
     },
-    "/v1/orgs/{org}/sites/{site}/events/{event_id}/publish": {
+    "/v1/orgs/{org}/sites/{site}/news/{news_id}/publish": {
       "post": {
         "responses": {
           "200": {
@@ -7042,7 +7057,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Event"
+                  "$ref": "#/components/schemas/News"
                 }
               }
             }
@@ -7051,9 +7066,9 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Publish an event.",
+        "summary": "Publish a news item.",
         "tags": [
-          "events"
+          "news"
         ]
       },
       "parameters": [
@@ -7077,7 +7092,7 @@
         },
         {
           "in": "path",
-          "name": "event_id",
+          "name": "news_id",
           "required": true,
           "schema": {
             "type": "integer",
@@ -7086,7 +7101,7 @@
         }
       ]
     },
-    "/v1/orgs/{org}/sites/{site}/events/{event_id}/unpublish": {
+    "/v1/orgs/{org}/sites/{site}/news/{news_id}/unpublish": {
       "post": {
         "responses": {
           "200": {
@@ -7094,7 +7109,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Event"
+                  "$ref": "#/components/schemas/News"
                 }
               }
             }
@@ -7103,9 +7118,9 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Take a published event back to draft.",
+        "summary": "Take a published news item back to draft.",
         "tags": [
-          "events"
+          "news"
         ]
       },
       "parameters": [
@@ -7129,7 +7144,7 @@
         },
         {
           "in": "path",
-          "name": "event_id",
+          "name": "news_id",
           "required": true,
           "schema": {
             "type": "integer",
@@ -7138,7 +7153,7 @@
         }
       ]
     },
-    "/v1/orgs/{org}/sites/{site}/events/{event_id}/duplicate": {
+    "/v1/orgs/{org}/sites/{site}/news/{news_id}/duplicate": {
       "post": {
         "responses": {
           "422": {
@@ -7149,7 +7164,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Event"
+                  "$ref": "#/components/schemas/News"
                 }
               }
             }
@@ -7163,14 +7178,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EventDuplicate"
+                "$ref": "#/components/schemas/NewsDuplicate"
               }
             }
           }
         },
-        "summary": "Copy an event, without its images, as a draft.",
+        "summary": "Copy a news item, without its images, as a draft.",
         "tags": [
-          "events"
+          "news"
         ]
       },
       "parameters": [
@@ -7194,7 +7209,7 @@
         },
         {
           "in": "path",
-          "name": "event_id",
+          "name": "news_id",
           "required": true,
           "schema": {
             "type": "integer",
@@ -7203,7 +7218,7 @@
         }
       ]
     },
-    "/v1/orgs/{org}/sites/{site}/events/{event_id}/images": {
+    "/v1/orgs/{org}/sites/{site}/news/{news_id}/images": {
       "post": {
         "responses": {
           "422": {
@@ -7233,9 +7248,9 @@
             }
           }
         },
-        "summary": "Add an image to an event: JPEG, PNG, WebP or HEIC, stored as JPEG.",
+        "summary": "Add an image to a news item: JPEG, PNG, WebP or HEIC, stored as JPEG.",
         "tags": [
-          "events"
+          "news"
         ]
       },
       "parameters": [
@@ -7259,7 +7274,7 @@
         },
         {
           "in": "path",
-          "name": "event_id",
+          "name": "news_id",
           "required": true,
           "schema": {
             "type": "integer",
@@ -7268,7 +7283,7 @@
         }
       ]
     },
-    "/v1/orgs/{org}/sites/{site}/events/{event_id}/images/{image_id}": {
+    "/v1/orgs/{org}/sites/{site}/news/{news_id}/images/{image_id}": {
       "delete": {
         "responses": {
           "204": {
@@ -7278,9 +7293,9 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Remove an image from an event.",
+        "summary": "Remove an image from a news item.",
         "tags": [
-          "events"
+          "news"
         ]
       },
       "parameters": [
@@ -7304,7 +7319,7 @@
         },
         {
           "in": "path",
-          "name": "event_id",
+          "name": "news_id",
           "required": true,
           "schema": {
             "type": "integer",
@@ -7322,7 +7337,7 @@
         }
       ]
     },
-    "/v1/orgs/{org}/sites/{site}/events/{event_id}/images/order": {
+    "/v1/orgs/{org}/sites/{site}/news/{news_id}/images/order": {
       "put": {
         "responses": {
           "422": {
@@ -7352,9 +7367,9 @@
             }
           }
         },
-        "summary": "Put an event's images in a new order.",
+        "summary": "Put a news item's images in a new order.",
         "tags": [
-          "events"
+          "news"
         ]
       },
       "parameters": [
@@ -7378,7 +7393,7 @@
         },
         {
           "in": "path",
-          "name": "event_id",
+          "name": "news_id",
           "required": true,
           "schema": {
             "type": "integer",
@@ -7871,8 +7886,8 @@
       "description": "A site's menu categories, one level of subcategories at most"
     },
     {
-      "name": "events",
-      "description": "A site's events: the published ones for anyone, drafts too for its editors"
+      "name": "news",
+      "description": "A site's news: the published items for anyone, drafts too for its editors"
     },
     {
       "name": "closures",
@@ -12813,7 +12828,7 @@
         ],
         "additionalProperties": false
       },
-      "Event": {
+      "News": {
         "type": "object",
         "properties": {
           "id": {
@@ -12822,7 +12837,7 @@
           "title": {
             "type": "string"
           },
-          "subtitle": {
+          "summary": {
             "type": "string",
             "nullable": true
           },
@@ -12836,7 +12851,18 @@
           },
           "date": {
             "type": "string",
-            "format": "date"
+            "format": "date",
+            "description": "None if undated",
+            "nullable": true
+          },
+          "pinned": {
+            "type": "boolean"
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "None for a draft",
+            "nullable": true
           },
           "images": {
             "type": "array",
@@ -12878,17 +12904,19 @@
           "date",
           "id",
           "images",
+          "pinned",
+          "published_at",
           "title"
         ],
         "additionalProperties": false
       },
-      "EventList": {
+      "NewsList": {
         "type": "object",
         "properties": {
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Event"
+              "$ref": "#/components/schemas/News"
             }
           }
         },
@@ -12897,17 +12925,14 @@
         ],
         "additionalProperties": false
       },
-      "EventInput": {
+      "NewsInput": {
         "type": "object",
         "properties": {
           "title": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
+            "type": "string"
           },
-          "subtitle": {
+          "summary": {
             "type": "string",
-            "maxLength": 200,
             "nullable": true
           },
           "description": {
@@ -12922,7 +12947,13 @@
           },
           "date": {
             "type": "string",
-            "format": "date"
+            "format": "date",
+            "default": null,
+            "nullable": true
+          },
+          "pinned": {
+            "type": "boolean",
+            "default": false
           },
           "status": {
             "type": "string",
@@ -12943,21 +12974,17 @@
           }
         },
         "required": [
-          "date",
           "title"
         ]
       },
-      "EventPatch": {
+      "NewsPatch": {
         "type": "object",
         "properties": {
           "title": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
+            "type": "string"
           },
-          "subtitle": {
+          "summary": {
             "type": "string",
-            "maxLength": 200,
             "nullable": true
           },
           "description": {
@@ -12970,7 +12997,11 @@
           },
           "date": {
             "type": "string",
-            "format": "date"
+            "format": "date",
+            "nullable": true
+          },
+          "pinned": {
+            "type": "boolean"
           },
           "visibility": {
             "type": "string",
@@ -12982,13 +13013,14 @@
           }
         }
       },
-      "EventDuplicate": {
+      "NewsDuplicate": {
         "type": "object",
         "properties": {
           "date": {
             "type": "string",
             "format": "date",
-            "description": "A week after the original by default"
+            "description": "A week after the original by default; an undated one stays so",
+            "nullable": true
           }
         }
       },

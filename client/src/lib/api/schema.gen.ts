@@ -6066,7 +6066,7 @@ export interface paths {
         };
         trace?: never;
     };
-    "/v1/orgs/{org}/sites/{site}/events": {
+    "/v1/orgs/{org}/sites/{site}/news": {
         parameters: {
             query?: never;
             header?: never;
@@ -6077,19 +6077,22 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Events in date order, soonest first.
-         * @description Anyone reads the published ones from today on. The site's editors read the
-         *     drafts too, and any range: without `from`, past events as well.
+         * News items, pinned first then the latest published, or by their date (`sort=date`).
+         * @description Anyone reads the published ones, eight at most. The site's editors read the drafts
+         *     too, first, and as many as they ask.
          */
         get: {
             parameters: {
                 query?: {
-                    /** @description Today, at the earliest, for anyone but the site's editors */
+                    /** @description `published`: pinned first, then the latest published; `date`: the dated items only, the soonest first */
+                    sort?: "published" | "date";
+                    /** @description The dated items only */
                     from?: string;
                     /** @description Included */
                     to?: string;
-                    /** @description Only the events shown on that screen */
+                    /** @description Only the items shown on that screen */
                     visibility?: "tv" | "mobile";
+                    /** @description Eight at most for anyone but the site's editors */
                     limit?: number;
                 };
                 header?: never;
@@ -6107,7 +6110,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["EventList"];
+                        "application/json": components["schemas"]["NewsList"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
@@ -6115,7 +6118,7 @@ export interface paths {
             };
         };
         put?: never;
-        /** Add an event, a draft unless `status` says otherwise. */
+        /** Add a news item, a draft unless `status` says otherwise. */
         post: {
             parameters: {
                 query?: never;
@@ -6128,7 +6131,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["EventInput"];
+                    "application/json": components["schemas"]["NewsInput"];
                 };
             };
             responses: {
@@ -6138,7 +6141,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Event"];
+                        "application/json": components["schemas"]["News"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
@@ -6151,18 +6154,18 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/orgs/{org}/sites/{site}/events/{event_id}": {
+    "/v1/orgs/{org}/sites/{site}/news/{news_id}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 org: string;
                 site: string;
-                event_id: number;
+                news_id: number;
             };
             cookie?: never;
         };
-        /** One event: published for anyone, any for the site's editors. */
+        /** A news item: published for anyone, drafts too for the site's editors. */
         get: {
             parameters: {
                 query?: never;
@@ -6170,7 +6173,7 @@ export interface paths {
                 path: {
                     org: string;
                     site: string;
-                    event_id: number;
+                    news_id: number;
                 };
                 cookie?: never;
             };
@@ -6182,7 +6185,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Event"];
+                        "application/json": components["schemas"]["News"];
                     };
                 };
                 default: components["responses"]["DEFAULT_ERROR"];
@@ -6190,7 +6193,7 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        /** Delete an event and its images. */
+        /** Delete a news item and its images. */
         delete: {
             parameters: {
                 query?: never;
@@ -6198,7 +6201,7 @@ export interface paths {
                 path: {
                     org: string;
                     site: string;
-                    event_id: number;
+                    news_id: number;
                 };
                 cookie?: never;
             };
@@ -6216,7 +6219,7 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        /** Change an event; a new date sends its reminders again. */
+        /** Change a news item; a new date sends its reminders again. */
         patch: {
             parameters: {
                 query?: never;
@@ -6224,13 +6227,13 @@ export interface paths {
                 path: {
                     org: string;
                     site: string;
-                    event_id: number;
+                    news_id: number;
                 };
                 cookie?: never;
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["EventPatch"];
+                    "application/json": components["schemas"]["NewsPatch"];
                 };
             };
             responses: {
@@ -6240,7 +6243,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Event"];
+                        "application/json": components["schemas"]["News"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
@@ -6249,20 +6252,20 @@ export interface paths {
         };
         trace?: never;
     };
-    "/v1/orgs/{org}/sites/{site}/events/{event_id}/publish": {
+    "/v1/orgs/{org}/sites/{site}/news/{news_id}/publish": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 org: string;
                 site: string;
-                event_id: number;
+                news_id: number;
             };
             cookie?: never;
         };
         get?: never;
         put?: never;
-        /** Publish an event. */
+        /** Publish a news item. */
         post: {
             parameters: {
                 query?: never;
@@ -6270,7 +6273,7 @@ export interface paths {
                 path: {
                     org: string;
                     site: string;
-                    event_id: number;
+                    news_id: number;
                 };
                 cookie?: never;
             };
@@ -6282,7 +6285,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Event"];
+                        "application/json": components["schemas"]["News"];
                     };
                 };
                 default: components["responses"]["DEFAULT_ERROR"];
@@ -6294,20 +6297,20 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/orgs/{org}/sites/{site}/events/{event_id}/unpublish": {
+    "/v1/orgs/{org}/sites/{site}/news/{news_id}/unpublish": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 org: string;
                 site: string;
-                event_id: number;
+                news_id: number;
             };
             cookie?: never;
         };
         get?: never;
         put?: never;
-        /** Take a published event back to draft. */
+        /** Take a published news item back to draft. */
         post: {
             parameters: {
                 query?: never;
@@ -6315,7 +6318,7 @@ export interface paths {
                 path: {
                     org: string;
                     site: string;
-                    event_id: number;
+                    news_id: number;
                 };
                 cookie?: never;
             };
@@ -6327,7 +6330,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Event"];
+                        "application/json": components["schemas"]["News"];
                     };
                 };
                 default: components["responses"]["DEFAULT_ERROR"];
@@ -6339,20 +6342,20 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/orgs/{org}/sites/{site}/events/{event_id}/duplicate": {
+    "/v1/orgs/{org}/sites/{site}/news/{news_id}/duplicate": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 org: string;
                 site: string;
-                event_id: number;
+                news_id: number;
             };
             cookie?: never;
         };
         get?: never;
         put?: never;
-        /** Copy an event, without its images, as a draft. */
+        /** Copy a news item, without its images, as a draft. */
         post: {
             parameters: {
                 query?: never;
@@ -6360,13 +6363,13 @@ export interface paths {
                 path: {
                     org: string;
                     site: string;
-                    event_id: number;
+                    news_id: number;
                 };
                 cookie?: never;
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["EventDuplicate"];
+                    "application/json": components["schemas"]["NewsDuplicate"];
                 };
             };
             responses: {
@@ -6376,7 +6379,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Event"];
+                        "application/json": components["schemas"]["News"];
                     };
                 };
                 422: components["responses"]["UNPROCESSABLE_ENTITY"];
@@ -6389,20 +6392,20 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/orgs/{org}/sites/{site}/events/{event_id}/images": {
+    "/v1/orgs/{org}/sites/{site}/news/{news_id}/images": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 org: string;
                 site: string;
-                event_id: number;
+                news_id: number;
             };
             cookie?: never;
         };
         get?: never;
         put?: never;
-        /** Add an image to an event: JPEG, PNG, WebP or HEIC, stored as JPEG. */
+        /** Add an image to a news item: JPEG, PNG, WebP or HEIC, stored as JPEG. */
         post: {
             parameters: {
                 query?: never;
@@ -6410,7 +6413,7 @@ export interface paths {
                 path: {
                     org: string;
                     site: string;
-                    event_id: number;
+                    news_id: number;
                 };
                 cookie?: never;
             };
@@ -6439,14 +6442,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/orgs/{org}/sites/{site}/events/{event_id}/images/{image_id}": {
+    "/v1/orgs/{org}/sites/{site}/news/{news_id}/images/{image_id}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 org: string;
                 site: string;
-                event_id: number;
+                news_id: number;
                 image_id: number;
             };
             cookie?: never;
@@ -6454,7 +6457,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Remove an image from an event. */
+        /** Remove an image from a news item. */
         delete: {
             parameters: {
                 query?: never;
@@ -6462,7 +6465,7 @@ export interface paths {
                 path: {
                     org: string;
                     site: string;
-                    event_id: number;
+                    news_id: number;
                     image_id: number;
                 };
                 cookie?: never;
@@ -6484,19 +6487,19 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/orgs/{org}/sites/{site}/events/{event_id}/images/order": {
+    "/v1/orgs/{org}/sites/{site}/news/{news_id}/images/order": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 org: string;
                 site: string;
-                event_id: number;
+                news_id: number;
             };
             cookie?: never;
         };
         get?: never;
-        /** Put an event's images in a new order. */
+        /** Put a news item's images in a new order. */
         put: {
             parameters: {
                 query?: never;
@@ -6504,7 +6507,7 @@ export interface paths {
                 path: {
                     org: string;
                     site: string;
-                    event_id: number;
+                    news_id: number;
                 };
                 cookie?: never;
             };
@@ -8268,14 +8271,23 @@ export interface components {
             /** @description For the site's editors */
             id?: number;
         };
-        Event: {
+        News: {
             id: number;
             title: string;
-            subtitle?: string | null;
+            summary?: string | null;
             description?: string | null;
             color?: string | null;
-            /** Format: date */
-            date: string;
+            /**
+             * Format: date
+             * @description None if undated
+             */
+            date: string | null;
+            pinned: boolean;
+            /**
+             * Format: date-time
+             * @description None for a draft
+             */
+            published_at: string | null;
             images: components["schemas"]["Image"][];
             /**
              * @description For the site's editors
@@ -8298,18 +8310,23 @@ export interface components {
              */
             updated_at?: string | null;
         };
-        EventList: {
-            items: components["schemas"]["Event"][];
+        NewsList: {
+            items: components["schemas"]["News"][];
         };
-        EventInput: {
+        NewsInput: {
             title: string;
-            subtitle?: string | null;
+            summary?: string | null;
             /** @description HTML, sanitized on write */
             description?: string | null;
             /** @default #3498DB */
             color?: string;
-            /** Format: date */
-            date: string;
+            /**
+             * Format: date
+             * @default null
+             */
+            date?: string | null;
+            /** @default false */
+            pinned?: boolean;
             /**
              * @default draft
              * @enum {string}
@@ -8321,22 +8338,23 @@ export interface components {
              */
             visibility?: "tv" | "mobile" | "all";
         };
-        EventPatch: {
+        NewsPatch: {
             title?: string;
-            subtitle?: string | null;
+            summary?: string | null;
             description?: string | null;
             color?: string;
             /** Format: date */
-            date?: string;
+            date?: string | null;
+            pinned?: boolean;
             /** @enum {string} */
             visibility?: "tv" | "mobile" | "all";
         };
-        EventDuplicate: {
+        NewsDuplicate: {
             /**
              * Format: date
-             * @description A week after the original by default
+             * @description A week after the original by default; an undated one stays so
              */
-            date?: string;
+            date?: string | null;
         };
         ImageOrder: {
             /** @description Every image, once, in the new order */

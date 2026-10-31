@@ -1,10 +1,10 @@
 import { Pencil } from 'lucide-react';
-import type { Event } from '@/lib/api/events';
+import type { News } from '@/lib/api/news';
 
 interface EventCardProps {
-  event: Event;
+  event: News;
   compact?: boolean;
-  onEdit?: (event: Event) => void;
+  onEdit?: (event: News) => void;
 }
 
 export function EventCard({ event, compact = false, onEdit }: EventCardProps) {
@@ -63,9 +63,9 @@ export function EventCard({ event, compact = false, onEdit }: EventCardProps) {
         <p className="text-sm font-bold leading-snug" style={{ color }}>
           {event.title}
         </p>
-        {event.subtitle && (
+        {event.summary && (
           <p className="mt-0.5 text-xs opacity-70" style={{ color }}>
-            {event.subtitle}
+            {event.summary}
           </p>
         )}
 

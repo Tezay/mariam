@@ -37,13 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The public pages are rendered by the server**, each with its title, description, link preview and, for a menu, its JSON-LD.
 - **`/tv` and `/<site>/tv`**, the address of the display screen.
 - **The API's conventions** in `docs/API.md`, and its specification kept in the repository, checked by CI.
-- **`/v1/orgs/{org}/sites/{site}`**, with its menus by date, events, closures and vote: read with no account, from any origin.
+- **`/v1/orgs/{org}/sites/{site}`**, with its menus by date, news, closures and vote: read with no account, from any origin.
 - **`GET /v1/domains/{host}`**, the organization a host serves.
 - **Each route documents whether it needs a session**; `/v1/docs` takes a token (*Authorize*) for those that do.
 - **A site's menus, dishes and imports under `/v1/orgs/{org}/sites/{site}`**: a menu by its date, read by anyone once published and by the site's editors as a draft too.
 - **`/v1/holidays/{year}` and `/v1/school-holidays/{year}`.**
 - **`/v1/user`, the signed-in account**: profile, preferences, alerts, passkeys, TOTP and password; no site or organization id.
-- **A site's settings, categories, events and closures under `/v1/orgs/{org}/sites/{site}`**, drafts included for its editors.
+- **A site's settings, categories, news and closures under `/v1/orgs/{org}/sites/{site}`**, drafts included for its editors.
 - **Accounts, invitations, audit log and analytics under the site or the organization**, which also serves its pooled dishes.
 - **`/unsubscribe/<token>`**, the page the weekly email links to.
 - **A site's public page in the API**: tagline, presentation, logo, cover, gallery, access, services and links.
@@ -53,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A site's page shows its maximum capacity**, meals per service, on a dial that turns red when it is reached.
 - **"Capacité atteinte" in "Service en cours"**: the site's page and its header say so until the service ends.
 - **"Consultations" tells how often the maximum capacity was reached**, and at what time, once it has been.
+- **A news item can be pinned**, and tells when it was published.
 - **A site's page tells the quality of its products**: EGalim purchases, last 30 days of menus, labels, commitments.
 - **"Page publique" records the EGalim figures of each year**, as the annual "ma cantine" report gives them.
 - **Each passkey names the password manager that holds it** in "Mon compte", when known.
@@ -62,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **After a sign-in from the phone, a computer offers a passkey of its own**, again two months after a refusal.
 
 ### Changed
+- **Events become news**, whose date is optional; a dated one keeps the calendar, the TV banner and its reminders.
 
 - **API errors follow RFC 9457** (`application/problem+json`), with a stable `code` beside the French `detail`.
 - **uv runs Python 3.11** (`server/.python-version`), the version of the images; CI tests on it too.

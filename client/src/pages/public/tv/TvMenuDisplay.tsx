@@ -152,9 +152,9 @@ function TvTodayEventBanner({ event }: { event: EventData }) {
         >
           {event.title}
         </h2>
-        {event.subtitle && (
+        {event.summary && (
           <p className="truncate text-3xl font-light" style={{ color: palette.textMuted }}>
-            {event.subtitle}
+            {event.summary}
           </p>
         )}
       </div>

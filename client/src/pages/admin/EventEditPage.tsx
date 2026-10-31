@@ -4,7 +4,7 @@ import { useEditor, useEditorState, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { getApiErrorMessage } from '@/lib/api/errors';
-import { eventsApi, storedImages, type Event, type StoredImage } from '@/lib/api/events';
+import { newsApi, storedImages, type News, type StoredImage } from '@/lib/api/news';
 import { EVENT_PRESET_COLORS, generateEventPalette } from '@/lib/color-utils';
 import { notify } from '@/lib/toast';
 import { ImageUploader } from '@/components/ImageUploader';
@@ -196,12 +196,12 @@ export function EventEditPage() {
   useEffect(() => {
     if (isCreating) return;
     setLoading(true);
-    eventsApi
+    newsApi
       .get(site, Number(id))
       .then((event) => {
         setTitle(event.title);
-        setSubtitle(event.subtitle ?? '');
-        setEventDate(event.date);
+        setSubtitle(event.summary ?? '');
+        setEventDate(event.date ?? '');
         setColor(event.color ?? '#3498DB');
         setVisibility(event.visibility ?? 'all');
         setStatus(event.status ?? 'draft');
@@ -244,28 +244,28 @@ export function EventEditPage() {
         const description = editor?.getHTML() ?? '';
         const fields = {
           title: title.trim(),
-          subtitle: subtitle.trim() || null,
+          summary: subtitle.trim() || null,
           description: description === '<p></p>' ? null : description,
           date: eventDate,
           color,
           visibility,
         };
 
-        let savedEvent: Event;
+        let savedEvent: News;
         if (isCreating) {
-          savedEvent = await eventsApi.create(site, {
+          savedEvent = await newsApi.create(site, {
             ...fields,
             status: publish ? 'published' : status,
           });
         } else {
-          savedEvent = await eventsApi.update(site, Number(id), fields);
+          savedEvent = await newsApi.update(site, Number(id), fields);
         }
 
         // Removals, then order, then uploads: the order names every stored image
         // once, and an upload counts against the six an event holds.
         for (const imgId of deletedImageIds) {
           try {
-            await eventsApi.deleteImage(site, savedEvent.id, imgId);
+            await newsApi.deleteImage(site, savedEvent.id, imgId);
           } catch (err) {
             notify.error(getApiErrorMessage(err, "Une image n'a pas pu être retirée"));
           }
@@ -274,7 +274,7 @@ export function EventEditPage() {
 
         if (imagesReordered) {
           try {
-            await eventsApi.orderImages(
+            await newsApi.orderImages(
               site,
               savedEvent.id,
               serverImages.map((img) => img.id)
@@ -289,7 +289,7 @@ export function EventEditPage() {
           setIsUploading(true);
           for (const file of pendingFiles) {
             try {
-              const uploaded = await eventsApi.uploadImage(site, savedEvent.id, file);
+              const uploaded = await newsApi.uploadImage(site, savedEvent.id, file);
               setServerImages((prev) => [...prev, ...storedImages([uploaded])]);
             } catch (err) {
               notify.error(getApiErrorMessage(err, `L'image ${file.name} n'a pas pu être ajoutée`));
@@ -300,7 +300,7 @@ export function EventEditPage() {
         }
 
         if (publish && savedEvent.status !== 'published') {
-          await eventsApi.publish(site, savedEvent.id);
+          await newsApi.publish(site, savedEvent.id);
           setStatus('published');
         } else {
           setStatus(savedEvent.status ?? status);

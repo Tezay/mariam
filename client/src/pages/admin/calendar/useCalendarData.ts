@@ -3,14 +3,14 @@ import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query';
 import { useSiteRef } from '@/contexts/SiteContext';
 import { menusApi, type Menu } from '@/lib/api/menus';
 import { sitesApi } from '@/lib/api/sites';
-import { eventsApi, Event } from '@/lib/api/events';
+import { isDated, newsApi, News } from '@/lib/api/news';
 import { closuresApi, type Closure } from '@/lib/api/closures';
 import { addDays } from '@/lib/date-utils';
 
 export interface DayData {
   date: string;
   menu: Menu | null;
-  events: Event[];
+  events: News[];
   closure: Closure | null;
   isServiceDay: boolean;
 }
@@ -75,7 +75,7 @@ export function useCalendarData(rangeStart: string, rangeEnd: string): UseCalend
   const range = { from: rangeStart, to: rangeEnd };
   const eventsQuery = useQuery({
     queryKey: ['calendar-events', site.org, site.site, rangeStart, rangeEnd],
-    queryFn: () => eventsApi.list(site, range),
+    queryFn: () => newsApi.list(site, { sort: 'date', ...range }),
     staleTime: STALE_TIME,
   });
 
@@ -109,7 +109,7 @@ export function useCalendarData(rangeStart: string, rangeEnd: string): UseCalend
       });
     }
 
-    for (const event of events) {
+    for (const event of events.filter(isDated)) {
       const d = event.date;
       if (!result[d]) {
         result[d] = {

@@ -1,6 +1,6 @@
 import { addDays, parisToday } from '@/lib/date-utils';
 import type { Menu } from '@/lib/api/menus';
-import type { Event } from '@/lib/api/events';
+import { isDated, type DatedNews } from '@/lib/api/news';
 import type { Site } from '@/lib/api/sites';
 import type { EventData, MenuData, PublicMenuData, RestaurantPublic, SitePage } from './menu-types';
 
@@ -30,7 +30,7 @@ function dayOf(date: string, menus: Menu[], restaurant: RestaurantPublic): MenuD
 
 const UPCOMING_EVENTS = 4;
 
-function eventOf({ date, ...event }: Event): EventData {
+function eventOf({ date, ...event }: DatedNews): EventData {
   return { ...event, event_date: date };
 }
 
@@ -42,12 +42,13 @@ export function publicMenuData(
 ): PublicMenuData {
   const today = parisToday(now);
   const restaurant = restaurantOf(site);
+  const dated = events.filter(isDated);
   return {
     today: dayOf(today, menus, restaurant),
     tomorrow: dayOf(addDays(today, 1), menus, restaurant),
     day: dayOf(date, menus, restaurant),
-    todayEvent: events.filter((event) => event.date === today).map(eventOf)[0] ?? null,
-    upcomingEvents: events
+    todayEvent: dated.filter((event) => event.date === today).map(eventOf)[0] ?? null,
+    upcomingEvents: dated
       .filter((event) => event.date > today)
       .slice(0, UPCOMING_EVENTS)
       .map(eventOf),

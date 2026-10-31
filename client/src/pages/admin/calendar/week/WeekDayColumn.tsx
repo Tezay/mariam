@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { CalendarOff, Pencil } from 'lucide-react';
 import type { MenuDish } from '@/lib/api/menus';
-import type { Event } from '@/lib/api/events';
+import type { News } from '@/lib/api/news';
 import type { MenuCategory } from '@/lib/api/categories';
 import type { EditorItem } from '@/pages/admin/calendar/day/useMenuEditor';
 import type { DayData } from '../useCalendarData';
@@ -44,7 +44,7 @@ interface WeekDayColumnProps {
   onRegisterRemove?: (fn: (itemId: number) => void) => void;
   onRegisterUpdateItem?: (fn: (itemId: number, changes: Partial<EditorItem>) => void) => void;
   onRegisterGetItems?: (fn: () => EditorItem[]) => void;
-  onEditEvent?: (event: Event) => void;
+  onEditEvent?: (event: News) => void;
 }
 
 export function WeekDayColumn({

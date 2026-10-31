@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { publicMenuData } from '@/pages/public/public-menu-data';
 import type { Menu } from '@/lib/api/menus';
 import type { Closure } from '@/lib/api/closures';
-import type { Event } from '@/lib/api/events';
+import type { News } from '@/lib/api/news';
 import type { Site } from '@/lib/api/sites';
 
 // Thursday 15 October 2026, 23:30 in Paris: still Thursday there, already
@@ -35,8 +35,8 @@ function menu(date: string): Menu {
   return { date, categories: [], substitutions: {} };
 }
 
-function event(id: number, date: string): Event {
-  return { id, title: `Événement ${id}`, date, images: [] };
+function event(id: number, date: string): News {
+  return { id, title: `Événement ${id}`, date, pinned: false, published_at: null, images: [] };
 }
 
 function closure(id: number, start_date: string, end_date: string): Closure {

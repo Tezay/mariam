@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { PlusCircle, FileUp, Table2, ChefHat, MoreHorizontal, Trash2, Copy } from 'lucide-react';
 import { menusApi } from '@/lib/api/menus';
-import type { Event } from '@/lib/api/events';
+import type { News } from '@/lib/api/news';
 import type { Menu } from '@/lib/api/menus';
 import type { MenuCategory } from '@/lib/api/categories';
 import { cn } from '@/lib/utils';
@@ -38,8 +38,8 @@ interface AdminDayDisplayProps {
   menu: Menu | null;
   canEdit: boolean;
   categories: MenuCategory[];
-  events: Event[];
-  onEditEvent?: (event: Event) => void;
+  events: News[];
+  onEditEvent?: (event: News) => void;
   onReload: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   onStartOnboarding?: (date: string) => void;

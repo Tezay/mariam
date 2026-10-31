@@ -85,9 +85,9 @@ function EventDialog({
             {eventDay(event.event_date)}
           </p>
           <DialogTitle className="text-xl font-bold leading-snug">{event.title}</DialogTitle>
-          {event.subtitle && (
+          {event.summary && (
             <DialogDescription className="text-sm text-site-subtle">
-              {event.subtitle}
+              {event.summary}
             </DialogDescription>
           )}
           {event.description && (
@@ -119,7 +119,7 @@ export function TodayEvent({ event }: { event: EventData }) {
             Aujourd'hui
           </span>
           <span className="text-base font-bold leading-snug">{event.title}</span>
-          {event.subtitle && <span className="text-sm text-site-subtle">{event.subtitle}</span>}
+          {event.summary && <span className="text-sm text-site-subtle">{event.summary}</span>}
           {event.description && (
             <span className="flex items-center gap-1 text-sm font-semibold text-site-brand">
               En savoir plus <ChevronRight aria-hidden className="h-4 w-4" />
@@ -158,8 +158,8 @@ function EventCard({ event }: { event: EventData }) {
             {eventDay(event.event_date)}
           </span>
           <span className="text-[15px] font-bold leading-snug lg:text-base">{event.title}</span>
-          {event.subtitle && (
-            <span className="text-[13px] text-site-subtle lg:text-sm">{event.subtitle}</span>
+          {event.summary && (
+            <span className="text-[13px] text-site-subtle lg:text-sm">{event.summary}</span>
           )}
         </span>
       </button>

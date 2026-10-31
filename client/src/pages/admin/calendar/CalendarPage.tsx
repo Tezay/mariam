@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { addDays, parisToday } from '@/lib/date-utils';
 import { categoriesApi } from '@/lib/api/categories';
 import type { Closure } from '@/lib/api/closures';
-import { Event } from '@/lib/api/events';
+import { News } from '@/lib/api/news';
 import type { MenuCategory } from '@/lib/api/categories';
 import { sitesApi, type CalendarSettings } from '@/lib/api/sites';
 import { useSiteRef } from '@/contexts/SiteContext';
@@ -314,7 +314,7 @@ export function CalendarPage() {
   );
 
   const handleEditEvent = useCallback(
-    (event: Event) => {
+    (event: News) => {
       navigate(`/admin/events/${event.id}/edit`);
     },
     [navigate]

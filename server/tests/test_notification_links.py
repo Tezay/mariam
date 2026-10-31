@@ -76,6 +76,7 @@ def test_events_and_closures_open_the_page(app, pushed):
     tomorrow = paris_today() + timedelta(days=1)
     db.session.add(Event(restaurant_id=rid, title='Repas à thème', event_date=tomorrow,
                          status='published'))
+    db.session.add(Event(restaurant_id=rid, title='Sans date', status='published'))
     db.session.add(ExceptionalClosure(restaurant_id=rid, start_date=tomorrow, end_date=tomorrow))
     _subscriber(rid)
 

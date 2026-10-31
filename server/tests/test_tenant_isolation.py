@@ -78,7 +78,7 @@ class TestEventTenantIsolation:
         _, rid_b = _two_tenants()
         event_id = _make_event(rid_b)
         token_a = get_token(client, email='a@mariam.app')
-        res = client.get(f'{site_path(rid_b)}/events/{event_id}', headers=auth_headers(token_a))
+        res = client.get(f'{site_path(rid_b)}/news/{event_id}', headers=auth_headers(token_a))
         assert res.status_code == 404
 
     def test_cannot_update_other_tenant_event(self, app, client):
@@ -86,7 +86,7 @@ class TestEventTenantIsolation:
         event_id = _make_event(rid_b)
         headers = auth_headers(get_token(client, email='a@mariam.app'))
         for path in (site_path(rid_b), site_path(rid_a)):
-            res = client.patch(f'{path}/events/{event_id}', json={'title': 'hacked'}, headers=headers)
+            res = client.patch(f'{path}/news/{event_id}', json={'title': 'hacked'}, headers=headers)
             assert res.status_code == 404
         assert db.session.get(Event, event_id).title == 'Event'
 
@@ -94,7 +94,7 @@ class TestEventTenantIsolation:
         _, rid_b = _two_tenants()
         event_id = _make_event(rid_b)
         headers = auth_headers(get_token(client, email='a@mariam.app'))
-        path = f'{site_path(rid_b)}/events/{event_id}'
+        path = f'{site_path(rid_b)}/news/{event_id}'
         assert client.delete(path, headers=headers).status_code == 404
         assert client.post(f'{path}/publish', headers=headers).status_code == 404
         assert db.session.get(Event, event_id) is not None
@@ -107,7 +107,7 @@ class TestEventTenantIsolation:
         db.session.add(img)
         db.session.commit()
         token_a = get_token(client, email='a@mariam.app')
-        res = client.delete(f'{site_path(rid_a)}/events/{event_id}/images/{img.id}',
+        res = client.delete(f'{site_path(rid_a)}/news/{event_id}/images/{img.id}',
                             headers=auth_headers(token_a))
         assert res.status_code == 404
         assert db.session.get(EventImage, img.id) is not None
@@ -115,7 +115,7 @@ class TestEventTenantIsolation:
     def test_create_event_ignores_body_restaurant_id(self, app, client):
         rid_a, rid_b = _two_tenants()
         token_a = get_token(client, email='a@mariam.app')
-        res = client.post(f'{site_path(rid_a)}/events',
+        res = client.post(f'{site_path(rid_a)}/news',
                           json={'title': 'At A', 'date': _today_iso(), 'restaurant_id': rid_b},
                           headers=auth_headers(token_a))
         assert res.status_code == 201
@@ -257,7 +257,7 @@ class TestOrgAdminScope:
     def test_org_admin_reads_the_drafts_of_every_site_of_its_org(self, app, client):
         _, rid2 = self._org_sites('multi', ['S1', 'S2'])
         event_site2 = _make_event(rid2, title='On site 2')
-        url = f'{site_path(rid2)}/events/{event_site2}'
+        url = f'{site_path(rid2)}/news/{event_site2}'
 
         director = client.get(url, headers=auth_headers(get_token(client, email='director@mariam.app')))
         site_admin = client.get(url, headers=auth_headers(get_token(client, email='siteadmin@mariam.app')))
@@ -272,7 +272,7 @@ class TestOrgAdminScope:
         _make_event(outsider, title='Theirs, draft')
         headers = auth_headers(get_token(client, email='director@mariam.app'))
 
-        listed = client.get(f'{site_path(outsider)}/events', headers=headers).get_json()['items']
+        listed = client.get(f'{site_path(outsider)}/news', headers=headers).get_json()['items']
         refused = client.patch(site_path(outsider), json={'name': 'Mine now'}, headers=headers)
 
         assert [event['title'] for event in listed] == ['Theirs, published']
@@ -411,7 +411,7 @@ class TestDirectorIsReadOnlyOnContent:
         self._director_and_site()
         token = get_token(client, email='ro@mariam.app')
         res = client.post(
-            f'{site_path(Restaurant.query.one().id)}/events',
+            f'{site_path(Restaurant.query.one().id)}/news',
             json={'title': 'Nope', 'date': _today_iso()},
             headers=auth_headers(token),
         )
@@ -423,7 +423,7 @@ class TestDirectorIsReadOnlyOnContent:
         rid = self._director_and_site('ro-org-2')
         event_id = _make_event(rid, title='Keep', status='published')
         token = get_token(client, email='ro@mariam.app')
-        res = client.delete(f'{site_path(rid)}/events/{event_id}', headers=auth_headers(token))
+        res = client.delete(f'{site_path(rid)}/news/{event_id}', headers=auth_headers(token))
         assert res.status_code == 403
         assert db.session.get(Event, event_id) is not None
 
@@ -471,7 +471,7 @@ class TestDirectorIsReadOnlyOnContent:
         rid = self._director_and_site('ro-org-3')
         _make_event(rid, title='Visible', status='published')
         token = get_token(client, email='ro@mariam.app')
-        res = client.get(f'{site_path(rid)}/events', headers=auth_headers(token))
+        res = client.get(f'{site_path(rid)}/news', headers=auth_headers(token))
         assert res.status_code == 200
         assert 'Visible' in {event['title'] for event in res.get_json()['items']}
 
