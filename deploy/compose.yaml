@@ -106,7 +106,9 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 40s
+      # A first start on an empty database runs every migration.
+      start_period: 3m
+      start_interval: 5s
 
   redis:
     image: redis:8-alpine
