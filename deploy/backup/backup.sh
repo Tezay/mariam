@@ -130,6 +130,11 @@ command=${1:-run}
 [ $# -eq 0 ] || shift
 case $command in
     run)
+        if [ -z "${BACKUP_S3_BUCKET:-}" ]; then
+            log "backups are off: BACKUP_S3_BUCKET is not set"
+            # Exiting would have the restart policy start the service over and over.
+            while :; do sleep 3600; done
+        fi
         use_storage
         check_backup_settings
         run
