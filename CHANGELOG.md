@@ -53,6 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A site's page shows its maximum capacity**, meals per service, on a dial that turns red when it is reached.
 - **"Capacité atteinte" in "Service en cours"**: the site's page and its header say so until the service ends.
 - **"Consultations" tells how often the maximum capacity was reached**, and at what time, once it has been.
+- **A site's page tells the quality of its products**: EGalim purchases, last 30 days of menus, labels, commitments.
+- **"Page publique" records the EGalim figures of each year**, as the annual "ma cantine" report gives them.
 - **Each passkey names the password manager that holds it** in "Mon compte", when known.
 - **Password managers learn of a deleted passkey or a new name**, in browsers with the Signal API.
 - **The public pages follow the system's dark theme**; the TV display stays light.

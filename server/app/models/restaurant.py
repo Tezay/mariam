@@ -47,6 +47,7 @@ class Restaurant(db.Model):
     tagline = db.Column(db.String(160), nullable=True)
     description = db.Column(db.String(800), nullable=True)
     access_info = db.Column(db.String(300), nullable=True)
+    quality_commitments = db.Column(db.String(600), nullable=True)
     # Among data/site_profile.SERVICES, in its order.
     services = db.Column(db.JSON, nullable=True)
     # [{kind, url, label}], label set for a website only.

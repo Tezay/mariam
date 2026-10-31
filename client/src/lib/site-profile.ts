@@ -49,6 +49,7 @@ export const TEXT_MAX = {
   tagline: 160,
   description: 800,
   accessInfo: 300,
+  qualityCommitments: 600,
   linkLabel: 40,
   alt: 150,
 };

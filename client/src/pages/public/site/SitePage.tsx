@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import type { Closure } from '@/lib/api/closures';
+import type { Quality } from '@/lib/api/quality';
 import type { LiveStatus, PublicOrg } from '@/lib/api/sites';
 import { addDays, parisToday } from '@/lib/date-utils';
 import { getServiceStatus } from '@/lib/service-utils';
@@ -17,6 +18,8 @@ import { AboutSection } from './AboutSection';
 import { dayStrip, openDays } from './days';
 import { MenuBoard } from './MenuBoard';
 import { PracticalInfo } from './PracticalInfo';
+import { QualitySection } from './QualitySection';
+import { qualityView } from './quality-view';
 import { useLiveStatus } from './use-live-status';
 import { NotificationsPanel } from './notifications/NotificationsPanel';
 import { useLaunchOffer } from './notifications/useLaunchOffer';
@@ -32,6 +35,7 @@ interface SitePageProps {
   date: string;
   initial: PublicMenuData;
   initialLive: LiveStatus | null;
+  quality: Quality | null;
   serverNow: number;
   mapTiles: MapTiles | null;
 }
@@ -43,6 +47,7 @@ export function SitePage({
   date,
   initial,
   initialLive,
+  quality,
   serverNow,
   mapTiles,
 }: SitePageProps) {
@@ -62,6 +67,7 @@ export function SitePage({
     inService,
   });
   const reached = live ? live.capacity_reached : null;
+  const qualityShown = qualityView(quality, site.quality_commitments);
   const siteRef = useMemo(
     () => ({ org: organization.slug, site: siteSlug }),
     [organization.slug, siteSlug]
@@ -129,8 +135,9 @@ export function SitePage({
           </PracticalInfo>
         </aside>
 
-        <div className="px-4 lg:col-start-1 lg:row-start-3 lg:px-0">
+        <div className="flex flex-col gap-8 px-4 lg:col-start-1 lg:row-start-3 lg:px-0">
           <AboutSection site={site} />
+          {qualityShown && <QualitySection view={qualityShown} />}
         </div>
       </main>
 

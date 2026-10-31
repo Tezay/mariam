@@ -6,6 +6,7 @@ export interface PublicPageForm {
   tagline: string;
   description: string;
   accessInfo: string;
+  qualityCommitments: string;
   services: Service[];
   links: SiteLink[];
   menuDaysAhead: number;
@@ -17,6 +18,7 @@ export function formOf(site: Site): PublicPageForm {
     tagline: site.tagline ?? '',
     description: site.description ?? '',
     accessInfo: site.access_info ?? '',
+    qualityCommitments: site.quality_commitments ?? '',
     services: site.services,
     links: site.links,
     menuDaysAhead: site.menu_days_ahead ?? 7,
@@ -41,6 +43,9 @@ export function patchOf(form: PublicPageForm, saved: PublicPageForm): SitePatch 
   if (form.tagline !== saved.tagline) patch.tagline = form.tagline;
   if (form.description !== saved.description) patch.description = form.description;
   if (form.accessInfo !== saved.accessInfo) patch.access_info = form.accessInfo;
+  if (form.qualityCommitments !== saved.qualityCommitments) {
+    patch.quality_commitments = form.qualityCommitments;
+  }
   if (!sameServices(form.services, saved.services)) patch.services = form.services;
   if (JSON.stringify(form.links.map(linkInput)) !== JSON.stringify(saved.links.map(linkInput))) {
     patch.links = form.links.map(linkInput);

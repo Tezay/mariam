@@ -99,6 +99,7 @@ const SITE_ANSWERS = {
     address_city: null,
     address_postcode: null,
     access_info: null,
+    quality_commitments: null,
     service_capacity: 450,
     services: [],
     links: [],
@@ -115,6 +116,16 @@ const SITE_ANSWERS = {
   events: () => ({ items: [] }),
   closures: () => ({ items: [] }),
   'live-status': () => ({ capacity_reached: false, reached_at: null }),
+  quality: () => ({
+    declaration: {
+      year: 2025,
+      sustainable_share: 38.3,
+      organic_share: 17.2,
+      territorial_share: null,
+    },
+    menus: null,
+    labels: [],
+  }),
 };
 
 function answer(url) {
@@ -334,6 +345,7 @@ test('a site page is rendered by the server, with its title, its dishes and its 
   assert.ok(!page.body.includes('noindex'));
   assert.ok(page.body.includes('Curry de pois chiches'));
   assert.ok(page.body.includes('450 repas par service'));
+  assert.ok(page.body.includes('Nos achats en 2025'));
   const jsonld = /<script type="application\/ld\+json">(.*?)<\/script>/.exec(page.body)?.[1];
   assert.ok(jsonld, 'no JSON-LD block');
   const [restaurant] = JSON.parse(jsonld);
@@ -344,7 +356,7 @@ test('a site page is rendered by the server, with its title, its dishes and its 
 
 test('a page asks the API as the visitor the proxy named', async () => {
   await request('/alpha', { headers: { 'X-Real-IP': '203.0.113.7' } });
-  assert.equal(apiRequests.length, 7);
+  assert.equal(apiRequests.length, 8);
   for (const { headers } of apiRequests) assert.equal(headers['x-real-ip'], '203.0.113.7');
 });
 

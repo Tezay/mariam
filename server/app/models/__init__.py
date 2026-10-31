@@ -2,6 +2,7 @@ from .activation_link import ActivationLink
 from .audit_log import AuditLog
 from .catalog import CategorySubstitution, DishCatalog, dish_certifications, dish_dietary_tags
 from .category import MenuCategory
+from .egalim_declaration import EgalimDeclaration
 from .event import Event, EventImage
 from .exceptional_closure import ExceptionalClosure
 from .import_session import ImportSession
@@ -43,6 +44,7 @@ __all__ = [
     'RestaurantServiceHours',
     'RestaurantCalendarSettings',
     'ServiceLiveStatus',
+    'EgalimDeclaration',
     'MenuCategory',
     'Menu',
     'MenuItem',

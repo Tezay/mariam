@@ -5,6 +5,7 @@ const SAVED: PublicPageForm = {
   tagline: 'Cuisine préparée sur place',
   description: '',
   accessInfo: '',
+  qualityCommitments: '',
   services: ['wifi', 'terrace'],
   links: [{ kind: 'izly', url: 'https://mon-espace.izly.fr', label: null }],
   menuDaysAhead: 7,

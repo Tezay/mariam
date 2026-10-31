@@ -72,6 +72,8 @@ const ACTION_LABELS: Record<string, string> = {
   site_media_upload: 'Upload image page publique',
   site_media_update: 'Modif. photo page publique',
   site_media_delete: 'Suppr. image page publique',
+  egalim_declaration_update: 'Déclaration EGalim',
+  egalim_declaration_delete: 'Suppr. déclaration EGalim',
 };
 
 const getActionBadgeVariant = (

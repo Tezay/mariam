@@ -40,10 +40,13 @@ class TestPatch:
     def test_an_admin_changes_the_details(self, app, client):
         _, path, headers = _site(app, client)
 
-        res = client.patch(path, json={'name': 'RU Nord', 'service_capacity': 120}, headers=headers)
+        body = {'name': 'RU Nord', 'service_capacity': 120, 'quality_commitments': 'Bio local.'}
+        res = client.patch(path, json=body, headers=headers)
 
         assert res.get_json()['name'] == 'RU Nord'
-        assert client.get(path).get_json()['service_capacity'] == 120
+        public = client.get(path).get_json()
+        assert public['service_capacity'] == 120
+        assert public['quality_commitments'] == 'Bio local.'
 
     def test_only_an_admin_changes_them(self, app, client):
         _, path, headers = _site(app, client, role='editor')
@@ -62,6 +65,7 @@ class TestPatch:
         {'email': 'pas-une-adresse'},
         {'service_capacity': 0},
         {'service_capacity': 10_001},
+        {'quality_commitments': 'x' * 601},
     ])
     def test_a_value_out_of_its_rule_is_refused(self, app, client, body):
         _, path, headers = _site(app, client)

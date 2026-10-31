@@ -6689,6 +6689,174 @@ export interface paths {
         };
         trace?: never;
     };
+    "/v1/orgs/{org}/sites/{site}/quality": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /** The latest EGalim figures, and what the published menus of the last 30 days served. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Quality"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/egalim-declarations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /** Every year the site declared, the latest first. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EgalimDeclarationList"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/sites/{site}/egalim-declarations/{year}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+                year: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Declare the share of sustainable, organic and territorial products bought in a year. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    year: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EgalimDeclarationInput"];
+                };
+            };
+            responses: {
+                /** @description The year's figures replaced */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EgalimDeclaration"];
+                    };
+                };
+                /** @description The year's first */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EgalimDeclaration"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        post?: never;
+        /** Remove a year's figures. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                    year: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/devices": {
         parameters: {
             query?: never;
@@ -7579,6 +7747,8 @@ export interface components {
             address_lon?: number | null;
             /** @description How to get there; paragraphs */
             access_info: string | null;
+            /** @description Paragraphs */
+            quality_commitments: string | null;
             /** @description In the order of the closed list */
             services: ("wifi" | "microwave" | "takeaway" | "terrace" | "power_outlets" | "water_fountain" | "study_area")[];
             links: components["schemas"]["SiteLink"][];
@@ -7635,6 +7805,7 @@ export interface components {
             tagline?: string | null;
             description?: string | null;
             access_info?: string | null;
+            quality_commitments?: string | null;
             address_city?: string | null;
             address_postcode?: string | null;
             services?: ("wifi" | "microwave" | "takeaway" | "terrace" | "power_outlets" | "water_fountain" | "study_area")[];
@@ -8207,6 +8378,43 @@ export interface components {
             end_date?: string;
             reason?: string | null;
             description?: string | null;
+        };
+        EgalimDeclaration: {
+            /** @description The year of the purchases */
+            year: number;
+            /** @description Percent of the year's food purchases, by value */
+            sustainable_share: number;
+            /** @description Percent, within the sustainable share */
+            organic_share: number;
+            /** @description Percent from a territorial food project */
+            territorial_share: number | null;
+        };
+        MenuShares: {
+            days: number;
+            /** @description Percent of served dishes */
+            labelled: number;
+            homemade: number;
+            local: number;
+            seasonal: number;
+            /** @description Percent of served main dishes; None without one */
+            vegetarian: number | null;
+        };
+        Quality: {
+            /** @description The latest year declared */
+            declaration: components["schemas"]["EgalimDeclaration"] | (Record<string, never> | null);
+            /** @description Over the published menus of the last days; None without one */
+            menus: components["schemas"]["MenuShares"] | (Record<string, never> | null);
+            /** @description Those of the dishes served over the same days */
+            labels: components["schemas"]["Certification"][];
+        };
+        EgalimDeclarationList: {
+            items: components["schemas"]["EgalimDeclaration"][];
+        };
+        EgalimDeclarationInput: {
+            sustainable_share: number;
+            organic_share: number;
+            /** @default null */
+            territorial_share?: number | null;
         };
         Device: {
             device_id: string;
