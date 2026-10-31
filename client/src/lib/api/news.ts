@@ -33,8 +33,17 @@ function newsPath(ref: SiteRef): string {
 }
 
 export const newsApi = {
+  /** The published items of the site's page, read without a session. */
+  listPublished: async (ref: SiteRef, visibility: 'mobile' | 'tv'): Promise<News[]> =>
+    (
+      await publicAxios.get(newsPath(ref), {
+        timeout: PUBLIC_API_TIMEOUT_MS,
+        params: { visibility },
+      })
+    ).data.items,
+
   /** The published items dated from `from` on, soonest first, read without a session. */
-  listPublished: async (ref: SiteRef, visibility: 'mobile' | 'tv', from: string): Promise<News[]> =>
+  listUpcoming: async (ref: SiteRef, visibility: 'mobile' | 'tv', from: string): Promise<News[]> =>
     (
       await publicAxios.get(newsPath(ref), {
         timeout: PUBLIC_API_TIMEOUT_MS,

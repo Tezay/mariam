@@ -25,13 +25,15 @@ export function usePublicMenu(
     queryFn: async () => {
       const now = nowInstant();
       const today = parisToday(now);
-      const [details, menus, events, closures] = await Promise.all([
+      const [details, menus, news, closures] = await Promise.all([
         sitesApi.get(org, site),
         menusApi.listPublished({ org, site }, date ?? today, date ?? addDays(today, 1)),
-        newsApi.listPublished({ org, site }, mode, today),
+        mode === 'tv'
+          ? newsApi.listUpcoming({ org, site }, mode, today)
+          : newsApi.listPublished({ org, site }, mode),
         closuresApi.listPublished({ org, site }),
       ]);
-      return publicMenuData({ site: details, menus, events, closures }, now, date);
+      return publicMenuData({ site: details, menus, news, closures }, now, date);
     },
     initialData: initial?.data,
     initialDataUpdatedAt: initial?.fetchedAt,

@@ -1,8 +1,8 @@
 import { addDays, parisToday } from '@/lib/date-utils';
 import type { Menu } from '@/lib/api/menus';
-import { isDated, type DatedNews } from '@/lib/api/news';
+import { isDated } from '@/lib/api/news';
 import type { Site } from '@/lib/api/sites';
-import type { EventData, MenuData, PublicMenuData, RestaurantPublic, SitePage } from './menu-types';
+import type { MenuData, PublicMenuData, RestaurantPublic, SitePage } from './menu-types';
 
 const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
@@ -30,28 +30,22 @@ function dayOf(date: string, menus: Menu[], restaurant: RestaurantPublic): MenuD
 
 const UPCOMING_EVENTS = 4;
 
-function eventOf({ date, ...event }: DatedNews): EventData {
-  return { ...event, event_date: date };
-}
-
 /** Today and tomorrow are those of `now`, in Paris; `date` is the day a visitor chose. */
 export function publicMenuData(
-  { site, menus, events, closures }: SitePage,
+  { site, menus, news, closures }: SitePage,
   now: Date,
   date: string = parisToday(now)
 ): PublicMenuData {
   const today = parisToday(now);
   const restaurant = restaurantOf(site);
-  const dated = events.filter(isDated);
+  const dated = news.filter(isDated);
   return {
     today: dayOf(today, menus, restaurant),
     tomorrow: dayOf(addDays(today, 1), menus, restaurant),
     day: dayOf(date, menus, restaurant),
-    todayEvent: dated.filter((event) => event.date === today).map(eventOf)[0] ?? null,
-    upcomingEvents: dated
-      .filter((event) => event.date > today)
-      .slice(0, UPCOMING_EVENTS)
-      .map(eventOf),
+    news,
+    todayEvent: dated.find((event) => event.date === today) ?? null,
+    upcomingEvents: dated.filter((event) => event.date > today).slice(0, UPCOMING_EVENTS),
     activeClosure:
       closures.find((closure) => closure.start_date <= today && today <= closure.end_date) ?? null,
     upcomingClosures: closures.filter((closure) => closure.start_date > today),
