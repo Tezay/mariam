@@ -369,7 +369,8 @@ Daily at `BACKUP_TIME`, in the container's time zone, the `backup` service dumps
 restores the dump into a scratch server inside its container, encrypts it with
 [age](https://age-encryption.org) and uploads it as `daily/mariam-<UTC>.dump.age`, then fetches
 `BACKUP_HEARTBEAT_URL`. A dump that does not restore is not uploaded. The service deletes nothing:
-retention is the bucket's.
+retention is the bucket's. Without `BACKUP_S3_BUCKET`, it logs that backups are off and does
+nothing else.
 
 Setup:
 

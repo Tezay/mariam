@@ -102,7 +102,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Backups run at a fixed time**, `BACKUP_TIME` (03:00), and each dump is restored before it is uploaded.
 - **The backup image is published** with the others; a server no longer builds it.
 - **Postgres 17** for the database, the backup image and CI; a volume created by Postgres 15 needs a dump and restore.
-- **`deploy/compose.yaml` requires** `S3_REGION`, `BACKUP_S3_REGION` and `BACKUP_AGE_RECIPIENT`.
+- **`deploy/compose.yaml` requires** `S3_REGION`; backups are off until `BACKUP_S3_BUCKET` is set.
 - **`deploy/compose.yaml` publishes no port and names no container**: route the hosts to `proxy`, or publish it in `compose.override.yaml`.
 - **The proxy is an image**, `mariam-proxy`, published with the others; the server no longer needs the repository.
 - **`MARIAM_TAG` is required**: a deployment runs a named release, never `latest`.

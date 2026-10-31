@@ -9,7 +9,7 @@ run_id=mariam-backup-test-$$
 identity=$(mktemp)
 
 cleanup() {
-    docker rm -f "$run_id-db" "$run_id-s3" >/dev/null 2>&1 || true
+    docker rm -f "$run_id-db" "$run_id-s3" "$run_id-off" >/dev/null 2>&1 || true
     docker network rm "$run_id" >/dev/null 2>&1 || true
     rm -f "$identity"
 }
@@ -29,6 +29,15 @@ sql() { docker exec -i "$run_id-db" psql -U postgres -AtX -v ON_ERROR_STOP=1 "$@
 
 step "build"
 docker build -q -t "$image" "$here" >/dev/null
+
+step "without a bucket, the service stays up and backs nothing up"
+docker run -d --name "$run_id-off" "$image" >/dev/null
+sleep 3
+if [ "$(docker inspect -f '{{.State.Running}}' "$run_id-off")" != true ] \
+    || ! docker logs "$run_id-off" 2>&1 | grep -q 'backups are off'; then
+    echo "Without a bucket, the service stopped or did not say backups are off"
+    exit 1
+fi
 
 step "start a database and an S3 server"
 docker network create "$run_id" >/dev/null
