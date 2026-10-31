@@ -6078,12 +6078,14 @@ export interface paths {
         };
         /**
          * News items, pinned first then the latest published, or by their date (`sort=date`).
-         * @description Anyone reads the published ones, eight at most. The site's editors read the drafts
-         *     too, first, and as many as they ask.
+         * @description Anyone reads the published ones, six at most. The site's editors read the drafts
+         *     too, first, and page through them all.
          */
         get: {
             parameters: {
                 query?: {
+                    page?: number;
+                    per_page?: number;
                     /** @description `published`: pinned first, then the latest published; `date`: the dated items only, the soonest first */
                     sort?: "published" | "date";
                     /** @description The dated items only */
@@ -6092,8 +6094,7 @@ export interface paths {
                     to?: string;
                     /** @description Only the items shown on that screen */
                     visibility?: "tv" | "mobile";
-                    /** @description Eight at most for anyone but the site's editors */
-                    limit?: number;
+                    status?: "draft" | "published";
                 };
                 header?: never;
                 path: {
@@ -8312,6 +8313,8 @@ export interface components {
         };
         NewsList: {
             items: components["schemas"]["News"][];
+            /** @description Six at most for anyone */
+            total_count: number;
         };
         NewsInput: {
             title: string;

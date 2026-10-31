@@ -315,7 +315,7 @@ export function CalendarPage() {
 
   const handleEditEvent = useCallback(
     (event: News) => {
-      navigate(`/admin/events/${event.id}/edit`);
+      navigate(`/admin/news/${event.id}/edit`);
     },
     [navigate]
   );
@@ -382,7 +382,7 @@ export function CalendarPage() {
               setDesktopView('day');
             })
           }
-          onAddEvent={() => navigate('/admin/events/new')}
+          onAddEvent={() => navigate('/admin/news/new?dated=1')}
           onAddClosure={() => openCreateClosure(today)}
           canEdit={canEdit}
           canGoPrev={canGoPrev}

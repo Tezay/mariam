@@ -1,17 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate, useSearchParams } from 'react-router';
 import { useEditor, useEditorState, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import { newsApi, storedImages, type News, type StoredImage } from '@/lib/api/news';
-import { EVENT_PRESET_COLORS, generateEventPalette } from '@/lib/color-utils';
+import { EVENT_PRESET_COLORS } from '@/lib/color-utils';
 import { notify } from '@/lib/toast';
 import { ImageUploader } from '@/components/ImageUploader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import {
   ArrowLeft,
   Save,
@@ -23,6 +24,7 @@ import {
   Link as LinkIcon,
   Loader2,
   Calendar,
+  Pin,
   Palette,
   Image as ImageIcon,
 } from 'lucide-react';
@@ -30,7 +32,6 @@ import { isRichTextHtml } from '@/lib/rich-text';
 import { cn } from '@/lib/utils';
 import { useSiteRef } from '@/contexts/SiteContext';
 
-// ── Tiptap toolbar ────────────────────────────────────────────────────────
 export function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
   // Tiptap's state lives outside React: without this subscription a button only
   // reflects what was true the last time the page happened to re-render.
@@ -113,7 +114,6 @@ export function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor>
   );
 }
 
-// ── Color picker (reused from EventEditor) ────────────────────────────────
 function ColorPicker({ value, onChange }: { value: string; onChange: (hex: string) => void }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -143,10 +143,10 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (hex: strin
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────
-export function EventEditPage() {
+export function NewsEditPage() {
   const site = useSiteRef();
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const isCreating = !id;
 
@@ -155,21 +155,20 @@ export function EventEditPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
 
-  // Form fields
   const [title, setTitle] = useState('');
-  const [subtitle, setSubtitle] = useState('');
+  const [summary, setSummary] = useState('');
+  const [dated, setDated] = useState(() => searchParams.get('dated') === '1');
   const [eventDate, setEventDate] = useState('');
+  const [pinned, setPinned] = useState(false);
   const [color, setColor] = useState('#3498DB');
   const [visibility, setVisibility] = useState<'tv' | 'mobile' | 'all'>('all');
   const [status, setStatus] = useState<'draft' | 'published'>('draft');
 
-  // Images
   const [serverImages, setServerImages] = useState<StoredImage[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [deletedImageIds, setDeletedImageIds] = useState<number[]>([]);
   const [imagesReordered, setImagesReordered] = useState(false);
 
-  // Warn before leaving (reload / close / external navigation) with unsaved edits.
   useEffect(() => {
     if (!isDirty) return;
     const handler = (e: BeforeUnloadEvent) => {
@@ -180,19 +179,17 @@ export function EventEditPage() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [isDirty]);
 
-  // Tiptap editor
   const editor = useEditor({
     extensions: [
       // StarterKit already carries Link; registering it again makes Tiptap warn
       // about a duplicate extension.
       StarterKit.configure({ link: { openOnClick: false } }),
-      Placeholder.configure({ placeholder: "Décrivez l'événement…" }),
+      Placeholder.configure({ placeholder: "Décrivez l'actualité…" }),
     ],
     content: '',
     onUpdate: () => setIsDirty(true),
   });
 
-  // Load existing event
   useEffect(() => {
     if (isCreating) return;
     setLoading(true);
@@ -200,13 +197,14 @@ export function EventEditPage() {
       .get(site, Number(id))
       .then((event) => {
         setTitle(event.title);
-        setSubtitle(event.summary ?? '');
+        setSummary(event.summary ?? '');
+        setDated(event.date !== null);
         setEventDate(event.date ?? '');
+        setPinned(event.pinned);
         setColor(event.color ?? '#3498DB');
         setVisibility(event.visibility ?? 'all');
         setStatus(event.status ?? 'draft');
         setServerImages(storedImages(event.images));
-        // Insert description into Tiptap — treat as plain text if no HTML tags
         if (editor && event.description) {
           if (isRichTextHtml(event.description)) {
             editor.commands.setContent(event.description);
@@ -218,8 +216,8 @@ export function EventEditPage() {
         }
       })
       .catch(() => {
-        notify.error('Événement introuvable');
-        navigate('/admin/events');
+        notify.error('Actualité introuvable');
+        navigate('/admin/news');
       })
       .finally(() => {
         setLoading(false);
@@ -234,8 +232,8 @@ export function EventEditPage() {
         notify.error('Le titre est requis');
         return;
       }
-      if (!eventDate) {
-        notify.error('La date est requise');
+      if (dated && !eventDate) {
+        notify.error('Choisissez le jour, ou éteignez « Un jour précis ».');
         return;
       }
 
@@ -244,9 +242,10 @@ export function EventEditPage() {
         const description = editor?.getHTML() ?? '';
         const fields = {
           title: title.trim(),
-          summary: subtitle.trim() || null,
+          summary: summary.trim() || null,
           description: description === '<p></p>' ? null : description,
-          date: eventDate,
+          date: dated ? eventDate : null,
+          pinned,
           color,
           visibility,
         };
@@ -262,7 +261,7 @@ export function EventEditPage() {
         }
 
         // Removals, then order, then uploads: the order names every stored image
-        // once, and an upload counts against the six an event holds.
+        // once, and an upload counts against the six an item holds.
         for (const imgId of deletedImageIds) {
           try {
             await newsApi.deleteImage(site, savedEvent.id, imgId);
@@ -308,12 +307,12 @@ export function EventEditPage() {
 
         setIsDirty(false);
         notify.success(
-          isCreating ? 'Événement créé' : 'Modifications enregistrées',
-          publish ? 'Publié et visible sur le menu' : undefined
+          isCreating ? 'Actualité créée' : 'Modifications enregistrées',
+          publish ? 'Publiée sur votre page' : undefined
         );
 
         if (isCreating) {
-          navigate(`/admin/events/${savedEvent.id}/edit`, { replace: true });
+          navigate(`/admin/news/${savedEvent.id}/edit`, { replace: true });
         }
       } catch (err: unknown) {
         notify.error(getApiErrorMessage(err, "Erreur lors de l'enregistrement"));
@@ -324,8 +323,10 @@ export function EventEditPage() {
     },
     [
       title,
-      subtitle,
+      summary,
+      dated,
       eventDate,
+      pinned,
       color,
       visibility,
       status,
@@ -340,8 +341,6 @@ export function EventEditPage() {
       navigate,
     ]
   );
-
-  const palette = generateEventPalette(color);
 
   if (loading) {
     return (
@@ -364,19 +363,19 @@ export function EventEditPage() {
 
   return (
     <div className="container-mariam max-w-4xl py-4 sm:py-6">
-      {/* Sticky mobile header / breadcrumb */}
       <div className="sticky top-0 z-10 -mx-4 mb-6 flex items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
         <button
           type="button"
-          onClick={() => navigate('/admin/events')}
+          onClick={() => navigate('/admin/news')}
+          aria-label="Retour aux actualités"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border transition-colors hover:bg-muted"
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-muted-foreground">Événements</p>
+          <p className="text-xs text-muted-foreground">Actualités</p>
           <p className="truncate text-sm font-semibold">
-            {isCreating ? 'Nouvel événement' : title || "Modifier l'événement"}
+            {isCreating ? 'Nouvelle actualité' : title || "Modifier l'actualité"}
           </p>
         </div>
         {isDirty && (
@@ -384,7 +383,6 @@ export function EventEditPage() {
             Non enregistré
           </span>
         )}
-        {/* Status badge */}
         {!isCreating && (
           <span
             className={cn(
@@ -394,15 +392,13 @@ export function EventEditPage() {
                 : 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-400'
             )}
           >
-            {status === 'published' ? 'Publié' : 'Brouillon'}
+            {status === 'published' ? 'Publiée' : 'Brouillon'}
           </span>
         )}
       </div>
 
       <div className="flex flex-col gap-6 pb-24 lg:flex-row">
-        {/* ── Main column ── */}
         <div className="flex flex-1 flex-col gap-5">
-          {/* Title — styled like h1 */}
           <div>
             <input
               type="text"
@@ -411,42 +407,34 @@ export function EventEditPage() {
                 setTitle(e.target.value);
                 setIsDirty(true);
               }}
-              placeholder="Titre de l'événement"
+              placeholder="Titre de l'actualité"
               maxLength={100}
               className="w-full border-0 border-b-2 border-border bg-transparent py-2 pb-3 text-2xl font-bold outline-none transition-colors placeholder:text-muted-foreground/40 focus:border-primary sm:text-3xl"
             />
           </div>
 
-          {/* Subtitle */}
-          <Input
-            value={subtitle}
-            onChange={(e) => {
-              setSubtitle(e.target.value);
-              setIsDirty(true);
-            }}
-            placeholder="Sous-titre (optionnel)"
-            maxLength={200}
-            className="rounded-none border-0 border-b border-border px-0 text-base text-muted-foreground focus-visible:border-primary focus-visible:ring-0"
-          />
-
-          {/* Color preview */}
-          {(title || subtitle) && (
-            <div
-              className="rounded-xl border p-3"
-              style={{ backgroundColor: palette.bg, borderColor: palette.border }}
+          <div className="flex flex-col gap-1.5">
+            <Label
+              htmlFor="news-summary"
+              className="text-xs font-semibold uppercase tracking-widest text-muted-foreground"
             >
-              <p className="text-sm font-bold" style={{ color: palette.text }}>
-                {title || 'Titre'}
-              </p>
-              {subtitle && (
-                <p className="mt-0.5 text-xs" style={{ color: palette.textMuted }}>
-                  {subtitle}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Tiptap editor */}
+              Résumé
+            </Label>
+            <Input
+              id="news-summary"
+              value={summary}
+              onChange={(e) => {
+                setSummary(e.target.value);
+                setIsDirty(true);
+              }}
+              maxLength={200}
+              aria-describedby="news-summary-help"
+              className="h-10"
+            />
+            <p id="news-summary-help" className="text-xs text-muted-foreground">
+              Une ou deux phrases, affichées sur la carte de l'actualité.
+            </p>
+          </div>
           <div className="flex flex-col gap-2">
             <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Description
@@ -457,16 +445,15 @@ export function EventEditPage() {
               editor={editor}
               className="rich-text min-h-32 rounded-xl border border-border bg-background px-4 py-3 text-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1 [&_.tiptap]:min-h-28 [&_.tiptap]:outline-none [&_.tiptap_p.is-editor-empty:first-child::before]:pointer-events-none [&_.tiptap_p.is-editor-empty:first-child::before]:float-left [&_.tiptap_p.is-editor-empty:first-child::before]:text-muted-foreground [&_.tiptap_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]"
             />
-            <p className="text-[10px] text-muted-foreground">
-              Visible au clic sur la vignette mobile.
-            </p>
+            <p className="text-xs text-muted-foreground">Visible en ouvrant l'actualité.</p>
           </div>
-
-          {/* Images */}
           <div className="flex flex-col gap-2">
             <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              <ImageIcon className="h-3.5 w-3.5" /> Images (1 à 6)
+              <ImageIcon className="h-3.5 w-3.5" /> Photos (6 au plus)
             </Label>
+            <p className="text-xs text-muted-foreground">
+              La première photo illustre la carte de l'actualité sur votre page.
+            </p>
             <ImageUploader
               images={serverImages}
               pendingFiles={pendingFiles}
@@ -493,30 +480,61 @@ export function EventEditPage() {
             />
           </div>
         </div>
-
-        {/* ── Sidebar (desktop right / mobile bottom) ── */}
         <aside className="flex shrink-0 flex-col gap-5 lg:w-72">
-          {/* Date */}
           <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
-            <Label
-              htmlFor="event-date"
-              className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground"
-            >
-              <Calendar className="h-3.5 w-3.5" /> Date
-            </Label>
-            <Input
-              id="event-date"
-              type="date"
-              value={eventDate}
-              onChange={(e) => {
-                setEventDate(e.target.value);
-                setIsDirty(true);
-              }}
-              className="h-10"
-            />
+            <div className="flex items-center justify-between gap-3">
+              <Label
+                htmlFor="news-pinned"
+                className="flex items-center gap-1.5 text-sm font-medium"
+              >
+                <Pin className="h-4 w-4 text-muted-foreground" /> À la une
+              </Label>
+              <Switch
+                id="news-pinned"
+                checked={pinned}
+                onCheckedChange={(checked) => {
+                  setPinned(checked);
+                  setIsDirty(true);
+                }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Affichée en premier sur votre page publique.
+            </p>
           </div>
 
-          {/* Color */}
+          <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="news-dated" className="flex items-center gap-1.5 text-sm font-medium">
+                <Calendar className="h-4 w-4 text-muted-foreground" /> Un jour précis
+              </Label>
+              <Switch
+                id="news-dated"
+                checked={dated}
+                onCheckedChange={(checked) => {
+                  setDated(checked);
+                  setIsDirty(true);
+                }}
+              />
+            </div>
+            {dated && (
+              <Input
+                id="news-date"
+                type="date"
+                aria-label="Jour de l'actualité"
+                value={eventDate}
+                onChange={(e) => {
+                  setEventDate(e.target.value);
+                  setIsDirty(true);
+                }}
+                className="h-10"
+              />
+            )}
+            <p className="text-xs text-muted-foreground">
+              Datée, l'actualité paraît aussi au calendrier et sur l'écran TV, et les abonnés en
+              reçoivent un rappel une semaine avant et la veille.
+            </p>
+          </div>
           <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
             <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               <Palette className="h-3.5 w-3.5" /> Couleur
@@ -529,8 +547,6 @@ export function EventEditPage() {
               }}
             />
           </div>
-
-          {/* Visibility */}
           <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
             <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Visibilité
@@ -560,8 +576,6 @@ export function EventEditPage() {
               ))}
             </div>
           </div>
-
-          {/* Desktop save buttons */}
           <div className="hidden flex-col gap-2 lg:flex">
             <Button
               variant="outline"
@@ -587,8 +601,6 @@ export function EventEditPage() {
           </div>
         </aside>
       </div>
-
-      {/* Fixed bottom save bar (mobile + tablet) */}
       <div className="fixed bottom-16 left-0 right-0 z-40 px-4 pb-2 lg:hidden">
         <div className="flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 shadow-lg">
           {isDirty && (

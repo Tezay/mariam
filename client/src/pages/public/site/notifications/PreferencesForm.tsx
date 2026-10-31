@@ -99,8 +99,8 @@ export function PreferencesForm({
       </div>
       <Toggle
         id="notify-events"
-        label="Événements"
-        description="Repas thématiques, animations, fermetures"
+        label="Actualités"
+        description="Rappels des actualités datées et des fermetures"
         checked={prefs.notify_events}
         onChange={(notify_events) => set({ notify_events })}
       />

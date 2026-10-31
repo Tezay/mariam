@@ -75,7 +75,8 @@ export function useCalendarData(rangeStart: string, rangeEnd: string): UseCalend
   const range = { from: rangeStart, to: rangeEnd };
   const eventsQuery = useQuery({
     queryKey: ['calendar-events', site.org, site.site, rangeStart, rangeEnd],
-    queryFn: () => newsApi.list(site, { sort: 'date', ...range }),
+    queryFn: async () =>
+      (await newsApi.list(site, { sort: 'date', per_page: 200, ...range })).items,
     staleTime: STALE_TIME,
   });
 

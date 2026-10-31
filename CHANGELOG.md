@@ -54,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **"Capacité atteinte" in "Service en cours"**: the site's page and its header say so until the service ends.
 - **"Consultations" tells how often the maximum capacity was reached**, and at what time, once it has been.
 - **A news item can be pinned**, and tells when it was published.
+- **"Actualités" in the dashboard**: pinned, dated or not, by tab and page, with a summary and a photo.
 - **A site's page tells the quality of its products**: EGalim purchases, last 30 days of menus, labels, commitments.
 - **"Page publique" records the EGalim figures of each year**, as the annual "ma cantine" report gives them.
 - **Each passkey names the password manager that holds it** in "Mon compte", when known.
@@ -63,6 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **After a sign-in from the phone, a computer offers a passkey of its own**, again two months after a refusal.
 
 ### Changed
+- **`GET S/news` is paged** (`page`, `per_page`, `total_count`), and filters drafts with `status`.
 - **Events become news**, whose date is optional; a dated one keeps the calendar, the TV banner and its reminders.
 
 - **API errors follow RFC 9457** (`application/problem+json`), with a stable `code` beside the French `detail`.

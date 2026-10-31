@@ -350,7 +350,7 @@ export function CalendarToolbar({
                     className="gap-2"
                   >
                     <Sparkles className="h-4 w-4 text-muted-foreground" />
-                    Nouvel événement
+                    Nouvelle actualité
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => requestAnimationFrame(onAddClosure)}

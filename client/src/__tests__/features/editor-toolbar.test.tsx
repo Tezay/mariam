@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { EditorToolbar } from '@/pages/admin/EventEditPage';
+import { EditorToolbar } from '@/pages/admin/NewsEditPage';
 
 beforeAll(() => {
   // ProseMirror measures the caret; jsdom has no layout.

@@ -57,7 +57,7 @@ export function EventCard({ event, compact = false, onEdit }: EventCardProps) {
             border: `1px solid ${color}30`,
           }}
         >
-          Événement
+          Actualité
         </span>
 
         <p className="text-sm font-bold leading-snug" style={{ color }}>
