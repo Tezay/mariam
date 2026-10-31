@@ -1,7 +1,7 @@
 from marshmallow import EXCLUDE, Schema, ValidationError, fields, validate, validates_schema
 
 from ..models import Event
-from .common import PlainText
+from .common import PageQuerySchema, PlainText
 from .images import ImageSchema
 from .public import PublicNewsSchema
 
@@ -22,12 +22,10 @@ class NewsSchema(PublicNewsSchema):
 
 class NewsListSchema(Schema):
     items = fields.List(fields.Nested(NewsSchema), required=True)
+    total_count = fields.Int(required=True, metadata={'description': "Six at most for anyone"})
 
 
-class NewsQuerySchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-
+class NewsQuerySchema(PageQuerySchema):
     sort = fields.Str(
         load_default='published',
         validate=validate.OneOf(['published', 'date']),
@@ -42,10 +40,7 @@ class NewsQuerySchema(Schema):
         validate=validate.OneOf(['tv', 'mobile']),
         metadata={'description': "Only the items shown on that screen"},
     )
-    limit = fields.Int(
-        validate=validate.Range(min=1, max=100),
-        metadata={'description': "Eight at most for anyone but the site's editors"},
-    )
+    status = fields.Str(validate=STATUS)
 
     @validates_schema
     def check_range(self, data, **kwargs):

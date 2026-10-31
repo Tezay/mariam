@@ -6,6 +6,7 @@ import {
   Search,
   BookOpen,
   CalendarDays,
+  Newspaper,
   CalendarOff,
   X,
   ChefHat,
@@ -27,7 +28,7 @@ import { Spinner } from '@/components/ui/spinner';
 type SearchResult =
   | { kind: 'page'; label: string; to: string; icon: ReactNode }
   | { kind: 'dish'; id: number; label: string }
-  | { kind: 'event'; id: number; label: string; date: string }
+  | { kind: 'news'; id: number; label: string; date: string | null }
   | { kind: 'closure'; id: number; label: string; date: string }
   | { kind: 'date'; label: string; date: string };
 
@@ -168,9 +169,9 @@ export function GlobalSearch() {
         next.push({ kind: 'date', label: q, date });
       }
 
-      const [dishes, events, closures] = await Promise.allSettled([
+      const [dishes, news, closures] = await Promise.allSettled([
         site ? dishesApi.list(site, { q: q.trim(), per_page: 5 }) : Promise.reject(),
-        site ? newsApi.list(site, { sort: 'date' }) : Promise.reject(),
+        site ? newsApi.list(site, { per_page: 200 }) : Promise.reject(),
         site ? closuresApi.list(site) : Promise.reject(),
       ]);
 
@@ -196,11 +197,11 @@ export function GlobalSearch() {
         }
       }
 
-      if (events.status === 'fulfilled') {
+      if (news.status === 'fulfilled') {
         let eventCount = 0;
-        for (const e of events.value) {
-          if (e.date && fuzzyMatches(e.title, q) && eventCount < 3) {
-            next.push({ kind: 'event', id: e.id, label: e.title, date: e.date });
+        for (const e of news.value.items) {
+          if (fuzzyMatches(e.title, q) && eventCount < 3) {
+            next.push({ kind: 'news', id: e.id, label: e.title, date: e.date });
             eventCount++;
           }
         }
@@ -235,8 +236,8 @@ export function GlobalSearch() {
       navigate(result.to);
     } else if (result.kind === 'dish') {
       navigate(`/admin/catalogue/${result.id}`);
-    } else if (result.kind === 'event') {
-      navigate('/admin/events');
+    } else if (result.kind === 'news') {
+      navigate(`/admin/news/${result.id}/edit`);
     } else if (result.kind === 'closure' || result.kind === 'date') {
       navigate(`/admin/calendar?date=${result.date}`);
     }
@@ -266,9 +267,7 @@ export function GlobalSearch() {
       (r): r is Extract<SearchResult, { kind: 'closure' }> => r.kind === 'closure'
     ),
     dishes: results.filter((r): r is Extract<SearchResult, { kind: 'dish' }> => r.kind === 'dish'),
-    events: results.filter(
-      (r): r is Extract<SearchResult, { kind: 'event' }> => r.kind === 'event'
-    ),
+    news: results.filter((r): r is Extract<SearchResult, { kind: 'news' }> => r.kind === 'news'),
   };
 
   let idx = -1;
@@ -384,17 +383,17 @@ export function GlobalSearch() {
             </SearchSection>
           )}
 
-          {grouped.events.length > 0 && (
-            <SearchSection label="Événements">
-              {grouped.events.map((r) => {
+          {grouped.news.length > 0 && (
+            <SearchSection label="Actualités">
+              {grouped.news.map((r) => {
                 idx++;
                 const i = idx;
                 return (
                   <ResultRow
-                    key={`event-${r.id}`}
-                    icon={<CalendarDays className="h-4 w-4 text-muted-foreground" />}
+                    key={`news-${r.id}`}
+                    icon={<Newspaper className="h-4 w-4 text-muted-foreground" />}
                     label={r.label}
-                    sub={r.date}
+                    sub={r.date ?? undefined}
                     active={activeIndex === i}
                     onClick={() => handleSelect(r)}
                   />

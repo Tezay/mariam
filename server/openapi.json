@@ -6795,6 +6795,27 @@
         "parameters": [
           {
             "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 200
+            },
+            "required": false
+          },
+          {
+            "in": "query",
             "name": "sort",
             "description": "`published`: pinned first, then the latest published; `date`: the dated items only, the soonest first",
             "schema": {
@@ -6842,12 +6863,13 @@
           },
           {
             "in": "query",
-            "name": "limit",
-            "description": "Eight at most for anyone but the site's editors",
+            "name": "status",
             "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100
+              "type": "string",
+              "enum": [
+                "draft",
+                "published"
+              ]
             },
             "required": false
           }
@@ -6871,7 +6893,7 @@
           }
         },
         "summary": "News items, pinned first then the latest published, or by their date (`sort=date`).",
-        "description": "Anyone reads the published ones, eight at most. The site's editors read the drafts\ntoo, first, and as many as they ask.",
+        "description": "Anyone reads the published ones, six at most. The site's editors read the drafts\ntoo, first, and page through them all.",
         "tags": [
           "news"
         ],
@@ -12918,10 +12940,15 @@
             "items": {
               "$ref": "#/components/schemas/News"
             }
+          },
+          "total_count": {
+            "type": "integer",
+            "description": "Six at most for anyone"
           }
         },
         "required": [
-          "items"
+          "items",
+          "total_count"
         ],
         "additionalProperties": false
       },

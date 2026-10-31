@@ -5,6 +5,7 @@ from flask_smorest import Blueprint
 
 from ..extensions import db
 from ..models import AuditLog, Event, EventImage, Restaurant
+from ..pagination import paginate
 from ..problems import Problem
 from ..schemas.common import FileUploadSchema
 from ..schemas.images import ImageListSchema, ImageOrderSchema, ImageSchema
@@ -30,7 +31,7 @@ news_bp = Blueprint(
 news_bp.after_request(finish_public_read)
 
 NEWS_IMAGES_MAX = 6
-PUBLIC_NEWS_MAX = 8
+PUBLIC_NEWS_MAX = 6
 
 
 def news_view(item, member: bool) -> dict:
@@ -93,8 +94,8 @@ def _created(org: str, site: str, item) -> tuple[dict, int, dict]:
 def list_news(query, org: str, site: str):
     """News items, pinned first then the latest published, or by their date (`sort=date`).
 
-    Anyone reads the published ones, eight at most. The site's editors read the drafts
-    too, first, and as many as they ask.
+    Anyone reads the published ones, six at most. The site's editors read the drafts
+    too, first, and page through them all.
     """
     restaurant, member = readable_site(org, site)
     items = _visible(restaurant, member)
@@ -104,6 +105,8 @@ def list_news(query, org: str, site: str):
         items = items.filter(Event.event_date <= query['end'])
     if 'visibility' in query:
         items = items.filter(Event.visibility.in_((query['visibility'], 'all')))
+    if 'status' in query:
+        items = items.filter(Event.status == query['status'])
     if query['sort'] == 'date':
         items = items.filter(Event.event_date.isnot(None)).order_by(
             Event.event_date.asc(), Event.id.asc()
@@ -112,12 +115,11 @@ def list_news(query, org: str, site: str):
         items = items.order_by(
             Event.pinned.desc(), Event.published_at.desc().nulls_first(), Event.id.desc()
         )
-    limit = query.get('limit')
-    if not member:
-        limit = min(limit or PUBLIC_NEWS_MAX, PUBLIC_NEWS_MAX)
-    if limit:
-        items = items.limit(limit)
-    return {'items': [news_view(item, member) for item in items]}
+    body, headers = paginate(
+        items if member else items.limit(PUBLIC_NEWS_MAX).all(), query['page'], query['per_page']
+    )
+    body['items'] = [news_view(item, member) for item in body['items']]
+    return body, headers
 
 
 @news_bp.route('/<int:news_id>', methods=['GET'])

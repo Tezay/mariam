@@ -336,7 +336,7 @@ campus behind a single address rather than for one visitor.
 | `GET` | `/v1/orgs/{org}/sites/{site}` | A site: its page (tagline, presentation, logo, cover, gallery, access, services, links), address, contact, hours, vote settings, the labels in use, `menu_window` |
 | `GET` | `/v1/orgs/{org}/sites/{site}/menus` | Published menus from `from` to `to`, both included (today to the window's end by default; 62 days at most) |
 | `GET` | `/v1/orgs/{org}/sites/{site}/menus/{date}` | The published menu of a day |
-| `GET` | `/v1/orgs/{org}/sites/{site}/news` | Published news, eight at most (`sort`, `from`, `to`, `visibility` = `tv` or `mobile`); `{news_id}` for one |
+| `GET` | `/v1/orgs/{org}/sites/{site}/news` | Published news, six at most (`sort`, `from`, `to`, `visibility` = `tv` or `mobile`, `page`, `per_page`); `{news_id}` for one |
 | `GET` | `/v1/orgs/{org}/sites/{site}/closures` | Exceptional closures under way or to come |
 | `GET` | `/v1/orgs/{org}/sites/{site}/menus/{date}/vote` | What the device in `Device-Id` may rate today, and its own vote |
 | `PUT` | `/v1/orgs/{org}/sites/{site}/menus/{date}/vote` | Rate today's meal: `rating` 1-3, optional `dish_ids` and `fingerprint`; `201` for the first vote, `200` for a change |
@@ -434,7 +434,7 @@ never writes.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `S/news?sort=&from=&to=&visibility=&limit=` | `sort=published` (default): pinned first, then the latest published, drafts first for an editor; `sort=date`: the dated items, soonest first. `from` and `to` keep the dated items. Anyone reads the published ones, eight at most |
+| `GET` | `S/news?sort=&from=&to=&visibility=&status=&page=&per_page=` | `{items, total_count}` and `Link`. `sort=published` (default): pinned first, then the latest published, drafts first for an editor; `sort=date`: the dated items, soonest first. `from` and `to` keep the dated items, `status` the drafts or the published ones. Anyone reads the published ones, six at most |
 | `GET` | `S/news/{news_id}` | One item: published for anyone, any for the site's editors |
 | `POST` | `S/news` | Add an item (`title`, optional `date`, `summary`, `description`, `color` `#RRGGBB`, `pinned`, `status`, `visibility`); `201` and `Location` |
 | `PATCH` | `S/news/{news_id}` | Change an item; a new `date` sends its reminders again, `null` removes it |

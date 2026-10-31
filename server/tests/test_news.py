@@ -126,17 +126,27 @@ class TestRead:
         assert self._titles(client.get(f'{path}?sort=date')) == [
             'À la une', 'Passé', 'Demain', 'Plus tard',
         ]
-        assert self._titles(client.get(f'{path}?sort=date&from={_day(0)}&limit=1')) == ['Demain']
+        assert self._titles(client.get(f'{path}?sort=date&from={_day(0)}&per_page=1')) == ['Demain']
 
-    def test_anyone_reads_eight_at_most(self, app, client):
+    def test_anyone_reads_six_at_most_and_an_editor_pages_through_all(self, app, client):
         rid, path, headers = _editor(app, client)
         db.session.add_all(
             Event(restaurant_id=rid, title=f'N{n}', status='published') for n in range(10)
         )
         db.session.commit()
 
-        assert len(client.get(f'{path}?limit=20').get_json()['items']) == 8
-        assert len(client.get(path, headers=headers).get_json()['items']) == 10
+        anyone = client.get(f'{path}?per_page=20').get_json()
+        last = client.get(f'{path}?per_page=4&page=3', headers=headers)
+
+        assert (len(anyone['items']), anyone['total_count']) == (6, 6)
+        assert client.get(f'{path}?page=2').get_json()['items'] == []
+        assert (len(last.get_json()['items']), last.get_json()['total_count']) == (2, 10)
+        assert 'rel="prev"' in last.headers['Link']
+
+    def test_an_editor_lists_the_drafts_alone(self, app, client):
+        _, path, headers = self._news(app, client)
+
+        assert self._titles(client.get(f'{path}?status=draft', headers=headers)) == ['Brouillon']
 
     def test_a_draft_is_found_by_its_editors_only(self, app, client):
         _, path, headers = _editor(app, client)

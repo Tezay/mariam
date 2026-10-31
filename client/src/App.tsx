@@ -34,8 +34,8 @@ const AuditLogsPage = lazy(() =>
 const AccountPage = lazy(() =>
   import('./pages/account/AccountPage').then((m) => ({ default: m.AccountPage }))
 );
-const EventsPage = lazy(() =>
-  import('./pages/admin/EventsPage').then((m) => ({ default: m.EventsPage }))
+const NewsPage = lazy(() =>
+  import('./pages/admin/NewsPage').then((m) => ({ default: m.NewsPage }))
 );
 const ClosuresPage = lazy(() =>
   import('./pages/admin/ClosuresPage').then((m) => ({ default: m.ClosuresPage }))
@@ -87,8 +87,8 @@ const OrgCatalogPage = lazy(() =>
 const OrgSiteDetailPage = lazy(() =>
   import('./pages/org/OrgSiteDetailPage').then((m) => ({ default: m.OrgSiteDetailPage }))
 );
-const EventEditPage = lazy(() =>
-  import('./pages/admin/EventEditPage').then((m) => ({ default: m.EventEditPage }))
+const NewsEditPage = lazy(() =>
+  import('./pages/admin/NewsEditPage').then((m) => ({ default: m.NewsEditPage }))
 );
 const CataloguePage = lazy(() =>
   import('./pages/admin/CataloguePage').then((m) => ({ default: m.CataloguePage }))
@@ -292,9 +292,9 @@ function App() {
 
             <Route path="service" element={<ServicePage />} />
 
-            <Route path="events" element={<EventsPage />} />
-            <Route path="events/new" element={<EventEditPage />} />
-            <Route path="events/:id/edit" element={<EventEditPage />} />
+            <Route path="news" element={<NewsPage />} />
+            <Route path="news/new" element={<NewsEditPage />} />
+            <Route path="news/:id/edit" element={<NewsEditPage />} />
 
             <Route path="closures" element={<ClosuresPage />} />
 

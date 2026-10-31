@@ -7,6 +7,7 @@ export type News = Schemas['News'];
 export type NewsImage = Schemas['Image'];
 export type NewsInput = Schemas['NewsInput'];
 export type NewsPatch = Schemas['NewsPatch'];
+export type NewsList = Schemas['NewsList'];
 /** An image as the site's editors read it, with its `id`. */
 export type StoredImage = NewsImage & { id: number };
 
@@ -18,6 +19,9 @@ export interface NewsQuery {
   sort?: 'published' | 'date';
   from?: string;
   to?: string;
+  status?: 'draft' | 'published';
+  page?: number;
+  per_page?: number;
 }
 
 export type DatedNews = News & { date: string };
@@ -38,9 +42,9 @@ export const newsApi = {
       })
     ).data.items,
 
-  /** Drafts included. */
-  list: async (ref: SiteRef, query: NewsQuery = {}): Promise<News[]> =>
-    (await api.get(newsPath(ref), { params: query })).data.items,
+  /** One page, drafts included. */
+  list: async (ref: SiteRef, query: NewsQuery = {}): Promise<NewsList> =>
+    (await api.get(newsPath(ref), { params: query })).data,
 
   get: async (ref: SiteRef, id: number): Promise<News> =>
     (await api.get(`${newsPath(ref)}/${id}`)).data,
