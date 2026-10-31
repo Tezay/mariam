@@ -1,6 +1,5 @@
 import { CapacityDial } from '@/components/CapacityDial';
-import type { CapacityState } from '@/lib/capacity-state';
-import { formatParisTime } from '@/lib/date-utils';
+import { capacityText, type CapacityState } from '@/lib/capacity-state';
 import { cn } from '@/lib/utils';
 
 const TONES = {
@@ -26,13 +25,7 @@ export function CapacityGauge({
   state: CapacityState;
   reachedAt: string | null;
 }) {
-  const meals = `${capacity.toLocaleString('fr-FR')} repas par service`;
-  const since = reachedAt && `Depuis ${formatParisTime(new Date(reachedAt)).replace(':', 'h')}`;
-  const { title, lead, tail } = {
-    available: { title: 'Places disponibles', lead: 'Capacité maximale', tail: meals },
-    reached: { title: 'Capacité atteinte', lead: since, tail: meals },
-    idle: { title: meals, lead: 'Capacité maximale', tail: null },
-  }[state];
+  const { title, lead, tail } = capacityText(capacity, state, reachedAt);
 
   return (
     <section

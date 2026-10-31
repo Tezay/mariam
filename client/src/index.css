@@ -323,3 +323,176 @@ body {
     font-size: 1.5rem;
   }
 }
+
+/* TV display: one design pixel is 1/1080 of the screen's short side, from 720p to 4K. */
+.tv-screen {
+  --u: calc(min(100vw, 100vh) / 1080);
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  cursor: none;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.tv-screen[data-rotation] {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 100vh;
+  height: 100vw;
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.tv-screen[data-rotation='270'] {
+  transform: translate(-50%, -50%) rotate(-90deg);
+}
+
+.tv-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) calc(var(--u) * 520);
+  gap: calc(var(--u) * 32);
+  padding: calc(var(--u) * 32) calc(var(--u) * 48);
+}
+
+.tv-side {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 18);
+  min-height: 0;
+}
+
+.tv-qr {
+  margin-top: auto;
+}
+
+/* Columns, as a printed menu: a category goes where it fits, and overflow spills sideways. */
+.tv-menu {
+  column-count: var(--cols);
+  column-gap: calc(var(--u) * 20);
+  --cols: 2;
+  --cat: 21;
+  --dish: 29;
+  --tag: 17;
+  --row: 13;
+  --pad: 22;
+}
+
+.tv-menu[data-density='1'] {
+  --cat: 19;
+  --dish: 25;
+  --tag: 15;
+  --row: 10;
+  --pad: 18;
+}
+
+.tv-menu[data-density='2'] {
+  --cols: 3;
+  --cat: 17;
+  --dish: 22;
+  --tag: 14;
+  --row: 8;
+  --pad: 16;
+}
+
+.tv-menu > * {
+  break-inside: avoid;
+  margin-bottom: calc(var(--u) * 20);
+}
+
+.tv-menu[data-density='3'] {
+  --cols: 4;
+  --cat: 16;
+  --dish: 20;
+  --tag: 13;
+  --row: 6;
+  --pad: 14;
+}
+
+.tv-menu[data-density='3'] .tv-tags {
+  display: none;
+}
+
+/* Portrait, whether the screen stands upright or the player is told to rotate. The areas
+   come from the page, which knows which blocks are shown. */
+@media (orientation: portrait) {
+  .tv-screen:not([data-rotation]) .tv-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: var(--tv-areas);
+    grid-template-rows: var(--tv-rows);
+    gap: calc(var(--u) * 22);
+    padding: calc(var(--u) * 36) calc(var(--u) * 48);
+  }
+  .tv-screen:not([data-rotation]) .tv-side {
+    display: contents;
+  }
+  .tv-screen:not([data-rotation]) .tv-menu {
+    --cols: 2;
+  }
+  .tv-screen:not([data-rotation]) .tv-menu[data-density='3'] {
+    --cols: 3;
+  }
+  .tv-screen:not([data-rotation]) .tv-next {
+    flex-direction: row;
+  }
+  .tv-screen:not([data-rotation]) .tv-cap {
+    grid-area: cap;
+  }
+  .tv-screen:not([data-rotation]) .tv-qr {
+    grid-area: qr;
+    margin-top: 0;
+  }
+  .tv-screen:not([data-rotation]) .tv-today {
+    grid-area: today;
+  }
+  .tv-screen:not([data-rotation]) .tv-main {
+    grid-area: menu;
+  }
+  .tv-screen:not([data-rotation]) .tv-upcoming {
+    grid-area: next;
+  }
+}
+
+.tv-screen[data-rotation] .tv-body {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas: var(--tv-areas);
+  grid-template-rows: var(--tv-rows);
+  gap: calc(var(--u) * 22);
+  padding: calc(var(--u) * 36) calc(var(--u) * 48);
+}
+
+.tv-screen[data-rotation] .tv-side {
+  display: contents;
+}
+
+.tv-screen[data-rotation] .tv-menu {
+  --cols: 2;
+}
+
+.tv-screen[data-rotation] .tv-menu[data-density='3'] {
+  --cols: 3;
+}
+
+.tv-screen[data-rotation] .tv-next {
+  flex-direction: row;
+}
+
+.tv-screen[data-rotation] .tv-cap {
+  grid-area: cap;
+}
+.tv-screen[data-rotation] .tv-qr {
+  grid-area: qr;
+  margin-top: 0;
+}
+.tv-screen[data-rotation] .tv-today {
+  grid-area: today;
+}
+.tv-screen[data-rotation] .tv-main {
+  grid-area: menu;
+}
+.tv-screen[data-rotation] .tv-upcoming {
+  grid-area: next;
+}

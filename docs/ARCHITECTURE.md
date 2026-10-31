@@ -94,7 +94,7 @@ The public pages are rendered by the server, then hydrated in the browser:
 | `/` | A single-site organization's page, or the list of its sites |
 | `/<site>` | A site's page; `?date=` picks a day of its menu window |
 | `/menu`, `/<site>/menu` | Permanent redirects to the site's page, query kept |
-| `/tv`, `/<site>/tv` | The display screen, rendered in the browser only and not indexed |
+| `/tv`, `/<site>/tv` | The display screen, rendered by the server, refreshed in the browser, framable, not indexed |
 | `/privacy` | The privacy notice for visitors |
 
 The other paths (the dashboard, sign-in) answer a loading indicator, and the application renders

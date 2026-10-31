@@ -8,7 +8,7 @@ import { getServiceStatus } from '@/lib/service-utils';
 import { capacityState } from '@/lib/capacity-state';
 import { CapacityGauge } from '@/components/CapacityGauge';
 import type { MapTiles } from '@/lib/runtime-config';
-import { trackPageView } from '@/lib/telemetry';
+import { SCREEN_QR, trackPageView } from '@/lib/telemetry';
 import { useNow } from '@/lib/use-now';
 import { ClosureSection } from '../menu/ClosureSection';
 import { NewsSection } from '../menu/NewsSection';
@@ -21,6 +21,7 @@ import { PracticalInfo } from './PracticalInfo';
 import { QualitySection } from './QualitySection';
 import { qualityView } from './quality-view';
 import { useLiveStatus } from './use-live-status';
+import { visitKind } from './visit-kind';
 import { NotificationsPanel } from './notifications/NotificationsPanel';
 import { useLaunchOffer } from './notifications/useLaunchOffer';
 import { NotificationsButton, SiteHeader } from './SiteHeader';
@@ -77,8 +78,16 @@ export function SitePage({
   useLaunchOffer(siteRef, openNotifications);
 
   useEffect(() => {
-    const kind = date === today ? 'today' : date === addDays(today, 1) ? 'tomorrow' : 'day';
-    trackPageView(kind, organization.slug, siteSlug);
+    const url = new URL(window.location.href);
+    const fromScreen = Object.entries(SCREEN_QR).every(
+      ([key, value]) => url.searchParams.get(key) === value
+    );
+    trackPageView(visitKind(fromScreen, date, today), organization.slug, siteSlug);
+    // Counted once: a reload or a shared link is not another scan.
+    if (fromScreen) {
+      for (const key of Object.keys(SCREEN_QR)) url.searchParams.delete(key);
+      window.history.replaceState(window.history.state, '', url);
+    }
   }, [date, today, organization.slug, siteSlug]);
 
   const closures = [menu.activeClosure, ...menu.upcomingClosures].filter(

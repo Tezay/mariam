@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from ..extensions import db
 
 # Widen as public views appear; the column is a plain string, so no migration.
-PAGE_KINDS = ('today', 'tomorrow', 'day', 'tv', 'sites')
+PAGE_KINDS = ('today', 'tomorrow', 'day', 'screen_qr', 'tv', 'sites')
 
 # The site list belongs to an organization, not a site.
 ORG_PAGE_KINDS = ('sites',)

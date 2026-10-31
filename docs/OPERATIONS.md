@@ -129,6 +129,20 @@ minutes of view counters and the current day's unique visitors. Two things to kn
   authenticated requests are rejected. `restart: unless-stopped` and the healthcheck cover the
   normal case.
 
+### TV display
+
+A screen shows `https://<organization host>/<site>/tv` (`/tv` for a single site) in a browser or a
+signage player's web page widget.
+- It fills any resolution, 720p to 4K, in landscape or portrait. A screen mounted upright whose
+  player sends a landscape picture takes `?rotation=90` (or `270`).
+- It refreshes itself: the menu, news and closures every five minutes, the capacity every minute
+  during service, and a full reload around 3:30 Paris time. Give the widget a long duration rather
+  than a reload every minute, which makes the screen blink.
+- When the API is unreachable it keeps the last menu and says since when; a page that could not
+  load at all retries every minute.
+- Its QR code opens the site's page with `?utm_source=tv&utm_medium=qr`, counted apart in
+  "Consultations".
+
 ### Traffic counting on shared networks
 
 An institution reaches the service from a handful of public addresses: every student on a campus
@@ -459,7 +473,8 @@ entry and vote ceiling keys on this address.
 Each application sets the headers of what it answers, whatever proxy stands in front.
 
 - The frontend server (`client/server.js`) sends HSTS, `X-Content-Type-Options`, `X-Frame-Options`,
-  `Referrer-Policy` and `Permissions-Policy`.
+  `Referrer-Policy` and `Permissions-Policy`. The TV display (`/tv`, `/<site>/tv`) goes without
+  `X-Frame-Options`, so that a signage player may show it in a frame.
 - The API (`server/app/security_headers.py`) sends HSTS, `X-Content-Type-Options`,
   `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Cache-Control: no-store`,
   `X-Robots-Tag: noindex` and an enforced Content-Security-Policy that loads nothing. Its two HTML

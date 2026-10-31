@@ -375,7 +375,19 @@ test('an unknown site answers 404, an unreachable API 503', async () => {
   tenant = { status: 404 };
   assert.equal((await request('/')).status, 404);
   tenant = { status: 500 };
-  assert.equal((await request('/')).status, 503);
+  const unavailable = await request('/');
+  assert.equal(unavailable.status, 503);
+  assert.ok(unavailable.body.includes('<meta http-equiv="refresh" content="60"/>'));
+});
+
+test('the TV display is rendered by the server, and signage players may frame it', async () => {
+  const tv = await request('/alpha/tv');
+  assert.equal(tv.status, 200);
+  assert.ok(tv.body.includes('Curry de pois chiches'));
+  assert.ok(tv.body.includes('450 repas par service'));
+  assert.ok(tv.body.includes('<script src="/tv-watchdog.js">'));
+  assert.equal(tv.headers['x-frame-options'], undefined);
+  assert.equal((await request('/alpha')).headers['x-frame-options'], 'SAMEORIGIN');
 });
 
 test('a dated page is the menu of that day, kept out of the index', async () => {

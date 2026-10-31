@@ -288,6 +288,7 @@ class TestTrafficEndpoint:
         self._supervisor(org_id, rid)
 
         _track(client, 'today', 'tra')
+        _track(client, 'screen_qr', 'tra')
         for _ in range(9):
             _track(client, 'tv', 'tra')
         telemetry.flush_view_counters(app)
@@ -295,9 +296,9 @@ class TestTrafficEndpoint:
         token = get_token(client, email='sup@mariam.app')
         body = self._traffic(client, org_id, token, '7d')
 
-        assert body['totals']['views'] == 1
+        assert body['totals']['views'] == 2
         assert {row['page_kind']: row['views'] for row in body['by_page_kind']} == {
-            'today': 1, 'tv': 9
+            'today': 1, 'screen_qr': 1, 'tv': 9
         }
 
     def test_todays_visitors_are_not_counted_twice(self, app, client, monkeypatch):

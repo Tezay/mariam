@@ -42,10 +42,14 @@ function cachePublicFile(res, filePath) {
   }
 }
 
+// Signage players show the TV display inside a frame of their own page; it has nothing to act on.
+const FRAMED = /^\/(?:[^/]+\/)?tv\/?$/;
+
 const app = express();
 app.disable('x-powered-by');
-app.use((_req, res, next) => {
+app.use((req, res, next) => {
   res.set(SECURITY_HEADERS);
+  if (FRAMED.test(req.path)) res.removeHeader('X-Frame-Options');
   next();
 });
 app.get('/healthz', (_req, res) => {
