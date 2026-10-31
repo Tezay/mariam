@@ -1,4 +1,5 @@
-import { Accessibility, Clock, ExternalLink, Mail, Phone, Users } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { Accessibility, Clock, ExternalLink, Mail, Phone } from 'lucide-react';
 import { SiteLinkIcon } from '@/components/SiteLinkIcon';
 import type { MapTiles } from '@/lib/runtime-config';
 import { groupConsecutiveHours } from '@/lib/service-utils';
@@ -35,7 +36,7 @@ function HoursCard({ site }: { site: RestaurantPublic }) {
 function AmenitiesCard({ site }: { site: RestaurantPublic }) {
   const payments = PAYMENT_OPTIONS.filter((option) => site.payment_methods?.includes(option.id));
   const services = SERVICES.filter((service) => site.services.includes(service.id));
-  const welcome = site.pmr_access === true || site.capacity != null;
+  const welcome = site.pmr_access === true;
   if (payments.length === 0 && services.length === 0 && !welcome) return null;
 
   return (
@@ -72,12 +73,6 @@ function AmenitiesCard({ site }: { site: RestaurantPublic }) {
             <p className="flex items-center gap-2 lg:text-sm">
               <Accessibility aria-hidden className="h-4 w-4 shrink-0 text-site-brand" />
               Accessible aux personnes à mobilité réduite
-            </p>
-          )}
-          {site.capacity != null && (
-            <p className="flex items-center gap-2 lg:text-sm">
-              <Users aria-hidden className="h-4 w-4 shrink-0 text-site-brand" />
-              {site.capacity} places assises
             </p>
           )}
         </div>
@@ -122,15 +117,18 @@ function ContactCard({ site }: { site: RestaurantPublic }) {
 export function PracticalInfo({
   site,
   mapTiles,
+  children,
 }: {
   site: RestaurantPublic;
   mapTiles: MapTiles | null;
+  children?: ReactNode;
 }) {
   return (
     <section aria-labelledby="practical-title" className="flex flex-col gap-3 lg:gap-4">
       <h2 id="practical-title" className="text-lg font-bold lg:sr-only">
         Infos pratiques
       </h2>
+      {children}
       <HoursCard site={site} />
       <MapCard site={site} tiles={mapTiles} />
       <AmenitiesCard site={site} />

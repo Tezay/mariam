@@ -53,6 +53,7 @@ export const TEXT_MAX = {
   alt: 150,
 };
 export const MENU_DAYS_MAX = { ahead: 28, back: 90 };
+export const SERVICE_CAPACITY_MAX = 10_000;
 
 export function linkKind(id: LinkKind) {
   return LINK_KINDS.find((kind) => kind.id === id) ?? LINK_KINDS[0];

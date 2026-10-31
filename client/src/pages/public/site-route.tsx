@@ -1,5 +1,5 @@
 import { data, redirect } from 'react-router';
-import { fetchSitePage } from '@/lib/api/public.server';
+import { fetchLiveStatus, fetchSitePage } from '@/lib/api/public.server';
 import { parisToday } from '@/lib/date-utils';
 import { mapTiles } from '@/lib/runtime-config.server';
 import { publicMenuData } from './public-menu-data';
@@ -39,9 +39,13 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   const date = asked ?? today;
 
   const org = tenant.organization.slug;
-  let page;
+  let page, live;
   try {
-    page = await fetchSitePage(request, org, site.slug, date, date);
+    [page, live] = await Promise.all([
+      fetchSitePage(request, org, site.slug, date, date),
+      // The page stands without it: the gauge then shows the capacity alone.
+      fetchLiveStatus(request, org, site.slug).catch(() => null),
+    ]);
   } catch (error) {
     console.error(error);
     throw data('unavailable', { status: 503 });
@@ -57,6 +61,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     multiSite,
     date,
     menu: publicMenuData(page, new Date(now), date),
+    live,
     now,
     url: `${tenant.origin}${pagePath}`,
     mapTiles: mapTiles(),
@@ -112,6 +117,7 @@ export default function SiteRoute({ loaderData }: Route.ComponentProps) {
       multiSite={loaderData.multiSite}
       date={loaderData.date}
       initial={loaderData.menu}
+      initialLive={loaderData.live}
       serverNow={loaderData.now}
       mapTiles={loaderData.mapTiles}
     />

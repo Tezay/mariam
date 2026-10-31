@@ -204,6 +204,14 @@ class TrafficTotalsSchema(Schema):
     org_root_views = fields.Int(required=True)
 
 
+class CapacityReachedSchema(Schema):
+    services = fields.Int(required=True)
+    sites = fields.Int(required=True)
+    usual_time = fields.Str(
+        required=True, allow_none=True, metadata={'description': "HH:MM, Paris time"}
+    )
+
+
 class TrafficReportSchema(Schema):
     granularity = fields.Str(required=True, validate=validate.OneOf(['day', 'hour']))
     series = fields.List(fields.Nested(TrafficPointSchema), required=True)
@@ -211,6 +219,11 @@ class TrafficReportSchema(Schema):
     by_page_kind = fields.List(fields.Nested(PageKindViewsSchema), required=True)
     hour_profile = fields.List(fields.Nested(HourViewsSchema), required=True)
     totals = fields.Nested(TrafficTotalsSchema, required=True)
+    capacity_reached = fields.Nested(
+        CapacityReachedSchema,
+        required=True,
+        metadata={'description': "The services whose team said the capacity was reached"},
+    )
 
 
 class SatisfactionSummarySchema(Schema):

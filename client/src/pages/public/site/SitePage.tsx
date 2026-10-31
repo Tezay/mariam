@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import type { Closure } from '@/lib/api/closures';
-import type { PublicOrg } from '@/lib/api/sites';
+import type { LiveStatus, PublicOrg } from '@/lib/api/sites';
 import { addDays, parisToday } from '@/lib/date-utils';
+import { getServiceStatus } from '@/lib/service-utils';
+import { capacityState } from '@/lib/capacity-state';
+import { CapacityGauge } from '@/components/CapacityGauge';
 import type { MapTiles } from '@/lib/runtime-config';
 import { trackPageView } from '@/lib/telemetry';
 import { useNow } from '@/lib/use-now';
@@ -14,6 +17,7 @@ import { AboutSection } from './AboutSection';
 import { dayStrip, openDays } from './days';
 import { MenuBoard } from './MenuBoard';
 import { PracticalInfo } from './PracticalInfo';
+import { useLiveStatus } from './use-live-status';
 import { NotificationsPanel } from './notifications/NotificationsPanel';
 import { useLaunchOffer } from './notifications/useLaunchOffer';
 import { NotificationsButton, SiteHeader } from './SiteHeader';
@@ -27,6 +31,7 @@ interface SitePageProps {
   multiSite: boolean;
   date: string;
   initial: PublicMenuData;
+  initialLive: LiveStatus | null;
   serverNow: number;
   mapTiles: MapTiles | null;
 }
@@ -37,6 +42,7 @@ export function SitePage({
   multiSite,
   date,
   initial,
+  initialLive,
   serverNow,
   mapTiles,
 }: SitePageProps) {
@@ -48,6 +54,14 @@ export function SitePage({
   });
   const menu = data ?? initial;
   const site = menu.restaurant;
+  const inService =
+    !menu.activeClosure && getServiceStatus(site.service_hours, site.service_days, now).isOpen;
+  const live = useLiveStatus(organization.slug, siteSlug, {
+    initial: initialLive,
+    fetchedAt: serverNow,
+    inService,
+  });
+  const reached = live ? live.capacity_reached : null;
   const siteRef = useMemo(
     () => ({ org: organization.slug, site: siteSlug }),
     [organization.slug, siteSlug]
@@ -78,6 +92,7 @@ export function SitePage({
         site={site}
         closure={menu.activeClosure}
         now={now}
+        capacityReached={reached === true}
         onOpenNotifications={openNotifications}
       />
 
@@ -103,7 +118,15 @@ export function SitePage({
         )}
 
         <aside className="px-4 lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:px-0">
-          <PracticalInfo site={site} mapTiles={mapTiles} />
+          <PracticalInfo site={site} mapTiles={mapTiles}>
+            {site.service_capacity != null && (
+              <CapacityGauge
+                capacity={site.service_capacity}
+                state={capacityState(reached, inService)}
+                reachedAt={live?.reached_at ?? null}
+              />
+            )}
+          </PracticalInfo>
         </aside>
 
         <div className="px-4 lg:col-start-1 lg:row-start-3 lg:px-0">

@@ -555,7 +555,7 @@ the organization's under `O`, for its supervisors.
 | `GET` | `S/analytics/overview`, `O/analytics/overview` | Period KPIs with previous-period comparison, daily trend, per-site table |
 | `GET` | `S/analytics/publications`, `O/analytics/publications` | Publication rate, punctuality, lead time, completeness, site × day status matrix |
 | `GET` | `S/analytics/satisfaction`, `O/analytics/satisfaction` | Menu ratings: distribution, daily score, per-site comparison and dish ranking (`min_votes`, default 10) |
-| `GET` | `S/analytics/traffic`, `O/analytics/traffic` | Public-page consultation: daily series, per-site table, hour profile, page-kind split |
+| `GET` | `S/analytics/traffic`, `O/analytics/traffic` | Public-page consultation: daily series, per-site table, hour profile, page-kind split, services said full |
 
 Shared query parameters:
 
@@ -580,6 +580,8 @@ Notes:
   those appear only in the page-kind split. The public root of a multi-site
   organization is counted against the organization and reported separately as
   `totals.org_root_views`, under `O` only.
+- `capacity_reached` counts the services a team said full over the period, and their sites;
+  `usual_time` is the median hour they filled, in Paris time to five minutes, `null` without one.
 - Unique visitors are an estimate: a HyperLogLog over hashes of IP and user
   agent, salted with a key that rotates daily and is never persisted. No cookie,
   no identifier stored on the device, nothing per-visitor in the database.
@@ -599,7 +601,7 @@ writes.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `PATCH` | `S` | Change the page, name, address, contact, capacity, payment methods, access, service days and hours, menu window, vote, and the labels in use (`tag_ids`, `certification_ids`) |
+| `PATCH` | `S` | Change the page, name, address, contact, service capacity, payment methods, access, service days and hours, menu window, vote, and the labels in use (`tag_ids`, `certification_ids`) |
 | `PUT` | `S/logo` | Set or replace the logo (`file`, multipart); returns the site |
 | `DELETE` | `S/logo` | Remove it; `204` |
 | `PUT` | `S/cover` | Set or replace the photo at the top of the page; returns the site |
@@ -610,6 +612,8 @@ writes.
 | `PUT` | `S/photos/order` | `{photo_ids}`: every photo once, in the new order (`422 image_order_invalid` otherwise) |
 | `GET` | `S/calendar-settings` | What the calendar shows besides menus: public holidays, school holidays and their zone |
 | `PATCH` | `S/calendar-settings` | Change them; `admin` role |
+| `GET` | `S/live-status` | Today's service, for anyone: `{capacity_reached, reached_at}` |
+| `PUT` | `S/live-status` | `{capacity_reached}`, by the site's admins and editors; it lapses with the day, in Paris time |
 
 Every value has its rule, refused with `422` otherwise:
 - **Site:** a name of 1 to 50 characters without a web or email address, a postcode of five
@@ -629,6 +633,8 @@ Every value has its rule, refused with `422` otherwise:
   - The other kinds (`izly`, `instagram`, `facebook`, `linkedin`, `x`, `tiktok`, `youtube`)
     lead to their own domain, carry no label, and appear once at most.
 - **Menu window:** `menu_days_ahead` from 0 to 28, `menu_days_back` from 0 to 90.
+- **Service capacity:** `service_capacity`, the meals the team can serve in one service, from 1
+  to 10 000, or `null`.
 
 An image is decoded and stored again, without its metadata: JPEG, PNG, WebP or HEIC, 5 MB
 at most. It is brought down to 512 pixels on its longer side for a logo (which keeps its

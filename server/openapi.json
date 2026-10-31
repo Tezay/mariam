@@ -4756,6 +4756,92 @@
         ]
       }
     },
+    "/v1/orgs/{org}/sites/{site}/live-status": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveStatus"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Whether the team says today's service has reached its capacity.",
+        "tags": [
+          "sites"
+        ],
+        "security": [
+          {},
+          {
+            "bearer": []
+          },
+          {
+            "session": []
+          }
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ],
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveStatus"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveStatusInput"
+              }
+            }
+          }
+        },
+        "summary": "Say whether today's service has reached its capacity; it lapses with the day.",
+        "tags": [
+          "sites"
+        ]
+      }
+    },
     "/v1/orgs/{org}/sites/{site}/menus": {
       "get": {
         "parameters": [
@@ -9875,6 +9961,28 @@
         ],
         "additionalProperties": false
       },
+      "CapacityReached": {
+        "type": "object",
+        "properties": {
+          "services": {
+            "type": "integer"
+          },
+          "sites": {
+            "type": "integer"
+          },
+          "usual_time": {
+            "type": "string",
+            "description": "HH:MM, Paris time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "services",
+          "sites",
+          "usual_time"
+        ],
+        "additionalProperties": false
+      },
       "TrafficReport": {
         "type": "object",
         "properties": {
@@ -9911,11 +10019,20 @@
           },
           "totals": {
             "$ref": "#/components/schemas/TrafficTotals"
+          },
+          "capacity_reached": {
+            "description": "The services whose team said the capacity was reached",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CapacityReached"
+              }
+            ]
           }
         },
         "required": [
           "by_page_kind",
           "by_site",
+          "capacity_reached",
           "granularity",
           "hour_profile",
           "series",
@@ -10537,9 +10654,9 @@
             "type": "string",
             "nullable": true
           },
-          "capacity": {
+          "service_capacity": {
             "type": "integer",
-            "description": "Seats",
+            "description": "Meals the team can serve in one service",
             "nullable": true
           },
           "payment_methods": {
@@ -10725,9 +10842,10 @@
             "maxLength": 30,
             "nullable": true
           },
-          "capacity": {
+          "service_capacity": {
             "type": "integer",
-            "minimum": 0,
+            "minimum": 1,
+            "maximum": 10000,
             "nullable": true
           },
           "payment_methods": {
@@ -10971,6 +11089,36 @@
             "nullable": true
           }
         }
+      },
+      "LiveStatus": {
+        "type": "object",
+        "properties": {
+          "capacity_reached": {
+            "type": "boolean"
+          },
+          "reached_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was reached today",
+            "nullable": true
+          }
+        },
+        "required": [
+          "capacity_reached",
+          "reached_at"
+        ],
+        "additionalProperties": false
+      },
+      "LiveStatusInput": {
+        "type": "object",
+        "properties": {
+          "capacity_reached": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "capacity_reached"
+        ]
       },
       "PublicDish": {
         "type": "object",

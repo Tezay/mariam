@@ -12,6 +12,7 @@ from app.models import (
     MenuVote,
     Organization,
     Restaurant,
+    ServiceLiveStatus,
 )
 from app.utils.time import PARIS_TZ, paris_today
 from conftest import auth_headers, get_token, make_restaurant, make_user, site_path
@@ -458,3 +459,40 @@ class TestScope:
 
         assert res.status_code == 422
 
+
+class TestCapacityReached:
+    def _said_full(self, rid, day, hour, minute):
+        paris = datetime.datetime(day.year, day.month, day.day, hour, minute, tzinfo=PARIS_TZ)
+        db.session.add(ServiceLiveStatus(restaurant_id=rid, day=day, capacity_reached_at=paris))
+        db.session.commit()
+
+    def _traffic(self, client, start, end):
+        token = get_token(client, email='dir@mariam.app')
+        return _analytics(
+            client, token, 'traffic', f'from={start.isoformat()}&to={end.isoformat()}'
+        )['capacity_reached']
+
+    def test_it_counts_the_full_services_and_their_usual_hour(self, app, client):
+        monday, friday = _last_full_week()
+        org = _org('full')
+        first, second = _site(org, 'FULL_A'), _site(org, 'FULL_B')
+        _director(first, org)
+        self._said_full(first, monday, 12, 4)
+        self._said_full(first, monday + datetime.timedelta(days=1), 12, 21)
+        self._said_full(second, friday, 12, 9)
+        db.session.add(ServiceLiveStatus(restaurant_id=second, day=monday, capacity_reached_at=None))
+        self._said_full(second, friday + datetime.timedelta(days=3), 11, 50)
+        db.session.commit()
+
+        assert self._traffic(client, monday, friday) == {
+            'services': 3, 'sites': 2, 'usual_time': '12:10',
+        }
+
+    def test_without_a_full_service_it_says_nothing(self, app, client):
+        monday, friday = _last_full_week()
+        org = _org('never-full')
+        _director(_site(org, 'NEVER'), org)
+
+        assert self._traffic(client, monday, friday) == {
+            'services': 0, 'sites': 0, 'usual_time': None,
+        }

@@ -1,5 +1,8 @@
 """A site's page and settings; sites are created and closed from the CLI, never through the API."""
+from datetime import UTC, datetime
+
 from flask_jwt_extended import jwt_required
+from sqlalchemy.dialects.postgresql import insert
 
 from ..data.site_profile import SERVICES
 from ..extensions import db
@@ -10,15 +13,18 @@ from ..models import (
     Restaurant,
     RestaurantPhoto,
     RestaurantServiceHours,
+    ServiceLiveStatus,
 )
 from ..models.category import MenuCategory
 from ..models.restaurant_calendar import RestaurantCalendarSettings
 from ..multipart import LOCATION as MULTIPART
 from ..problems import Blueprint, Problem
 from ..schemas.common import FileUploadSchema
+from ..schemas.public import LiveStatusSchema
 from ..schemas.sites import (
     CalendarSettingsPatchSchema,
     CalendarSettingsSchema,
+    LiveStatusInputSchema,
     PhotoOrderSchema,
     SitePatchSchema,
     SitePhotoAltSchema,
@@ -31,7 +37,7 @@ from ..security import limiter, public_limit
 from ..services.menu_window import visible_range
 from ..services.storage import storage
 from ..utils.time import paris_today
-from .helpers import audit, site_admin_required, store_image
+from .helpers import audit, editor_required, site_admin_required, store_image
 from .scope import SESSION_OPTIONAL, finish_public_read, member_site, readable_site
 
 sites_bp = Blueprint('sites', __name__, description="A site: its public page and its settings")
@@ -39,7 +45,7 @@ sites_bp.after_request(finish_public_read)
 
 SITE_FIELDS = (
     'name', 'tagline', 'description', 'address_label', 'address_lat', 'address_lon',
-    'address_city', 'address_postcode', 'access_info', 'email', 'phone', 'capacity',
+    'address_city', 'address_postcode', 'access_info', 'email', 'phone', 'service_capacity',
     'payment_methods', 'pmr_access', 'vote_enabled', 'vote_icon_preset',
     'menu_days_ahead', 'menu_days_back',
 )
@@ -79,6 +85,7 @@ def site_view(restaurant: Restaurant, member: bool) -> dict:
         'address_city': restaurant.address_city,
         'address_postcode': restaurant.address_postcode,
         'access_info': restaurant.access_info,
+        'service_capacity': restaurant.service_capacity,
         'services': restaurant.services or [],
         'links': restaurant.links or [],
         'service_days': config['service_days'],
@@ -387,3 +394,46 @@ def patch_calendar_settings(body, org: str, site: str):
     audit(AuditLog.ACTION_CALENDAR_SETTINGS_UPDATE, restaurant, details=settings.to_dict())
     db.session.commit()
     return settings
+
+
+def _live_status(restaurant: Restaurant) -> dict:
+    status = ServiceLiveStatus.query.filter_by(restaurant_id=restaurant.id, day=paris_today()).first()
+    reached_at = status.capacity_reached_at if status else None
+    return {'capacity_reached': reached_at is not None, 'reached_at': reached_at}
+
+
+@sites_bp.route('/<site>/live-status', methods=['GET'])
+@sites_bp.doc(security=SESSION_OPTIONAL)
+@limiter.limit(public_limit)
+@sites_bp.response(200, LiveStatusSchema)
+def get_live_status(org: str, site: str):
+    """Whether the team says today's service has reached its capacity."""
+    restaurant, _ = readable_site(org, site)
+    return _live_status(restaurant)
+
+
+@sites_bp.route('/<site>/live-status', methods=['PUT'])
+@editor_required
+@sites_bp.arguments(LiveStatusInputSchema)
+@sites_bp.response(200, LiveStatusSchema)
+def put_live_status(body, org: str, site: str):
+    """Say whether today's service has reached its capacity; it lapses with the day."""
+    restaurant = member_site(org, site)
+    now = datetime.now(UTC)
+    reached = body['capacity_reached']
+    statement = insert(ServiceLiveStatus).values(
+        restaurant_id=restaurant.id,
+        day=paris_today(),
+        capacity_reached_at=now if reached else None,
+        updated_at=now,
+    )
+    # An upsert, so two declarations at once share the day's row; the first hour it filled stays.
+    first = db.func.coalesce(
+        ServiceLiveStatus.capacity_reached_at, statement.excluded.capacity_reached_at
+    )
+    db.session.execute(statement.on_conflict_do_update(
+        constraint='uq_service_live_status_day',
+        set_={'capacity_reached_at': first if reached else None, 'updated_at': now},
+    ))
+    db.session.commit()
+    return _live_status(restaurant)

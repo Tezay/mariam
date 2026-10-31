@@ -38,7 +38,7 @@ function formOf(site: Site): RestaurantFormState {
     addressPostcode: site.address_postcode,
     email: site.email ?? '',
     phone: site.phone ?? '',
-    capacity: site.capacity != null ? String(site.capacity) : '',
+    serviceCapacity: site.service_capacity != null ? String(site.service_capacity) : '',
     paymentMethods: site.payment_methods ?? ['izly', 'cb'],
     pmrAccess: site.pmr_access ?? null,
     voteEnabled: site.vote_enabled,
@@ -74,7 +74,7 @@ export function useSettingsState() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [phone, setPhone] = useState('');
   const [phoneError, setPhoneError] = useState<string | null>(null);
-  const [capacity, setCapacity] = useState('');
+  const [serviceCapacity, setServiceCapacity] = useState('');
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(['izly', 'cb']);
   const [pmrAccess, setPmrAccess] = useState<boolean | null>(null);
 
@@ -103,7 +103,7 @@ export function useSettingsState() {
     addressPostcode,
     email,
     phone,
-    capacity,
+    serviceCapacity,
     paymentMethods,
     pmrAccess,
     voteEnabled,
@@ -135,7 +135,7 @@ export function useSettingsState() {
     setAddressConfirmed(!form.addressLabel || (form.addressLat != null && form.addressLon != null));
     setEmail(form.email);
     setPhone(form.phone);
-    setCapacity(form.capacity);
+    setServiceCapacity(form.serviceCapacity);
     setPaymentMethods(form.paymentMethods);
     setPmrAccess(form.pmrAccess);
     setVoteEnabled(form.voteEnabled);
@@ -205,7 +205,7 @@ export function useSettingsState() {
               address_postcode: addressPostcode,
               email: email || null,
               phone: phone || null,
-              capacity: capacity ? Number(capacity) : null,
+              service_capacity: serviceCapacity ? Number(serviceCapacity) : null,
               payment_methods: paymentMethods,
               pmr_access: pmrAccess,
               tag_ids: enabledTags,
@@ -255,7 +255,7 @@ export function useSettingsState() {
     name,
     serviceDays,
     serviceHours,
-    capacity,
+    serviceCapacity,
     paymentMethods,
     pmrAccess,
     enabledTags,
@@ -306,8 +306,8 @@ export function useSettingsState() {
     setPhone,
     phoneError,
     setPhoneError,
-    capacity,
-    setCapacity,
+    serviceCapacity,
+    setServiceCapacity,
     paymentMethods,
     setPaymentMethods,
     voteEnabled,

@@ -62,8 +62,10 @@ class Restaurant(db.Model):
     email = db.Column(db.String(150), nullable=True)
     phone = db.Column(db.String(30), nullable=True)
 
-    # Seats.
+    # Seats, no longer read: kept so the previous release still runs on this schema.
     capacity = db.Column(db.Integer, nullable=True)
+    # Meals per service.
+    service_capacity = db.Column(db.Integer, nullable=True)
 
     # Among izly, cb, cash and ticket_restaurant.
     payment_methods = db.Column(db.JSON, nullable=True)
@@ -175,7 +177,6 @@ class Restaurant(db.Model):
             'address_lon': self.address_lon,
             'email': self.email,
             'phone': self.phone,
-            'capacity': self.capacity,
             'payment_methods': self.payment_methods,
             'pmr_access': self.pmr_access,
             'service_hours': self.get_service_hours_dict(),

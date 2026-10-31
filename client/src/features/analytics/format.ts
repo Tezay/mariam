@@ -1,3 +1,5 @@
+import type { CapacityReached } from '@/lib/api/analytics';
+
 export const PLACEHOLDER = '—';
 
 const numberFormatter = new Intl.NumberFormat('fr-FR');
@@ -93,4 +95,16 @@ export function formatDateTime(iso: string | null): string {
     hour: '2-digit',
     minute: '2-digit',
   }).format(parsed);
+}
+
+export function capacityReachedLine(reached: CapacityReached): string | null {
+  if (reached.services === 0) return null;
+  const once = reached.services === 1;
+  const time = reached.usual_time?.replace(':', 'h');
+  const services = once
+    ? "lors d'un service"
+    : `lors de ${formatNumber(reached.services)} services`;
+  const sites = reached.sites > 1 ? `, sur ${reached.sites} sites` : '';
+  const when = time ? (once ? `, à ${time}` : `, vers ${time} en général`) : '';
+  return `Capacité maximale atteinte ${services}${sites}${when}.`;
 }

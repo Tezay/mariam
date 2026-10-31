@@ -33,7 +33,7 @@ export interface RestaurantFormState {
   addressPostcode: string | null;
   email: string;
   phone: string;
-  capacity: string;
+  serviceCapacity: string;
   paymentMethods: PaymentMethod[];
   pmrAccess: boolean | null;
   voteEnabled: boolean;
@@ -55,7 +55,7 @@ export function serializeRestaurantState(s: RestaurantFormState): string {
     addressPostcode: s.addressPostcode,
     email: s.email,
     phone: s.phone,
-    capacity: s.capacity,
+    serviceCapacity: s.serviceCapacity,
     paymentMethods: s.paymentMethods,
     pmrAccess: s.pmrAccess,
     voteEnabled: s.voteEnabled,

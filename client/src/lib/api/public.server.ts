@@ -2,7 +2,7 @@ import type { SitePage } from '@/pages/public/menu-types';
 import type { Menu } from './menus';
 import type { Closure } from './closures';
 import type { Event } from './events';
-import type { PublicOrg, PublicSiteSummary, Site } from './sites';
+import type { LiveStatus, PublicOrg, PublicSiteSummary, Site } from './sites';
 
 type Env = Record<string, string | undefined>;
 
@@ -94,4 +94,15 @@ export async function fetchSitePage(
     events: events?.items ?? [],
     closures: closures?.items ?? [],
   };
+}
+
+export async function fetchLiveStatus(
+  request: Request,
+  org: string,
+  slug: string
+): Promise<LiveStatus | null> {
+  return getJson<LiveStatus>(
+    request,
+    `/orgs/${encodeURIComponent(org)}/sites/${encodeURIComponent(slug)}/live-status`
+  );
 }
