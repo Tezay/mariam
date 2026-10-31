@@ -614,6 +614,10 @@ writes.
 | `PATCH` | `S/calendar-settings` | Change them; `admin` role |
 | `GET` | `S/live-status` | Today's service, for anyone: `{capacity_reached, reached_at}` |
 | `PUT` | `S/live-status` | `{capacity_reached}`, by the site's admins and editors; it lapses with the day, in Paris time |
+| `GET` | `S/quality` | For anyone: `{declaration, menus, labels}`, the latest EGalim year and what the last 30 days of published menus served |
+| `GET` | `S/egalim-declarations` | `{items}`, every year declared, the latest first |
+| `PUT` | `S/egalim-declarations/{year}` | `{sustainable_share, organic_share, territorial_share}`; `201` for a new year, `200` when replaced; `admin` role |
+| `DELETE` | `S/egalim-declarations/{year}` | `204`; `404 egalim_declaration_not_found`; `admin` role |
 
 Every value has its rule, refused with `422` otherwise:
 - **Site:** a name of 1 to 50 characters without a web or email address, a postcode of five
@@ -625,8 +629,8 @@ Every value has its rule, refused with `422` otherwise:
   `water_fountain` and `study_area`, read back in that order.
 - **Votes and labels:** vote categories of the site, known labels.
 - **Texts:** plain text, never markup. `tagline` holds one line of 160 characters at most,
-  `description` paragraphs of 800, `access_info` paragraphs of 300. Spaces are tidied and an
-  empty text reads as `null`.
+  `description` paragraphs of 800, `access_info` paragraphs of 300, `quality_commitments`
+  paragraphs of 600. Spaces are tidied and an empty text reads as `null`.
 - **Links:** six at most, `[{kind, url, label}]`, replacing the site's.
   - The `url` is `https`, without credentials.
   - A `website` takes any host and needs a `label`.
@@ -635,6 +639,14 @@ Every value has its rule, refused with `422` otherwise:
 - **Menu window:** `menu_days_ahead` from 0 to 28, `menu_days_back` from 0 to 90.
 - **Service capacity:** `service_capacity`, the meals the team can serve in one service, from 1
   to 10 000, or `null`.
+- **EGalim declaration:** the percent of a year's food purchases, by value, from 0 to 100 to the
+  tenth; the organic share is part of the sustainable one, the territorial share is optional. A
+  year runs from 2019 to the current one (`422 egalim_year_invalid`).
+
+In `S/quality`, `menus` counts each dish as often as it was served; `vegetarian` is measured
+over the dishes of highlighted categories and their subcategories, and is `null` without one.
+`menus` is `null` without a published menu over the period, and `labels` lists those of the
+dishes served.
 
 An image is decoded and stored again, without its metadata: JPEG, PNG, WebP or HEIC, 5 MB
 at most. It is brought down to 512 pixels on its longer side for a logo (which keeps its

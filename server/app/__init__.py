@@ -271,6 +271,7 @@ def create_app(config_class=None):
     from .routes.menus import menus_bp
     from .routes.orgs import orgs_bp
     from .routes.push_subscriptions import push_bp
+    from .routes.quality import quality_bp
     from .routes.sites import sites_bp
     from .routes.taxonomy import taxonomy_bp
     from .routes.user import user_bp
@@ -295,6 +296,7 @@ def create_app(config_class=None):
     api.register_blueprint(categories_bp,    url_prefix='/v1/orgs/<org>/sites/<site>/categories')
     api.register_blueprint(events_bp,        url_prefix='/v1/orgs/<org>/sites/<site>/events')
     api.register_blueprint(closures_bp,      url_prefix='/v1/orgs/<org>/sites/<site>/closures')
+    api.register_blueprint(quality_bp,       url_prefix='/v1/orgs/<org>/sites/<site>')
     api.register_blueprint(devices_bp,       url_prefix='/v1/devices')
 
     @app.route('/health')

@@ -70,6 +70,9 @@ class PublicSiteSchema(Schema):
     access_info = fields.Str(
         required=True, allow_none=True, metadata={'description': "How to get there; paragraphs"}
     )
+    quality_commitments = fields.Str(
+        required=True, allow_none=True, metadata={'description': "Paragraphs"}
+    )
     services = fields.List(
         fields.Str(validate=validate.OneOf(SERVICES)), required=True,
         metadata={'description': "In the order of the closed list"},
@@ -98,6 +101,47 @@ class PublicSiteSchema(Schema):
         MenuWindowSchema,
         required=True,
         metadata={'description': "The dates whose published menus can be read"},
+    )
+
+
+class EgalimDeclarationSchema(Schema):
+    year = fields.Int(required=True, metadata={'description': "The year of the purchases"})
+    sustainable_share = fields.Float(
+        required=True, metadata={'description': "Percent of the year's food purchases, by value"}
+    )
+    organic_share = fields.Float(
+        required=True, metadata={'description': "Percent, within the sustainable share"}
+    )
+    territorial_share = fields.Float(
+        required=True, allow_none=True,
+        metadata={'description': "Percent from a territorial food project"},
+    )
+
+
+class MenuSharesSchema(Schema):
+    days = fields.Int(required=True)
+    labelled = fields.Int(required=True, metadata={'description': "Percent of served dishes"})
+    homemade = fields.Int(required=True)
+    local = fields.Int(required=True)
+    seasonal = fields.Int(required=True)
+    vegetarian = fields.Int(
+        required=True, allow_none=True,
+        metadata={'description': "Percent of served main dishes; None without one"},
+    )
+
+
+class QualitySchema(Schema):
+    declaration = fields.Nested(
+        EgalimDeclarationSchema, required=True, allow_none=True,
+        metadata={'description': "The latest year declared"},
+    )
+    menus = fields.Nested(
+        MenuSharesSchema, required=True, allow_none=True,
+        metadata={'description': "Over the published menus of the last days; None without one"},
+    )
+    labels = fields.List(
+        fields.Nested(CertificationSchema), required=True,
+        metadata={'description': "Those of the dishes served over the same days"},
     )
 
 

@@ -9,6 +9,7 @@ import { publicPagePath } from '@/lib/public-page';
 import { MENU_DAYS_MAX, SERVICES, TEXT_MAX } from '@/lib/site-profile';
 import { UnsavedChanges } from './settings/UnsavedChanges';
 import { CountedField } from './public-page/CountedField';
+import { DeclarationsField } from './public-page/DeclarationsField';
 import { GalleryField } from './public-page/GalleryField';
 import { LinksField } from './public-page/LinksField';
 import { MediaField } from './public-page/MediaField';
@@ -200,6 +201,28 @@ export function PublicPagePage() {
         </CardHeader>
         <CardContent>
           <LinksField state={state} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Qualité des produits</CardTitle>
+          <CardDescription>
+            Ce que vous achetez et cuisinez. La page publique calcule seule la part des plats faits
+            maison, locaux, de saison et labellisés, à partir de vos menus publiés.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <DeclarationsField />
+          <CountedField
+            id="quality-commitments"
+            label="Nos engagements"
+            help="Ce que l'équipe fait pour la qualité : producteurs, cuisine sur place, gaspillage, commerce équitable…"
+            value={form.qualityCommitments}
+            max={TEXT_MAX.qualityCommitments}
+            rows={4}
+            onChange={(qualityCommitments) => update({ qualityCommitments })}
+          />
         </CardContent>
       </Card>
 

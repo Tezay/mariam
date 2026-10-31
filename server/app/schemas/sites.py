@@ -99,6 +99,7 @@ class SitePatchSchema(Schema):
     tagline = PlainText(160, allow_none=True)
     description = PlainText(800, multiline=True, allow_none=True)
     access_info = PlainText(300, multiline=True, allow_none=True)
+    quality_commitments = PlainText(600, multiline=True, allow_none=True)
     address_city = PlainText(100, allow_none=True)
     address_postcode = fields.Str(
         allow_none=True,

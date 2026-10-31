@@ -45,8 +45,8 @@ sites_bp.after_request(finish_public_read)
 
 SITE_FIELDS = (
     'name', 'tagline', 'description', 'address_label', 'address_lat', 'address_lon',
-    'address_city', 'address_postcode', 'access_info', 'email', 'phone', 'service_capacity',
-    'payment_methods', 'pmr_access', 'vote_enabled', 'vote_icon_preset',
+    'address_city', 'address_postcode', 'access_info', 'quality_commitments', 'email', 'phone',
+    'service_capacity', 'payment_methods', 'pmr_access', 'vote_enabled', 'vote_icon_preset',
     'menu_days_ahead', 'menu_days_back',
 )
 # Each one's columns, and the longer side it is stored at.
@@ -85,6 +85,7 @@ def site_view(restaurant: Restaurant, member: bool) -> dict:
         'address_city': restaurant.address_city,
         'address_postcode': restaurant.address_postcode,
         'access_info': restaurant.access_info,
+        'quality_commitments': restaurant.quality_commitments,
         'service_capacity': restaurant.service_capacity,
         'services': restaurant.services or [],
         'links': restaurant.links or [],

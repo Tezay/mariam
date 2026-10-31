@@ -7578,6 +7578,199 @@
         ]
       }
     },
+    "/v1/orgs/{org}/sites/{site}/quality": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Quality"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The latest EGalim figures, and what the published menus of the last 30 days served.",
+        "tags": [
+          "quality"
+        ],
+        "security": [
+          {},
+          {
+            "bearer": []
+          },
+          {
+            "session": []
+          }
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/egalim-declarations": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EgalimDeclarationList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Every year the site declared, the latest first.",
+        "tags": [
+          "quality"
+        ],
+        "security": [
+          {},
+          {
+            "bearer": []
+          },
+          {
+            "session": []
+          }
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/sites/{site}/egalim-declarations/{year}": {
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "201": {
+            "description": "The year's first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EgalimDeclaration"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "The year's figures replaced",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EgalimDeclaration"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EgalimDeclarationInput"
+              }
+            }
+          }
+        },
+        "summary": "Declare the share of sustainable, organic and territorial products bought in a year.",
+        "tags": [
+          "quality"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "year",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ],
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Remove a year's figures.",
+        "tags": [
+          "quality"
+        ]
+      }
+    },
     "/v1/devices": {
       "post": {
         "responses": {
@@ -7684,6 +7877,10 @@
     {
       "name": "closures",
       "description": "A site's exceptional closures"
+    },
+    {
+      "name": "quality",
+      "description": "A site's EGalim figures, and what its menus served"
     },
     {
       "name": "devices",
@@ -10624,6 +10821,11 @@
             "description": "How to get there; paragraphs",
             "nullable": true
           },
+          "quality_commitments": {
+            "type": "string",
+            "description": "Paragraphs",
+            "nullable": true
+          },
           "services": {
             "type": "array",
             "description": "In the order of the closed list",
@@ -10749,6 +10951,7 @@
           "menu_window",
           "name",
           "photos",
+          "quality_commitments",
           "service_days",
           "service_hours",
           "services",
@@ -10875,6 +11078,10 @@
             "nullable": true
           },
           "access_info": {
+            "type": "string",
+            "nullable": true
+          },
+          "quality_commitments": {
             "type": "string",
             "nullable": true
           },
@@ -12911,6 +13118,153 @@
             "nullable": true
           }
         }
+      },
+      "EgalimDeclaration": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "description": "The year of the purchases"
+          },
+          "sustainable_share": {
+            "type": "number",
+            "description": "Percent of the year's food purchases, by value"
+          },
+          "organic_share": {
+            "type": "number",
+            "description": "Percent, within the sustainable share"
+          },
+          "territorial_share": {
+            "type": "number",
+            "description": "Percent from a territorial food project",
+            "nullable": true
+          }
+        },
+        "required": [
+          "organic_share",
+          "sustainable_share",
+          "territorial_share",
+          "year"
+        ],
+        "additionalProperties": false
+      },
+      "MenuShares": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "integer"
+          },
+          "labelled": {
+            "type": "integer",
+            "description": "Percent of served dishes"
+          },
+          "homemade": {
+            "type": "integer"
+          },
+          "local": {
+            "type": "integer"
+          },
+          "seasonal": {
+            "type": "integer"
+          },
+          "vegetarian": {
+            "type": "integer",
+            "description": "Percent of served main dishes; None without one",
+            "nullable": true
+          }
+        },
+        "required": [
+          "days",
+          "homemade",
+          "labelled",
+          "local",
+          "seasonal",
+          "vegetarian"
+        ],
+        "additionalProperties": false
+      },
+      "Quality": {
+        "type": "object",
+        "properties": {
+          "declaration": {
+            "description": "The latest year declared",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EgalimDeclaration"
+              },
+              {
+                "type": "object",
+                "nullable": true
+              }
+            ]
+          },
+          "menus": {
+            "description": "Over the published menus of the last days; None without one",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MenuShares"
+              },
+              {
+                "type": "object",
+                "nullable": true
+              }
+            ]
+          },
+          "labels": {
+            "type": "array",
+            "description": "Those of the dishes served over the same days",
+            "items": {
+              "$ref": "#/components/schemas/Certification"
+            }
+          }
+        },
+        "required": [
+          "declaration",
+          "labels",
+          "menus"
+        ],
+        "additionalProperties": false
+      },
+      "EgalimDeclarationList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EgalimDeclaration"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "EgalimDeclarationInput": {
+        "type": "object",
+        "properties": {
+          "sustainable_share": {
+            "type": "number",
+            "minimum": "0",
+            "maximum": "100"
+          },
+          "organic_share": {
+            "type": "number",
+            "minimum": "0",
+            "maximum": "100"
+          },
+          "territorial_share": {
+            "type": "number",
+            "default": null,
+            "minimum": "0",
+            "maximum": "100",
+            "nullable": true
+          }
+        },
+        "required": [
+          "organic_share",
+          "sustainable_share"
+        ]
       },
       "Device": {
         "type": "object",

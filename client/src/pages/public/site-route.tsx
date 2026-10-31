@@ -1,5 +1,5 @@
 import { data, redirect } from 'react-router';
-import { fetchLiveStatus, fetchSitePage } from '@/lib/api/public.server';
+import { fetchLiveStatus, fetchQuality, fetchSitePage } from '@/lib/api/public.server';
 import { parisToday } from '@/lib/date-utils';
 import { mapTiles } from '@/lib/runtime-config.server';
 import { publicMenuData } from './public-menu-data';
@@ -39,12 +39,14 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   const date = asked ?? today;
 
   const org = tenant.organization.slug;
-  let page, live;
+  let page, live, quality;
   try {
-    [page, live] = await Promise.all([
+    [page, live, quality] = await Promise.all([
       fetchSitePage(request, org, site.slug, date, date),
-      // The page stands without it: the gauge then shows the capacity alone.
+      // The page stands without these: the gauge then shows the capacity alone, and the
+      // quality section is left out.
       fetchLiveStatus(request, org, site.slug).catch(() => null),
+      fetchQuality(request, org, site.slug).catch(() => null),
     ]);
   } catch (error) {
     console.error(error);
@@ -62,6 +64,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     date,
     menu: publicMenuData(page, new Date(now), date),
     live,
+    quality,
     now,
     url: `${tenant.origin}${pagePath}`,
     mapTiles: mapTiles(),
@@ -118,6 +121,7 @@ export default function SiteRoute({ loaderData }: Route.ComponentProps) {
       date={loaderData.date}
       initial={loaderData.menu}
       initialLive={loaderData.live}
+      quality={loaderData.quality}
       serverNow={loaderData.now}
       mapTiles={loaderData.mapTiles}
     />

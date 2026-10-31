@@ -35,6 +35,7 @@ function site(fields: Partial<RestaurantPublic> = {}): RestaurantPublic {
     address_city: null,
     address_postcode: null,
     access_info: null,
+    quality_commitments: null,
     services: [],
     links: [],
     service_days: [],

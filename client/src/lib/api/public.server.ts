@@ -2,6 +2,7 @@ import type { SitePage } from '@/pages/public/menu-types';
 import type { Menu } from './menus';
 import type { Closure } from './closures';
 import type { Event } from './events';
+import type { Quality } from './quality';
 import type { LiveStatus, PublicOrg, PublicSiteSummary, Site } from './sites';
 
 type Env = Record<string, string | undefined>;
@@ -73,6 +74,9 @@ export async function fetchSites(
   return list?.items ?? null;
 }
 
+const sitePath = (org: string, slug: string) =>
+  `/orgs/${encodeURIComponent(org)}/sites/${encodeURIComponent(slug)}`;
+
 export async function fetchSitePage(
   request: Request,
   org: string,
@@ -80,7 +84,7 @@ export async function fetchSitePage(
   from: string,
   to: string
 ): Promise<SitePage | null> {
-  const path = `/orgs/${encodeURIComponent(org)}/sites/${encodeURIComponent(slug)}`;
+  const path = sitePath(org, slug);
   const [site, menus, events, closures] = await Promise.all([
     getJson<Site>(request, path),
     getJson<{ items: Menu[] }>(request, `${path}/menus?from=${from}&to=${to}`),
@@ -101,8 +105,13 @@ export async function fetchLiveStatus(
   org: string,
   slug: string
 ): Promise<LiveStatus | null> {
-  return getJson<LiveStatus>(
-    request,
-    `/orgs/${encodeURIComponent(org)}/sites/${encodeURIComponent(slug)}/live-status`
-  );
+  return getJson<LiveStatus>(request, `${sitePath(org, slug)}/live-status`);
+}
+
+export async function fetchQuality(
+  request: Request,
+  org: string,
+  slug: string
+): Promise<Quality | null> {
+  return getJson<Quality>(request, `${sitePath(org, slug)}/quality`);
 }
