@@ -6,7 +6,9 @@
  */
 import { API_URL } from './runtime-config';
 
-export type PageKind = 'today' | 'tomorrow' | 'day' | 'tv' | 'sites';
+export type PageKind = 'today' | 'tomorrow' | 'day' | 'screen_qr' | 'tv' | 'sites';
+
+export const SCREEN_QR = { utm_source: 'tv', utm_medium: 'qr' } as const;
 
 // One count per kind and loaded page: a refresh is a new visit, going from day to
 // day within the same page is not.

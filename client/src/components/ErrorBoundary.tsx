@@ -2,7 +2,7 @@
  * Generic error boundary. Catches render/lifecycle errors in its subtree,
  * reports them to Sentry, and shows a fallback instead of a white screen.
  */
-import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { Component, useEffect, type ErrorInfo, type ReactNode } from 'react';
 import * as Sentry from '@sentry/react';
 import { RefreshCw } from 'lucide-react';
 
@@ -55,9 +55,18 @@ export function AppErrorFallback() {
   );
 }
 
+const PUBLIC_RETRY_SECONDS = 60;
+
 export function PublicErrorFallback() {
+  useEffect(() => {
+    const timer = setTimeout(reload, PUBLIC_RETRY_SECONDS * 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // A TV display has no one to press the button; the tag also serves a page with no script.
   return (
     <div className="public-page flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
+      <meta httpEquiv="refresh" content={String(PUBLIC_RETRY_SECONDS)} />
       <h1 className="text-xl font-semibold tracking-tight">Menu momentanément indisponible</h1>
       <p className="max-w-sm text-sm text-site-subtle">
         Nous n'avons pas pu afficher le menu. Merci de réessayer dans un instant.

@@ -82,13 +82,14 @@ export async function fetchSitePage(
   org: string,
   slug: string,
   from: string,
-  to: string
+  to: string,
+  newsQuery = 'visibility=mobile'
 ): Promise<SitePage | null> {
   const path = sitePath(org, slug);
   const [site, menus, news, closures] = await Promise.all([
     getJson<Site>(request, path),
     getJson<{ items: Menu[] }>(request, `${path}/menus?from=${from}&to=${to}`),
-    getJson<{ items: News[] }>(request, `${path}/news?visibility=mobile`),
+    getJson<{ items: News[] }>(request, `${path}/news?${newsQuery}`),
     getJson<{ items: Closure[] }>(request, `${path}/closures`),
   ]);
   if (!site) return null;

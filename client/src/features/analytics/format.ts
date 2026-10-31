@@ -108,3 +108,7 @@ export function capacityReachedLine(reached: CapacityReached): string | null {
   const when = time ? (once ? `, à ${time}` : `, vers ${time} en général`) : '';
   return `Capacité maximale atteinte ${services}${sites}${when}.`;
 }
+
+export function screenQrLine(views: number): string | null {
+  return views > 0 ? `Dont ${formatNumber(views)} par le QR code des écrans TV.` : null;
+}

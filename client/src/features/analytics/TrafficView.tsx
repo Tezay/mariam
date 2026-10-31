@@ -1,4 +1,13 @@
-import { AlertTriangle, Clock, Eye, Gauge, MonitorPlay, TrendingUp, Users } from 'lucide-react';
+import {
+  AlertTriangle,
+  Clock,
+  Eye,
+  Gauge,
+  MonitorPlay,
+  QrCode,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
 import type { TrafficSiteRow } from '@/lib/api/analytics';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { DataTable, type DataTableColumn } from '@/components/dashboard/DataTable';
@@ -10,7 +19,14 @@ import { TrafficTrendChart } from './ui/charts/TrafficTrendChart';
 import { HourlyProfileChart } from './ui/charts/HourlyProfileChart';
 import { useAnalyticsFilters } from './hooks/useAnalyticsFilters';
 import { useAnalyticsTraffic } from './hooks/useAnalyticsQueries';
-import { capacityReachedLine, formatNumber, formatRelative, plural, PLACEHOLDER } from './format';
+import {
+  capacityReachedLine,
+  formatNumber,
+  formatRelative,
+  plural,
+  PLACEHOLDER,
+  screenQrLine,
+} from './format';
 
 interface TrafficViewProps {
   sites?: SiteOption[];
@@ -72,6 +88,9 @@ export function TrafficView({ sites = [], onSiteClick }: TrafficViewProps) {
   const totals = data?.totals;
   const capacityLine = data ? capacityReachedLine(data.capacity_reached) : null;
   const screenViews = data?.by_page_kind.find((row) => row.page_kind === 'tv')?.views ?? 0;
+  const qrLine = screenQrLine(
+    data?.by_page_kind.find((row) => row.page_kind === 'screen_qr')?.views ?? 0
+  );
   const isComparative = (data?.by_site.length ?? 0) > 1;
   const hasTraffic = (totals?.views ?? 0) > 0 || screenViews > 0;
 
@@ -131,6 +150,13 @@ export function TrafficView({ sites = [], onSiteClick }: TrafficViewProps) {
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <Gauge className="h-4 w-4 shrink-0" />
               {capacityLine}
+            </p>
+          )}
+
+          {qrLine && (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <QrCode className="h-4 w-4 shrink-0" />
+              {qrLine}
             </p>
           )}
 
