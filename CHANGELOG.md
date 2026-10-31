@@ -132,6 +132,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The seating capacity** (`capacity`), which the maximum capacity replaces.
 
 ### Fixed
+- **The guided tour waits until the account has a second factor**, instead of opening on a page it is leaving.
 
 - **`deploy/nginx` follows a recreated container** instead of answering 502 until its own restart.
 - **`/health/ready` through the proxy** reaches the API instead of the frontend.
