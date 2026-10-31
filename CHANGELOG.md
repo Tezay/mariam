@@ -139,6 +139,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **The TV display shows in signage players that frame a page**, and an unavailable page retries by itself.
 - **The guided tour waits until the account has a second factor**, instead of opening on a page it is leaving.
+- **The API starts in seconds on a small server**: its image ships compiled bytecode.
+- **A configuration error at startup shows as such**, no longer as a database that does not answer.
 
 - **`deploy/nginx` follows a recreated container** instead of answering 502 until its own restart.
 - **`/health/ready` through the proxy** reaches the API instead of the frontend.

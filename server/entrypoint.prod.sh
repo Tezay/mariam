@@ -8,9 +8,11 @@ echo "Waiting for database connection..."
 MAX_RETRIES=30
 RETRY_COUNT=0
 
-until flask db current 2>/dev/null; do
+# Without the app, so that a configuration error shows at the migrations, not here.
+until python -c 'import os, psycopg2; psycopg2.connect(os.environ["DATABASE_URL"]).close()' 2>/tmp/db-wait.err; do
   RETRY_COUNT=$((RETRY_COUNT + 1))
   if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+    cat /tmp/db-wait.err
     echo "Database connection failed after $MAX_RETRIES attempts"
     exit 1
   fi
