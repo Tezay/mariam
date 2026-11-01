@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-01
+
 ### Security
 
 - **The API sets its own security headers**, whatever proxy stands in front: HSTS, `no-store`, a CSP that loads nothing.
