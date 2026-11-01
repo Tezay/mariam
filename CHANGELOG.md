@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **pyasn1 0.6.5 and follow-redirects 1.16.2**, closing the advisories published against 0.6.4 and 1.16.1.
 - **The API sets its own security headers**, whatever proxy stands in front: HSTS, `no-store`, a CSP that loads nothing.
 - **Backups are encrypted** before they leave the server, which holds no key able to read or delete them.
 - **The visitor's address comes from configured proxies only** (`TRUSTED_PROXIES`, `REAL_IP_HEADER`); a client cannot choose it.
