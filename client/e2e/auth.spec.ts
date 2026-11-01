@@ -1,5 +1,5 @@
 import { expect, test, type CDPSession, type Page } from '@playwright/test';
-import { at, proxyApi } from './support';
+import { API, at, proxyApi } from './support';
 
 const EMAIL = 'demo@mariam.app';
 const PASSWORD = process.env.E2E_PASSWORD;
@@ -15,12 +15,9 @@ async function setPresence(cdp: CDPSession, authenticatorId: string, enabled: bo
   await cdp.send('WebAuthn.setAutomaticPresenceSimulation', { authenticatorId, enabled });
 }
 
-// The guided tour can open over the account menu, and closing it closes the menu too.
 async function signOut(page: Page) {
-  await expect(async () => {
-    await page.getByRole('button', { name: 'demo' }).click();
-    await page.getByRole('menuitem', { name: 'Se déconnecter' }).click({ timeout: 2_000 });
-  }).toPass();
+  await page.getByRole('button', { name: 'demo' }).click();
+  await page.getByRole('menuitem', { name: 'Se déconnecter' }).click();
   await expect(page).toHaveURL(/\/login$/);
 }
 
@@ -29,12 +26,16 @@ test('a passkey enrolled after a password sign-in then signs in from the address
 }) => {
   test.skip(!PASSWORD, 'E2E_PASSWORD is the password given to flask seed-demo');
   await proxyApi(page);
-  // The install page and the guided tour open on a first visit, and are not under test.
+  // The install page and the guided tours open on a first visit, and are not under test: a
+  // tour opening over the account menu would close it.
   await page.addInitScript(() => localStorage.setItem('mariam-pwa-install-done', '1'));
-  await page.addLocatorHandler(
-    page.getByRole('alertdialog').getByRole('button', { name: 'Fermer' }),
-    (close) => close.click()
-  );
+  await page.route(/\/v1\/user\/ui-preferences$/, async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const response = await route.fetch({ url: `${API}/v1/user/ui-preferences` });
+    const prefs = await response.json();
+    for (const key of Object.keys(prefs)) if (key.startsWith('tour')) prefs[key] = true;
+    await route.fulfill({ response, json: prefs });
+  });
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('WebAuthn.enable', { enableUI: false });
   const { authenticatorId } = await cdp.send('WebAuthn.addVirtualAuthenticator', {

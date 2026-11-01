@@ -28,9 +28,27 @@ jobs:
       contents: read
       pull-requests: read
 
+  # A final release is tagged on the commit that names it; a release candidate precedes it.
+  release:
+    name: Tag names the release
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: client/package.json and CHANGELOG.md name this version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          [ "$(jq -r .version client/package.json)" = "$version" ] \
+            || { echo "::error::client/package.json is not at $version"; exit 1; }
+          grep -q "^## \[$version\]" CHANGELOG.md \
+            || { echo "::error::CHANGELOG.md has no [$version] section"; exit 1; }
+
   build:
     name: Publish ${{ matrix.component }} image
-    needs: [quality]
+    needs: [quality, release]
+    if: ${{ !cancelled() && needs.quality.result == 'success' && needs.release.result != 'failure' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
