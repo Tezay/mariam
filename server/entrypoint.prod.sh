@@ -25,12 +25,6 @@ echo "Database connection established"
 echo "Applying database migrations..."
 python -m app.scripts.run_migrations
 
-echo "Initializing default data..."
-
-flask init-restaurant
-
-flask create-activation-link || echo "Admin already exists, skipping activation link"
-
 if [ -n "$RESET_PASSWORD_EMAIL" ]; then
     echo "Password reset requested for: $RESET_PASSWORD_EMAIL"
     # Non-fatal under `set -e`: a typo in the variable must not stop the boot.

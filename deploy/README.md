@@ -21,7 +21,9 @@ git checkout vX.Y.Z           # the release MARIAM_TAG names
 cp .env.example .env          # then fill it in
 docker compose pull
 docker compose up -d
-docker compose exec backend flask create-activation-link
+docker compose exec backend flask create-org --name "Example" --slug example
+docker compose exec backend flask create-site --org example --name "Restaurant Nord" --slug nord
+docker compose exec backend flask user invite admin@example.org --role admin --restaurant nord
 ```
 
 No port is published. Behind a platform, route the hosts to the `proxy` service, port 80. On a
