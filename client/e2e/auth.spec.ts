@@ -15,9 +15,12 @@ async function setPresence(cdp: CDPSession, authenticatorId: string, enabled: bo
   await cdp.send('WebAuthn.setAutomaticPresenceSimulation', { authenticatorId, enabled });
 }
 
+// The guided tour can open over the account menu, and closing it closes the menu too.
 async function signOut(page: Page) {
-  await page.getByRole('button', { name: 'demo' }).click();
-  await page.getByRole('menuitem', { name: 'Se déconnecter' }).click();
+  await expect(async () => {
+    await page.getByRole('button', { name: 'demo' }).click();
+    await page.getByRole('menuitem', { name: 'Se déconnecter' }).click({ timeout: 2_000 });
+  }).toPass();
   await expect(page).toHaveURL(/\/login$/);
 }
 

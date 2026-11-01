@@ -54,15 +54,18 @@ docker compose pull
 docker compose up -d
 ```
 
-At its first start, the backend applies the migrations and creates the default site.
+At its first start, the backend applies the migrations; the instance is empty.
 
-### 5. Create the first administrator
+### 5. Create the organization, its first site and its first account
 
 ```bash
-docker compose exec backend flask create-activation-link
+docker compose exec backend flask create-org --name "Example" --slug example
+docker compose exec backend flask create-site --org example --name "Restaurant Nord" --slug nord
+docker compose exec backend flask user invite admin@example.org --role admin --restaurant nord
 ```
 
-It prints a single-use activation link.
+`user invite` prints a single-use activation link. A supervisor of every site takes
+`--role org_admin --org example` instead.
 
 ## Access
 

@@ -49,15 +49,6 @@ class ActivationLink(db.Model):
         return secrets.token_urlsafe(64)
     
     @classmethod
-    def create_first_admin_link(cls, expires_hours=72):
-        return cls(
-            token=cls.generate_token(),
-            link_type='first_admin',
-            role='admin',
-            expires_at=utc_now_naive() + timedelta(hours=expires_hours)
-        )
-    
-    @classmethod
     def create_invite_link(cls, email=None, role='editor', created_by_id=None,
                            expires_hours=72, restaurant_id=None, organization_id=None):
         return cls(

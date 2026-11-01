@@ -532,8 +532,7 @@ Requires `org_admin` and the caller's own organization; another answers
 | `GET` | `O/dish-groups/{name}` | One group, by its `normalized_name` encoded in the path: the organization-wide figures and each site's; `404 dish_group_not_found` |
 
 Opening, renaming or deactivating a site is a billing event and is not exposed
-through the API: it is handled by the Mariam team with the `init-restaurant` CLI
-command.
+through the API: the Mariam team opens a site from the command line (`flask create-site`).
 
 Catalogue notes:
 

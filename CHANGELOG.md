@@ -66,6 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **After a sign-in from the phone, a computer offers a passkey of its own**, again two months after a refusal.
 
 ### Changed
+- **A new instance starts empty**: `flask create-org`, `create-site` and `user invite` set it up.
 - **The TV display is redesigned**: server-rendered, fitted to any screen, rotatable by `?rotation`, never stale.
 - **`GET S/news` is paged** (`page`, `per_page`, `total_count`), and filters drafts with `status`.
 - **Events become news**, whose date is optional; a dated one keeps the calendar, the TV banner and its reminders.
@@ -115,6 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **`flask init-restaurant` and `create-activation-link`**, which the backend ran at each start.
 - **The SEO shell and the sitemap served by Flask**, with the `FRONTEND_ORIGIN` setting.
 - **The API's `robots.txt`**: every API response carries `X-Robots-Tag: noindex` instead.
 - **`BACKUP_INTERVAL_SECONDS` and `BACKUP_RETENTION_DAYS`**: retention belongs to the bucket's lifecycle rules.

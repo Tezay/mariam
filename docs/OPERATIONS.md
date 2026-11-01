@@ -13,14 +13,10 @@ docker compose logs -f --tail=100   # follow the logs
 
 ## Administration
 
-### First administrator
+### First run
 
-At its first start, the backend applies the migrations and creates the default site. The first
-account comes from an activation link:
-
-```bash
-docker compose exec backend flask create-activation-link
-```
+The backend applies the migrations at each start and creates nothing else: a new instance stays
+empty until [a client is provisioned](#provisioning-a-new-client).
 
 ### Accounts
 
@@ -54,14 +50,18 @@ after confirming its own identity.
 ### Provisioning a new client
 
 An organization is a client; its slug is the public subdomain, `<slug>.mariam.app`. A supervisor
-(`org_admin`) manages every site of that organization from `/org` and creates the restaurants.
+(`org_admin`) manages every site of that organization from `/org`; a site is opened here.
 
 ```bash
 # 1. Create the organization (idempotent on the slug)
 docker compose exec backend \
   flask create-org --name "Example Organization" --slug example-org
 
-# 2. Invite the supervisor, attached to the organization and to no site
+# 2. Open its first site, with the default categories
+docker compose exec backend \
+  flask create-site --org example-org --name "Restaurant Nord" --slug nord
+
+# 3. Invite the supervisor, attached to the organization and to no site
 #    (--org takes an id or a slug; site roles take --restaurant instead)
 docker compose exec backend \
   flask user invite supervisor@example.com --role org_admin --org example-org
@@ -358,8 +358,9 @@ connection.
 docker compose down
 docker volume rm deploy_postgres_data_prod
 docker compose up -d
-docker compose exec backend flask create-activation-link
 ```
+
+Then provision it again, as a new client.
 
 ## Production readiness
 
