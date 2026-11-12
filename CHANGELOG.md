@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Terms of use of the public API** in `docs/INTEGRATING.md`: the code, the data, the hosted service, identifying yourself.
+
 ## [0.20.0] - 2026-11-01
 
 ### Security
