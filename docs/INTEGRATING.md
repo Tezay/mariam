@@ -1,7 +1,7 @@
 # Integrating Mariam
 
 An intranet, a portal or a bot reads a site's menus with no account, at
-`https://<organization host>/v1/orgs/{org}/sites/{site}` (`S` below).
+`https://api.mariam.app/v1/orgs/{org}/sites/{site}` (`S` below).
 
 | Need | Read |
 |------|------|
@@ -40,11 +40,16 @@ Every route, field and code: [API.md](API.md), or the OpenAPI specification at `
   restaurant, which sets their terms of reuse; these are yet to be stated. Until then, credit the
   source wherever you show them, as in "Data: <organization>, via Mariam". The label logos of
   `/v1/taxonomy` are official marks, and their owners' rules of use apply wherever you show them.
+- **Personal data.** The routes that read an organization or a site return nothing about
+  students or accounts; the vote and notification routes answer a device only about itself. A
+  site's email and phone, and the texts and photos it publishes, are those its organization
+  chooses to make public, and may name or show a person.
 - **The hosted service** (`*.mariam.app`) comes as is, with no guarantee of availability. Its
   state and history are at <https://status.mariam.app>. A client that ignores the limits or the
   caching above can be blocked.
 - **Institutions** that need commitments, such as a named contact, notice before a change or word
-  of an incident, or help with an integration, write to contact@mariam.app.
+  of an incident, or help with an integration, write to contact@mariam.app: these come under a
+  paid agreement, apart from public access, which is free and needs no key.
 
 These terms live in this repository: each change is dated and public, in its history and in
 [CHANGELOG.md](../CHANGELOG.md), and a known integrator hears of it before it applies.

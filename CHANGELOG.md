@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Terms of use of the public API** in `docs/INTEGRATING.md`: the code, the data, the hosted service, identifying yourself.
+- **Personal data and paid commitments** in the terms of use of the public API.
 
 ### Changed
 
