@@ -1,52 +1,85 @@
-# MARIAM Source Available License 1.0.0
-(Based on PolyForm Noncommercial License 1.0.0)
+# MARIAM Source Available License 2.0.0
+
+Required Notice: Copyright 2025-2026 Eliot Cupillard (https://mariam.app)
 
 ## Acceptance
 
-In order to get any license under these terms, you must agree to them as both separate obligations and conditions to all your licenses.
+In order to get any license under these terms, you must agree to them as both strict obligations and conditions to all your licenses.
 
 ## Copyright License
 
-The licensor grants you a copyright license for the software to do everything you might do with the software that would otherwise infringe their copyright in it for any permitted purpose.  However, you may only do so to the extent that you do not do so for any non-permitted purpose.
+The licensor grants you a copyright license for the software to do everything you might do with the software that would otherwise infringe the licensor's copyright in it for any permitted purpose.  However, you may only distribute the software according to [Distribution License](#distribution-license) and make changes or new works based on the software according to [Changes and New Works License](#changes-and-new-works-license).
 
-## Permitted Purposes
+## Distribution License
 
-Any non-commercial purpose is a permitted purpose.
+The licensor grants you an additional copyright license to distribute copies of the software.  Your license to distribute covers distributing the software with changes and new works permitted by [Changes and New Works License](#changes-and-new-works-license).
 
-## Non-Permitted Purposes
+## Notices
 
-Any commercial purpose is a non-permitted purpose.
+You must ensure that anyone who gets a copy of any part of the software from you also gets a copy of these terms, as well as copies of any plain-text lines beginning with `Required Notice:` that the licensor provided with the software.  For example:
 
-## Terminology
+> Required Notice: Copyright Yoyodyne, Inc. (http://example.com)
 
-### Commercial Purpose
+## Changes and New Works License
 
-"Commercial purpose" means any use:
+The licensor grants you an additional copyright license to make changes and new works based on the software for any permitted purpose.
 
-1.  as part of a paid service;
-2.  as part of a platform, product, or service that is sold, leased, or licensed;
-3.  within a business process that generates revenue;
-4.  to create, market, or support a platform, product, or service that competes with the software; or
-5.  by any university restaurant, canteen, professional catering service, or administration managing such services (regardless of their profit status).
+## Patent License
 
-### Non-Commercial Purpose
+The licensor grants you a patent license for the software that covers patent claims the licensor can license, or becomes able to license, that you would infringe by using the software.
 
-"Non-commercial purpose" means any use that is not a commercial purpose.  For the avoidance of doubt, the following are non-commercial purposes:
+## Noncommercial Purposes
 
-1.  personal home use;
-2.  use for testing and evaluation;
-3.  use for development and demonstration of software.
+Any noncommercial purpose is a permitted purpose.
 
-**(Note: This customized license explicitly EXCLUDES educational institutions and non-profits from the "Non-Commercial" definition if they are using the software for professional operational purposes defined in Commercial Purpose point 5).**
+## Personal Uses
 
-### Licensor
+Personal use for research, experiment, and testing for the benefit of public knowledge, personal study, private entertainment, hobby projects, amateur pursuits, or religious observance, without any anticipated commercial application, is use for a permitted purpose.
 
-"Licensor" means the individual or entity offering these terms.
+## Noncommercial Organizations
 
-### Software
+Use by any charitable organization, educational institution, public research organization, public safety or health organization, environmental protection organization, or government institution is use for a permitted purpose regardless of the source of funding or obligations resulting from the funding.
 
-"Software" means the software accompanying these terms.
+Use by a university restaurant, canteen, or professional catering service, or by an administration to manage such services, is not use for a permitted purpose under this section, whatever its profit status or the source of its funding.  Neither is use to create, market, or support a platform, product, or service that competes with the software.
 
-### You
+## Fair Use
 
-"You" means the individual or entity agreeing to these terms.
+You may have "fair use" rights for the software under the law. These terms do not limit them.
+
+## No Other Rights
+
+These terms do not allow you to sublicense or transfer any of your licenses to anyone else, or prevent the licensor from granting licenses to anyone else.  These terms do not imply any other licenses.
+
+## Patent Defense
+
+If you make any written claim that the software infringes or contributes to infringement of any patent, your patent license for the software granted under these terms ends immediately. If your company makes such a claim, your patent license ends immediately for work on behalf of your company.
+
+## Violations
+
+The first time you are notified in writing that you have violated any of these terms, or done anything with the software not covered by your licenses, your licenses can nonetheless continue if you come into full compliance with these terms, and take practical steps to correct past violations, within 32 days of receiving notice.  Otherwise, all your licenses end immediately.
+
+## No Liability
+
+***As far as the law allows, the software comes as is, without any warranty or condition, and the licensor will not be liable to you for any damages arising out of these terms or the use or nature of the software, under any kind of legal claim.***
+
+## Definitions
+
+The **licensor** is the individual or entity offering these terms, and the **software** is the software the licensor makes available under these terms.
+
+**You** refers to the individual or entity agreeing to these terms.
+
+**Your company** is any legal entity, sole proprietorship, or other kind of organization that you work for, plus all organizations that have control over, are under the control of, or are under common control with that organization.  **Control** means ownership of substantially all the assets of an entity, or the power to direct its management and policies by vote, contract, or otherwise.  Control can be direct or indirect.
+
+**Your licenses** are all the licenses granted to you for the software under these terms.
+
+**Use** means anything you do with the software requiring one of your licenses.
+
+A **commercial purpose** is any use:
+
+1. as part of a paid service;
+2. as part of a platform, product, or service that is sold, leased, or licensed;
+3. within a business process that generates revenue;
+4. to create, market, or support a platform, product, or service that competes with the software; or
+5. by any university restaurant, canteen, professional catering service, or administration managing such services (regardless of their profit status).
+
+A **noncommercial purpose** is any purpose that is not a commercial purpose.

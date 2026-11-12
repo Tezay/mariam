@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Terms of use of the public API** in `docs/INTEGRATING.md`: the code, the data, the hosted service, identifying yourself.
 
+### Changed
+
+- **`LICENSE.md` 2.0.0 carries the full terms**: distribution, notices, patents, violations, liability, and its copyright notice.
+
+### Removed
+
+- **`COMMERCIAL_LICENSE_TEMPLATE.md`**: commercial use is agreed case by case, at contact@mariam.app.
+
 ## [0.20.0] - 2026-11-01
 
 ### Security
