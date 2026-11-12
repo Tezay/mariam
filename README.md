@@ -88,6 +88,7 @@ docs/     Technical documentation
 
 ## License
 
-Source available, not open source: see [LICENSE.md](LICENSE.md). Non-commercial use is granted
-under those terms; commercial use requires a separate agreement, see
-[COMMERCIAL_LICENSE_TEMPLATE.md](COMMERCIAL_LICENSE_TEMPLATE.md).
+Source available, not open source. [LICENSE.md](LICENSE.md) grants non-commercial use, as it
+defines it. Commercial use, including by any restaurant or catering service, needs an agreement:
+write to contact@mariam.app. Using the hosted service or its API is outside this license: see the
+[terms of use](docs/INTEGRATING.md#terms-of-use).

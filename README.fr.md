@@ -89,6 +89,7 @@ docs/     Documentation technique
 
 ## Licence
 
-Code source consultable, mais pas open source : voir [LICENSE.md](LICENSE.md). L'usage non
-commercial est accordé selon ces termes ; l'usage commercial fait l'objet d'un accord distinct,
-voir [COMMERCIAL_LICENSE_TEMPLATE.md](COMMERCIAL_LICENSE_TEMPLATE.md).
+Code source consultable, mais pas open source. [LICENSE.md](LICENSE.md) accorde l'usage non
+commercial, tel qu'il le définit. L'usage commercial, y compris par tout restaurant ou service de
+restauration, demande un accord : écrire à contact@mariam.app. Utiliser le service hébergé ou son
+API ne relève pas de cette licence : voir les [conditions d'utilisation](docs/INTEGRATING.md#terms-of-use).
