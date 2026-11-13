@@ -120,6 +120,8 @@ jobs:
   staging:
     name: Deploy to staging
     needs: build
+    # A skipped job skips every job after it: on main, the release check is skipped.
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
@@ -197,7 +199,7 @@ jobs:
   production:
     name: Deploy to production
     needs: staging
-    if: ${{ github.ref_type == 'tag' && !contains(github.ref_name, '-') }}
+    if: ${{ !cancelled() && needs.staging.result == 'success' && github.ref_type == 'tag' && !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
