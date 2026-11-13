@@ -269,21 +269,27 @@ git fetch --tags && git checkout vX.Y.Z   # then MARIAM_TAG=X.Y.Z in .env
 docker compose pull && docker compose up -d
 ```
 
-### Testing a release candidate
+### Continuous delivery
 
-A tag `vX.Y.Z-rc.N` runs the full release gate and publishes images tagged `X.Y.Z-rc.N` only.
-`latest` and `X.Y` stay on the last final release, so production does not move.
+[`delivery.yml`](../.github/workflows/delivery.yml) publishes the images, then deploys them.
+Each instance runs a channel tag (`MARIAM_TAG=staging` or `production`, with
+`MARIAM_PULL_POLICY=always`) that the workflow points at images already published, then calls the
+instance's deploy hook and runs the smoke test.
 
-1. Tag the commit to test on `main`: `git tag v0.17.0-rc.1 && git push origin v0.17.0-rc.1`
-2. On the staging instance, move the backend, the scheduler and the frontend to `0.17.0-rc.1`,
-   then redeploy all three
-3. Check it: `/health` reports `0.17.0-rc.1`, `/health/ready` answers `ready`, and the changes
-   work
-4. A fix goes through a pull request as usual and becomes `rc.2`. Once a candidate holds, cut
-   the release
+| Push | Images | Deployed to |
+|---|---|---|
+| A merge to `main` | `main-<sha>` | staging |
+| `vX.Y.Z-rc.N` | `X.Y.Z-rc.N` | staging |
+| `vX.Y.Z` | `X.Y.Z`, `X.Y`, `latest` | staging, then production once approved |
 
-The staging database receives the candidate's migrations, and they cannot be rolled back. A
-candidate abandoned after a migration leaves the staging schema ahead of production.
+- **Production runs the very images staging was checked on:** it is given their digests, not a tag.
+- **Its compose file** comes from the `production` branch, which the workflow moves to the release.
+- **Each environment holds its own settings** (Settings, Environments):
+  - the variable `BASE_URL`;
+  - the secrets `DEPLOY_HOOK_URL` and `DEPLOY_HOOK_HEADERS` (one `Name: value` header per line);
+  - `SMOKE_HEADERS`, when an access control stands in front of the instance.
+- **`production` requires a reviewer:** its secrets reach the job only once the deploy is approved.
+- **A staging database receives each migration** of `main`, and none can be rolled back.
 
 ## Migrating a tenant to a new hostname
 
@@ -420,7 +426,10 @@ and logos from accidental deletion.
 
 ### Rollback
 
-Images are published to GHCR on every tag. Rolling back is deploying the previous release:
+Images are published to GHCR on every tag. Rolling back is deploying the previous release: on an
+instance the delivery workflow deploys, run "Deploy a version"
+([`deploy-version.yml`](../.github/workflows/deploy-version.yml)) with that version, from 0.21.0
+on. Elsewhere:
 
 ```bash
 git checkout vX.Y.Z   # then MARIAM_TAG=X.Y.Z in .env

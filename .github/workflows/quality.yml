@@ -1,8 +1,7 @@
 name: Quality Gates
 
 on:
-  push:
-    branches: [main]
+  # A push to main runs it through delivery.yml, which builds the images after it.
   pull_request:
     branches: [main]
   workflow_call:
@@ -36,7 +35,7 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           REF_TYPE: ${{ github.ref_type }}
-        # push/tag only comes through the publish workflow: a called workflow inherits its event.
+        # A push only comes through delivery.yml: a called workflow inherits its event.
         run: |
           case "$EVENT/$REF_TYPE" in
             pull_request/* | push/branch) mode=filtered ;;
@@ -80,7 +79,7 @@ jobs:
               - '.github/workflows/quality.yml'
             backup:
               - 'deploy/backup/**'
-              - 'deploy/scripts/restore.sh'
+              - 'deploy/scripts/**'
               - '.github/workflows/quality.yml'
             proxy:
               - 'deploy/nginx/**'
@@ -124,7 +123,7 @@ jobs:
             echo
             case "$MODE" in
               filtered) echo "Jobs run only for the paths this change touches: a skipped job was not needed, not passed." ;;
-              release) echo "Release gate: every check runs. The images are built by the publish workflow." ;;
+              release) echo "Release gate: every check runs. The images are built by the delivery workflow." ;;
               full) echo "Manual run: everything runs." ;;
             esac
             echo
@@ -137,7 +136,7 @@ jobs:
             row "API contract" "$EITHER" "\`server/\` or \`client/\`"
             row "Backend image build" "$IMAGE_BACKEND" "packaging files in \`server/\`"
             row "Frontend image build" "$IMAGE_FRONTEND" "packaging files in \`client/\`"
-            row "Backup image, ShellCheck and round trip" "$BACKUP" "\`deploy/backup/\`, \`deploy/scripts/restore.sh\`"
+            row "Backup image, ShellCheck and round trip" "$BACKUP" "\`deploy/backup/\`, \`deploy/scripts/\`"
             row "Proxy image, ShellCheck, routing and client address" "$PROXY" "\`deploy/nginx/\`"
             echo
             echo "A change to this workflow runs every row."
@@ -355,7 +354,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: ShellCheck
-        run: shellcheck deploy/backup/*.sh deploy/scripts/restore.sh
+        run: shellcheck deploy/backup/*.sh deploy/scripts/*.sh
 
       - name: Back up, verify and restore
         run: ./deploy/backup/round-trip-test.sh

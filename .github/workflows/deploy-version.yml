@@ -1,0 +1,92 @@
+# Deploys a published release to production: a rollback, or the first deploy of an
+# instance. The database is not rolled back: past what expand/contract allows, restore
+# a backup (docs/OPERATIONS.md).
+name: Deploy a version
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release to run in production, such as 0.21.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository }}
+
+jobs:
+  production:
+    name: Deploy ${{ inputs.version }} to production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: ${{ vars.BASE_URL }}
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Check the version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' \
+            || { echo "::error::A release is X.Y.Z, not '$VERSION'."; exit 1; }
+
+      # The scripts come from this workflow's branch: an older release may not have them.
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Point production at the release's images
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          ./deploy/scripts/promote-images.sh production \
+            "backend=$VERSION" "frontend=$VERSION" "backup=$VERSION" "proxy=$VERSION"
+
+      # Forced: going back to an older release rewinds the branch.
+      - name: Move the production branch to the release
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          git fetch --no-tags origin "refs/tags/v$VERSION:refs/tags/v$VERSION"
+          git push --force origin "v$VERSION^{commit}:refs/heads/production"
+
+      - name: Deploy
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.DEPLOY_HOOK_URL }}
+          DEPLOY_HOOK_HEADERS: ${{ secrets.DEPLOY_HOOK_HEADERS }}
+        run: |
+          printf '%s\n' "$DEPLOY_HOOK_HEADERS" > "$RUNNER_TEMP/hook-headers"
+          # An access control in front may answer a redirect to its login page, which curl
+          # does not count as a failure.
+          code=$(curl -sS -o "$RUNNER_TEMP/hook-response" -w '%{http_code}' \
+            -X POST -H "@$RUNNER_TEMP/hook-headers" "$DEPLOY_HOOK_URL")
+          cat "$RUNNER_TEMP/hook-response"; echo
+          [ "$code" = 200 ] || { echo "::error::The deploy hook answered $code."; exit 1; }
+
+      - name: Smoke test
+        env:
+          BASE_URL: ${{ vars.BASE_URL }}
+          SMOKE_HEADERS: ${{ secrets.SMOKE_HEADERS }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [ -n "$SMOKE_HEADERS" ]; then
+            printf '%s\n' "$SMOKE_HEADERS" > "$RUNNER_TEMP/smoke-headers"
+            export SMOKE_HEADERS_FILE="$RUNNER_TEMP/smoke-headers"
+          fi
+          ./deploy/scripts/smoke-test.sh "$BASE_URL" "$VERSION"

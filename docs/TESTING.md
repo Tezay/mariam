@@ -203,8 +203,8 @@ What runs depends on the event and on the paths a change touches:
 | Event | Quality | Security |
 |---|---|---|
 | Pull request | the jobs whose paths changed | an audit when its manifest or lockfile changed |
-| Push to `main` | the jobs whose paths changed since the previous commit | none |
-| Version tag, the release gate | everything except the image builds, which the publish workflow does | none |
+| Push to `main`, through [`delivery.yml`](../.github/workflows/delivery.yml) | the jobs whose paths changed since the previous commit | none |
+| Version tag, the release gate | everything except the image builds, which the delivery workflow does | none |
 | Manual run from the Actions tab | everything | everything |
 | Weekly, Monday at 06:17 UTC | none | everything |
 
@@ -212,7 +212,11 @@ What runs depends on the event and on the paths a change touches:
 - **Frontend jobs** follow `client/` and `.editorconfig`, which Prettier reads.
 - **The end-to-end and API contract jobs** follow `server/` and `client/`.
 - **Image builds** follow the packaging files: `Dockerfile.prod`, the backend's entrypoint, the frontend's `server.js`, `.dockerignore`, the manifest and the lockfile.
-- **Backup and proxy jobs** follow `deploy/backup/` with `deploy/scripts/restore.sh`, and `deploy/nginx/`.
+- **Backup and proxy jobs** follow `deploy/backup/` with `deploy/scripts/`, and `deploy/nginx/`.
+
+After each deploy, the delivery workflow runs `deploy/scripts/smoke-test.sh BASE_URL VERSION`: it waits
+until `/health` reports the version and `/health/ready` answers `ready`, then checks the home page
+and the API for that host. It runs by hand too, after any deploy.
 - A change to a workflow runs everything that workflow holds.
 - `docs/`, the rest of `deploy/` and the other root files run nothing.
 
