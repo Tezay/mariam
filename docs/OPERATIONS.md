@@ -289,6 +289,9 @@ instance's deploy hook and runs the smoke test.
   - the secrets `DEPLOY_HOOK_URL` and `DEPLOY_HOOK_HEADERS` (one `Name: value` header per line);
   - `SMOKE_HEADERS`, when an access control stands in front of the instance.
 - **`production` requires a reviewer:** its secrets reach the job only once the deploy is approved.
+- **`production` also holds `RELEASE_APP_CLIENT_ID` and `RELEASE_APP_PRIVATE_KEY`:** a GitHub
+  App, installed on this repository alone with Contents and Workflows, that moves the `production`
+  branch.
 - **A staging database receives each migration** of `main`, and none can be rolled back.
 
 ## Migrating a tenant to a new hostname
