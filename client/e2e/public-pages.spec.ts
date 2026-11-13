@@ -65,6 +65,28 @@ test('the public pages hydrate without an error', async ({ page, request }) => {
   expect(errors).toEqual([]);
 });
 
+test('changing the day of a site page asks the server nothing', async ({ page, request }) => {
+  const [site] = await sitesOf(request, 'demo');
+  await proxyApi(page);
+  await page.goto(at('demo', `/${site.slug}`), { waitUntil: 'networkidle' });
+  const asked: string[] = [];
+  page.on('request', (sent) => {
+    if (sent.resourceType() === 'document' || /\.data(\?|$)/.test(sent.url()))
+      asked.push(sent.url());
+  });
+
+  const days = page
+    .getByRole('navigation', { name: 'Jour du menu' })
+    .getByRole('link')
+    .filter({ hasText: /\S/ });
+  await days.nth(1).click();
+  await expect(days.nth(1)).toHaveAttribute('aria-current', 'date');
+  await days.nth(0).click();
+  await expect(days.nth(0)).toHaveAttribute('aria-current', 'date');
+
+  expect(asked).toEqual([]);
+});
+
 test('the TV display shows its site', async ({ page, request }) => {
   const [site] = await sitesOf(request, 'demo');
   await proxyApi(page);

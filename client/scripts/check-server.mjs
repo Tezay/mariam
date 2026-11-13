@@ -404,7 +404,9 @@ test('a dated page is the menu of that day, kept out of the index', async () => 
   assert.equal(page.status, 200);
   assert.ok(page.body.includes('<meta name="robots" content="noindex"/>'));
   assert.ok(page.body.includes(`<link rel="canonical" href="${ORIGIN}/alpha"/>`));
-  assert.ok(apiRequests.some((asked) => asked.url.includes(`from=${tomorrow}&to=${tomorrow}`)));
+  assert.ok(
+    apiRequests.some((asked) => asked.url.includes(`from=${tomorrow}&to=${addDays(tomorrow, 1)}`))
+  );
 
   for (const date of [TODAY, 'demain', `${TODAY.slice(0, 4)}-02-30`, addDays(TODAY, 8)]) {
     const moved = await request(`/alpha?date=${date}`);

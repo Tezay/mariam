@@ -54,6 +54,28 @@ export function dayStrip(open: string[], today: string, selected: string): DaySt
   };
 }
 
+export interface DayRange {
+  from: string;
+  to: string;
+}
+
+// Most visitors read the loaded day only: the strip is read once they pick another.
+export function menuRange(date: string, loaded: DayRange, strip: DayStrip): DayRange {
+  if (date === loaded.from) return loaded;
+  return { from: strip.days[0], to: strip.days[strip.days.length - 1] };
+}
+
+// The page reads the days it lacks itself: no loader runs again for a change of day.
+export function onlyTheDayChanged(current: URL, next: URL): boolean {
+  const others = (url: URL) => {
+    const params = new URLSearchParams(url.search);
+    params.delete('date');
+    params.sort();
+    return params.toString();
+  };
+  return current.pathname === next.pathname && others(current) === others(next);
+}
+
 const NAME = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', timeZone: 'UTC' });
 const SHORT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 const WEEKDAY_SHORT = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', timeZone: 'UTC' });

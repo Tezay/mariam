@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A site page switches days instantly**: it preloads today and tomorrow, then updates its strip on first change.
 - **`LICENSE.md` 2.0.0 carries the full terms**: distribution, notices, patents, violations, liability, and its copyright notice.
 
 ### Removed

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { CalendarOff } from 'lucide-react';
 import type { Closure } from '@/lib/api/closures';
+import { Spinner } from '@/components/ui/spinner';
 import { CategorySection } from '../menu/CategorySection';
 import { ChefNote } from '../menu/ChefNote';
 import { TodayEvent } from '../menu/NewsSection';
@@ -80,6 +81,7 @@ interface MenuBoardProps {
   day: MenuData;
   today: string;
   strip: DayStrip;
+  pending: boolean;
   closure: Closure | null;
   nextOpen: string | null;
   todayEvent: News | null;
@@ -91,6 +93,7 @@ export function MenuBoard({
   day,
   today,
   strip,
+  pending,
   closure,
   nextOpen,
   todayEvent,
@@ -126,7 +129,11 @@ export function MenuBoard({
         </div>
       )}
 
-      {menu ? (
+      {pending ? (
+        <div className="flex justify-center py-14">
+          <Spinner className="size-5 text-site-subtle" />
+        </div>
+      ) : menu ? (
         <CategorySection
           categories={menu.by_category}
           onItemTap={setSelectedItem}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import type { Closure } from '@/lib/api/closures';
 import type { Quality } from '@/lib/api/quality';
 import type { LiveStatus, PublicOrg } from '@/lib/api/sites';
@@ -12,15 +12,16 @@ import { SCREEN_QR, trackPageView } from '@/lib/telemetry';
 import { useNow } from '@/lib/use-now';
 import { ClosureSection } from '../menu/ClosureSection';
 import { NewsSection } from '../menu/NewsSection';
-import type { PublicMenuData } from '../menu-types';
-import { usePublicMenu } from '../use-public-menu';
+import type { SitePage as SitePageData } from '../menu-types';
+import { publicMenuData } from '../public-menu-data';
 import { AboutSection } from './AboutSection';
-import { dayStrip, openDays } from './days';
+import { dayStrip, menuRange, openDays } from './days';
 import { MenuBoard } from './MenuBoard';
 import { PracticalInfo } from './PracticalInfo';
 import { QualitySection } from './QualitySection';
 import { qualityView } from './quality-view';
 import { useLiveStatus } from './use-live-status';
+import { useSiteDetails, useSiteMenus } from './use-site-page';
 import { visitKind } from './visit-kind';
 import { NotificationsPanel } from './notifications/NotificationsPanel';
 import { useLaunchOffer } from './notifications/useLaunchOffer';
@@ -33,8 +34,8 @@ interface SitePageProps {
   organization: PublicOrg;
   siteSlug: string;
   multiSite: boolean;
-  date: string;
-  initial: PublicMenuData;
+  loadedDate: string;
+  initial: SitePageData;
   initialLive: LiveStatus | null;
   quality: Quality | null;
   serverNow: number;
@@ -45,7 +46,7 @@ export function SitePage({
   organization,
   siteSlug,
   multiSite,
-  date,
+  loadedDate,
   initial,
   initialLive,
   quality,
@@ -54,11 +55,21 @@ export function SitePage({
 }: SitePageProps) {
   const now = useNow(serverNow);
   const today = parisToday(new Date(serverNow));
-  const { data } = usePublicMenu(organization.slug, siteSlug, 'mobile', {
-    date,
-    initial: { data: initial, fetchedAt: serverNow },
-  });
-  const menu = data ?? initial;
+  const [params] = useSearchParams();
+  const date = params.get('date') ?? today;
+  const details = useSiteDetails(organization.slug, siteSlug, initial, serverNow);
+  const open = openDays(details.site.menu_window, details.site.service_days, details.closures);
+  const strip = dayStrip(open, today, date);
+  const loaded = { from: loadedDate, to: addDays(loadedDate, 1), items: initial.menus };
+  const held = useSiteMenus(
+    organization.slug,
+    siteSlug,
+    menuRange(date, loaded, strip),
+    loaded,
+    serverNow
+  );
+  const pending = !held || date < held.from || date > held.to;
+  const menu = publicMenuData({ ...details, menus: held?.items ?? [] }, now, date);
   const site = menu.restaurant;
   const inService =
     !menu.activeClosure && getServiceStatus(site.service_hours, site.service_days, now).isOpen;
@@ -93,7 +104,6 @@ export function SitePage({
   const closures = [menu.activeClosure, ...menu.upcomingClosures].filter(
     (closure): closure is Closure => closure !== null
   );
-  const open = openDays(site.menu_window, site.service_days, closures);
   const soonClosures = menu.upcomingClosures
     .filter((closure) => closure.start_date <= addDays(today, CLOSURES_AHEAD_DAYS))
     .slice(0, CLOSURES_SHOWN);
@@ -118,7 +128,8 @@ export function SitePage({
             site={site}
             day={menu.day}
             today={today}
-            strip={dayStrip(open, today, date)}
+            strip={strip}
+            pending={pending}
             closure={closures.find((c) => c.start_date <= date && date <= c.end_date) ?? null}
             nextOpen={open.find((day) => day > date) ?? null}
             todayEvent={menu.todayEvent}
