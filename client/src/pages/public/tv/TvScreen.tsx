@@ -453,7 +453,7 @@ export function TvScreen({
   }, [organization.slug, siteSlug]);
 
   const now = useNow(serverNow, 15_000);
-  const query = usePublicMenu(organization.slug, siteSlug, 'tv', {
+  const query = usePublicMenu(organization.slug, siteSlug, {
     initial: { data: initial, fetchedAt: serverNow },
   });
   const menu = query.data ?? initial;

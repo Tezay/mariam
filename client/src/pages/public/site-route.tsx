@@ -1,8 +1,9 @@
-import { data, redirect } from 'react-router';
+import { data, redirect, type ShouldRevalidateFunctionArgs } from 'react-router';
 import { fetchLiveStatus, fetchQuality, fetchSitePage } from '@/lib/api/public.server';
-import { parisToday } from '@/lib/date-utils';
+import { addDays, parisToday } from '@/lib/date-utils';
 import { mapTiles } from '@/lib/runtime-config.server';
 import { publicMenuData } from './public-menu-data';
+import { onlyTheDayChanged } from './site/days';
 import { menuDescription, restaurantJsonLd, siteName, websiteJsonLd } from './seo/jsonld';
 import { pageMeta } from './seo/meta';
 import { SitePage } from './site/SitePage';
@@ -42,7 +43,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   let page, live, quality;
   try {
     [page, live, quality] = await Promise.all([
-      fetchSitePage(request, org, site.slug, date, date),
+      fetchSitePage(request, org, site.slug, date, addDays(date, 1)),
       // The page stands without these: the gauge then shows the capacity alone, and the
       // quality section is left out.
       fetchLiveStatus(request, org, site.slug).catch(() => null),
@@ -62,7 +63,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     siteSlug: site.slug,
     multiSite,
     date,
-    menu: publicMenuData(page, new Date(now), date),
+    page,
     live,
     quality,
     now,
@@ -71,7 +72,15 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   };
 }
 
-export const meta: Route.MetaFunction = ({ loaderData, matches }) => {
+export function shouldRevalidate({
+  currentUrl,
+  nextUrl,
+  defaultShouldRevalidate,
+}: ShouldRevalidateFunctionArgs) {
+  return onlyTheDayChanged(currentUrl, nextUrl) ? false : defaultShouldRevalidate;
+}
+
+export const meta: Route.MetaFunction = ({ loaderData, matches, location }) => {
   const tenant = tenantOf(matches);
   if (!tenant || !loaderData) return [{ title: 'Mariam' }];
   const org = tenant.organization.name;
@@ -88,7 +97,10 @@ export const meta: Route.MetaFunction = ({ loaderData, matches }) => {
     ];
   }
 
-  const { menu, url, date, multiSite } = loaderData;
+  const { page, url, multiSite, now } = loaderData;
+  const today = parisToday(new Date(now));
+  const date = new URLSearchParams(location.search).get('date') ?? today;
+  const menu = publicMenuData(page, new Date(now), date);
   const site = menu.restaurant;
   const tags = pageMeta({
     title: `${site.name} – ${org} : menu du jour, horaires et accès`,
@@ -97,7 +109,7 @@ export const meta: Route.MetaFunction = ({ loaderData, matches }) => {
     siteName: siteName(org),
     image: site.cover_url ?? site.logo_url,
   });
-  if (date !== parisToday(new Date(loaderData.now))) {
+  if (date !== today) {
     tags.push({ name: 'robots', content: 'noindex' });
   }
   tags.push({
@@ -121,8 +133,8 @@ export default function SiteRoute({ loaderData }: Route.ComponentProps) {
       organization={loaderData.organization}
       siteSlug={loaderData.siteSlug}
       multiSite={loaderData.multiSite}
-      date={loaderData.date}
-      initial={loaderData.menu}
+      loadedDate={loaderData.date}
+      initial={loaderData.page}
       initialLive={loaderData.live}
       quality={loaderData.quality}
       serverNow={loaderData.now}

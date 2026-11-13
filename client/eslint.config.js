@@ -44,6 +44,7 @@ export default defineConfig(
             'links',
             'headers',
             'middleware',
+            'shouldRevalidate',
           ],
         },
       ],

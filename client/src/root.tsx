@@ -21,7 +21,7 @@ function useAppIdentity() {
   const home = useRouteLoaderData<typeof siteLoader>('home');
   const page = useRouteLoaderData<typeof siteLoader>('site');
   const site = home?.kind === 'site' ? home : page?.kind === 'site' ? page : null;
-  return appIdentity(pathname, site && { slug: site.siteSlug, name: site.menu.restaurant.name });
+  return appIdentity(pathname, site && { slug: site.siteSlug, name: site.page.site.name });
 }
 
 export function Layout({ children }: { children: ReactNode }) {

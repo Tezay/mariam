@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import type { Closure } from '@/lib/api/closures';
 import { addressLines, directionsUrl } from '@/pages/public/site/address';
-import { dayLabel, dayStrip, openDays } from '@/pages/public/site/days';
+import {
+  dayLabel,
+  dayStrip,
+  menuRange,
+  onlyTheDayChanged,
+  openDays,
+} from '@/pages/public/site/days';
 
 // Monday 12 to Friday 30 October 2026.
 const WINDOW = { from: '2026-10-12', to: '2026-10-30' };
@@ -107,5 +113,38 @@ describe('the address of a site', () => {
     );
     expect(directionsUrl(address)).toContain(encodeURIComponent(address.address_label));
     expect(directionsUrl({ ...address, address_label: null })).toBeNull();
+  });
+});
+
+describe('menuRange', () => {
+  const loaded = { from: '2026-10-19', to: '2026-10-20' };
+  const strip = {
+    days: ['2026-10-19', '2026-10-20', '2026-10-21', '2026-10-22'],
+    previous: null,
+    next: null,
+  };
+
+  it('keeps the loaded day and the next for the loaded day', () => {
+    expect(menuRange('2026-10-19', loaded, strip)).toEqual(loaded);
+  });
+
+  it('reads the whole strip once another day is picked, the next one included', () => {
+    expect(menuRange('2026-10-20', loaded, strip)).toEqual({
+      from: '2026-10-19',
+      to: '2026-10-22',
+    });
+  });
+});
+
+describe('onlyTheDayChanged', () => {
+  const page = (path: string) => new URL(`https://demo.test${path}`);
+
+  it('holds for another day of the same page', () => {
+    expect(onlyTheDayChanged(page('/alpha'), page('/alpha?date=2026-10-20'))).toBe(true);
+  });
+
+  it('fails for another page or another parameter', () => {
+    expect(onlyTheDayChanged(page('/alpha'), page('/beta?date=2026-10-20'))).toBe(false);
+    expect(onlyTheDayChanged(page('/alpha'), page('/alpha?mode=tv'))).toBe(false);
   });
 });
