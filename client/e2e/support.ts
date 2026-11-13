@@ -15,6 +15,15 @@ export async function proxyApi(page: Page) {
   });
 }
 
+// Chromium names the policy in each violation it logs, enforced or report-only.
+export function collectPolicyViolations(page: Page): string[] {
+  const violations: string[] = [];
+  page.on('console', (message) => {
+    if (message.text().includes('Content Security Policy')) violations.push(message.text());
+  });
+  return violations;
+}
+
 export function collectErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));

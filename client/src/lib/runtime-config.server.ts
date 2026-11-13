@@ -28,7 +28,11 @@ function originOf(url: string): string {
   }
 }
 
-export function contentSecurityPolicy(nonce: string, env: Env = process.env): string {
+export function contentSecurityPolicy(
+  nonce: string,
+  env: Env = process.env,
+  { framable = false }: { framable?: boolean } = {}
+): string {
   const config = publicRuntimeConfig(env);
   const umami = originOf(config.UMAMI_SCRIPT_URL);
   const scripts = ["'self'", `'nonce-${nonce}'`, umami];
@@ -42,7 +46,9 @@ export function contentSecurityPolicy(nonce: string, env: Env = process.env): st
     `connect-src ${connections.filter(Boolean).join(' ')}`,
     "worker-src 'self'",
     "manifest-src 'self'",
-    "frame-ancestors 'self'",
+    // Left out rather than `*`, which leaves out a page opened from a local file, as some
+    // signage players do.
+    ...(framable ? [] : ["frame-ancestors 'self'"]),
     "base-uri 'self'",
     "form-action 'self'",
     "object-src 'none'",

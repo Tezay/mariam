@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
 import { parisToday } from '../src/lib/date-utils';
-import { API, at, collectErrors, proxyApi } from './support';
+import { API, at, collectErrors, collectPolicyViolations, proxyApi } from './support';
 
 interface Site {
   slug: string;
@@ -63,6 +63,16 @@ test('the public pages hydrate without an error', async ({ page, request }) => {
     await page.goto(at('demo', path), { waitUntil: 'networkidle' });
   }
   expect(errors).toEqual([]);
+});
+
+test('the public pages and the sign-in break no rule of the policy', async ({ page, request }) => {
+  const [site] = await sitesOf(request, 'demo');
+  await proxyApi(page);
+  const violations = collectPolicyViolations(page);
+  for (const path of ['/', `/${site.slug}`, `/${site.slug}/tv`, '/privacy', '/login']) {
+    await page.goto(at('demo', path), { waitUntil: 'networkidle' });
+  }
+  expect(violations).toEqual([]);
 });
 
 test('changing the day of a site page asks the server nothing', async ({ page, request }) => {
