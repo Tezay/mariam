@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.20.1] - 2026-11-13
 
 ### Security
 
@@ -16,13 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`flask seed-demo` fills a whole site page**: texts, links, capacity, EGalim, news and a closure; no image.
 - **`API_HOSTS`**: hosts the proxy gives to the API alone, whose root then answers JSON rather than a page.
 - **A host's home page names its site for search engines**: "<organization> · Mariam".
-- **Terms of use of the public API** in `docs/INTEGRATING.md`: the code, the data, the hosted service, identifying yourself.
+- **Terms of use of the public API** (`docs/INTEGRATING.md`): code, data, hosted service, identifying yourself.
 - **Personal data and paid commitments** in the terms of use of the public API.
 
 ### Changed
 
 - **A site page switches days instantly**: it preloads today and tomorrow, then updates its strip on first change.
-- **`LICENSE.md` 2.0.0 carries the full terms**: distribution, notices, patents, violations, liability, and its copyright notice.
+- **`LICENSE.md` 2.0.0 carries the full terms**: distribution, notices, patents, violations, liability, copyright.
 
 ### Removed
 
