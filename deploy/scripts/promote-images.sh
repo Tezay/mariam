@@ -25,7 +25,6 @@ for pair in "$@"; do
     esac
 
     digest=$(digest_of "$source")
-    # A single source is copied as it is: the channel names the very image tested.
     docker buildx imagetools create --tag "$image:$channel" "$image@$digest" >&2
     if [ "$(digest_of "$image:$channel")" != "$digest" ]; then
         echo "$image:$channel does not point at $digest" >&2
