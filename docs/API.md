@@ -375,6 +375,7 @@ persisted; no address, user agent or per-visitor row reaches PostgreSQL.
 
 | Method | Route | Description |
 |--------|-------|-------------|
+| `GET` | `/` | Where the documentation is; reached on the hosts `API_HOSTS` gives to the API |
 | `GET` | `/health` | Liveness — the process is up |
 | `GET` | `/health/ready` | Readiness — checks DB, Redis and a scheduler flush in the last 15 minutes; returns 503 otherwise |
 | `GET` | `/v1/taxonomy` | Dietary tags and certifications catalog |

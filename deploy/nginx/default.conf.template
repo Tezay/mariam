@@ -39,7 +39,8 @@ server {
         proxy_pass $backend;
     }
 
+    # $pages comes from conf.d/api-hosts.conf: the API on the hosts it names, else the pages.
     location / {
-        proxy_pass $frontend;
+        proxy_pass $pages;
     }
 }

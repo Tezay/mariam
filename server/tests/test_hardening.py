@@ -197,6 +197,14 @@ class TestCookieWritesCarryTheirCsrfToken:
         assert behind_a_session and written == []
 
 
+class TestApiRoot:
+    def test_the_root_points_to_the_documentation(self, client):
+        res = client.get('/')
+
+        assert res.status_code == 200
+        assert res.get_json()['docs'] == '/v1/docs'
+
+
 class TestResponseHeaders:
     def test_api_responses_carry_the_security_headers(self, client):
         headers = client.get('/health').headers

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { menuDescription, restaurantJsonLd } from '@/pages/public/seo/jsonld';
+import { menuDescription, restaurantJsonLd, websiteJsonLd } from '@/pages/public/seo/jsonld';
 import { pageMeta } from '@/pages/public/seo/meta';
 import type { DisplayCategory, RestaurantPublic } from '@/pages/public/menu-types';
 
@@ -168,5 +168,17 @@ describe('restaurantJsonLd', () => {
         ],
       },
     ]);
+  });
+});
+
+describe('websiteJsonLd', () => {
+  it('names the site after its organization and Mariam, and Mariam alone as an alternate', () => {
+    expect(websiteJsonLd('Organisation Démo', 'https://demo.test/')).toEqual({
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: 'Organisation Démo · Mariam',
+      alternateName: 'Mariam',
+      url: 'https://demo.test/',
+    });
   });
 });

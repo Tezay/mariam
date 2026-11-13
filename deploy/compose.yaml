@@ -170,6 +170,7 @@ services:
     environment:
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
       REAL_IP_HEADER: ${REAL_IP_HEADER:-}
+      API_HOSTS: ${API_HOSTS:-}
     depends_on:
       frontend:
         condition: service_healthy

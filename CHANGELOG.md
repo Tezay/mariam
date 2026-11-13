@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`API_HOSTS`**: hosts the proxy gives to the API alone, whose root then answers JSON rather than a page.
+- **A host's home page names its site for search engines**: "<organization> · Mariam".
 - **Terms of use of the public API** in `docs/INTEGRATING.md`: the code, the data, the hosted service, identifying yourself.
 - **Personal data and paid commitments** in the terms of use of the public API.
 
@@ -21,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Unused `restaurants.capacity`, `menu_images` and `is_active` fields.**
 - **Inactive news and closures**; migration logs retained files.
 - **`COMMERCIAL_LICENSE_TEMPLATE.md`**: commercial use is agreed case by case, at contact@mariam.app.
+
+### Fixed
+
+- **A redeployment no longer reads as "Organisation introuvable"**: only the API's own answer says so.
 
 ## [0.20.0] - 2026-11-01
 
