@@ -9,6 +9,7 @@ set -eu
 channel=${1:?usage: promote-images.sh CHANNEL COMPONENT=REF...}
 shift
 prefix=${IMAGE_PREFIX:?IMAGE_PREFIX names the images, such as ghcr.io/owner/repo}
+prefix=$(printf '%s' "$prefix" | tr '[:upper:]' '[:lower:]')
 
 digest_of() {
     docker buildx imagetools inspect "$1" --format '{{.Manifest.Digest}}'
