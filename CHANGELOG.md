@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`flask seed-demo` fills a whole site page**: texts, links, capacity, EGalim, news and a closure; no image.
 - **`API_HOSTS`**: hosts the proxy gives to the API alone, whose root then answers JSON rather than a page.
 - **A host's home page names its site for search engines**: "<organization> · Mariam".
 - **Terms of use of the public API** in `docs/INTEGRATING.md`: the code, the data, the hosted service, identifying yourself.

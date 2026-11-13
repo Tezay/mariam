@@ -31,15 +31,19 @@ from ..extensions import db
 from ..models.audit_log import AuditLog
 from ..models.catalog import DishCatalog
 from ..models.category import MenuCategory
+from ..models.egalim_declaration import EgalimDeclaration
+from ..models.event import Event
+from ..models.exceptional_closure import ExceptionalClosure
 from ..models.menu import Menu, MenuItem
 from ..models.menu_vote import MenuVote
 from ..models.organization import Organization
 from ..models.restaurant import DEFAULT_SERVICE_DAYS, Restaurant, RestaurantServiceHours
+from ..models.service_live_status import ServiceLiveStatus
 from ..models.telemetry import PageViewRollup, VisitorDailyUnique
 from ..models.user import User
 from ..routes.helpers import get_or_create_dish
 from ..services.votes import vote_dish_groups
-from ..utils.time import paris_today
+from ..utils.time import PARIS_TZ, paris_today
 
 _DEMO_CODE = 'DEMO'
 _DEMO_SLUG = 'demo'
@@ -57,6 +61,7 @@ _DEMO_SITES = [
         'visitors': (180, 420),
         'ratings': [12, 28, 60],
         'skip_days': (),
+        'capacity': 450,
     },
     {
         'name': 'Cafétéria des Sciences',
@@ -65,6 +70,7 @@ _DEMO_SITES = [
         'visitors': (90, 220),
         'ratings': [18, 34, 48],
         'skip_days': (4,),
+        'capacity': 220,
     },
     {
         'name': 'RU Campus Nord',
@@ -73,6 +79,7 @@ _DEMO_SITES = [
         'visitors': (60, 160),
         'ratings': [34, 36, 30],
         'skip_days': (1, 3),
+        'capacity': 160,
     },
 ]
 _DEMO_OPEN_TIME = '11:30'
@@ -83,7 +90,7 @@ def register_commands(app):
     @app.cli.command('seed-demo')
     @click.option('--password', help='Password of the demo accounts; random if omitted.')
     def seed_demo(password: str | None):
-        """Create demo restaurant, admin user, and a published week of menus."""
+        """Create the demo organization: sites, menus, accounts, statistics, a whole public page."""
         click.echo('\nChecking reference taxonomy...')
         _upsert_dietary_tag_categories()
         _upsert_dietary_tags()
@@ -101,6 +108,7 @@ def register_commands(app):
 
         for site in _DEMO_SITES:
             restaurant = _ensure_demo_restaurant(organization, site)
+            _ensure_capacity_history(restaurant, site)
             db.session.commit()
             categories = _ensure_menu_categories(restaurant.id)
             db.session.commit()
@@ -116,6 +124,8 @@ def register_commands(app):
 
         admin = _ensure_demo_user(password, restaurants[0].id)
         _ensure_demo_director(password, organization.id)
+        db.session.commit()
+        _ensure_public_page(restaurants[0], admin.id)
         db.session.commit()
         _seed_activity(restaurants, admin.id)
         db.session.commit()
@@ -175,6 +185,8 @@ def _ensure_demo_restaurant(organization: Organization, site: dict) -> Restauran
     restaurant.organization_id = organization.id
     restaurant.slug = restaurant.slug or site['slug']
     restaurant.service_days = list(DEFAULT_SERVICE_DAYS)
+    restaurant.service_capacity = site['capacity']
+    restaurant.payment_methods = ['izly', 'cb']
     db.session.flush()
     _ensure_service_hours(restaurant.id)
     return restaurant
@@ -627,3 +639,116 @@ def _create_demo_analytics(restaurant: Restaurant, site: dict) -> tuple[int, int
             votes += 1
 
     return views, votes
+
+
+_PROFILE = {
+    'tagline': 'Un restaurant universitaire fictif, pour découvrir Mariam.',
+    'description': (
+        'Le restaurant sert chaque midi une cuisine du jour, préparée sur place à partir de '
+        'produits de saison.\n\n'
+        'Un plat végétarien est proposé à chaque service, et la carte change chaque semaine.'
+    ),
+    'access_info': 'Métro ligne 10, station Université. Arceaux à vélos devant l\'entrée.',
+    'quality_commitments': (
+        'Nos légumes viennent de producteurs de la région, et nos viandes sont d\'origine '
+        'française.\n\n'
+        'Les restes du service sont donnés à une association partenaire.'
+    ),
+    'services': ['wifi', 'microwave', 'takeaway', 'water_fountain', 'study_area'],
+    'links': [
+        {'kind': 'website', 'url': 'https://mariam.app', 'label': 'Mariam'},
+        {'kind': 'izly', 'url': 'https://www.izly.fr', 'label': None},
+    ],
+    'address_label': '12 Rue de la Démo 75005 Paris',
+    'address_city': 'Paris',
+    'address_postcode': '75005',
+    'address_lat': 48.8462,
+    'address_lon': 2.3448,
+    'email': 'restaurant@example.org',
+    'phone': '01 23 45 67 89',
+    'pmr_access': True,
+}
+
+# (year back, sustainable share, organic share, territorial share)
+_EGALIM = [(1, '52.4', '24.1', '12.0'), (2, '47.8', '21.5', None)]
+
+# (title, summary, days from today or None, pinned, visibility, days since published)
+_NEWS = [
+    ('Nouvelle carte d\'automne', 'Courges, châtaignes et pommes du verger voisin.',
+     None, True, 'all', 3),
+    ('Semaine du goût', 'Chaque jour, un produit de la région à découvrir.',
+     0, False, 'all', 6),
+    ('Repas de fin d\'année', 'Un menu de fête servi à tous les étudiants.',
+     12, False, 'all', 2),
+    ('Bienvenue aux nouveaux étudiants', 'Un dessert offert le jour de la rentrée.',
+     -20, False, 'mobile', 25),
+]
+
+_CLOSURE_REASON = 'Travaux en cuisine'
+
+
+def _ensure_public_page(restaurant: Restaurant, user_id: int) -> None:
+    """Everything a site's page shows, images aside, on the first demo site."""
+    for field, value in _PROFILE.items():
+        setattr(restaurant, field, value)
+    today = paris_today()
+
+    for back, sustainable, organic, territorial in _EGALIM:
+        year = today.year - back
+        declaration = EgalimDeclaration.query.filter_by(
+            restaurant_id=restaurant.id, year=year
+        ).first() or EgalimDeclaration(restaurant_id=restaurant.id, year=year)
+        declaration.sustainable_share = sustainable
+        declaration.organic_share = organic
+        declaration.territorial_share = territorial
+        db.session.add(declaration)
+
+    # Recreated rather than kept, so their dates follow the day of the seed.
+    Event.query.filter(
+        Event.restaurant_id == restaurant.id, Event.title.in_([news[0] for news in _NEWS])
+    ).delete(synchronize_session=False)
+    now = datetime.now(PARIS_TZ)
+    for title, summary, ahead, pinned, visibility, published in _NEWS:
+        db.session.add(Event(
+            restaurant_id=restaurant.id,
+            title=title,
+            subtitle=summary,
+            event_date=None if ahead is None else today + timedelta(days=ahead),
+            status='published',
+            visibility=visibility,
+            pinned=pinned,
+            published_at=now - timedelta(days=published),
+            created_by_id=user_id,
+        ))
+
+    ExceptionalClosure.query.filter_by(
+        restaurant_id=restaurant.id, reason=_CLOSURE_REASON
+    ).delete(synchronize_session=False)
+    db.session.add(ExceptionalClosure(
+        restaurant_id=restaurant.id,
+        start_date=today + timedelta(days=21),
+        end_date=today + timedelta(days=23),
+        reason=_CLOSURE_REASON,
+        created_by_id=user_id,
+    ))
+
+
+def _ensure_capacity_history(restaurant: Restaurant, site: dict) -> None:
+    """Services that reached the capacity, for the traffic report's line about them."""
+    today = paris_today()
+    start = today - timedelta(days=_ANALYTICS_DAYS - 1)
+    ServiceLiveStatus.query.filter(
+        ServiceLiveStatus.restaurant_id == restaurant.id,
+        ServiceLiveStatus.day >= start,
+        ServiceLiveStatus.day < today,
+    ).delete(synchronize_session=False)
+    for offset in range(_ANALYTICS_DAYS - 1):
+        day = start + timedelta(days=offset)
+        rng = _demo_random(day, restaurant.id + 7)
+        if day.weekday() >= 5 or rng.random() > site['capacity'] / 1500:
+            continue
+        reached = datetime.combine(day, time(12, rng.randrange(0, 25)), PARIS_TZ)
+        db.session.add(ServiceLiveStatus(
+            restaurant_id=restaurant.id, day=day, capacity_reached_at=reached
+        ))
+
