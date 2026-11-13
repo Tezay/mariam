@@ -204,7 +204,7 @@ test('a page is the loading shell, with the security headers', async () => {
 
 test('every inline script carries the nonce the policy announces', async () => {
   const page = await request('/');
-  const policy = page.headers['content-security-policy-report-only'];
+  const policy = page.headers['content-security-policy'];
   const nonce = /'nonce-([^']+)'/.exec(policy)?.[1];
   assert.ok(nonce, 'no nonce in the policy');
 
@@ -216,7 +216,7 @@ test('every inline script carries the nonce the policy announces', async () => {
   for (const tag of inline) assert.ok(tag.includes(`nonce="${nonce}"`), tag);
 
   const next = await request('/');
-  assert.ok(!next.headers['content-security-policy-report-only'].includes(nonce));
+  assert.ok(!next.headers['content-security-policy'].includes(nonce));
 });
 
 test('the home page names the site for search engines', async () => {
@@ -225,7 +225,7 @@ test('the home page names the site for search engines', async () => {
 });
 
 test('the policy lists the configured third parties and nothing else', async () => {
-  const policy = (await request('/')).headers['content-security-policy-report-only'];
+  const policy = (await request('/')).headers['content-security-policy'];
   const directive = (name) => policy.split('; ').find((part) => part.startsWith(`${name} `));
   assert.match(
     directive('script-src'),
@@ -241,7 +241,7 @@ test('a HEAD request gets the headers without a body', async () => {
   const head = await request('/', { method: 'HEAD' });
   assert.equal(head.status, 200);
   assert.equal(head.body, '');
-  assert.ok(head.headers['content-security-policy-report-only']);
+  assert.ok(head.headers['content-security-policy']);
 });
 
 test('/config.js exposes the public settings only', async () => {
@@ -395,7 +395,10 @@ test('the TV display is rendered by the server, and signage players may frame it
   assert.ok(tv.body.includes('450 repas par service'));
   assert.ok(tv.body.includes('<script src="/tv-watchdog.js">'));
   assert.equal(tv.headers['x-frame-options'], undefined);
-  assert.equal((await request('/alpha')).headers['x-frame-options'], 'SAMEORIGIN');
+  assert.ok(!tv.headers['content-security-policy'].includes('frame-ancestors'));
+  const site = await request('/alpha');
+  assert.equal(site.headers['x-frame-options'], 'SAMEORIGIN');
+  assert.ok(site.headers['content-security-policy'].includes("frame-ancestors 'self'"));
 });
 
 test('a dated page is the menu of that day, kept out of the index', async () => {

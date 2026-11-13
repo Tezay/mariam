@@ -17,6 +17,13 @@ describe('contentSecurityPolicy', () => {
     expect(directive(policy, 'connect-src')).toBe("connect-src 'self' https://api.example.test");
   });
 
+  it('lets any page frame a framable page only', () => {
+    expect(directive(contentSecurityPolicy('abc', {}), 'frame-ancestors')).toBe(
+      "frame-ancestors 'self'"
+    );
+    expect(contentSecurityPolicy('abc', {}, { framable: true })).not.toContain('frame-ancestors');
+  });
+
   it('takes the Sentry host from the DSN, without its key', () => {
     const policy = contentSecurityPolicy('abc', {
       SENTRY_DSN: 'https://key@errors.example.test/1',

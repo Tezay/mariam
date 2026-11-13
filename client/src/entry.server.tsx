@@ -18,16 +18,23 @@ export const handleError: HandleErrorFunction = (error, { request }) => {
   console.error(`${request.method} ${new URL(request.url).pathname}`, error);
 };
 
+// The pages server.js lets a signage player frame: same rule as FRAMED there.
+const FRAMED = /^\/(?:[^/]+\/)?tv\/?$/;
+
 export default function handleRequest(
   request: Request,
   responseStatusCode: number,
   responseHeaders: Headers,
   routerContext: EntryContext
 ) {
-  // No policy in development, where Vite injects scripts of its own. Report-only for now.
+  // No policy in development, where Vite injects scripts of its own.
   const nonce = import.meta.env.PROD ? randomBytes(16).toString('base64') : undefined;
   if (nonce) {
-    responseHeaders.set('Content-Security-Policy-Report-Only', contentSecurityPolicy(nonce));
+    const framable = FRAMED.test(new URL(request.url).pathname);
+    responseHeaders.set(
+      'Content-Security-Policy',
+      contentSecurityPolicy(nonce, process.env, { framable })
+    );
   }
 
   if (request.method.toUpperCase() === 'HEAD') {

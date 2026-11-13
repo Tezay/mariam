@@ -485,15 +485,13 @@ Each application sets the headers of what it answers, whatever proxy stands in f
   `X-Robots-Tag: noindex` and an enforced Content-Security-Policy that loads nothing. Its two HTML
   pages, the API documentation and the unsubscribe confirmation, have a policy of their own.
 
-The frontend's Content-Security-Policy is report-only for now. The server writes it for each page
+The frontend's Content-Security-Policy is enforced. The server writes it for each page
 (`client/src/lib/runtime-config.server.ts`), with a nonce for the router's inline scripts and the
-origins the deployment configures: the API when `API_URL` is absolute, Umami, Sentry. To make it
-enforcing:
-
-1. Browse the admin, a public menu and the TV display with the browser console open, and clear
-   every `Content-Security-Policy-Report-Only` violation
-2. In `client/src/entry.server.tsx`, rename the header to `Content-Security-Policy`
-3. Release, then check the console again
+origins the deployment configures: the API when `API_URL` is absolute, Umami, Sentry. The TV display
+goes without `frame-ancestors`, as it goes without `X-Frame-Options`. The end-to-end tests fail on
+any violation the browser logs, on the public pages and through a sign-in; a third party added to
+the frontend needs its origin in the policy. A violation from an extension's script (`content.js`,
+React DevTools' `installHook.js`) comes from the browser, not from the app.
 
 ### Frontend container
 

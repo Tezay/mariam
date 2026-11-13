@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **The Content-Security-Policy is enforced**; the TV display alone may be framed, by any page.
+
 ### Added
 
 - **`flask seed-demo` fills a whole site page**: texts, links, capacity, EGalim, news and a closure; no image.

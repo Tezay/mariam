@@ -1,5 +1,5 @@
 import { expect, test, type CDPSession, type Page } from '@playwright/test';
-import { API, at, proxyApi } from './support';
+import { API, at, collectPolicyViolations, proxyApi } from './support';
 
 const EMAIL = 'demo@mariam.app';
 const PASSWORD = process.env.E2E_PASSWORD;
@@ -26,6 +26,7 @@ test('a passkey enrolled after a password sign-in then signs in from the address
 }) => {
   test.skip(!PASSWORD, 'E2E_PASSWORD is the password given to flask seed-demo');
   await proxyApi(page);
+  const violations = collectPolicyViolations(page);
   // The install page and the guided tours open on a first visit, and are not under test: a
   // tour opening over the account menu would close it.
   await page.addInitScript(() => localStorage.setItem('mariam-pwa-install-done', '1'));
@@ -77,4 +78,6 @@ test('a passkey enrolled after a password sign-in then signs in from the address
     await page.goto(at('demo', '/admin/calendar'));
     await expect(page).toHaveURL(/\/login$/);
   });
+
+  expect(violations).toEqual([]);
 });
