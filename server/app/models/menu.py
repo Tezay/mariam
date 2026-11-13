@@ -18,8 +18,6 @@ class Menu(db.Model):
     
     items = db.relationship('MenuItem', backref='menu', lazy='dynamic',
                            cascade='all, delete-orphan', order_by='MenuItem.order')
-    images = db.relationship('MenuImage', backref='menu', lazy='dynamic',
-                            cascade='all, delete-orphan', order_by='MenuImage.order')
     substitutions = db.relationship(
         'CategorySubstitution',
         lazy='selectin',
@@ -67,18 +65,3 @@ class MenuItem(db.Model):
 
     def __repr__(self):
         return f'<MenuItem cat={self.category_id} dish={self.dish_id}>'
-
-
-class MenuImage(db.Model):
-    __tablename__ = 'menu_images'
-
-    id = db.Column(db.Integer, primary_key=True)
-    menu_id = db.Column(db.Integer, db.ForeignKey('menus.id'), nullable=False)
-    storage_key = db.Column(db.String(500), nullable=False)
-    url = db.Column(db.String(500), nullable=False)
-    filename = db.Column(db.String(255), nullable=True)
-    order = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=utc_now_naive)
-
-    def __repr__(self):
-        return f'<MenuImage {self.id} for Menu {self.menu_id}>'

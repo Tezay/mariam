@@ -63,8 +63,6 @@ class Restaurant(db.Model):
     email = db.Column(db.String(150), nullable=True)
     phone = db.Column(db.String(30), nullable=True)
 
-    # Seats, no longer read: kept so the previous release still runs on this schema.
-    capacity = db.Column(db.Integer, nullable=True)
     # Meals per service.
     service_capacity = db.Column(db.Integer, nullable=True)
 

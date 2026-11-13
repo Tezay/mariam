@@ -519,9 +519,7 @@ class TestOrgDashboard:
         restaurant.service_days = list(range(7))
         today = paris_today()
         db.session.add(
-            ExceptionalClosure(
-                restaurant_id=rids[0], start_date=today, end_date=today, is_active=True
-            )
+            ExceptionalClosure(restaurant_id=rids[0], start_date=today, end_date=today)
         )
         db.session.commit()
         token = get_token(client, email='u@mariam.app')

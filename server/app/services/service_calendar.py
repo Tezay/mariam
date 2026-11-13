@@ -14,13 +14,12 @@ MENU_STATUSES = ('published', 'draft', 'missing', 'closed')
 
 
 def closures_by_site(site_ids, start: date, end: date) -> ClosureRanges:
-    """Active closure ranges overlapping the window, grouped by site."""
+    """Closure ranges overlapping the window, grouped by site."""
     if not site_ids:
         return {}
     rows = (
         ExceptionalClosure.query.filter(
             ExceptionalClosure.restaurant_id.in_(site_ids),
-            ExceptionalClosure.is_active,
             ExceptionalClosure.start_date <= end,
             ExceptionalClosure.end_date >= start,
         )

@@ -43,7 +43,6 @@ def supervised_sites(sites: list) -> list[dict]:
         db.session.query(Event.restaurant_id, db.func.count(Event.id))
         .filter(
             Event.restaurant_id.in_(ids),
-            Event.is_active,
             Event.status == 'published',
             Event.event_date >= today,
         )

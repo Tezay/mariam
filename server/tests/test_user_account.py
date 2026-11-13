@@ -387,7 +387,7 @@ class TestAlerts:
         rid = _serving_today(make_restaurant(app))
         today = paris_today()
         db.session.add(
-            ExceptionalClosure(restaurant_id=rid, start_date=today, end_date=today, is_active=True)
+            ExceptionalClosure(restaurant_id=rid, start_date=today, end_date=today)
         )
         db.session.commit()
 

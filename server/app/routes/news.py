@@ -62,7 +62,7 @@ def news_view(item, member: bool) -> dict:
 
 
 def _visible(restaurant: Restaurant, member: bool):
-    items = Event.query.filter(Event.restaurant_id == restaurant.id, Event.is_active)
+    items = Event.query.filter(Event.restaurant_id == restaurant.id)
     if not member:
         items = items.filter(Event.status == 'published')
     return items
