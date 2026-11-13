@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`flask user` finds a site within its organization**: a slug two organizations share asks for `--org`.
 - **A redeployment no longer reads as "Organisation introuvable"**: only the API's own answer says so.
 
 ## [0.20.0] - 2026-11-01

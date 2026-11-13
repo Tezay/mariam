@@ -36,6 +36,9 @@ code on failure.
 | `user enable EMAIL` / `user disable EMAIL` | Turns an account off without deleting it |
 | `user delete EMAIL [--yes]` | Deletes the account and its passkeys; audit entries are kept |
 
+A site is named by its id or its slug; a slug is unique within its organization only, so one
+that several organizations share needs `--org`.
+
 In development, `make user ARGS="show demo@mariam.app"` wraps the same group.
 
 Addresses are stored lowercase and ASCII-only, and the commands normalise the ones they are
