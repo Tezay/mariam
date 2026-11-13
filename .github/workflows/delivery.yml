@@ -1,0 +1,256 @@
+# Builds the images, deploys them to staging, then to production on approval.
+# A merge to main is tagged main-<sha>; a version tag vX.Y.Z is tagged X.Y.Z, X.Y and
+# latest, and a release candidate (vX.Y.Z-rc.N) stops at staging. Each instance runs
+# a channel tag, staging or production, that this workflow points at an image already
+# published: production gets the very digests staging was checked on.
+name: Delivery
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    # Ignored for tags: GitHub does not evaluate path filters on a tag push.
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'LICENSE*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository }}
+
+jobs:
+  # Gate: no image is published unless the full quality suite passes.
+  quality:
+    name: Quality gates
+    uses: ./.github/workflows/quality.yml
+    # quality.yml asks for pull-requests: read, and a called workflow gets no more than this.
+    permissions:
+      contents: read
+      pull-requests: read
+
+  # A final release is tagged on the commit that names it; a release candidate precedes it.
+  release:
+    name: Tag names the release
+    if: ${{ github.ref_type == 'tag' && !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: client/package.json and CHANGELOG.md name this version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          [ "$(jq -r .version client/package.json)" = "$version" ] \
+            || { echo "::error::client/package.json is not at $version"; exit 1; }
+          grep -q "^## \[$version\]" CHANGELOG.md \
+            || { echo "::error::CHANGELOG.md has no [$version] section"; exit 1; }
+
+  build:
+    name: Publish ${{ matrix.component }} image
+    needs: [quality, release]
+    if: ${{ !cancelled() && needs.quality.result == 'success' && needs.release.result != 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - component: backend
+            context: ./server
+            file: Dockerfile.prod
+          - component: frontend
+            context: ./client
+            file: Dockerfile.prod
+          - component: backup
+            context: ./deploy/backup
+            file: Dockerfile
+          - component: proxy
+            context: ./deploy/nginx
+            file: Dockerfile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE_PREFIX }}-${{ matrix.component }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=main-,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/${{ matrix.file }}
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Same source as the image tag, so the two cannot drift apart.
+          build-args: |
+            APP_VERSION=${{ steps.meta.outputs.version }}
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
+
+  staging:
+    name: Deploy to staging
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: staging
+      url: ${{ vars.BASE_URL }}
+    # Queued rather than cancelled: a deploy stopped halfway leaves the instance unchecked.
+    concurrency:
+      group: staging
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      images: ${{ steps.promote.outputs.images }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Version
+        id: version
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=main-${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Point staging at the images
+        id: promote
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          images=$(./deploy/scripts/promote-images.sh staging \
+            "backend=$VERSION" "frontend=$VERSION" "backup=$VERSION" "proxy=$VERSION")
+          echo "images=$(echo "$images" | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Staging runs $VERSION"
+            echo '```'
+            echo "$images"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Deploy
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.DEPLOY_HOOK_URL }}
+          DEPLOY_HOOK_HEADERS: ${{ secrets.DEPLOY_HOOK_HEADERS }}
+        run: |
+          printf '%s\n' "$DEPLOY_HOOK_HEADERS" > "$RUNNER_TEMP/hook-headers"
+          # An access control in front may answer a redirect to its login page, which curl
+          # does not count as a failure.
+          code=$(curl -sS -o "$RUNNER_TEMP/hook-response" -w '%{http_code}' \
+            -X POST -H "@$RUNNER_TEMP/hook-headers" "$DEPLOY_HOOK_URL")
+          cat "$RUNNER_TEMP/hook-response"; echo
+          [ "$code" = 200 ] || { echo "::error::The deploy hook answered $code."; exit 1; }
+
+      - name: Smoke test
+        env:
+          BASE_URL: ${{ vars.BASE_URL }}
+          SMOKE_HEADERS: ${{ secrets.SMOKE_HEADERS }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if [ -n "$SMOKE_HEADERS" ]; then
+            printf '%s\n' "$SMOKE_HEADERS" > "$RUNNER_TEMP/smoke-headers"
+            export SMOKE_HEADERS_FILE="$RUNNER_TEMP/smoke-headers"
+          fi
+          ./deploy/scripts/smoke-test.sh "$BASE_URL" "$VERSION"
+
+  production:
+    name: Deploy to production
+    needs: staging
+    if: ${{ github.ref_type == 'tag' && !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: ${{ vars.BASE_URL }}
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Point production at the images staging was checked on
+        env:
+          IMAGES: ${{ needs.staging.outputs.images }}
+        run: |
+          # shellcheck disable=SC2086 # one COMPONENT=DIGEST argument per word
+          ./deploy/scripts/promote-images.sh production $IMAGES
+
+      # The instance reads its compose file from this branch.
+      - name: Move the production branch to the release
+        run: git push origin "$GITHUB_SHA:refs/heads/production"
+
+      - name: Deploy
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.DEPLOY_HOOK_URL }}
+          DEPLOY_HOOK_HEADERS: ${{ secrets.DEPLOY_HOOK_HEADERS }}
+        run: |
+          printf '%s\n' "$DEPLOY_HOOK_HEADERS" > "$RUNNER_TEMP/hook-headers"
+          # An access control in front may answer a redirect to its login page, which curl
+          # does not count as a failure.
+          code=$(curl -sS -o "$RUNNER_TEMP/hook-response" -w '%{http_code}' \
+            -X POST -H "@$RUNNER_TEMP/hook-headers" "$DEPLOY_HOOK_URL")
+          cat "$RUNNER_TEMP/hook-response"; echo
+          [ "$code" = 200 ] || { echo "::error::The deploy hook answered $code."; exit 1; }
+
+      - name: Smoke test
+        env:
+          BASE_URL: ${{ vars.BASE_URL }}
+          SMOKE_HEADERS: ${{ secrets.SMOKE_HEADERS }}
+        run: |
+          if [ -n "$SMOKE_HEADERS" ]; then
+            printf '%s\n' "$SMOKE_HEADERS" > "$RUNNER_TEMP/smoke-headers"
+            export SMOKE_HEADERS_FILE="$RUNNER_TEMP/smoke-headers"
+          fi
+          ./deploy/scripts/smoke-test.sh "$BASE_URL" "${GITHUB_REF_NAME#v}"

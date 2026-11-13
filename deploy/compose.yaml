@@ -87,6 +87,7 @@ services:
 
   backend:
     image: ${BACKEND_IMAGE:-ghcr.io/tezay/mariam-backend}:${MARIAM_TAG:?}
+    pull_policy: ${MARIAM_PULL_POLICY:-missing}
     restart: unless-stopped
     logging: *default-logging
     mem_limit: 512m
@@ -129,6 +130,7 @@ services:
 
   scheduler:
     image: ${BACKEND_IMAGE:-ghcr.io/tezay/mariam-backend}:${MARIAM_TAG:?}
+    pull_policy: ${MARIAM_PULL_POLICY:-missing}
     restart: unless-stopped
     logging: *default-logging
     mem_limit: 256m
@@ -143,6 +145,7 @@ services:
 
   frontend:
     image: ${FRONTEND_IMAGE:-ghcr.io/tezay/mariam-frontend}:${MARIAM_TAG:?}
+    pull_policy: ${MARIAM_PULL_POLICY:-missing}
     restart: unless-stopped
     logging: *default-logging
     mem_limit: 384m
@@ -163,6 +166,7 @@ services:
 
   proxy:
     image: ${PROXY_IMAGE:-ghcr.io/tezay/mariam-proxy}:${MARIAM_TAG:?}
+    pull_policy: ${MARIAM_PULL_POLICY:-missing}
     restart: unless-stopped
     logging: *default-logging
     mem_limit: 64m
@@ -177,6 +181,7 @@ services:
 
   backup:
     image: ${BACKUP_IMAGE:-ghcr.io/tezay/mariam-backup}:${MARIAM_TAG:?}
+    pull_policy: ${MARIAM_PULL_POLICY:-missing}
     restart: unless-stopped
     logging: *default-logging
     mem_limit: 256m
