@@ -25,7 +25,14 @@ from .models import (
     User,
 )
 from .problems import Api, Problem, answer_problem, problem_response
-from .security import ACCESS_COOKIE, REFRESH_COOKIE, SESSION_CLAIM, is_token_blacklisted, limiter
+from .security import (
+    ACCESS_COOKIE,
+    REFRESH_COOKIE,
+    SESSION_CLAIM,
+    is_token_blacklisted,
+    limiter,
+    public_limit,
+)
 from .services.storage import storage
 
 
@@ -297,6 +304,17 @@ def create_app(config_class=None):
     api.register_blueprint(closures_bp,      url_prefix='/v1/orgs/<org>/sites/<site>/closures')
     api.register_blueprint(quality_bp,       url_prefix='/v1/orgs/<org>/sites/<site>')
     api.register_blueprint(devices_bp,       url_prefix='/v1/devices')
+
+    # The root of a host the proxy gives to the API alone (API_HOSTS).
+    @app.route('/')
+    @limiter.limit(public_limit)
+    def api_index():
+        return {
+            'name': 'Mariam API',
+            'version': os.environ.get('APP_VERSION', 'dev'),
+            'docs': '/v1/docs',
+            'openapi': '/v1/openapi.json',
+        }
 
     @app.route('/health')
     @limiter.exempt

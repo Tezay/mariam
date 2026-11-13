@@ -61,6 +61,21 @@ interface JsonLdInput {
   day: Day | null;
 }
 
+export function siteName(organization: string): string {
+  return `${organization} · Mariam`;
+}
+
+// Read by search engines on a host's home page only.
+export function websiteJsonLd(organization: string, url: string): Record<string, unknown> {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: siteName(organization),
+    alternateName: 'Mariam',
+    url,
+  };
+}
+
 export function restaurantJsonLd({
   site,
   url,

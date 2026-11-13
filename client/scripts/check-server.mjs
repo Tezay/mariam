@@ -208,12 +208,20 @@ test('every inline script carries the nonce the policy announces', async () => {
   const nonce = /'nonce-([^']+)'/.exec(policy)?.[1];
   assert.ok(nonce, 'no nonce in the policy');
 
-  const inline = page.body.match(/<script(?![^>]*\ssrc=)[^>]*>/g) ?? [];
+  // A JSON-LD block is data the browser never runs: the policy does not govern it.
+  const inline = (page.body.match(/<script(?![^>]*\ssrc=)[^>]*>/g) ?? []).filter(
+    (tag) => !tag.includes('type="application/ld+json"')
+  );
   assert.ok(inline.length > 0, 'the page has no inline script to check');
   for (const tag of inline) assert.ok(tag.includes(`nonce="${nonce}"`), tag);
 
   const next = await request('/');
   assert.ok(!next.headers['content-security-policy-report-only'].includes(nonce));
+});
+
+test('the home page names the site for search engines', async () => {
+  const page = await request('/');
+  assert.match(page.body, /"@type":"WebSite","name":"[^"]+ · Mariam","alternateName":"Mariam"/);
 });
 
 test('the policy lists the configured third parties and nothing else', async () => {

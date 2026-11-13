@@ -5,5 +5,5 @@ FROM nginx:1.30-alpine
 ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1 \
     NGINX_ENVSUBST_FILTER=NGINX_
 
-COPY --chmod=755 40-client-address.sh /docker-entrypoint.d/
+COPY --chmod=755 40-client-address.sh 50-api-hosts.sh /docker-entrypoint.d/
 COPY default.conf.template /etc/nginx/templates/default.conf.template

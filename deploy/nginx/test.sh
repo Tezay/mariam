@@ -79,4 +79,13 @@ if docker run --rm -e 'REAL_IP_HEADER=X-Real-IP; deny all' "$image" nginx -t >/d
 fi
 echo "ok - an invalid header name stops the proxy"
 
+proxy -e API_HOSTS=api.example.org
+expect "an API host gives its root to the API" "backend $client_ip" / -H 'Host: api.example.org'
+expect "the other hosts keep their pages" "frontend $client_ip" /
+
+if docker run --rm -e 'API_HOSTS=api.example.org; deny all' "$image" nginx -t >/dev/null 2>&1; then
+    fail "an invalid API host was accepted"
+fi
+echo "ok - an invalid API host stops the proxy"
+
 echo "Proxy checks passed."

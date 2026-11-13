@@ -3,7 +3,7 @@ import { fetchLiveStatus, fetchQuality, fetchSitePage } from '@/lib/api/public.s
 import { parisToday } from '@/lib/date-utils';
 import { mapTiles } from '@/lib/runtime-config.server';
 import { publicMenuData } from './public-menu-data';
-import { menuDescription, restaurantJsonLd } from './seo/jsonld';
+import { menuDescription, restaurantJsonLd, siteName, websiteJsonLd } from './seo/jsonld';
 import { pageMeta } from './seo/meta';
 import { SitePage } from './site/SitePage';
 import { SiteListPage } from './SiteListPage';
@@ -75,13 +75,17 @@ export const meta: Route.MetaFunction = ({ loaderData, matches }) => {
   const tenant = tenantOf(matches);
   if (!tenant || !loaderData) return [{ title: 'Mariam' }];
   const org = tenant.organization.name;
+  const home = `${tenant.origin}/`;
   if (loaderData.kind === 'sites') {
-    return pageMeta({
-      title: `${org} — Nos restaurants`,
-      description: `Découvrez les menus des restaurants de ${org}.`,
-      url: `${tenant.origin}/`,
-      siteName: org,
-    });
+    return [
+      ...pageMeta({
+        title: `${org} — Nos restaurants`,
+        description: `Découvrez les menus des restaurants de ${org}.`,
+        url: home,
+        siteName: siteName(org),
+      }),
+      { 'script:ld+json': websiteJsonLd(org, home) },
+    ];
   }
 
   const { menu, url, date, multiSite } = loaderData;
@@ -90,24 +94,23 @@ export const meta: Route.MetaFunction = ({ loaderData, matches }) => {
     title: `${site.name} – ${org} : menu du jour, horaires et accès`,
     description: site.tagline ?? menuDescription(site.name, org, menu.day),
     url,
-    siteName: org,
+    siteName: siteName(org),
     image: site.cover_url ?? site.logo_url,
   });
   if (date !== parisToday(new Date(loaderData.now))) {
     tags.push({ name: 'robots', content: 'noindex' });
   }
-  return [
-    ...tags,
-    {
-      'script:ld+json': restaurantJsonLd({
-        site,
-        url,
-        organization: { name: org, url: `${tenant.origin}/` },
-        multiSite,
-        day: menu.day,
-      }),
-    },
-  ];
+  tags.push({
+    'script:ld+json': restaurantJsonLd({
+      site,
+      url,
+      organization: { name: org, url: home },
+      multiSite,
+      day: menu.day,
+    }),
+  });
+  if (!multiSite) tags.push({ 'script:ld+json': websiteJsonLd(org, home) });
+  return tags;
 };
 
 export default function SiteRoute({ loaderData }: Route.ComponentProps) {

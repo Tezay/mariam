@@ -29,11 +29,22 @@ export default function TenantLayout() {
   );
 }
 
+// A 404 also comes from a proxy in front while a deployment recreates the containers:
+// an outage, not a missing organization.
+const MISSING: Record<string, string> = {
+  organization: 'Organisation introuvable.',
+  site: 'Restaurant introuvable.',
+};
+
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  if (isRouteErrorResponse(error) && error.status === 404) {
+  const missing =
+    isRouteErrorResponse(error) && error.status === 404 && typeof error.data === 'string'
+      ? MISSING[error.data]
+      : undefined;
+  if (missing) {
     return (
       <div className="public-page flex h-screen items-center justify-center p-6 text-center text-site-subtle">
-        {error.data === 'site' ? 'Restaurant introuvable.' : 'Organisation introuvable.'}
+        {missing}
       </div>
     );
   }
