@@ -27,7 +27,6 @@ from ..schemas.public import (
 )
 from ..security import get_client_ip, limiter, public_limit
 from ..services.menu_window import MAX_RANGE_DAYS, visible_range
-from ..services.storage import storage
 from ..services.votes import (
     VoteError,
     get_own_vote,
@@ -283,9 +282,6 @@ def delete_menu(org: str, site: str, date: datetime.date):
     """Delete a menu, with its items."""
     restaurant = member_site(org, site)
     menu = _site_menu(restaurant, date)
-    # Photos sent before 0.20.0, until their table goes.
-    for image in list(menu.images):
-        storage.delete_file(image.storage_key)
     audit(
         AuditLog.ACTION_MENU_UPDATE,
         restaurant,

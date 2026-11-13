@@ -30,9 +30,7 @@ def _publish(restaurant_id, *days):
 
 
 def _close(restaurant_id, first, last):
-    db.session.add(ExceptionalClosure(
-        restaurant_id=restaurant_id, start_date=first, end_date=last, is_active=True
-    ))
+    db.session.add(ExceptionalClosure(restaurant_id=restaurant_id, start_date=first, end_date=last))
     db.session.commit()
 
 

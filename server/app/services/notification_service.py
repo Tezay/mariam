@@ -273,7 +273,6 @@ def _check_event_notifications(db, now, sent_count: int) -> int:
 
     events = Event.query.filter(
         Event.status == 'published',
-        Event.is_active,
         Event.event_date.in_([target_7d, target_1d]),
     ).all()
 
@@ -324,7 +323,6 @@ def _check_closure_notifications(db, now, sent_count: int) -> int:
     target_1d = today + timedelta(days=1)
 
     closures = ExceptionalClosure.query.filter(
-        ExceptionalClosure.is_active,
         ExceptionalClosure.start_date.in_([target_7d, target_1d]),
     ).all()
 

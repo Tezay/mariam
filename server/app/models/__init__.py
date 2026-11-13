@@ -6,7 +6,7 @@ from .egalim_declaration import EgalimDeclaration
 from .event import Event, EventImage
 from .exceptional_closure import ExceptionalClosure
 from .import_session import ImportSession
-from .menu import Menu, MenuImage, MenuItem
+from .menu import Menu, MenuItem
 from .menu_vote import (
     DEFAULT_ICON_PRESET,
     MIN_SITE_VOTES,
@@ -48,7 +48,6 @@ __all__ = [
     'MenuCategory',
     'Menu',
     'MenuItem',
-    'MenuImage',
     'MenuVote',
     'menu_vote_dishes',
     'MIN_SITE_VOTES',

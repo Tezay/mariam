@@ -247,9 +247,7 @@ class TestPublicationRate:
         rid = _site(org, 'PR3')
         _director(rid, org)
         monday, friday = _last_full_week()
-        db.session.add(ExceptionalClosure(
-            restaurant_id=rid, start_date=monday, end_date=monday, is_active=True
-        ))
+        db.session.add(ExceptionalClosure(restaurant_id=rid, start_date=monday, end_date=monday))
         db.session.commit()
         for offset in range(1, 5):
             day = monday + datetime.timedelta(days=offset)

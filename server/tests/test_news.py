@@ -218,12 +218,3 @@ class TestWrite:
                           headers=headers, content_type='multipart/form-data')
 
         assert res.get_json()['code'] == 'storage_unavailable'
-
-    def test_an_inactive_item_reads_as_deleted(self, app, client):
-        _, path, headers = _editor(app, client)
-        news_id = _create(client, path, headers, status='published').get_json()['id']
-        db.session.get(Event, news_id).is_active = False
-        db.session.commit()
-
-        assert client.get(path, headers=headers).get_json()['items'] == []
-        assert client.patch(f'{path}/{news_id}', json={'title': 'X'}, headers=headers).status_code == 404

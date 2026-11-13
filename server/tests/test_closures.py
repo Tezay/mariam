@@ -48,14 +48,6 @@ class TestRead:
             'En cours'
         ]
 
-    def test_an_inactive_closure_reads_as_deleted(self, app, client):
-        path, headers = _editor(app, client)
-        closure_id = _close(client, path, headers, 0, 0).get_json()['id']
-        db.session.get(ExceptionalClosure, closure_id).is_active = False
-        db.session.commit()
-
-        assert client.get(path, headers=headers).get_json()['items'] == []
-        assert client.delete(f'{path}/{closure_id}', headers=headers).status_code == 404
 
 
 class TestWrite:

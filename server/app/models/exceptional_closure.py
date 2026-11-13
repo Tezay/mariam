@@ -14,8 +14,6 @@ class ExceptionalClosure(db.Model):
     reason      = db.Column(db.String(100), nullable=True)
     description = db.Column(db.Text, nullable=True)
 
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
-
     notified_7d = db.Column(db.Boolean, default=False, nullable=False)
     notified_1d = db.Column(db.Boolean, default=False, nullable=False)
 
@@ -24,25 +22,6 @@ class ExceptionalClosure(db.Model):
     created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
     created_by = db.relationship('User', backref='created_closures', foreign_keys=[created_by_id])
-
-    def to_dict(self, today=None):
-        from ..utils.time import paris_today
-        if today is None:
-            today = paris_today()
-        return {
-            'id':            self.id,
-            'restaurant_id': self.restaurant_id,
-            'start_date':    self.start_date.isoformat() if self.start_date else None,
-            'end_date':      self.end_date.isoformat() if self.end_date else None,
-            'reason':        self.reason,
-            'description':   self.description,
-            'is_active':     self.is_active,
-            'is_current':    self.start_date <= today <= self.end_date if self.start_date and self.end_date else False,
-            'notified_7d':   self.notified_7d,
-            'notified_1d':   self.notified_1d,
-            'created_at':    self.created_at.isoformat() if self.created_at else None,
-            'updated_at':    self.updated_at.isoformat() if self.updated_at else None,
-        }
 
     def __repr__(self):
         return f'<ExceptionalClosure {self.start_date}–{self.end_date}: {self.reason}>'

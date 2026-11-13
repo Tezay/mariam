@@ -20,9 +20,7 @@ closures_bp.after_request(finish_public_read)
 
 
 def _site_closure(restaurant: Restaurant, closure_id: int) -> ExceptionalClosure:
-    closure = ExceptionalClosure.query.filter_by(
-        id=closure_id, restaurant_id=restaurant.id, is_active=True
-    ).first()
+    closure = ExceptionalClosure.query.filter_by(id=closure_id, restaurant_id=restaurant.id).first()
     if closure is None:
         raise Problem(404, 'closure_not_found', 'Fermeture introuvable.')
     return closure
@@ -40,9 +38,7 @@ def list_closures(query, org: str, site: str):
     without `from`, past closures as well.
     """
     restaurant, member = readable_site(org, site)
-    closures = ExceptionalClosure.query.filter(
-        ExceptionalClosure.restaurant_id == restaurant.id, ExceptionalClosure.is_active
-    )
+    closures = ExceptionalClosure.query.filter(ExceptionalClosure.restaurant_id == restaurant.id)
     start = query.get('start')
     if not member:
         start = max(start or paris_today(), paris_today())

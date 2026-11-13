@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **Unused `restaurants.capacity`, `menu_images` and `is_active` fields.**
+- **Inactive news and closures**; migration logs retained files.
 - **`COMMERCIAL_LICENSE_TEMPLATE.md`**: commercial use is agreed case by case, at contact@mariam.app.
 
 ## [0.20.0] - 2026-11-01

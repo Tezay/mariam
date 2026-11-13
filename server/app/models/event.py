@@ -18,7 +18,6 @@ class Event(db.Model):
     event_date = db.Column(db.Date, nullable=True, index=True)
     status = db.Column(db.String(20), default='draft')  # draft, published
     visibility = db.Column(db.String(20), default='all')  # tv, mobile, all
-    is_active = db.Column(db.Boolean, default=True)
     pinned = db.Column(db.Boolean, nullable=False, default=False, server_default='false')
     published_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
@@ -38,25 +37,6 @@ class Event(db.Model):
     VALID_VISIBILITY = ['tv', 'mobile', 'all']
     VALID_STATUS = ['draft', 'published']
 
-    def to_dict(self, include_images=True):
-        data = {
-            'id': self.id,
-            'restaurant_id': self.restaurant_id,
-            'title': self.title,
-            'subtitle': self.subtitle,
-            'description': self.description,
-            'color': self.color,
-            'event_date': self.event_date.isoformat() if self.event_date else None,
-            'status': self.status,
-            'visibility': self.visibility,
-            'is_active': self.is_active,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-        }
-        if include_images:
-            data['images'] = [img.to_dict() for img in self.images.order_by(EventImage.order)]
-        return data
-
     def __repr__(self):
         return f'<Event {self.event_date}: {self.title}>'
 
@@ -71,15 +51,6 @@ class EventImage(db.Model):
     filename = db.Column(db.String(255), nullable=True)  # As uploaded
     order = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=utc_now_naive)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'event_id': self.event_id,
-            'url': self.url,
-            'filename': self.filename,
-            'order': self.order,
-        }
 
     def __repr__(self):
         return f'<EventImage {self.id} for Event {self.event_id}>'
