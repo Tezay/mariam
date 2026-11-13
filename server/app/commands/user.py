@@ -52,11 +52,19 @@ def _find_user(email: str) -> User:
     return user
 
 
-def _find_restaurant(value: str) -> Restaurant:
+def _find_restaurant(value: str, org: str | None = None) -> Restaurant:
+    organization = _find_organization(org) if org else None
     site = db.session.get(Restaurant, int(value)) if value.isdigit() else None
     if site is None:
-        site = Restaurant.query.filter_by(slug=value).first()
-    if site is None:
+        query = Restaurant.query.filter_by(slug=value)
+        if organization:
+            query = query.filter_by(organization_id=organization.id)
+        # A slug is unique within its organization only.
+        sites = query.limit(2).all()
+        if len(sites) > 1:
+            raise click.ClickException(f'Several organizations have a site {value}: pass --org.')
+        site = sites[0] if sites else None
+    if site is None or (organization and site.organization_id != organization.id):
         raise click.ClickException(f'No such site: {value}')
     return site
 
@@ -84,7 +92,7 @@ def _resolve_tenant(role: str, restaurant: str | None, org: str | None) -> tuple
 
     if not restaurant:
         raise click.ClickException('--restaurant is required for a site role.')
-    site = _find_restaurant(restaurant)
+    site = _find_restaurant(restaurant, org)
     return site.id, site.organization_id, site.name
 
 
@@ -139,7 +147,7 @@ def list_users(role, site, org, show_all):
     if role:
         query = query.filter_by(role=role)
     if site:
-        query = query.filter_by(restaurant_id=_find_restaurant(site).id)
+        query = query.filter_by(restaurant_id=_find_restaurant(site, org).id)
     if org:
         query = query.filter_by(organization_id=_find_organization(org).id)
     if not show_all:
@@ -197,7 +205,7 @@ def show_user(email):
 @click.argument('email')
 @click.option('--role', required=True, help='org_admin | admin | editor')
 @click.option('--restaurant', default=None, help='Target site (id or slug) — site roles')
-@click.option('--org', default=None, help='Organization (id or slug) — org_admin role')
+@click.option('--org', default=None, help="Organization (id or slug): org_admin's, or the site's")
 def invite_user(email, role, restaurant, org):
     """Create an activation link for a new account."""
     if role not in User.VALID_ROLES:
@@ -307,7 +315,7 @@ def set_email(email, new_email):
 @click.argument('email')
 @click.argument('role')
 @click.option('--restaurant', default=None, help='Target site (id or slug) — site roles')
-@click.option('--org', default=None, help='Organization (id or slug) — org_admin role')
+@click.option('--org', default=None, help="Organization (id or slug): org_admin's, or the site's")
 def set_role(email, role, restaurant, org):
     """Change an account's role, and its tenant when needed."""
     if role not in User.VALID_ROLES:

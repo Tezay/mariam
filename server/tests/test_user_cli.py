@@ -228,6 +228,25 @@ class TestScope:
         assert 'one@mariam.app' in output
         assert 'two@mariam.app' not in output
 
+    def test_a_slug_two_organizations_share_needs_the_organization(self, app):
+        make_restaurant(app, name='RU Nord', code='NORD')
+        other = Organization(name='Autre', slug='autre')
+        db.session.add(other)
+        db.session.flush()
+        theirs = Restaurant(name='RU Nord', code='NORD_BIS', slug='nord', organization_id=other.id)
+        db.session.add(theirs)
+        db.session.commit()
+
+        refused = _run(app, 'invite', 'a@mariam.app', '--role', 'editor', '--restaurant', 'nord')
+        result = _run(
+            app, 'invite', 'b@mariam.app', '--role', 'editor', '--restaurant', 'nord', '--org', 'autre'
+        )
+
+        assert refused.exit_code != 0 and 'pass --org' in refused.output
+        assert result.exit_code == 0
+        link = ActivationLink.query.filter_by(email='b@mariam.app').one()
+        assert link.restaurant_id == theirs.id
+
     def test_an_unknown_site_exits_with_an_error(self, app):
         result = _run(app, 'list', '--site', 'nowhere')
 
