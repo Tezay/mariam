@@ -196,13 +196,13 @@ check a pull request needs to merge.
 | Workflow | Required check | What it runs |
 |---|---|---|
 | [`quality.yml`](../.github/workflows/quality.yml) | `CI result` | ruff, mypy and pytest for `server/`; ESLint, Prettier, Vitest, the build and Playwright for `client/`; the API contract; the production images, built without being published; ShellCheck, then the backup and proxy images against throwaway services |
-| [`security.yml`](../.github/workflows/security.yml) | `Security result` | `uv audit` and `bun audit`; Trivy on the images' system packages |
+| [`security.yml`](../.github/workflows/security.yml) | `Security result` | `uv audit` and `bun audit`; Trivy on the images' system packages; ZAP's active scan of the API |
 
 What runs depends on the event and on the paths a change touches:
 
 | Event | Quality | Security |
 |---|---|---|
-| Pull request | the jobs whose paths changed | an audit when its manifest or lockfile changed, the image scan when a `Dockerfile` did |
+| Pull request | the jobs whose paths changed | an audit when its manifest or lockfile changed, the image scan when a `Dockerfile` did, the API scan when `deploy/zap/` did |
 | Push to `main`, through [`delivery.yml`](../.github/workflows/delivery.yml) | the jobs whose paths changed since the previous commit | none |
 | Version tag, the release gate | everything except the image builds, which the delivery workflow does | none |
 | Manual run from the Actions tab | everything | everything |
@@ -217,6 +217,12 @@ What runs depends on the event and on the paths a change touches:
 After each deploy, the delivery workflow runs `deploy/scripts/smoke-test.sh BASE_URL VERSION`: it waits
 until `/health` reports the version and `/health/ready` answers `ready`, then checks the home page
 and the API for that host. It runs by hand too, after any deploy.
+
+Then `deploy/scripts/baseline-scan.sh BASE_URL` runs ZAP's passive scan, which fails on a missing
+security header (`deploy/zap/baseline.conf`). Each week, `deploy/scripts/api-scan.sh` runs ZAP's
+active scan of the API, from its OpenAPI description, against a throwaway stack seeded with
+`flask seed-demo`; it fails on an injection (`deploy/zap/api.conf`). CI logs are public, so both
+name rules, never URLs; set `REPORT_DIR` to a directory when running one by hand for the full report.
 - A change to a workflow runs everything that workflow holds.
 - `docs/`, the rest of `deploy/` and the other root files run nothing.
 

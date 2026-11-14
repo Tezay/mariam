@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **ZAP's passive scan of staging** after each deploy: a missing security header stops the release.
+- **ZAP's weekly active scan of the API**, against a throwaway stack: an injection fails it.
 - **Trivy scans the images' system packages**: each pull request that changes a `Dockerfile`, and production weekly.
 - **Private vulnerability reporting** from the repository's Security tab, beside the e-mail address.
 - **OpenSSF Scorecard**, published at each push to `main` and weekly, with its badge in the README.

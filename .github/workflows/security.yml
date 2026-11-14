@@ -27,6 +27,7 @@ jobs:
       backend: ${{ steps.decide.outputs.backend }}
       frontend: ${{ steps.decide.outputs.frontend }}
       images: ${{ steps.decide.outputs.images }}
+      api: ${{ steps.decide.outputs.api }}
     steps:
       - name: Filter paths
         id: filter
@@ -45,6 +46,10 @@ jobs:
             images:
               - '**/Dockerfile*'
               - '.github/workflows/security.yml'
+            api:
+              - 'deploy/zap/**'
+              - 'deploy/scripts/api-scan.sh'
+              - '.github/workflows/security.yml'
 
       - name: Decide
         id: decide
@@ -53,13 +58,14 @@ jobs:
           BACKEND: ${{ steps.filter.outputs.backend }}
           FRONTEND: ${{ steps.filter.outputs.frontend }}
           IMAGES: ${{ steps.filter.outputs.images }}
+          API: ${{ steps.filter.outputs.api }}
         run: |
           if [ "$EVENT" = pull_request ]; then
             mode=filtered
           else
-            mode=full BACKEND=true FRONTEND=true IMAGES=true
+            mode=full BACKEND=true FRONTEND=true IMAGES=true API=true
           fi
-          for value in "$BACKEND" "$FRONTEND" "$IMAGES"; do
+          for value in "$BACKEND" "$FRONTEND" "$IMAGES" "$API"; do
             if [ "$value" != true ] && [ "$value" != false ]; then
               echo "::error::A path filter gave no decision in $mode mode."
               exit 1
@@ -69,6 +75,7 @@ jobs:
             echo "backend=$BACKEND"
             echo "frontend=$FRONTEND"
             echo "images=$IMAGES"
+            echo "api=$API"
           } >> "$GITHUB_OUTPUT"
 
           row() {
@@ -88,6 +95,7 @@ jobs:
             row "Backend (uv audit)" "$BACKEND" "\`server/pyproject.toml\`, \`server/uv.lock\`"
             row "Frontend (bun audit)" "$FRONTEND" "\`client/package.json\`, \`client/bun.lock\`"
             row "Images (Trivy)" "$IMAGES" "a \`Dockerfile\`"
+            row "API (ZAP)" "$API" "\`deploy/zap/\`, \`deploy/scripts/api-scan.sh\`"
             echo
             echo "A change to this workflow runs every row."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -201,9 +209,75 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: '1'
 
+  api:
+    name: API (ZAP active scan)
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: mariam
+          POSTGRES_PASSWORD: mariam_secret
+          POSTGRES_DB: mariam_db
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 25
+      redis:
+        image: redis:8-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 25
+    env:
+      DATABASE_URL: postgresql://mariam:mariam_secret@localhost:5432/mariam_db
+      REDIS_URL: redis://localhost:6379/0
+      SECRET_KEY: ci-secret-key
+      JWT_SECRET_KEY: ci-jwt-secret-key
+      FLASK_APP: run.py
+      FLASK_ENV: development
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+
+      - name: Install the backend
+        working-directory: server
+        run: uv sync --no-dev --no-install-project --frozen
+
+      - name: Seed the demo organization
+        working-directory: server
+        run: |
+          uv run flask db upgrade
+          uv run flask seed-demo
+
+      # The scan would spend the rate limits within a minute; the tests turn them off the same way.
+      - name: Start the API
+        working-directory: server
+        run: |
+          nohup uv run python -c 'from app import create_app; from app.security import limiter; app = create_app(); limiter.enabled = False; app.run(port=5000, threaded=True)' > /dev/null 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -fs http://localhost:5000/health >/dev/null && exit 0
+            sleep 1
+          done
+          exit 1
+
+      - name: Scan
+        run: ./deploy/scripts/api-scan.sh http://localhost:5000
+
   result:
     name: Security result
-    needs: [changes, frontend, backend, images]
+    needs: [changes, frontend, backend, images, api]
     # always(), not !cancelled(): a required check that is skipped counts as passed.
     if: always()
     runs-on: ubuntu-latest
