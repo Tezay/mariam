@@ -2,7 +2,8 @@
 
 Gestion des menus pour la restauration universitaire.
 
-[![Quality Gates](https://img.shields.io/github/actions/workflow/status/Tezay/mariam/quality.yml?branch=main&label=quality%20gates)](https://github.com/Tezay/mariam/actions/workflows/quality.yml)
+[![Delivery](https://img.shields.io/github/actions/workflow/status/Tezay/mariam/delivery.yml?branch=main&label=delivery)](https://github.com/Tezay/mariam/actions/workflows/delivery.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Tezay/mariam/badge)](https://scorecard.dev/viewer/?uri=github.com/Tezay/mariam)
 [![Release](https://img.shields.io/github/v/release/Tezay/mariam?include_prereleases)](https://github.com/Tezay/mariam/releases)
 [![License](https://img.shields.io/badge/license-Source%20Available-blue)](LICENSE.md)
 [![mariam.app](https://img.shields.io/badge/mariam.app-informational)](https://mariam.app)

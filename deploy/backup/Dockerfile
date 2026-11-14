@@ -1,5 +1,5 @@
 # pg_dump and the scratch server must match the database's major version.
-FROM postgres:17-alpine
+FROM postgres:17-alpine@sha256:d3244e8ce3f165ee3c93d9c4a4b1d0fe48b3a89e2287b717fdcbbde92d405065
 
 RUN apk add --no-cache age rclone
 

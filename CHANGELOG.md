@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Workflows pin actions by commit, Dockerfiles base images by digest**; Dependabot waits a week before a release.
+
 ### Added
 
+- **OpenSSF Scorecard**, published at each push to `main` and weekly, with its badge in the README.
 - **Continuous delivery**: each merge to `main` deploys to staging; a release goes to production once approved.
 - **"Deploy a version"** puts production back on any earlier release, from 0.21.0 on.
 - **`MARIAM_PULL_POLICY`**: an instance on a channel tag (`staging`, `production`) pulls it at each deploy.
