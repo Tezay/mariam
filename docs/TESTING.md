@@ -196,17 +196,17 @@ check a pull request needs to merge.
 | Workflow | Required check | What it runs |
 |---|---|---|
 | [`quality.yml`](../.github/workflows/quality.yml) | `CI result` | ruff, mypy and pytest for `server/`; ESLint, Prettier, Vitest, the build and Playwright for `client/`; the API contract; the production images, built without being published; ShellCheck, then the backup and proxy images against throwaway services |
-| [`security.yml`](../.github/workflows/security.yml) | `Security result` | `uv audit` and `bun audit` |
+| [`security.yml`](../.github/workflows/security.yml) | `Security result` | `uv audit` and `bun audit`; Trivy on the images' system packages |
 
 What runs depends on the event and on the paths a change touches:
 
 | Event | Quality | Security |
 |---|---|---|
-| Pull request | the jobs whose paths changed | an audit when its manifest or lockfile changed |
+| Pull request | the jobs whose paths changed | an audit when its manifest or lockfile changed, the image scan when a `Dockerfile` did |
 | Push to `main`, through [`delivery.yml`](../.github/workflows/delivery.yml) | the jobs whose paths changed since the previous commit | none |
 | Version tag, the release gate | everything except the image builds, which the delivery workflow does | none |
 | Manual run from the Actions tab | everything | everything |
-| Weekly, Monday at 06:17 UTC | none | everything |
+| Weekly, Monday at 06:17 UTC | none | everything, on the images production runs |
 
 - **Backend jobs** follow `server/`.
 - **Frontend jobs** follow `client/` and `.editorconfig`, which Prettier reads.

@@ -31,6 +31,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      attestations: read
     steps:
       - name: Check the version
         env:
@@ -65,8 +66,9 @@ jobs:
       - name: Point production at the release's images
         env:
           VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          ./deploy/scripts/promote-images.sh production \
+          SOURCE_REF="refs/tags/v$VERSION" ./deploy/scripts/promote-images.sh production \
             "backend=$VERSION" "frontend=$VERSION" "backup=$VERSION" "proxy=$VERSION"
 
       # Forced: going back to an older release rewinds the branch.

@@ -1,4 +1,7 @@
-FROM nginx:1.30-alpine@sha256:901e593c95dc85f5a729f5765516321366ef4ac401821431d408897e95287d0a
+FROM nginx:1.30-alpine@sha256:901e593c95dc85f5a729f5765516321366ef4ac401821431d408897e95287d0a AS runtime
+
+# The base image lags behind the distribution's security fixes.
+RUN apk upgrade --no-cache
 
 # The image's entrypoint renders the template with the container's own DNS
 # resolver, read from resolv.conf, and leaves nginx's variables alone.

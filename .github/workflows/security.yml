@@ -26,6 +26,7 @@ jobs:
     outputs:
       backend: ${{ steps.decide.outputs.backend }}
       frontend: ${{ steps.decide.outputs.frontend }}
+      images: ${{ steps.decide.outputs.images }}
     steps:
       - name: Filter paths
         id: filter
@@ -41,6 +42,9 @@ jobs:
               - 'client/package.json'
               - 'client/bun.lock'
               - '.github/workflows/security.yml'
+            images:
+              - '**/Dockerfile*'
+              - '.github/workflows/security.yml'
 
       - name: Decide
         id: decide
@@ -48,13 +52,14 @@ jobs:
           EVENT: ${{ github.event_name }}
           BACKEND: ${{ steps.filter.outputs.backend }}
           FRONTEND: ${{ steps.filter.outputs.frontend }}
+          IMAGES: ${{ steps.filter.outputs.images }}
         run: |
           if [ "$EVENT" = pull_request ]; then
             mode=filtered
           else
-            mode=full BACKEND=true FRONTEND=true
+            mode=full BACKEND=true FRONTEND=true IMAGES=true
           fi
-          for value in "$BACKEND" "$FRONTEND"; do
+          for value in "$BACKEND" "$FRONTEND" "$IMAGES"; do
             if [ "$value" != true ] && [ "$value" != false ]; then
               echo "::error::A path filter gave no decision in $mode mode."
               exit 1
@@ -63,6 +68,7 @@ jobs:
           {
             echo "backend=$BACKEND"
             echo "frontend=$FRONTEND"
+            echo "images=$IMAGES"
           } >> "$GITHUB_OUTPUT"
 
           row() {
@@ -72,15 +78,16 @@ jobs:
             echo "### Change detection: \`$mode\`"
             echo
             if [ "$mode" = filtered ]; then
-              echo "An audit runs only when its manifest or lockfile changes: a skipped audit was not run, not passed. The weekly run audits everything."
+              echo "An audit runs only when its manifest or lockfile changes, and the image scan when a Dockerfile does: a skipped job was not run, not passed. The weekly run checks everything."
             else
-              echo "Scheduled or manual run: both lockfiles are audited."
+              echo "Scheduled or manual run: both lockfiles are audited, and the production images scanned."
             fi
             echo
             echo "| Audit | Decision | Triggered by |"
             echo "|---|---|---|"
             row "Backend (uv audit)" "$BACKEND" "\`server/pyproject.toml\`, \`server/uv.lock\`"
             row "Frontend (bun audit)" "$FRONTEND" "\`client/package.json\`, \`client/bun.lock\`"
+            row "Images (Trivy)" "$IMAGES" "a \`Dockerfile\`"
             echo
             echo "A change to this workflow runs every row."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -101,16 +108,10 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
-      # No install step: bun audit reads bun.lock. None of these four has a fix
-      # in the majors we run — lodash leaves with recharts 3, router with v7.
+      # No install step: bun audit reads bun.lock.
       - name: Audit
         working-directory: client
-        run: >
-          bun audit --prod --audit-level=moderate
-          --ignore GHSA-r5fr-rjxr-66jc
-          --ignore GHSA-f23m-r3pf-42rh
-          --ignore GHSA-337j-9hxr-rhxg
-          --ignore GHSA-wrjc-x8rr-h8h6
+        run: bun audit --prod --audit-level=moderate
 
   backend:
     name: Backend dependencies (uv audit)
@@ -132,9 +133,77 @@ jobs:
         working-directory: server
         run: uv audit --frozen --preview-features audit
 
+  # System packages only: uv audit and bun audit cover the libraries.
+  images:
+    name: ${{ matrix.component }} image (Trivy)
+    needs: changes
+    if: needs.changes.outputs.images == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: backend
+            context: ./server
+            file: Dockerfile.prod
+          - component: frontend
+            context: ./client
+            file: Dockerfile.prod
+          - component: backup
+            context: ./deploy/backup
+            file: Dockerfile
+          - component: proxy
+            context: ./deploy/nginx
+            file: Dockerfile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'pull_request'
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        if: github.event_name == 'pull_request'
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/${{ matrix.file }}
+          push: false
+          load: true
+          platforms: linux/amd64
+          tags: mariam-${{ matrix.component }}:scan
+          cache-from: type=gha,scope=${{ matrix.component }}
+          no-cache-filters: runtime
+
+      - name: Image to scan
+        id: image
+        env:
+          EVENT: ${{ github.event_name }}
+          COMPONENT: ${{ matrix.component }}
+          PUBLISHED: ghcr.io/${{ github.repository }}-${{ matrix.component }}:production
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            echo "ref=mariam-$COMPONENT:scan" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${PUBLISHED,,}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.image.outputs.ref }}
+          vuln-type: os
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+
   result:
     name: Security result
-    needs: [changes, frontend, backend]
+    needs: [changes, frontend, backend, images]
     # always(), not !cancelled(): a required check that is skipped counts as passed.
     if: always()
     runs-on: ubuntu-latest
@@ -143,5 +212,5 @@ jobs:
       - name: Fail on a failed or cancelled job
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: |
-          echo "::error::An audit failed or was cancelled; see the jobs above."
+          echo "::error::An audit or a scan failed or was cancelled; see the jobs above."
           exit 1

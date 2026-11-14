@@ -1,0 +1,35 @@
+# Deleting a version needs this repository to hold the Admin role on each package.
+name: Registry cleanup
+
+on:
+  schedule:
+    - cron: '23 5 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: List what would be deleted, without deleting it
+        type: boolean
+        default: true
+
+permissions: {}
+
+concurrency:
+  group: registry-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Delete old main images
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      packages: write
+    steps:
+      - uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f # v1.2.2
+        with:
+          packages: mariam-backend,mariam-frontend,mariam-proxy,mariam-backup
+          delete-tags: main-*
+          keep-n-tagged: 10
+          delete-untagged: true
+          validate: true
+          dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
