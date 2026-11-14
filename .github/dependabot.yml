@@ -97,11 +97,15 @@ updates:
     commit-message:
       prefix: chore
       include: scope
-    # A major version needs a dump and restore, and the database and the backup
-    # image have to move together.
+    # A new runtime line is never a routine update: Postgres needs a dump and restore, and a
+    # Python or nginx minor starts a new line.
     ignore:
-      - dependency-name: postgres
+      - dependency-name: '*'
         update-types: [version-update:semver-major]
+      - dependency-name: python
+        update-types: [version-update:semver-minor]
+      - dependency-name: nginx
+        update-types: [version-update:semver-minor]
     groups:
       base-images:
         patterns: ['*']
@@ -122,7 +126,7 @@ updates:
       include: scope
     # See the docker entry.
     ignore:
-      - dependency-name: postgres
+      - dependency-name: '*'
         update-types: [version-update:semver-major]
     groups:
       compose-images:

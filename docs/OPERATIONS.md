@@ -283,6 +283,14 @@ instance's deploy hook and runs the smoke test.
 | `vX.Y.Z` | `X.Y.Z`, `X.Y`, `latest` | staging, then production once approved |
 
 - **Production runs the very images staging was checked on:** it is given their digests, not a tag.
+- **Each image is signed with its provenance**, and a channel tag only ever points at an image
+  `delivery.yml` built from the expected ref: `promote-images.sh` checks it. Anyone can check an
+  image: `gh attestation verify oci://ghcr.io/tezay/mariam-backend:X.Y.Z --repo Tezay/mariam`.
+- **The registry keeps the ten latest `main-*` images** of each component
+  ([`registry-cleanup.yml`](../.github/workflows/registry-cleanup.yml)); release images stay. Each
+  package grants this repository the Admin role in its Actions access.
+- **A weekly scan of the production images** (`security.yml`) fails when a system package has a fix
+  the release lacks: each build takes the distribution's fixes, so a maintenance release brings it.
 - **Its compose file** comes from the `production` branch, which the workflow moves to the release.
 - **Each environment holds its own settings** (Settings, Environments):
   - the variable `BASE_URL`;

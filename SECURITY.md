@@ -13,7 +13,8 @@ Only the latest released version is actively supported with security fixes.
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Send a report to **contact@mariam.app** with:
+Report it privately from the repository's Security tab ("Report a vulnerability"), or send a
+report to **contact@mariam.app**, with:
 - A description of the vulnerability
 - Steps to reproduce
 - Potential impact assessment
