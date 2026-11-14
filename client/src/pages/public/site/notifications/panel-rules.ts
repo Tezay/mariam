@@ -1,13 +1,7 @@
 import type { Platform } from '@/lib/app-install';
 
 type PanelScreen =
-  | 'loading'
-  | 'install'
-  | 'insecure'
-  | 'unsupported'
-  | 'blocked'
-  | 'subscribe'
-  | 'subscribed';
+  'loading' | 'install' | 'insecure' | 'unsupported' | 'blocked' | 'subscribe' | 'subscribed';
 
 export interface PanelState {
   platform: Platform;

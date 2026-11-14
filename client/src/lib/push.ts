@@ -102,7 +102,8 @@ async function awaitReadyRegistration(
   } catch (err) {
     throw new Error(
       "Impossible d'enregistrer le Service Worker : " +
-        (err instanceof Error ? err.message : String(err))
+        (err instanceof Error ? err.message : String(err)),
+      { cause: err }
     );
   }
 

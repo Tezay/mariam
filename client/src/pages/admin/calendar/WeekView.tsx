@@ -215,8 +215,7 @@ export function WeekView({
       if (!over) return;
 
       const dragData = active.data.current as
-        | { dishId?: number; categoryId?: number; date?: string; item?: EditorItem }
-        | undefined;
+        { dishId?: number; categoryId?: number; date?: string; item?: EditorItem } | undefined;
       const dropData = over.data.current as { date?: string } | undefined;
       if (!dragData?.dishId || !dragData.categoryId || !dragData.date || !dropData?.date) return;
 
