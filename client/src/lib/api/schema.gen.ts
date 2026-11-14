@@ -6925,12 +6925,19 @@ export interface components {
             errors?: components["schemas"]["ValidationIssue"][];
         };
         PaginationMetadata: {
+            /** @description Total number of items. */
             total?: number;
+            /** @description Total number of pages. */
             total_pages?: number;
+            /** @description First available page number. */
             first_page?: number;
+            /** @description Last available page number. */
             last_page?: number;
+            /** @description Current page number. */
             page?: number;
+            /** @description Previous page number. */
             previous_page?: number;
+            /** @description Next page number. */
             next_page?: number;
         };
         NamedRef: {

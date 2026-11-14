@@ -20,7 +20,7 @@ dependencies = [
     "webauthn>=2.0.0",
     "qrcode[pil]==7.4.2",
     # API docs
-    "flask-smorest==0.44.0",
+    "flask-smorest==0.47.0",
     "marshmallow==3.26.2",
     # Storage S3
     "boto3>=1.28.0",
