@@ -31,9 +31,15 @@ for pair in "$@"; do
         --signer-workflow "$repo/.github/workflows/delivery.yml" --source-ref "$source_ref" \
         --deny-self-hosted-runners >&2
     docker buildx imagetools create --tag "$image:$channel" "$image@$digest" >&2
-    if [ "$(digest_of "$image:$channel")" != "$digest" ]; then
-        echo "$image:$channel does not point at $digest" >&2
-        exit 1
-    fi
+    # The registry may serve the tag's previous manifest for a few seconds after the push.
+    tries=1
+    until [ "$(digest_of "$image:$channel")" = "$digest" ]; do
+        if [ "$tries" -ge 10 ]; then
+            echo "$image:$channel does not point at $digest" >&2
+            exit 1
+        fi
+        tries=$((tries + 1))
+        sleep 3
+    done
     echo "$component=$digest"
 done
