@@ -88,6 +88,7 @@ updates:
       - /client
       - /deploy/backup
       - /deploy/nginx
+      - /deploy/zap
     schedule:
       interval: monthly
     cooldown:

@@ -140,7 +140,7 @@ jobs:
     # A skipped job skips every job after it: on main, the release check is skipped.
     if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     environment:
       name: staging
       url: ${{ vars.BASE_URL }}
@@ -205,17 +205,25 @@ jobs:
           cat "$RUNNER_TEMP/hook-response"; echo
           [ "$code" = 200 ] || { echo "::error::The deploy hook answered $code."; exit 1; }
 
-      - name: Smoke test
+      - name: Access headers
         env:
-          BASE_URL: ${{ vars.BASE_URL }}
           SMOKE_HEADERS: ${{ secrets.SMOKE_HEADERS }}
-          VERSION: ${{ steps.version.outputs.version }}
         run: |
           if [ -n "$SMOKE_HEADERS" ]; then
             printf '%s\n' "$SMOKE_HEADERS" > "$RUNNER_TEMP/smoke-headers"
-            export SMOKE_HEADERS_FILE="$RUNNER_TEMP/smoke-headers"
+            echo "SMOKE_HEADERS_FILE=$RUNNER_TEMP/smoke-headers" >> "$GITHUB_ENV"
           fi
-          ./deploy/scripts/smoke-test.sh "$BASE_URL" "$VERSION"
+
+      - name: Smoke test
+        env:
+          BASE_URL: ${{ vars.BASE_URL }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: ./deploy/scripts/smoke-test.sh "$BASE_URL" "$VERSION"
+
+      - name: Baseline scan
+        env:
+          BASE_URL: ${{ vars.BASE_URL }}
+        run: ./deploy/scripts/baseline-scan.sh "$BASE_URL"
 
   production:
     name: Deploy to production

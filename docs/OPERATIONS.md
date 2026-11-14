@@ -289,6 +289,8 @@ instance's deploy hook and runs the smoke test.
 - **The registry keeps the ten latest `main-*` images** of each component
   ([`registry-cleanup.yml`](../.github/workflows/registry-cleanup.yml)); release images stay. Each
   package grants this repository the Admin role in its Actions access.
+- **Staging is scanned after its smoke test** (`deploy/scripts/baseline-scan.sh`): a missing security
+  header stops the run, so a release goes no further.
 - **A weekly scan of the production images** (`security.yml`) fails when a system package has a fix
   the release lacks: each build takes the distribution's fixes, so a maintenance release brings it.
 - **Its compose file** comes from the `production` branch, which the workflow moves to the release.
