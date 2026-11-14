@@ -6,6 +6,9 @@ updates:
     directory: /client
     schedule:
       interval: monthly
+    # A release waits a week: a compromised version is mostly pulled within days.
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     labels: [dependencies, frontend]
     commit-message:
@@ -53,6 +56,8 @@ updates:
     directory: /server
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     labels: [dependencies, backend]
     commit-message:
@@ -85,6 +90,8 @@ updates:
       - /deploy/nginx
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 3
     labels: [dependencies, infrastructure]
     commit-message:
@@ -106,6 +113,8 @@ updates:
       - /deploy
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 3
     labels: [dependencies, infrastructure]
     commit-message:
@@ -123,6 +132,8 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 3
     labels: [dependencies, ci]
     commit-message:

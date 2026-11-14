@@ -104,3 +104,7 @@ The pull request template asks for a summary, the changes under the headings of
 `main` takes no direct push. A pull request merges by squash once the `CI result` and
 `Security result` checks pass: its title becomes the commit on `main`, so it follows the commit
 convention above. [docs/TESTING.md](docs/TESTING.md#ci) says what runs for which change.
+
+A workflow names an action by its full commit SHA, with the version in a comment
+(`actions/checkout@<sha> # v7.0.1`), and a Dockerfile names its base image by digest; Dependabot
+moves both.

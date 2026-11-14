@@ -229,3 +229,6 @@ break together:
 
 - the run on `main` after each merge reports it;
 - the release gate runs everything before an image is published.
+
+[`scorecard.yml`](../.github/workflows/scorecard.yml) publishes the OpenSSF Scorecard of the
+repository at each push to `main` and weekly; it guards no merge.

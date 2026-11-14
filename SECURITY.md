@@ -24,7 +24,7 @@ Send a report to **contact@mariam.app** with:
 The following areas are in scope:
 
 - **Authentication & session management:** JWT handling, MFA/TOTP, Passkeys/WebAuthn
-- **Authorization:** role enforcement (org_admin / admin / editor / reader), route access control
+- **Authorization:** role enforcement (org_admin / admin / editor), route access control
 - **Tenant isolation:** data of one organization or site reachable from another
 - **File uploads:** MIME type validation, storage isolation
 - **Public API data exposure:** ensuring draft menus and private data are never visible anonymously
