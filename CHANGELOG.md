@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **`server/run.py` no longer starts the Flask debugger** when run directly; `flask run` and gunicorn never did.
 - **Workflows pin actions by commit, Dockerfiles base images by digest**; Dependabot waits a week before a release.
 
 ### Added
