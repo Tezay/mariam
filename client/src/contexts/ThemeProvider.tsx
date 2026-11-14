@@ -22,15 +22,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const root = window.document.documentElement;
 
     const updateTheme = () => {
-      let effectiveTheme: 'light' | 'dark' = 'light';
-
-      if (theme === 'system') {
-        effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
-          ? 'dark'
-          : 'light';
-      } else {
-        effectiveTheme = theme;
-      }
+      const effectiveTheme =
+        theme === 'system'
+          ? window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light'
+          : theme;
 
       root.classList.remove('light', 'dark');
       root.classList.add(effectiveTheme);
