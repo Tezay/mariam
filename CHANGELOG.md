@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.2] - 2026-11-19
+
 ### Security
 
 - **Images take the distribution's security fixes at each build**, ahead of the official base images.
@@ -23,12 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Private vulnerability reporting** from the repository's Security tab, beside the e-mail address.
 - **OpenSSF Scorecard**, published at each push to `main` and weekly, with its badge in the README.
 - **Continuous delivery**: each merge to `main` deploys to staging; a release goes to production once approved.
-- **"Deploy a version"** puts production back on any earlier release, from 0.21.0 on.
+- **"Deploy a version"** puts production back on any earlier release, from 0.20.2 on.
 - **`MARIAM_PULL_POLICY`**: an instance on a channel tag (`staging`, `production`) pulls it at each deploy.
 
 ### Changed
 
 - **The registry keeps the ten latest `main-*` images** of each component; release images are never removed.
+- **Dependencies updated**: `webauthn` 3, `flask-smorest` 0.47, vitest 5, jsdom 31, ESLint 10 and Prettier 3.9.
 
 ## [0.20.1] - 2026-11-13
 

@@ -441,7 +441,7 @@ and logos from accidental deletion.
 
 Images are published to GHCR on every tag. Rolling back is deploying the previous release: on an
 instance the delivery workflow deploys, run "Deploy a version"
-([`deploy-version.yml`](../.github/workflows/deploy-version.yml)) with that version, from 0.21.0
+([`deploy-version.yml`](../.github/workflows/deploy-version.yml)) with that version, from 0.20.2
 on. Elsewhere:
 
 ```bash
