@@ -91,10 +91,10 @@ class TestDeclarations:
 
     def test_only_the_sites_admin_declares(self, app, client):
         rid, path, headers = _site(app, client, role='editor')
-        supervisor = make_user(app, email='dir@mariam.app', role='org_admin', restaurant_id=None)
-        organization_id = db.session.get(Restaurant, rid).organization_id
-        db.session.get(User, supervisor).organization_id = organization_id
-        db.session.commit()
+        make_user(
+            app, email='dir@mariam.app', role='org_admin',
+            organization_id=db.session.get(Restaurant, rid).organization_id,
+        )
         supervisor_headers = auth_headers(get_token(client, email='dir@mariam.app'))
 
         assert _declare(client, path, headers).get_json()['code'] == 'admin_required'

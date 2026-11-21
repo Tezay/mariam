@@ -150,10 +150,8 @@ class TestUnauthorizedSpeaksOfTheSession:
         db.session.add(organization)
         db.session.commit()
         supervisor = make_user(
-            app, email='supervisor@mariam.app', role='org_admin', restaurant_id=None
+            app, email='supervisor@mariam.app', role='org_admin', organization_id=organization.id
         )
-        db.session.get(User, supervisor).organization_id = organization.id
-        db.session.commit()
         sessions = {
             'site admin': session_headers(make_user(app, email='admin@mariam.app')),
             'editor': session_headers(make_user(app, email='editor@mariam.app', role='editor')),

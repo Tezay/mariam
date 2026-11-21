@@ -16,7 +16,7 @@ from flask_jwt_extended import (
 from limits import parse
 
 from ...extensions import db
-from ...models import AuditLog, User
+from ...models import ActivationLink, AuditLog, User
 from ...problems import Problem
 from ...security import (
     SESSION_CLAIM,
@@ -193,3 +193,23 @@ def credential_unreadable() -> Problem:
         422, 'validation_failed', 'Certaines valeurs envoyées sont invalides.',
         errors=[{'pointer': '/credential', 'detail': 'Identifiant de passkey illisible.'}],
     )
+
+
+def invitation_link(token: str, *, lock: bool = False) -> ActivationLink:
+    """A pending invitation; a password-reset link shares the table and is never one.
+
+    `lock` holds the row until commit: a second request with the same token waits,
+    then finds the link spent.
+    """
+    query = ActivationLink.query.filter(
+        ActivationLink.token == token,
+        ActivationLink.link_type.in_(ActivationLink.ACCOUNT_CREATION_TYPES),
+    )
+    link = (query.with_for_update() if lock else query).first()
+    if not link:
+        raise Problem(404, 'link_unknown', "Ce lien d'activation n'existe pas.")
+    if not link.is_valid():
+        raise Problem(
+            410, 'link_expired', "Ce lien d'activation a expiré, a été révoqué ou a déjà servi."
+        )
+    return link

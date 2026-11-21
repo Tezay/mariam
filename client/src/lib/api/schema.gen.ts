@@ -1704,6 +1704,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/user/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept an invitation with the signed-in account: it gains the invitation's site and
+         *     role, or its supervision.
+         * @description The token is the one in the invitation's link, sent in the body to keep it out of
+         *     access logs. As at activation, the account need not have the address it suggested.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["InvitationAccept"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Account"];
+                    };
+                };
+                /** @description `link_unknown` */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `already_member` */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `link_expired` */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                422: components["responses"]["UNPROCESSABLE_ENTITY"];
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/user/passkeys": {
         parameters: {
             query?: never;
@@ -2727,7 +2801,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Delete an account, from a confirmed session. */
+        /** Remove an account from the site, from a confirmed session; its last place deletes it. */
         delete: {
             parameters: {
                 query?: never;
@@ -2753,7 +2827,11 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        /** Change an account's role, or turn it off: its sessions end at once. */
+        /**
+         * Change an account's role on the site, or turn it off: its sessions end at once.
+         * @description Turning off an account that holds places beyond the caller's reach is refused
+         *     (403 `account_shared`), as are resetting its password or its second factors.
+         */
         patch: {
             parameters: {
                 query?: never;
@@ -2920,9 +2998,10 @@ export interface paths {
         put?: never;
         /**
          * Invite someone to the site, from a confirmed session.
-         * @description The link's token creates the account at `/activate/<token>`. With
-         *     `send_email` it is also emailed to `email`, twenty times a day at most for
-         *     one administrator; `emailed` tells whether it left.
+         * @description The link's token creates the account at `/activate/<token>`, or gives the site to
+         *     an account already signed in (`POST /v1/user/invitations`). With `send_email` it
+         *     is also emailed to `email`, twenty times a day at most for one administrator;
+         *     `emailed` tells whether it left.
          */
         post: {
             parameters: {
@@ -3060,7 +3139,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Delete a supervisor's account, from a confirmed session. */
+        /** Remove a supervisor, from a confirmed session; its last place deletes the account. */
         delete: {
             parameters: {
                 query?: never;
@@ -6970,27 +7049,39 @@ export interface components {
             /** @description Display name: 2 to 50 letters, spaces, hyphens, apostrophes */
             username: string;
         };
+        AccountSite: {
+            slug: string;
+            name: string;
+            /** @enum {string} */
+            role: "admin" | "editor";
+            organization: components["schemas"]["NamedRef"];
+        };
         Account: {
             id: number;
             /** Format: email */
             email: string;
             /** @description Display name */
             username: string | null;
-            /** @enum {string} */
-            role: "org_admin" | "admin" | "editor";
             is_active: boolean;
             /** @description An authenticator app is set up */
             mfa_enabled: boolean;
             passkeys_count: number;
             is_rescue_account: boolean;
-            /** @description None for a supervisor */
-            site: components["schemas"]["NamedRef"] | (Record<string, never> | null);
             /** Format: date-time */
             created_at: string | null;
             /** Format: date-time */
             last_login: string | null;
-            /** @description A site's team reads its site's */
-            organization: components["schemas"]["NamedRef"] | (Record<string, never> | null);
+            /**
+             * @description On its oldest place, as `site` and `organization`
+             * @enum {string}
+             */
+            role: "org_admin" | "admin" | "editor";
+            site: (Record<string, never> | null) | components["schemas"]["NamedRef"];
+            organization: (Record<string, never> | null) | components["schemas"]["NamedRef"];
+            /** @description The sites it belongs to, with its role on each */
+            sites: components["schemas"]["AccountSite"][];
+            /** @description The organizations it supervises */
+            organizations: components["schemas"]["NamedRef"][];
         };
         ActivationSetup: {
             /** @description PNG data URI */
@@ -7207,6 +7298,9 @@ export interface components {
         AlertList: {
             items: components["schemas"]["Alert"][];
         };
+        InvitationAccept: {
+            token: string;
+        };
         WebAuthnUser: {
             /** @description base64url; null until the account first asks for a passkey */
             id: string | null;
@@ -7345,25 +7439,38 @@ export interface components {
         OrgSiteList: {
             items: components["schemas"]["OrgSite"][];
         };
+        MemberSite: {
+            slug: string;
+            name: string;
+            /** @enum {string} */
+            role: "admin" | "editor";
+        };
         Member: {
             id: number;
             /** Format: email */
             email: string;
             /** @description Display name */
             username: string | null;
-            /** @enum {string} */
-            role: "org_admin" | "admin" | "editor";
             is_active: boolean;
             /** @description An authenticator app is set up */
             mfa_enabled: boolean;
             passkeys_count: number;
             is_rescue_account: boolean;
-            /** @description None for a supervisor */
-            site: components["schemas"]["NamedRef"] | (Record<string, never> | null);
             /** Format: date-time */
             created_at: string | null;
             /** Format: date-time */
             last_login: string | null;
+            /**
+             * @description On the site; on an organization's list, `org_admin` for its supervisors
+             * @enum {string}
+             */
+            role: "org_admin" | "admin" | "editor";
+            /** @description None for a supervisor */
+            site: components["schemas"]["NamedRef"] | (Record<string, never> | null);
+            /** @description Its sites in this organization; on a site's list, that site */
+            sites: components["schemas"]["MemberSite"][];
+            /** @description It holds places beyond the caller's reach: it can be removed from here, but not turned off nor reset */
+            shared: boolean;
         };
         MemberList: {
             items: components["schemas"]["Member"][];

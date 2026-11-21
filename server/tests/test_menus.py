@@ -174,9 +174,10 @@ class TestOtherSites:
     def test_a_supervisor_reads_drafts_of_its_sites_and_writes_none(self, app, client):
         rid, path, headers = _editor_site(app, client)
         _menu_with_item(app, client, headers, path, rid)
-        supervisor_id = make_user(app, email='sup@mariam.app', role='org_admin', restaurant_id=None)
-        db.session.get(User, supervisor_id).organization_id = Menu.query.one().restaurant.organization_id
-        db.session.commit()
+        make_user(
+            app, email='sup@mariam.app', role='org_admin',
+            organization_id=Menu.query.one().restaurant.organization_id,
+        )
         supervisor = auth_headers(get_token(client, email='sup@mariam.app'))
 
         assert client.get(f'{path}/menus/{_day()}', headers=supervisor).get_json()['status'] == 'draft'

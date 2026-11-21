@@ -2,7 +2,7 @@ from flask import request
 from flask_smorest import Blueprint
 
 from ..extensions import db
-from ..models import PAGE_KINDS, Event, Menu, Organization, Restaurant, User
+from ..models import PAGE_KINDS, Event, Menu, Organization, Restaurant, SiteMembership
 from ..models.telemetry import ORG_PAGE_KINDS
 from ..schemas.orgs import OrgSiteListSchema
 from ..schemas.public import PublicOrgSchema
@@ -30,9 +30,9 @@ def supervised_sites(sites: list) -> list[dict]:
     ids = [site.id for site in sites]
     today = paris_today()
     member_counts = dict(
-        db.session.query(User.restaurant_id, db.func.count(User.id))
-        .filter(User.restaurant_id.in_(ids), User.role != User.ROLE_ORG_ADMIN)
-        .group_by(User.restaurant_id)
+        db.session.query(SiteMembership.restaurant_id, db.func.count(SiteMembership.id))
+        .filter(SiteMembership.restaurant_id.in_(ids))
+        .group_by(SiteMembership.restaurant_id)
     )
     menus_today = {
         menu.restaurant_id: menu

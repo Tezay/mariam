@@ -53,9 +53,10 @@ class TestLiveStatus:
 
     def test_a_supervisor_reads_it_but_never_says_it(self, app, client):
         rid, path, _ = _site(app, client)
-        supervisor = make_user(app, email='dir@mariam.app', role='org_admin', restaurant_id=None)
-        db.session.get(User, supervisor).organization_id = db.session.get(Restaurant, rid).organization_id
-        db.session.commit()
+        make_user(
+            app, email='dir@mariam.app', role='org_admin',
+            organization_id=db.session.get(Restaurant, rid).organization_id,
+        )
         headers = auth_headers(get_token(client, email='dir@mariam.app'))
 
         assert client.get(f'{path}/live-status', headers=headers).status_code == 200

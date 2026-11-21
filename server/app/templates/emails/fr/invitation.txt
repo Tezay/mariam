@@ -5,8 +5,10 @@ Bonjour,
 
 Accepter l'invitation : {{ url }}
 
-Ce lien est valable 72 heures et ne sert qu'une fois.
+{% if has_account %}Vous avez déjà un compte Mariam : ouvrez ce lien, puis connectez-vous pour accepter.
 
-Vous ne connaissez pas cette personne ? Ignorez ce message : aucun compte n'est créé sans vous.
+{% endif %}Ce lien est valable 72 heures et ne sert qu'une fois.
+
+Vous ne connaissez pas cette personne ? Ignorez ce message : {% if has_account %}votre compte ne change pas sans vous{% else %}aucun compte n'est créé sans vous{% endif %}.
 
 Ce message vous est envoyé à la demande d'un administrateur{% if place %} de {{ place }}{% endif %}.

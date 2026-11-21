@@ -34,6 +34,7 @@ from ..models.category import MenuCategory
 from ..models.egalim_declaration import EgalimDeclaration
 from ..models.event import Event
 from ..models.exceptional_closure import ExceptionalClosure
+from ..models.membership import OrgSupervision, SiteMembership
 from ..models.menu import Menu, MenuItem
 from ..models.menu_vote import MenuVote
 from ..models.organization import Organization
@@ -42,6 +43,7 @@ from ..models.service_live_status import ServiceLiveStatus
 from ..models.telemetry import PageViewRollup, VisitorDailyUnique
 from ..models.user import User
 from ..routes.helpers import get_or_create_dish
+from ..services.access import mirror_first_place
 from ..services.votes import vote_dish_groups
 from ..utils.time import PARIS_TZ, paris_today
 
@@ -313,10 +315,8 @@ def _ensure_demo_user(password: str, restaurant_id: int) -> User:
             email=_DEMO_EMAIL,
             username='demo',
             password_hash=generate_password_hash(password),
-            role='admin',
             is_active=True,
             mfa_enabled=False,
-            restaurant_id=restaurant_id,
         )
         db.session.add(user)
         click.echo(f'  Demo account created ({_DEMO_EMAIL})')
@@ -325,6 +325,11 @@ def _ensure_demo_user(password: str, restaurant_id: int) -> User:
         user.is_active = True
         user.mfa_enabled = False
         click.echo(f'  Demo password reset ({_DEMO_EMAIL})')
+    if not any(m.restaurant_id == restaurant_id for m in user.memberships):
+        user.memberships.append(
+            SiteMembership(restaurant=db.session.get(Restaurant, restaurant_id), role='admin')
+        )
+    mirror_first_place(user)
     user.notification_preferences = {
         **user.get_notification_preferences(), 'weekly_digest': True
     }
@@ -524,7 +529,6 @@ def _ensure_demo_director(password: str, organization_id: int) -> User:
         user = User(
             email=_DIRECTOR_EMAIL,
             username='direction',
-            role='org_admin',
             is_active=True,
             mfa_enabled=False,
         )
@@ -533,8 +537,9 @@ def _ensure_demo_director(password: str, organization_id: int) -> User:
     user.password_hash = generate_password_hash(password)
     user.is_active = True
     user.mfa_enabled = False
-    user.organization_id = organization_id
-    user.restaurant_id = None
+    if not any(s.organization_id == organization_id for s in user.supervisions):
+        user.supervisions.append(OrgSupervision(organization_id=organization_id))
+    mirror_first_place(user)
     user.notification_preferences = {
         **user.get_notification_preferences(), 'weekly_digest': True
     }

@@ -21,7 +21,9 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(256), nullable=False)
     username = db.Column(db.String(80), nullable=True)
-    
+
+    # role, restaurant_id and organization_id are only read by the previous release:
+    # services/access.py keeps them on the account's oldest place (mirror_first_place).
     role = db.Column(db.String(20), nullable=False, default='editor')
 
     # MFA/TOTP — encrypted at rest (see services/crypto.py). Never filter on it.
@@ -49,6 +51,14 @@ class User(db.Model):
     ui_preferences = db.Column(db.JSON, nullable=True, default=None)
 
     passkeys = db.relationship('Passkey', back_populates='user', lazy='dynamic', cascade='all, delete-orphan')
+    memberships = db.relationship(
+        'SiteMembership', cascade='all, delete-orphan', passive_deletes=True,
+        order_by='SiteMembership.id',
+    )
+    supervisions = db.relationship(
+        'OrgSupervision', cascade='all, delete-orphan', passive_deletes=True,
+        order_by='OrgSupervision.id',
+    )
     
     ROLE_ORG_ADMIN = 'org_admin'  # Supervisor: every site of its organization
     ROLE_ADMIN = 'admin'          # Admin of a single restaurant (site)
@@ -105,13 +115,6 @@ class User(db.Model):
         """
         return bool(self.mfa_enabled) or self.passkeys.count() > 0
 
-
-    def is_org_admin(self):
-        return self.role == self.ROLE_ORG_ADMIN
-
-    def is_admin(self):
-        """Return True if the user has admin rights (org_admin or site admin)."""
-        return self.role in (self.ROLE_ORG_ADMIN, self.ROLE_ADMIN)
 
     def revoke_tokens(self):
         """Invalidate every token issued so far, refresh tokens included."""

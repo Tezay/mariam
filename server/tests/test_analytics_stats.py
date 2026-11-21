@@ -78,10 +78,7 @@ def _item(menu_id, rid, category_id, name, image_url=None):
 
 def _director(rid, org_id, email='dir@mariam.app'):
     from app.models import User
-    uid = make_user(None, email=email, role='org_admin', restaurant_id=rid)
-    db.session.get(User, uid).organization_id = org_id
-    db.session.commit()
-    return uid
+    return make_user(None, email=email, role='org_admin', organization_id=org_id)
 
 
 def _org_path(client, token):

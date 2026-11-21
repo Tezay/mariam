@@ -17,9 +17,11 @@ from flask.cli import AppGroup
 from ..extensions import db
 from ..models.activation_link import ActivationLink
 from ..models.audit_log import AuditLog
+from ..models.membership import OrgSupervision, SiteMembership
 from ..models.organization import Organization
 from ..models.restaurant import Restaurant
 from ..models.user import User
+from ..services.access import mirror_first_place
 from ..services.account import (
     SecurityEvent,
     change_email,
@@ -79,11 +81,7 @@ def _find_organization(value: str) -> Organization:
 
 
 def _resolve_tenant(role: str, restaurant: str | None, org: str | None) -> tuple:
-    """(restaurant_id, organization_id, label) for a role and its target.
-
-    A supervisor sits above the sites: it belongs to the organization and to no
-    restaurant, which is what keeps its scope from collapsing to a single site.
-    """
+    """(restaurant_id, organization_id, label) for a role and its target."""
     if role == User.ROLE_ORG_ADMIN:
         if not org:
             raise click.ClickException('--org is required for the org_admin role.')
@@ -96,7 +94,10 @@ def _resolve_tenant(role: str, restaurant: str | None, org: str | None) -> tuple
     return site.id, site.organization_id, site.name
 
 
-def _audit(action: str, user: User, **details) -> None:
+def _audit(
+    action: str, user: User, restaurant_id: int | None = None,
+    organization_id: int | None = None, **details,
+) -> None:
     # No address rather than a marker in an address column: the origin belongs
     # in the details, which the log viewer shows on demand.
     AuditLog.log(
@@ -104,18 +105,27 @@ def _audit(action: str, user: User, **details) -> None:
         target_type='user',
         target_id=user.id,
         details={'via': 'cli', 'email': user.email, **details},
-        restaurant_id=user.restaurant_id,
+        restaurant_id=restaurant_id,
+        organization_id=organization_id,
     )
 
 
-def _tenant_label(user: User) -> str:
-    if user.restaurant_id:
-        site = db.session.get(Restaurant, user.restaurant_id)
-        return site.name if site else f'site #{user.restaurant_id}'
-    if user.organization_id:
-        org = db.session.get(Organization, user.organization_id)
-        return org.name if org else f'org #{user.organization_id}'
-    return '—'
+def _places(user) -> list[str]:
+    return [
+        *(f'{m.restaurant.name} ({m.role})' for m in user.memberships),
+        *(f'{s.organization.name} (supervisor)' for s in user.supervisions),
+    ]
+
+
+def _places_label(user) -> str:
+    return ', '.join(_places(user)) or '—'
+
+
+def _place_ids(user) -> list[tuple[int | None, int | None]]:
+    return [
+        *((m.restaurant_id, m.restaurant.organization_id) for m in user.memberships),
+        *((None, s.organization_id) for s in user.supervisions),
+    ] or [(None, None)]
 
 
 def _factors_label(user: User) -> str:
@@ -137,19 +147,32 @@ def _row(label: str, value) -> None:
 
 
 @user_cli.command('list')
-@click.option('--role', default=None, help='Filter by role')
+@click.option('--role', default=None, help='Filter by role on a place: org_admin | admin | editor')
 @click.option('--site', default=None, help='Filter by site (id or slug)')
 @click.option('--org', default=None, help='Filter by organization (id or slug)')
 @click.option('--all', 'show_all', is_flag=True, help='Include disabled accounts')
 def list_users(role, site, org, show_all):
-    """List accounts with their tenant and second factor."""
-    query = User.query
+    """List accounts with their places and second factor."""
+    memberships = db.session.query(SiteMembership.user_id)
+    supervisions = db.session.query(OrgSupervision.user_id)
     if role:
-        query = query.filter_by(role=role)
+        memberships = memberships.filter(SiteMembership.role == role)
+        if role != User.ROLE_ORG_ADMIN:
+            supervisions = supervisions.filter(db.false())
     if site:
-        query = query.filter_by(restaurant_id=_find_restaurant(site, org).id)
-    if org:
-        query = query.filter_by(organization_id=_find_organization(org).id)
+        memberships = memberships.filter(
+            SiteMembership.restaurant_id == _find_restaurant(site, org).id
+        )
+        supervisions = supervisions.filter(db.false())
+    elif org:
+        organization = _find_organization(org)
+        memberships = memberships.join(SiteMembership.restaurant).filter(
+            Restaurant.organization_id == organization.id
+        )
+        supervisions = supervisions.filter(OrgSupervision.organization_id == organization.id)
+    query = User.query
+    if role or site or org:
+        query = query.filter(db.or_(User.id.in_(memberships), User.id.in_(supervisions)))
     if not show_all:
         query = query.filter_by(is_active=True)
 
@@ -158,11 +181,11 @@ def list_users(role, site, org, show_all):
         click.echo('No account matches.')
         return
 
-    click.echo(f"{'ID':<4} {'EMAIL':<32} {'ROLE':<10} {'TENANT':<26} {'2FA':<18} STATE")
+    click.echo(f"{'ID':<4} {'EMAIL':<32} {'PLACES':<36} {'2FA':<18} STATE")
     for user in users:
         click.echo(
-            f'{user.id:<4} {user.email:<32} {user.role:<10} '
-            f'{_tenant_label(user)[:25]:<26} {_factors_label(user):<18} '
+            f'{user.id:<4} {user.email:<32} {_places_label(user)[:35]:<36} '
+            f'{_factors_label(user):<18} '
             f"{'active' if user.is_active else 'disabled'}"
         )
     click.echo(f'\n{len(users)} account(s).')
@@ -179,8 +202,9 @@ def show_user(email):
     click.echo('=' * 60)
     _row('Id', user.id)
     _row('Name', user.username or '—')
-    _row('Role', user.role)
-    _row('Tenant', _tenant_label(user))
+    _row('Places', len(_places(user)))
+    for place in _places(user):
+        click.echo(f'    · {place}')
     _row('State', 'active' if user.is_active else 'disabled')
     _row('Rescue account', 'yes' if user.is_rescue_account else 'no')
     _row('TOTP', 'enabled' if user.mfa_enabled else 'disabled')
@@ -212,7 +236,9 @@ def invite_user(email, role, restaurant, org):
         raise click.ClickException(f'Invalid role. Values: {User.VALID_ROLES}')
     email = _address(email)
     if User.query.filter_by(email=email).first():
-        raise click.ClickException(f'An account with {email} already exists.')
+        raise click.ClickException(
+            f'An account with {email} already exists: give it the place with `flask user grant`.'
+        )
 
     restaurant_id, organization_id, destination = _resolve_tenant(role, restaurant, org)
     link = ActivationLink.create_invite_link(
@@ -227,6 +253,7 @@ def invite_user(email, role, restaurant, org):
         target_type='user',
         details={'via': 'cli', 'email': email, 'role': role},
         restaurant_id=restaurant_id,
+        organization_id=organization_id,
     )
     db.session.commit()
 
@@ -311,33 +338,75 @@ def set_email(email, new_email):
     click.echo(f"   · {'Alert sent to' if alerted else 'No alert sent to'} {previous}")
 
 
-@user_cli.command('set-role')
+@user_cli.command('grant')
 @click.argument('email')
 @click.argument('role')
 @click.option('--restaurant', default=None, help='Target site (id or slug) — site roles')
 @click.option('--org', default=None, help="Organization (id or slug): org_admin's, or the site's")
-def set_role(email, role, restaurant, org):
-    """Change an account's role, and its tenant when needed."""
+def grant_place(email, role, restaurant, org):
+    """Give an account a site with a role, or an organization to supervise.
+
+    On a site the account already belongs to, the role changes.
+    """
     if role not in User.VALID_ROLES:
         raise click.ClickException(f'Invalid role. Values: {User.VALID_ROLES}')
     user = _find_user(email)
-    previous = user.role
+    restaurant_id, organization_id, destination = _resolve_tenant(role, restaurant, org)
 
-    # Staying in the same family with no target given keeps the current tenant.
-    moving_to_org = role == User.ROLE_ORG_ADMIN
-    was_org = previous == User.ROLE_ORG_ADMIN
-    if restaurant or org or moving_to_org != was_org:
-        user.restaurant_id, user.organization_id, destination = _resolve_tenant(
-            role, restaurant, org
-        )
+    previous = None
+    if role == User.ROLE_ORG_ADMIN:
+        if any(s.organization_id == organization_id for s in user.supervisions):
+            raise click.ClickException(f'{email} already supervises {destination}.')
+        user.supervisions.append(OrgSupervision(organization_id=organization_id))
     else:
-        destination = _tenant_label(user)
-
-    user.role = role
+        membership = next((m for m in user.memberships if m.restaurant_id == restaurant_id), None)
+        if membership is None:
+            user.memberships.append(SiteMembership(
+                restaurant=db.session.get(Restaurant, restaurant_id), role=role
+            ))
+        else:
+            previous, membership.role = membership.role, role
+    mirror_first_place(user)
     user.revoke_tokens()
-    _audit(AuditLog.ACTION_USER_UPDATE, user, field='role', old=previous, new=role)
+    _audit(
+        AuditLog.ACTION_USER_UPDATE, user, restaurant_id, organization_id,
+        field='role', old=previous, new=role,
+    )
     db.session.commit()
-    click.echo(f'{email}: {previous} → {role} ({destination})')
+    click.echo(f"{email}: {previous or '—'} → {role} ({destination})")
+    click.echo('   · Live sessions revoked')
+
+
+@user_cli.command('revoke')
+@click.argument('email')
+@click.option('--restaurant', default=None, help='Site (id or slug) to take from the account')
+@click.option('--org', default=None, help="Organization (id or slug) it stops supervising, or the site's")
+def revoke_place(email, restaurant, org):
+    """Take a site, or the supervision of an organization, from an account."""
+    user = _find_user(email)
+    if restaurant:
+        site = _find_restaurant(restaurant, org)
+        places, destination = user.memberships, site.name
+        place = next((m for m in places if m.restaurant_id == site.id), None)
+        restaurant_id, organization_id = site.id, site.organization_id
+    elif org:
+        organization = _find_organization(org)
+        places, destination = user.supervisions, organization.name
+        place = next((s for s in places if s.organization_id == organization.id), None)
+        restaurant_id, organization_id = None, organization.id
+    else:
+        raise click.ClickException('--restaurant or --org is required.')
+    if place is None:
+        raise click.ClickException(f'{email} holds no place on {destination}.')
+    if len(user.memberships) + len(user.supervisions) == 1:
+        raise click.ClickException('This is its last place: delete the account with `flask user delete`.')
+
+    places.remove(place)
+    mirror_first_place(user)
+    user.revoke_tokens()
+    _audit(AuditLog.ACTION_MEMBER_REMOVE, user, restaurant_id, organization_id)
+    db.session.commit()
+    click.echo(f'{email} no longer holds {destination}.')
     click.echo('   · Live sessions revoked')
 
 
@@ -372,10 +441,15 @@ def delete_user(email, yes):
     """Delete an account and its passkeys for good."""
     user = _find_user(email)
     if not yes:
-        click.confirm(f'Permanently delete {email} ({user.role})?', abort=True)
+        click.confirm(f'Permanently delete {email} ({_places_label(user)})?', abort=True)
 
-    # Written before the row goes, so the entry keeps a resolvable target id.
-    _audit(AuditLog.ACTION_USER_DELETE, user, role=user.role)
+    # Written before the row goes, so the entry keeps a resolvable target id; once the
+    # account is gone, only its places tie the entry to a log.
+    for restaurant_id, organization_id in _place_ids(user):
+        _audit(
+            AuditLog.ACTION_USER_DELETE, user, restaurant_id, organization_id,
+            places=_places(user),
+        )
     db.session.delete(user)
     db.session.commit()
     click.echo(f'Account deleted: {email}')

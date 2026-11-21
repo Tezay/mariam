@@ -28,7 +28,6 @@ def _audit(user: User, action: str, details: dict) -> None:
     AuditLog.log(
         action=action,
         user_id=user.id,
-        restaurant_id=user.restaurant_id,
         target_type='user',
         target_id=user.id,
         details=details,

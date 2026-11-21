@@ -11,9 +11,13 @@
 <p style="margin:0 0 16px">
   <a href="{{ url }}" style="display:inline-block;background:#093EAA;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:10px;font-size:14px;font-weight:600">Accepter l'invitation</a>
 </p>
+{% if has_account %}
+<p style="margin:0 0 14px">Vous avez déjà un compte Mariam : ouvrez ce lien, puis connectez-vous pour accepter.</p>
+{% endif %}
 <p style="margin:0 0 14px">Ce lien est valable 72 heures et ne sert qu'une fois.</p>
 <p style="margin:0">
-  Vous ne connaissez pas cette personne ? Ignorez ce message : aucun compte n'est créé sans vous.
+  Vous ne connaissez pas cette personne ? Ignorez ce message :
+  {% if has_account %}votre compte ne change pas sans vous{% else %}aucun compte n'est créé sans vous{% endif %}.
 </p>
 {% endblock %}
 

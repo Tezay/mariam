@@ -8,7 +8,14 @@ from app.extensions import db
 from app.models import ExceptionalClosure, Menu, Organization, Restaurant, User
 from app.services import email_service
 from app.utils.time import paris_now
-from conftest import make_restaurant, make_user
+from conftest import join_site, make_restaurant, make_user, supervise
+
+
+def _org(slug):
+    org = Organization(name=slug.title(), slug=slug)
+    db.session.add(org)
+    db.session.commit()
+    return org
 
 
 def _subscribe(user_id, value=True, slot='now'):
@@ -47,13 +54,9 @@ def _director(app, *site_ids, slug='org-digest'):
     db.session.commit()
     for rid in site_ids:
         db.session.get(Restaurant, rid).organization_id = org.id
-    director = db.session.get(
-        User, make_user(app, email='dir@mariam.app', role='org_admin', restaurant_id=site_ids[0])
+    return db.session.get(
+        User, make_user(app, email='dir@mariam.app', role='org_admin', organization_id=org.id)
     )
-    director.restaurant_id = None
-    director.organization_id = org.id
-    db.session.commit()
-    return director
 
 
 class TestConfiguration:
@@ -109,7 +112,37 @@ class TestRecipients:
         assert email_service.send_weekly_digest(app) == 0
 
 
+    def test_it_covers_the_sites_the_account_administers_only(self, app):
+        administered = make_restaurant(app, name='Administré', code='RU_ADMIN')
+        edited = make_restaurant(app, name='Édité', code='RU_EDIT')
+        uid = make_user(app, role='editor', restaurant_id=edited)
+        join_site(uid, administered, 'admin')
+
+        assert email_service.digest_site_ids(db.session.get(User, uid)) == [administered]
+
+
+    def test_its_links_follow_the_dashboard_of_its_oldest_place(self, app):
+        org = _org('crous-links')
+        uid = make_user(app, restaurant_id=make_restaurant(app, organization_id=org.id))
+        supervise(uid, org.id)
+
+        assert email_service._account_url(db.session.get(User, uid)).endswith('/admin/account')
+
+
 class TestContent:
+    def test_sites_of_two_organizations_are_yours(self, app):
+        first, second = (
+            make_restaurant(app, name=name, code=code, organization_id=_org(slug).id)
+            for name, code, slug in (('Un', 'RU_UN', 'crous-un'), ('Deux', 'RU_DEUX', 'crous-deux'))
+        )
+        uid = make_user(app, restaurant_id=first)
+        join_site(uid, second, 'admin')
+        start, end = email_service.last_week()
+
+        digest = email_service.build_digest(db.session.get(User, uid), [first, second], start, end)
+
+        assert 'Vos restaurants' in digest['text']
+
     def test_a_site_admin_reads_about_its_restaurant(self, app, client):
         rid = make_restaurant(app)
         user = db.session.get(User, make_user(app))

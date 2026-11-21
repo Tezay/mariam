@@ -5,11 +5,11 @@ from io import StringIO
 
 from flask import Response, request
 from flask_smorest import Blueprint
-from sqlalchemy import false, or_
+from sqlalchemy import and_, false, or_
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
-from ..models import AuditLog, Organization, Restaurant, User
+from ..models import AuditLog, Organization, Restaurant, SiteMembership, User
 from ..pagination import paginate
 from ..problems import Problem
 from ..schemas.audit import (
@@ -45,10 +45,24 @@ def _utc_midnight(day) -> datetime:
     return datetime.combine(day, time(), PARIS_TZ).astimezone(UTC).replace(tzinfo=None)
 
 
+def _account_entries(accounts):
+    # On neither a site nor an organization, an entry is about an account itself, by it
+    # (signing in, its password) or by the command line (its address, its deletion).
+    return and_(
+        AuditLog.restaurant_id.is_(None),
+        AuditLog.organization_id.is_(None),
+        or_(
+            AuditLog.user_id.in_(accounts),
+            and_(AuditLog.target_type == 'user', AuditLog.target_id.in_(accounts)),
+        ),
+    )
+
+
 def _site_scope(restaurant: Restaurant):
-    # Entries written before they carried a site still name the account that acted.
-    accounts = db.session.query(User.id).filter(User.restaurant_id == restaurant.id)
-    return or_(AuditLog.restaurant_id == restaurant.id, AuditLog.user_id.in_(accounts))
+    members = db.session.query(SiteMembership.user_id).filter(
+        SiteMembership.restaurant_id == restaurant.id
+    )
+    return or_(AuditLog.restaurant_id == restaurant.id, _account_entries(members))
 
 
 def _org_scope(org: Organization, site_slug: str | None):
@@ -56,8 +70,11 @@ def _org_scope(org: Organization, site_slug: str | None):
     if site_slug is not None:
         site = Restaurant.query.filter_by(organization_id=org.id, slug=site_slug).first()
         return AuditLog.restaurant_id == site.id if site else false()
-    accounts = org_accounts(org).with_entities(User.id)
-    return or_(AuditLog.restaurant_id.in_(sites), AuditLog.user_id.in_(accounts))
+    return or_(
+        AuditLog.organization_id == org.id,
+        AuditLog.restaurant_id.in_(sites),
+        _account_entries(org_accounts(org).with_entities(User.id)),
+    )
 
 
 def _filtered(scope, query: dict):
@@ -103,13 +120,14 @@ def _log_view(log, slugs: dict[int, str]) -> dict:
     }
 
 
-def _page(scope, query: dict, slugs: dict[int, str], restaurant: Restaurant | None):
+def _page(scope, query: dict, slugs: dict[int, str], restaurant: Restaurant | None,
+          organization: Organization):
     _require_second_factor()
     logs = _filtered(scope, query).options(joinedload(AuditLog.user))  # type: ignore[arg-type]
     body, headers = paginate(logs, query['page'], query['per_page'])
     body['items'] = [_log_view(log, slugs) for log in body['items']]
     audit(
-        AuditLog.ACTION_AUDIT_LOGS_ACCESS, restaurant,
+        AuditLog.ACTION_AUDIT_LOGS_ACCESS, restaurant, organization,
         user_agent=request.headers.get('User-Agent'),
         details={'page': query['page'], 'filters': _filters(query)},
     )
@@ -117,7 +135,8 @@ def _page(scope, query: dict, slugs: dict[int, str], restaurant: Restaurant | No
     return body, headers
 
 
-def _export(scope, query: dict, restaurant: Restaurant | None) -> Response:
+def _export(scope, query: dict, restaurant: Restaurant | None,
+            organization: Organization) -> Response:
     logs = (
         _filtered(scope, query)
         .options(joinedload(AuditLog.user))  # type: ignore[arg-type]
@@ -138,7 +157,7 @@ def _export(scope, query: dict, restaurant: Restaurant | None) -> Response:
             log.details or '',
         ))
     audit(
-        AuditLog.ACTION_AUDIT_LOGS_EXPORT, restaurant,
+        AuditLog.ACTION_AUDIT_LOGS_EXPORT, restaurant, organization,
         user_agent=request.headers.get('User-Agent'),
         details={'count': len(logs), 'filters': _filters(query)},
     )
@@ -164,7 +183,10 @@ def _org_slugs(org: Organization) -> dict[int, str]:
 def list_site_audit_logs(query, org: str, site: str):
     """The site's audit log, newest first, for an account with a second factor."""
     restaurant = member_site(org, site)
-    return _page(_site_scope(restaurant), query, {restaurant.id: restaurant.slug}, restaurant)
+    return _page(
+        _site_scope(restaurant), query, {restaurant.id: restaurant.slug}, restaurant,
+        restaurant.organization,
+    )
 
 
 @audit_bp.route('/<org>/sites/<site>/audit-logs/export', methods=['GET'])
@@ -175,7 +197,7 @@ def list_site_audit_logs(query, org: str, site: str):
 def export_site_audit_logs(query, org: str, site: str):
     """The site's audit log as a CSV file, from a confirmed session."""
     restaurant = member_site(org, site)
-    return _export(_site_scope(restaurant), query, restaurant)
+    return _export(_site_scope(restaurant), query, restaurant, restaurant.organization)
 
 
 @audit_bp.route('/<org>/audit-logs', methods=['GET'])
@@ -186,7 +208,8 @@ def list_org_audit_logs(query, org: str):
     """The organization's audit log, its sites' and its supervisors', newest first."""
     organization = member_org(org)
     return _page(
-        _org_scope(organization, query.get('site')), query, _org_slugs(organization), None
+        _org_scope(organization, query.get('site')), query, _org_slugs(organization), None,
+        organization,
     )
 
 
@@ -198,4 +221,4 @@ def list_org_audit_logs(query, org: str):
 def export_org_audit_logs(query, org: str):
     """The organization's audit log as a CSV file, from a confirmed session."""
     organization = member_org(org)
-    return _export(_org_scope(organization, query.get('site')), query, None)
+    return _export(_org_scope(organization, query.get('site')), query, None, organization)

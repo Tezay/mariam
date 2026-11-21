@@ -4,7 +4,7 @@ from datetime import timedelta
 from app.extensions import db
 from app.models import ActivationLink, AuditLog, Organization, User
 from app.utils.time import utc_now_naive
-from conftest import auth_headers, get_token, make_restaurant, make_user, site_path
+from conftest import auth_headers, get_token, join_site, make_restaurant, make_user, site_path
 from tests.auth_support import (
     confirmed_headers,
     enable_totp,
@@ -28,8 +28,9 @@ def _org(slug='crous-test', name='Crous Créteil'):
 
 
 def _supervisor(org, email='sup@mariam.app', name=None):
-    user = db.session.get(User, make_user(None, email=email, role='org_admin', restaurant_id=None))
-    user.organization_id = org.id
+    user = db.session.get(
+        User, make_user(None, email=email, role='org_admin', organization_id=org.id)
+    )
     user.username = name or user.username
     db.session.commit()
     return user.id
@@ -286,15 +287,30 @@ class TestInvitations:
 
         assert res.status_code == 422
 
-    def test_an_address_in_use_is_refused(self, app, client):
+    def test_an_account_already_on_the_site_is_refused(self, app, client):
         admin, path = _site_admin(app)
+        make_user(app, role='editor', email='editor@mariam.app')
 
         res = client.post(
-            f'{path}/invitations', json={'email': 'admin@mariam.app', 'role': 'editor'},
+            f'{path}/invitations', json={'email': 'editor@mariam.app', 'role': 'admin'},
             headers=confirmed_headers(client, admin),
         )
 
-        assert res.get_json()['code'] == 'email_taken'
+        assert res.get_json()['code'] == 'already_member'
+
+    def test_an_account_of_another_site_is_invited(self, app, client):
+        admin, path = _site_admin(app)
+        make_user(
+            app, email='elsewhere@mariam.app',
+            restaurant_id=make_restaurant(app, name='Autre', code='RU_OTHER'),
+        )
+
+        res = client.post(
+            f'{path}/invitations', json={'email': 'elsewhere@mariam.app', 'role': 'editor'},
+            headers=confirmed_headers(client, admin),
+        )
+
+        assert res.status_code == 201
 
     def test_a_suggested_address_is_stored_lowercase(self, app, client):
         admin, path = _site_admin(app)
@@ -650,3 +666,183 @@ class TestPasswordResetLink:
 
         assert res.get_json()['emailed'] is True
         assert smtp.sent[0]['To'] == 'peer@mariam.app'
+
+
+def _shared_editor(app):
+    """An editor of the admin's site who is also an editor of another organization's."""
+    admin, path = _site_admin(app)
+    elsewhere = make_restaurant(app, name='Ailleurs', code='RU_ELSEWHERE', organization_id=_org().id)
+    editor = make_user(app, role='editor', email='shared@mariam.app')
+    join_site(editor, elsewhere, 'editor')
+    return admin, path, editor
+
+
+class TestSharedAccounts:
+    def test_the_list_says_which_accounts_are_shared(self, app, client):
+        admin, path, editor = _shared_editor(app)
+        make_user(app, role='editor', email='own@mariam.app')
+
+        items = client.get(f'{path}/members', headers=session_headers(admin)).get_json()['items']
+
+        shared = {item['email']: item['shared'] for item in items}
+        assert shared == {'admin@mariam.app': False, 'own@mariam.app': False, 'shared@mariam.app': True}
+
+    def test_a_shared_account_is_not_turned_off(self, app, client):
+        admin, path, editor = _shared_editor(app)
+
+        res = client.patch(
+            f'{path}/members/{editor}', json={'is_active': False}, headers=session_headers(admin)
+        )
+
+        assert res.get_json()['code'] == 'account_shared'
+        assert db.session.get(User, editor).is_active is True
+
+    def test_its_role_on_the_site_still_changes(self, app, client):
+        admin, path, editor = _shared_editor(app)
+
+        res = client.patch(
+            f'{path}/members/{editor}', json={'role': 'admin'}, headers=session_headers(admin)
+        )
+
+        assert res.get_json()['role'] == 'admin'
+
+    def test_its_password_and_second_factors_are_not_reset(self, app, client):
+        admin, path, editor = _shared_editor(app)
+        enable_totp(editor)
+        headers = confirmed_headers(client, admin)
+
+        reset = client.post(f'{path}/members/{editor}/password-reset', headers=headers)
+        factors = client.delete(f'{path}/members/{editor}/second-factors', headers=headers)
+
+        assert reset.get_json()['code'] == 'account_shared'
+        assert factors.get_json()['code'] == 'account_shared'
+        assert ActivationLink.query.filter_by(link_type='password_reset').count() == 0
+        assert db.session.get(User, editor).mfa_enabled is True
+
+    def test_removing_it_keeps_its_other_site(self, app, client):
+        admin, path, editor = _shared_editor(app)
+
+        res = client.delete(f'{path}/members/{editor}', headers=confirmed_headers(client, admin))
+
+        user = db.session.get(User, editor)
+        assert res.status_code == 204
+        assert [m.restaurant.slug for m in user.memberships] == ['ru-elsewhere']
+        assert AuditLog.query.filter_by(action='member_remove', target_id=editor).count() == 1
+
+    def test_an_organization_list_names_none_of_another_organizations_sites(self, app, client):
+        org = _org(slug='crous-list')
+        here = make_restaurant(app, name='Ici', code='RU_ICI', organization_id=org.id)
+        there = make_restaurant(app, name='Là', code='RU_LA', organization_id=_org(slug='crous-la').id)
+        account = make_user(app, role='editor', email='both@mariam.app', restaurant_id=here)
+        join_site(account, there, 'admin')
+        supervisor = _supervisor(org)
+
+        items = client.get(
+            f'/v1/orgs/{org.slug}/members', headers=session_headers(supervisor)
+        ).get_json()['items']
+
+        both = next(item for item in items if item['email'] == 'both@mariam.app')
+        assert both['sites'] == [{'slug': 'ru-ici', 'name': 'Ici', 'role': 'editor'}]
+        assert both['shared'] is True
+
+
+def _invitation(admin, path, client, **body):
+    res = client.post(
+        f'{path}/invitations', json={'role': 'editor', **body},
+        headers=confirmed_headers(client, admin),
+    )
+    return ActivationLink.query.filter_by(id=res.get_json()['id']).one()
+
+
+class TestAcceptingAnInvitation:
+    def _elsewhere(self, app):
+        other = make_restaurant(app, name='Autre', code='RU_OTHER', organization_id=_org().id)
+        return make_user(app, email='joiner@mariam.app', role='admin', restaurant_id=other)
+
+    def test_an_account_joins_the_site(self, app, client):
+        admin, path = _site_admin(app)
+        joiner = self._elsewhere(app)
+        link = _invitation(admin, path, client)
+
+        res = client.post(
+            '/v1/user/invitations', json={'token': link.token}, headers=session_headers(joiner)
+        )
+
+        assert res.status_code == 201
+        assert {(site['slug'], site['role']) for site in res.get_json()['sites']} == {
+            ('ru-other', 'admin'), ('ru-auto', 'editor'),
+        }
+        assert link.used_at is not None
+        assert AuditLog.query.filter_by(action='member_join', user_id=joiner).count() == 1
+
+    def test_a_link_serves_once(self, app, client):
+        admin, path = _site_admin(app)
+        joiner = self._elsewhere(app)
+        link = _invitation(admin, path, client)
+        second = make_user(app, email='second@mariam.app', restaurant_id=None)
+        client.post('/v1/user/invitations', json={'token': link.token}, headers=session_headers(joiner))
+
+        res = client.post(
+            '/v1/user/invitations', json={'token': link.token}, headers=session_headers(second)
+        )
+
+        assert res.get_json()['code'] == 'link_expired'
+
+    def test_a_revoked_or_expired_link_gives_nothing(self, app, client):
+        admin, path = _site_admin(app)
+        joiner = self._elsewhere(app)
+        revoked = _invitation(admin, path, client)
+        revoked.revoke()
+        expired = _invitation(admin, path, client)
+        expired.expires_at = utc_now_naive() - timedelta(minutes=1)
+        db.session.commit()
+
+        for link in (revoked, expired):
+            res = client.post(
+                '/v1/user/invitations', json={'token': link.token}, headers=session_headers(joiner)
+            )
+            assert res.get_json()['code'] == 'link_expired'
+        assert len(db.session.get(User, joiner).memberships) == 1
+
+    def test_a_site_it_holds_already_is_refused(self, app, client):
+        admin, path = _site_admin(app)
+        editor = make_user(app, role='editor', email='editor@mariam.app')
+        link = _invitation(admin, path, client)
+
+        res = client.post(
+            '/v1/user/invitations', json={'token': link.token}, headers=session_headers(editor)
+        )
+
+        assert res.get_json()['code'] == 'already_member'
+        assert link.used_at is None
+
+    def test_two_invitations_to_one_site_at_once_give_it_once(self, app, client, monkeypatch):
+        admin, path = _site_admin(app)
+        editor = make_user(app, role='editor', email='editor@mariam.app')
+        link = _invitation(admin, path, client)
+        # As if a second invitation had been accepted between the check and the write.
+        monkeypatch.setattr(
+            'app.routes.user.invitations.holds_invitation_place', lambda *_: False
+        )
+
+        res = client.post(
+            '/v1/user/invitations', json={'token': link.token}, headers=session_headers(editor)
+        )
+
+        assert res.get_json()['code'] == 'already_member'
+
+    def test_a_supervisor_invitation_gives_the_supervision(self, app, client):
+        org = _org(slug='crous-joined')
+        supervisor = _supervisor(org)
+        joiner = self._elsewhere(app)
+        res = client.post(
+            f'/v1/orgs/{org.slug}/invitations', json={}, headers=confirmed_headers(client, supervisor)
+        )
+        token = ActivationLink.query.filter_by(id=res.get_json()['id']).one().token
+
+        body = client.post(
+            '/v1/user/invitations', json={'token': token}, headers=session_headers(joiner)
+        ).get_json()
+
+        assert body['organizations'] == [{'slug': 'crous-joined', 'name': 'Crous Créteil'}]
+

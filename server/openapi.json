@@ -1495,6 +1495,73 @@
         ]
       }
     },
+    "/v1/user/invitations": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "410": {
+            "description": "`link_expired`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`already_member`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`link_unknown`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationAccept"
+              }
+            }
+          }
+        },
+        "summary": "Accept an invitation with the signed-in account: it gains the invitation's site and\nrole, or its supervision.",
+        "description": "The token is the one in the invitation's link, sent in the body to keep it out of\naccess logs. As at activation, the account need not have the address it suggested.",
+        "tags": [
+          "user"
+        ]
+      }
+    },
     "/v1/user/passkeys": {
       "get": {
         "responses": {
@@ -2443,7 +2510,8 @@
             }
           }
         },
-        "summary": "Change an account's role, or turn it off: its sessions end at once.",
+        "summary": "Change an account's role on the site, or turn it off: its sessions end at once.",
+        "description": "Turning off an account that holds places beyond the caller's reach is refused\n(403 `account_shared`), as are resetting its password or its second factors.",
         "tags": [
           "members"
         ]
@@ -2486,7 +2554,7 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Delete an account, from a confirmed session.",
+        "summary": "Remove an account from the site, from a confirmed session; its last place deletes it.",
         "tags": [
           "members"
         ]
@@ -2663,7 +2731,7 @@
           }
         },
         "summary": "Invite someone to the site, from a confirmed session.",
-        "description": "The link's token creates the account at `/activate/<token>`. With\n`send_email` it is also emailed to `email`, twenty times a day at most for\none administrator; `emailed` tells whether it left.",
+        "description": "The link's token creates the account at `/activate/<token>`, or gives the site to\nan account already signed in (`POST /v1/user/invitations`). With `send_email` it\nis also emailed to `email`, twenty times a day at most for one administrator;\n`emailed` tells whether it left.",
         "tags": [
           "members"
         ]
@@ -2838,7 +2906,7 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "Delete a supervisor's account, from a confirmed session.",
+        "summary": "Remove a supervisor, from a confirmed session; its last place deletes the account.",
         "tags": [
           "members"
         ]
@@ -8114,6 +8182,34 @@
           "username"
         ]
       },
+      "AccountSite": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "editor"
+            ]
+          },
+          "organization": {
+            "$ref": "#/components/schemas/NamedRef"
+          }
+        },
+        "required": [
+          "name",
+          "organization",
+          "role",
+          "slug"
+        ],
+        "additionalProperties": false
+      },
       "Account": {
         "type": "object",
         "properties": {
@@ -8129,14 +8225,6 @@
             "description": "Display name",
             "nullable": true
           },
-          "role": {
-            "type": "string",
-            "enum": [
-              "org_admin",
-              "admin",
-              "editor"
-            ]
-          },
           "is_active": {
             "type": "boolean"
           },
@@ -8150,18 +8238,6 @@
           "is_rescue_account": {
             "type": "boolean"
           },
-          "site": {
-            "description": "None for a supervisor",
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/NamedRef"
-              },
-              {
-                "type": "object",
-                "nullable": true
-              }
-            ]
-          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -8172,17 +8248,50 @@
             "format": "date-time",
             "nullable": true
           },
-          "organization": {
-            "description": "A site's team reads its site's",
+          "role": {
+            "type": "string",
+            "enum": [
+              "org_admin",
+              "admin",
+              "editor"
+            ],
+            "description": "On its oldest place, as `site` and `organization`"
+          },
+          "site": {
             "anyOf": [
-              {
-                "$ref": "#/components/schemas/NamedRef"
-              },
               {
                 "type": "object",
                 "nullable": true
+              },
+              {
+                "$ref": "#/components/schemas/NamedRef"
               }
             ]
+          },
+          "organization": {
+            "anyOf": [
+              {
+                "type": "object",
+                "nullable": true
+              },
+              {
+                "$ref": "#/components/schemas/NamedRef"
+              }
+            ]
+          },
+          "sites": {
+            "type": "array",
+            "description": "The sites it belongs to, with its role on each",
+            "items": {
+              "$ref": "#/components/schemas/AccountSite"
+            }
+          },
+          "organizations": {
+            "type": "array",
+            "description": "The organizations it supervises",
+            "items": {
+              "$ref": "#/components/schemas/NamedRef"
+            }
           }
         },
         "required": [
@@ -8194,9 +8303,11 @@
           "last_login",
           "mfa_enabled",
           "organization",
+          "organizations",
           "passkeys_count",
           "role",
           "site",
+          "sites",
           "username"
         ],
         "additionalProperties": false
@@ -8886,6 +8997,19 @@
         ],
         "additionalProperties": false
       },
+      "InvitationAccept": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
       "WebAuthnUser": {
         "type": "object",
         "properties": {
@@ -9311,6 +9435,30 @@
         ],
         "additionalProperties": false
       },
+      "MemberSite": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "editor"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "role",
+          "slug"
+        ],
+        "additionalProperties": false
+      },
       "Member": {
         "type": "object",
         "properties": {
@@ -9326,14 +9474,6 @@
             "description": "Display name",
             "nullable": true
           },
-          "role": {
-            "type": "string",
-            "enum": [
-              "org_admin",
-              "admin",
-              "editor"
-            ]
-          },
           "is_active": {
             "type": "boolean"
           },
@@ -9347,6 +9487,25 @@
           "is_rescue_account": {
             "type": "boolean"
           },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "last_login": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "org_admin",
+              "admin",
+              "editor"
+            ],
+            "description": "On the site; on an organization's list, `org_admin` for its supervisors"
+          },
           "site": {
             "description": "None for a supervisor",
             "anyOf": [
@@ -9359,15 +9518,16 @@
               }
             ]
           },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
+          "sites": {
+            "type": "array",
+            "description": "Its sites in this organization; on a site's list, that site",
+            "items": {
+              "$ref": "#/components/schemas/MemberSite"
+            }
           },
-          "last_login": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
+          "shared": {
+            "type": "boolean",
+            "description": "It holds places beyond the caller's reach: it can be removed from here, but not turned off nor reset"
           }
         },
         "required": [
@@ -9380,7 +9540,9 @@
           "mfa_enabled",
           "passkeys_count",
           "role",
+          "shared",
           "site",
+          "sites",
           "username"
         ],
         "additionalProperties": false

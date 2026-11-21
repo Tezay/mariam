@@ -158,24 +158,54 @@ class TestEdit:
     def test_an_unknown_role_is_refused(self, app):
         make_user(app, email='role@mariam.app')
 
-        result = _run(app, 'set-role', 'role@mariam.app', 'superuser')
+        result = _run(app, 'grant', 'role@mariam.app', 'superuser')
 
         assert result.exit_code != 0
-        assert User.query.filter_by(email='role@mariam.app').one().role == 'admin'
+        assert User.query.filter_by(email='role@mariam.app').one().memberships[0].role == 'admin'
 
-    def test_promoting_to_supervisor_moves_the_account_to_the_organization(self, app):
+    def test_a_supervision_is_granted_beside_the_site(self, app):
         org = Organization(name='CLI Org', slug='cli-org')
         db.session.add(org)
         db.session.commit()
         uid = make_user(app, email='promote@mariam.app')
 
-        result = _run(app, 'set-role', 'promote@mariam.app', 'org_admin', '--org', 'cli-org')
+        result = _run(app, 'grant', 'promote@mariam.app', 'org_admin', '--org', 'cli-org')
 
         assert result.exit_code == 0
         user = db.session.get(User, uid)
-        assert (user.role, user.restaurant_id, user.organization_id) == (
-            'org_admin', None, org.id
-        )
+        assert [s.organization_id for s in user.supervisions] == [org.id]
+        assert len(user.memberships) == 1
+
+    def test_granting_a_held_site_changes_its_role(self, app):
+        rid = make_restaurant(app, code='RU_GRANT')
+        uid = make_user(app, email='grant@mariam.app', role='editor', restaurant_id=rid)
+
+        _run(app, 'grant', 'grant@mariam.app', 'admin', '--restaurant', 'ru-grant')
+
+        assert [m.role for m in db.session.get(User, uid).memberships] == ['admin']
+
+    def test_revoke_takes_a_site_but_never_the_last(self, app):
+        first = make_restaurant(app, code='RU_FIRST')
+        second = make_restaurant(app, code='RU_SECOND')
+        uid = make_user(app, email='two@mariam.app', role='editor', restaurant_id=first)
+        _run(app, 'grant', 'two@mariam.app', 'editor', '--restaurant', 'ru-second')
+
+        taken = _run(app, 'revoke', 'two@mariam.app', '--restaurant', 'ru-first')
+        last = _run(app, 'revoke', 'two@mariam.app', '--restaurant', 'ru-second')
+
+        assert taken.exit_code == 0
+        assert last.exit_code != 0
+        assert [m.restaurant_id for m in db.session.get(User, uid).memberships] == [second]
+
+    def test_a_deletion_stays_in_the_log_of_each_site_it_held(self, app):
+        first, second = make_restaurant(app, code='RU_ONE'), make_restaurant(app, code='RU_TWO')
+        make_user(app, email='gone@mariam.app', role='editor', restaurant_id=first)
+        _run(app, 'grant', 'gone@mariam.app', 'editor', '--restaurant', 'ru-two')
+
+        _run(app, 'delete', 'gone@mariam.app', '--yes')
+
+        entries = AuditLog.query.filter_by(action=AuditLog.ACTION_USER_DELETE).all()
+        assert sorted(entry.restaurant_id for entry in entries) == [first, second]
 
     def test_an_address_already_taken_is_refused(self, app):
         make_user(app, email='first@mariam.app')

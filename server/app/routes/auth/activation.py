@@ -6,7 +6,7 @@ from psycopg2.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
 
 from ...extensions import db
-from ...models import ActivationLink, AuditLog, Organization, Restaurant, User
+from ...models import AuditLog, Organization, Restaurant, User
 from ...problems import Problem
 from ...schemas.auth import (
     ActivateAccountSchema,
@@ -20,6 +20,7 @@ from ...schemas.auth import (
 )
 from ...security import get_client_ip, limiter
 from ...services import passkeys, totp
+from ...services.access import grant_invitation
 from ...services.crypto import decrypt_secret, encrypt_secret
 from ...services.passkeys import Ceremony
 from ..helpers import account_view
@@ -30,6 +31,7 @@ from ._common import (
     challenge_refused,
     code_refusal,
     complete_login,
+    invitation_link,
     open_session,
     passkey_refused,
 )
@@ -84,24 +86,6 @@ def _account_to_set_up(user_id: int):
     return user
 
 
-def _account_link(token: str):
-    """A password-reset link shares the table and must never create an account."""
-    return ActivationLink.query.filter(
-        ActivationLink.token == token,
-        ActivationLink.link_type.in_(ActivationLink.ACCOUNT_CREATION_TYPES),
-    )
-
-
-def _usable(link):
-    if not link:
-        raise Problem(404, 'link_unknown', "Ce lien d'activation n'existe pas.")
-    if not link.is_valid():
-        raise Problem(
-            410, 'link_expired', "Ce lien d'activation a expiré, a été révoqué ou a déjà servi."
-        )
-    return link
-
-
 def _email_taken() -> Problem:
     return Problem(
         409, 'email_taken',
@@ -122,7 +106,7 @@ def check_activation_link(token):
     `email` is the address the inviter suggested, if any: the form pre-fills it and the
     invitee may change it.
     """
-    link = _usable(_account_link(token).first())
+    link = invitation_link(token)
     restaurant = db.session.get(Restaurant, link.restaurant_id) if link.restaurant_id else None
     organization = (
         db.session.get(Organization, link.organization_id) if link.organization_id else None
@@ -154,21 +138,14 @@ def activate_account(body):
     the next step needs, valid fifteen minutes: a TOTP secret and its QR code for
     `/mfa/verify-setup`, and a setup token that `/passkey/setup/begin` accepts as well.
     """
-    # Row-locked until commit: a second request with the same token waits here,
-    # then finds the link spent.
-    link = _usable(_account_link(body['token']).with_for_update().first())
+    link = invitation_link(body['token'], lock=True)
 
     email = body['email']
     if User.query.filter_by(email=email).first():
         raise _email_taken()
 
-    user = User(
-        email=email,
-        username=body['username'],
-        role=link.role,
-        restaurant_id=link.restaurant_id,
-        organization_id=link.organization_id,
-    )
+    user = User(email=email, username=body['username'], role=link.role)
+    grant_invitation(user, link)
     user.set_password(body['password'])
     link.mark_as_used()
     db.session.add(user)
@@ -186,6 +163,7 @@ def activate_account(body):
         action=AuditLog.ACTION_ACCOUNT_ACTIVATE,
         user_id=None,
         restaurant_id=link.restaurant_id,
+        organization_id=link.organization_id,
         target_type='user',
         target_id=user.id,
         details={

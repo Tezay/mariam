@@ -1,5 +1,6 @@
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 
+from ..models import User
 from .common import (
     DeviceName,
     DisplayName,
@@ -8,13 +9,27 @@ from .common import (
     NormalizedEmail,
     RequestSchema,
 )
-from .members import MemberSchema
+from .members import AccountFieldsSchema, MemberSiteSchema
 
 
-class AccountSchema(MemberSchema):
-    organization = fields.Nested(
-        NamedRefSchema, required=True, allow_none=True,
-        metadata={'description': "A site's team reads its site's"},
+class AccountSiteSchema(MemberSiteSchema):
+    organization = fields.Nested(NamedRefSchema, required=True)
+
+
+class AccountSchema(AccountFieldsSchema):
+    role = fields.Str(
+        required=True, validate=validate.OneOf(User.VALID_ROLES),
+        metadata={'description': "On its oldest place, as `site` and `organization`"},
+    )
+    site = fields.Nested(NamedRefSchema, required=True, allow_none=True)
+    organization = fields.Nested(NamedRefSchema, required=True, allow_none=True)
+    sites = fields.List(
+        fields.Nested(AccountSiteSchema), required=True,
+        metadata={'description': "The sites it belongs to, with its role on each"},
+    )
+    organizations = fields.List(
+        fields.Nested(NamedRefSchema), required=True,
+        metadata={'description': "The organizations it supervises"},
     )
 
 
@@ -156,3 +171,7 @@ class PasswordChangeSchema(RequestSchema):
                 'Envoyez le mot de passe actuel, avec un code si le compte en a un, ou bien '
                 'une passkey.'
             )
+
+
+class InvitationAcceptSchema(RequestSchema):
+    token = fields.Str(required=True, validate=validate.Length(min=1, max=128))

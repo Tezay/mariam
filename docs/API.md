@@ -82,7 +82,7 @@ Any route may answer these:
 |---|---|---|
 | 401 | `token_missing`, `token_invalid`, `token_expired`, `token_revoked` | No session, or one that no longer holds |
 | 401 | `token_restricted`, `authentication_incomplete` | A token issued for one step of a flow, shown as a session |
-| 403 | `admin_required`, `supervisor_required`, `supervisor_read_only` | The account's role does not allow it |
+| 403 | `admin_required`, `supervisor_required`, `supervisor_read_only` | The account's role on that site or organization does not allow it |
 | 403 | `step_up_required` | The route needs a confirmed session |
 | 404 | `not_found` | No such route or resource |
 | 405 | `method_not_allowed` | The route exists; `Allow` lists its methods |
@@ -251,11 +251,12 @@ neither cannot confirm (`403 second_factor_required`).
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `U` | The account; `site` and `organization` as `{slug, name}`, `null` when it has none |
+| `GET` | `U` | The account: `sites` with its role on each and their organization, `organizations` it supervises; `site`, `organization` and `role` are its oldest place |
 | `PATCH` | `U` | Display name or sign-in address (*confirmed*); the account |
 | `GET`, `PATCH` | `U/ui-preferences` | Interface state carried by the account: the guided tours already seen |
 | `GET`, `PATCH` | `U/notification-preferences` | Which alerts the account sees, and when its weekly email lands |
 | `GET` | `U/alerts` | The account's active alerts, computed now |
+| `POST` | `U/invitations` | Accept an invitation's `token` with this account: it gains the site and its role, or the supervision; `201`, the account. `409 already_member`, `410 link_expired` |
 | `GET` | `U/passkeys` | The account's passkeys, with `rp_id` and the account as they know it (`user`) |
 | `POST` | `U/passkeys/options` | Creation options and a `challenge_token` (*confirmed once enrolled*); `this_device` for this device's own authenticator |
 | `POST` | `U/passkeys` | `201`, the passkey the browser created from them (*confirmed once enrolled*) |
@@ -680,15 +681,17 @@ parent's dishes with `move_dishes: true`. A protected category answers `409 cate
 
 ## Members and invitations
 
-A site's accounts belong to the site, and its admin manages them; the supervisors'
-accounts belong to the organization, and the supervisors manage them. A supervisor reads a
-site's accounts but never changes them (`403 supervisor_read_only`).
+An account holds a role per site (`admin` or `editor`), on sites of any organization, and
+may supervise organizations. A site's admin manages its accounts' role there, the
+supervisors manage the supervisors. A supervisor reads every site of its organization but
+never changes it (`403 supervisor_read_only`), unless it is also a member there. A site or an
+organization out of the caller's reach answers 404.
 
 | Method | Route | Description |
 |--------|-------|-------------|
 | `GET` | `S/members` | The site's accounts, newest first; paginated (`page`, `per_page` up to 200, `Link`) |
-| `PATCH` | `S/members/{user_id}` | `role` (`admin` or `editor`) and `is_active`; turning an account off ends its sessions |
-| `DELETE` | `S/members/{user_id}` | Delete an account (*confirmed*); `204` |
+| `PATCH` | `S/members/{user_id}` | `role` on the site (`admin` or `editor`) and `is_active`; turning an account off ends its sessions |
+| `DELETE` | `S/members/{user_id}` | Remove the account from the site (*confirmed*); its last place deletes it; `204` |
 | `DELETE` | `S/members/{user_id}/second-factors` | Remove its TOTP and passkeys and end its sessions (*confirmed*); `204` |
 | `POST` | `S/members/{user_id}/password-reset` | Email it a link to choose a new password, returned as `reset_url` only when it could not be emailed (*confirmed*); `201` |
 | `GET` | `S/invitations` | The 50 latest pending invitations, each with whether it was emailed; the site's admins only, a link being enough to create the account |
@@ -696,16 +699,20 @@ site's accounts but never changes them (`403 supervisor_read_only`).
 | `DELETE` | `S/invitations/{invitation_id}` | Revoke a pending invitation: its link stops working at once; `204` |
 | `GET` | `O/members` | Every account of the organization, for its supervisors |
 | `PATCH` | `O/members/{user_id}` | `is_active` of a supervisor |
-| `DELETE` | `O/members/{user_id}`, `…/second-factors` | As for a site, on a supervisor (*confirmed*) |
+| `DELETE` | `O/members/{user_id}`, `…/second-factors` | As for a site, on a supervisor: the first removes the supervision (*confirmed*) |
 | `POST` | `O/members/{user_id}/password-reset` | As for a site, on a supervisor (*confirmed*) |
 | `GET`, `POST`, `DELETE` | `O/invitations`, `O/invitations/{invitation_id}` | The supervisors' invitations, without `role` |
 
-Every account carries its `site` (`slug` and `name`, `null` for a supervisor). The caller's
-own account answers `403 own_account` (deleting, deactivating, changing its role, resetting
-it), the rescue account `403 rescue_account`. A reset link needs an active account with a
-second factor (`409 member_inactive`, `409 second_factor_missing`); the reset leaves the
-account active, to sign in with its password and set up a new factor. An address already in
-use answers `409 email_taken`; one administrator emails twenty invitations a day at most.
+Every account carries its `role` and `site` there (`org_admin` and `null` for a supervisor),
+its `sites` in that organization only, and `shared` when it holds a place beyond the
+caller's reach. A shared account is never turned off nor reset by the caller (`403
+account_shared`): it can only be removed from here. The caller's own account answers `403
+own_account` (removing, deactivating, changing its role, resetting it), the rescue account
+`403 rescue_account`. A reset link needs an active account with a second factor (`409
+member_inactive`, `409 second_factor_missing`); the reset leaves the account active, to sign
+in with its password and set up a new factor. Inviting an account that already holds the site
+or the supervision answers `409 already_member`; an existing account accepts an invitation
+with `POST U/invitations`. One administrator emails twenty invitations a day at most.
 
 ---
 
@@ -719,11 +726,14 @@ itself audited.
 |--------|-------|-------------|
 | `GET` | `S/audit-logs` | The site's entries, newest first; paginated (`page`, `per_page` up to 100, `Link`) |
 | `GET` | `S/audit-logs/export` | The same as CSV, 10,000 rows at most (*confirmed*) |
-| `GET` | `O/audit-logs` | The entries of the organization's sites and of its supervisors; `site` narrows to one site |
+| `GET` | `O/audit-logs` | The entries of the organization, its sites' and its supervisions'; `site` narrows to one site |
 | `GET` | `O/audit-logs/export` | The same as CSV (*confirmed*) |
 
 Filters: `action`, `user_id`, `from` and `to` (days in Paris time, both included). An
 unreadable filter answers `422`.
+
+An entry belongs to its site or its organization, and shows nowhere else. An account's own
+entries (signing in, its password, its second factors) show in every log where it holds a place.
 
 ---
 

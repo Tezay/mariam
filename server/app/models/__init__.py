@@ -6,6 +6,7 @@ from .egalim_declaration import EgalimDeclaration
 from .event import Event, EventImage
 from .exceptional_closure import ExceptionalClosure
 from .import_session import ImportSession
+from .membership import OrgSupervision, SiteMembership
 from .menu import Menu, MenuItem
 from .menu_vote import (
     DEFAULT_ICON_PRESET,
@@ -37,6 +38,8 @@ from .user import User
 
 __all__ = [
     'User',
+    'SiteMembership',
+    'OrgSupervision',
     'Passkey',
     'Organization',
     'Restaurant',

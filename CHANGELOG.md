@@ -7,9 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **A shared account is reset or turned off only by whoever reaches all its places**: others may remove it.
+- **An audit entry shows in its own organization's logs only**, even when its account holds places elsewhere.
+
 ### Added
 
 - **A release that reaches production is published on GitHub**, with the provenance of its images attached.
+- **An account holds a role per site, on sites of several organizations**, and may supervise several organizations.
+- **An existing account accepts an invitation** once signed in (`POST /v1/user/invitations`), keeping its other sites.
+
+### Changed
+
+- **A site or an organization out of the caller's reach answers 404** on every route, where some answered 403.
+- **`flask user grant` and `flask user revoke`** replace `set-role`: an account's places are added and taken one by one.
 
 ## [0.20.2] - 2026-11-19
 

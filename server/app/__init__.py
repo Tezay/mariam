@@ -439,15 +439,14 @@ def create_app(config_class=None):
     def send_digest(to, dry_run, html_out):
         """Send the weekly digest to one user, to check the SMTP settings."""
         from .services import email_service
-        from .services.access import accessible_restaurant_ids
 
         user = User.query.filter_by(email=to.strip().lower()).first()
         if not user:
             click.echo(f'No account with {to}.')
             return
-        site_ids = sorted(accessible_restaurant_ids(user))
+        site_ids = email_service.digest_site_ids(user)
         if not site_ids:
-            click.echo(f"{to} has access to no site.")
+            click.echo(f"{to} administers and supervises no site.")
             return
 
         start, end = email_service.last_week()

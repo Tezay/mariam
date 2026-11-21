@@ -5,7 +5,7 @@ import io
 from app.extensions import db
 from app.models import AuditLog, Organization, User
 from app.models.passkey import Passkey
-from conftest import auth_headers, make_restaurant, make_user, site_path
+from conftest import auth_headers, make_restaurant, make_user, site_path, supervise
 from tests.auth_support import confirmed_headers
 
 
@@ -94,10 +94,8 @@ class TestScope:
         db.session.commit()
         rid = make_restaurant(None, name='RU Nord', code='RU_NORD', organization_id=org.id)
         supervisor = db.session.get(
-            User, make_user(None, email='sup@mariam.app', role='org_admin', restaurant_id=None)
+            User, make_user(None, email='sup@mariam.app', role='org_admin', organization_id=org.id)
         )
-        supervisor.organization_id = org.id
-        db.session.commit()
         _with_passkey(supervisor.id, b'sup-cred')
         _entry('menu_publish', restaurant_id=rid)
         _entry('activation_link_create', user_id=supervisor.id)
@@ -117,6 +115,70 @@ class TestScope:
 
         entry = AuditLog.query.filter_by(action=AuditLog.ACTION_AUDIT_LOGS_ACCESS).one()
         assert (entry.user_id, entry.restaurant_id) == (user.id, user.restaurant_id)
+
+
+class TestCommandLineEntries:
+    def test_an_entry_about_a_member_shows_in_its_sites_log(self, app, client):
+        reader, path = _reader(app, 'admin@mariam.app')
+        _with_passkey(reader.id, b'cli-cred')
+        AuditLog.log(action='email_change', target_type='user', target_id=reader.id)
+        db.session.commit()
+
+        res = client.get(path, headers=auth_headers(_token(app, reader.id)))
+
+        assert _actions(res) == ['email_change']
+
+
+class TestAnAccountOfTwoOrganizations:
+    """Each organization reads what the account did there, and its own account's entries."""
+
+    def _shared(self):
+        here, there = (Organization(name=slug, slug=slug) for slug in ('crous-ici', 'crous-la'))
+        db.session.add_all([here, there])
+        db.session.commit()
+        site_here = make_restaurant(None, name='Ici', code='RU_ICI', organization_id=here.id)
+        site_there = make_restaurant(None, name='Là', code='RU_LA', organization_id=there.id)
+        shared = make_user(None, email='shared@mariam.app', role='editor', restaurant_id=site_here)
+        supervise(shared, there.id)
+        AuditLog.log(
+            action='menu_publish', user_id=shared,
+            restaurant_id=site_there, organization_id=there.id,
+        )
+        AuditLog.log(action='activation_link_create', user_id=shared, organization_id=there.id)
+        AuditLog.log(action='login', user_id=shared)
+        db.session.commit()
+        return here, site_here, there, shared
+
+    def _reader(self, app, **place):
+        uid = make_user(None, **place)
+        _with_passkey(uid, place['email'].encode())
+        return auth_headers(_token(app, uid))
+
+    def test_neither_the_site_nor_its_organization_reads_the_other_organizations(
+        self, app, client
+    ):
+        here, site_here, _, _ = self._shared()
+        site_admin = self._reader(app, email='admin@mariam.app', restaurant_id=site_here)
+        supervisor = self._reader(
+            app, email='sup@mariam.app', role='org_admin', organization_id=here.id
+        )
+
+        site = _actions(client.get(f'{site_path(site_here)}/audit-logs', headers=site_admin))
+        org = _actions(client.get(f'/v1/orgs/{here.slug}/audit-logs', headers=supervisor))
+
+        assert site == ['login']
+        assert 'menu_publish' not in org and 'activation_link_create' not in org
+        assert 'login' in org
+
+    def test_the_other_organization_reads_them(self, app, client):
+        _, _, there, shared = self._shared()
+        _with_passkey(shared, b'shared')
+
+        org = client.get(
+            f'/v1/orgs/{there.slug}/audit-logs', headers=auth_headers(_token(app, shared))
+        )
+
+        assert sorted(_actions(org)) == ['activation_link_create', 'login', 'menu_publish']
 
 
 class TestExport:
