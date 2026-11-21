@@ -45,7 +45,6 @@ def _audit(user: User, details: dict) -> None:
     AuditLog.log(
         action=AuditLog.ACTION_PASSWORD_RESET,
         user_id=user.id,
-        restaurant_id=user.restaurant_id,
         details=details,
         ip_address=get_client_ip(),
     )

@@ -40,9 +40,10 @@ def _make_org(name='Test Org', slug='test-org'):
 
 
 def _make_user(email, role, restaurant_id, organization_id=None, with_mfa=False):
-    uid = make_user(None, email=email, role=role, restaurant_id=restaurant_id)
+    uid = make_user(
+        None, email=email, role=role, restaurant_id=restaurant_id, organization_id=organization_id
+    )
     user = db.session.get(User, uid)
-    user.organization_id = organization_id
     if with_mfa:
         user.mfa_secret = 'JBSWY3DPEHPK3PXP'
         user.mfa_enabled = True
@@ -276,7 +277,8 @@ class TestOrgAdminScope:
         refused = client.patch(site_path(outsider), json={'name': 'Mine now'}, headers=headers)
 
         assert [event['title'] for event in listed] == ['Theirs, published']
-        assert refused.status_code == 403
+        assert refused.status_code == 404
+        assert refused.get_json()['code'] == 'site_not_found'
         assert db.session.get(Restaurant, outsider).name == 'Outsider'
 
 

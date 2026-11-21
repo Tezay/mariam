@@ -2,34 +2,48 @@ import re
 from functools import wraps
 
 from flask import request
-from flask_jwt_extended import get_jwt_identity, jwt_required, verify_jwt_in_request
+from flask_jwt_extended import jwt_required, verify_jwt_in_request
 from flask_jwt_extended.exceptions import FreshTokenRequired
 
 from ..extensions import db
-from ..models import AuditLog, DishCatalog, Organization, Restaurant, User
+from ..models import AuditLog, DishCatalog, Organization, Restaurant, SiteMembership
 from ..models.taxonomy import Certification, DietaryTag
 from ..problems import Problem
 from ..security import get_client_ip
+from ..services.access import ADMIN, SUPERVISOR, Reach, first_place, oversees
 from ..services.storage import storage
 from ..utils.time import as_utc
+from .scope import get_current_user, member_org, site_access
 
 
-def refuse_supervisor(user) -> None:
-    if user.is_org_admin():
+def refuse_supervisor(role: str) -> None:
+    if role == SUPERVISOR:
         raise Problem(403, 'supervisor_read_only', 'Un superviseur ne peut pas modifier un site.')
 
 
-def _refuse_supervisor_writes(user) -> None:
-    if request.method != 'GET':
-        refuse_supervisor(user)
+def _admin_required() -> Problem:
+    return Problem(403, 'admin_required', 'Accès réservé aux administrateurs.')
+
+
+def _role_on_path_site(kwargs) -> str:
+    return site_access(kwargs['org'], kwargs['site'])[1]
+
+
+def _oversee_path_site(kwargs) -> str:
+    site, role = site_access(kwargs['org'], kwargs['site'])
+    if not oversees(get_current_user(), site, role):
+        raise _admin_required()
+    return role
 
 
 def editor_required(f):
-    """Any account of the site; a supervisor reads but never writes."""
+    """Any role on the site; a supervisor reads but never writes."""
     @wraps(f)
     @jwt_required()
     def decorated_function(*args, **kwargs):
-        _refuse_supervisor_writes(get_current_user())
+        role = _role_on_path_site(kwargs)
+        if request.method != 'GET':
+            refuse_supervisor(role)
         return f(*args, **kwargs)
     return decorated_function
 
@@ -39,37 +53,35 @@ def site_admin_required(f):
     @wraps(f)
     @jwt_required()
     def decorated_function(*args, **kwargs):
-        current_user_id = int(get_jwt_identity())
-        user = db.session.get(User, current_user_id)
-        if not user.is_admin():
-            raise Problem(403, 'admin_required', 'Accès réservé aux administrateurs.')
-        _refuse_supervisor_writes(user)
+        if request.method == 'GET':
+            _oversee_path_site(kwargs)
+        else:
+            role = _role_on_path_site(kwargs)
+            if role != ADMIN:
+                refuse_supervisor(role)
+                raise _admin_required()
         return f(*args, **kwargs)
     return decorated_function
 
 
 def admin_required(f):
-    """Site admins and supervisors."""
+    """Admins of the site and its supervisors."""
     @wraps(f)
     @jwt_required()
     def decorated_function(*args, **kwargs):
-        current_user_id = int(get_jwt_identity())
-        user = db.session.get(User, current_user_id)
-        if not user.is_admin():
-            raise Problem(403, 'admin_required', 'Accès réservé aux administrateurs.')
+        _oversee_path_site(kwargs)
         return f(*args, **kwargs)
     return decorated_function
 
 
 def org_admin_required(f):
-    """Supervisors only; one without an organization resolves to an empty scope."""
+    """Supervisors of the organization; another organization reads as missing."""
     @wraps(f)
     @jwt_required()
     def decorated_function(*args, **kwargs):
-        current_user_id = int(get_jwt_identity())
-        user = db.session.get(User, current_user_id)
-        if not user.is_org_admin() or not user.organization_id:
+        if not get_current_user().supervisions:
             raise Problem(403, 'supervisor_required', 'Réservé aux superviseurs.')
+        member_org(kwargs['org'])
         return f(*args, **kwargs)
     return decorated_function
 
@@ -119,51 +131,81 @@ def step_up_once_enrolled(f):
     return decorated_function
 
 
-def get_current_user():
-    """The account of the session, on a route that asks for one.
-
-    Never None: the token loader has already refused a token whose account is gone.
-    """
-    return db.session.get(User, int(get_jwt_identity()))
+def _ref(place) -> dict:
+    return {'slug': place.slug, 'name': place.name}
 
 
-def member_view(user) -> dict:
-    site = user.restaurant
+def _account_fields(user) -> dict:
     return {
         'id': user.id,
         'email': user.email,
         'username': user.username,
-        'role': user.role,
         'is_active': user.is_active,
         'mfa_enabled': user.mfa_enabled,
         'passkeys_count': user.passkeys.count(),
         'is_rescue_account': user.is_rescue_account,
-        'site': {'slug': site.slug, 'name': site.name} if site else None,
         'created_at': as_utc(user.created_at),
         'last_login': as_utc(user.last_login),
     }
 
 
-def account_view(user) -> dict:
-    """The signed-in account; a site's team takes its organization from the site."""
-    organization = (
-        db.session.get(Organization, user.organization_id) if user.organization_id
-        else user.restaurant.organization if user.restaurant else None
+def member_view(
+    user, organization: Organization, reach: Reach, site: Restaurant | None = None
+) -> dict:
+    """An account in a site's or an organization's list, with its places in that
+    organization only: the others are another organization's business.
+    """
+    memberships = [
+        m for m in user.memberships
+        if m.restaurant.organization_id == organization.id
+        and (site is None or m.restaurant_id == site.id)
+    ]
+    supervisor = site is None and any(
+        place.organization_id == organization.id for place in user.supervisions
     )
     return {
-        **member_view(user),
-        'organization': (
-            {'slug': organization.slug, 'name': organization.name} if organization else None
-        ),
+        **_account_fields(user),
+        'role': user.ROLE_ORG_ADMIN if supervisor else memberships[0].role,
+        'site': None if supervisor else _ref(memberships[0].restaurant),
+        'sites': [{**_ref(m.restaurant), 'role': m.role} for m in memberships],
+        'shared': not reach.covers(user),
     }
 
 
-def audit(action: str, restaurant: Restaurant | None, **fields) -> None:
-    """An audit entry of the session's account, on one site or on none."""
+def account_view(user) -> dict:
+    """The signed-in account. `role`, `site` and `organization` are its oldest place."""
+    place = first_place(user)
+    if isinstance(place, SiteMembership):
+        role, site, organization = place.role, place.restaurant, place.restaurant.organization
+    elif place is not None:
+        role, site, organization = user.ROLE_ORG_ADMIN, None, place.organization
+    else:
+        role, site, organization = user.role, None, None
+    return {
+        **_account_fields(user),
+        'role': role,
+        'site': _ref(site) if site else None,
+        'organization': _ref(organization) if organization else None,
+        'sites': [
+            {**_ref(m.restaurant), 'role': m.role, 'organization': _ref(m.restaurant.organization)}
+            for m in user.memberships
+        ],
+        'organizations': [_ref(place.organization) for place in user.supervisions],
+    }
+
+
+def audit(
+    action: str, restaurant: Restaurant | None,
+    organization: Organization | None = None, **fields,
+) -> None:
+    """An audit entry of the session's account, on a site, on an organization or on neither."""
     AuditLog.log(
         action=action,
         user_id=get_current_user().id,
         restaurant_id=restaurant.id if restaurant else None,
+        organization_id=(
+            restaurant.organization_id if restaurant else organization.id if organization else None
+        ),
         ip_address=get_client_ip(),
         **fields,
     )

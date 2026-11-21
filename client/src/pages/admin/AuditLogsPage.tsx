@@ -44,6 +44,8 @@ const ACTION_LABELS: Record<string, string> = {
   user_create: 'Création utilisateur',
   user_update: 'Modif. utilisateur',
   user_delete: 'Suppr. utilisateur',
+  member_join: 'Accès accepté',
+  member_remove: "Retrait d'un accès",
   menu_create: 'Création menu',
   menu_update: 'Modif. menu',
   menu_publish: 'Publication menu',

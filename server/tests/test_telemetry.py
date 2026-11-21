@@ -273,9 +273,7 @@ class TestDayCloseAndPurge:
 
 class TestTrafficEndpoint:
     def _supervisor(self, org_id, rid):
-        uid = make_user(None, email='sup@mariam.app', role='org_admin', restaurant_id=None)
-        db.session.get(User, uid).organization_id = org_id
-        db.session.commit()
+        make_user(None, email='sup@mariam.app', role='org_admin', organization_id=org_id)
 
     def _traffic(self, client, org_id, token, period):
         slug = db.session.get(Organization, org_id).slug

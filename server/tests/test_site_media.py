@@ -201,11 +201,7 @@ class TestWhoChangesThem:
         db.session.add(org)
         db.session.commit()
         rid = make_restaurant(None, name='RU Media', code='RU_MEDIA', organization_id=org.id)
-        supervisor = db.session.get(
-            User, make_user(None, email='sup@mariam.app', role='org_admin', restaurant_id=None)
-        )
-        supervisor.organization_id = org.id
-        db.session.commit()
+        make_user(None, email='sup@mariam.app', role='org_admin', organization_id=org.id)
         headers = auth_headers(get_token(client, email='sup@mariam.app'))
 
         res = _send(client, f'{site_path(rid)}/cover', headers)

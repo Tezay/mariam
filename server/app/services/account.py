@@ -61,7 +61,7 @@ def _one_line(text: str | None) -> str | None:
     return ' '.join(text.split()) if text else None
 
 
-def notify_invitation(link: ActivationLink, inviter: User) -> bool:
+def notify_invitation(link: ActivationLink, inviter: User, *, has_account: bool = False) -> bool:
     place = (
         db.session.get(Restaurant, link.restaurant_id) if link.restaurant_id
         else db.session.get(Organization, link.organization_id) if link.organization_id
@@ -75,6 +75,7 @@ def notify_invitation(link: ActivationLink, inviter: User) -> bool:
         inviter=_one_line(inviter.username),
         place=_one_line(place.name) if place else None,
         role=link.role,
+        has_account=has_account,
     )
     return email_service.send_email(
         link.email, mail['subject'], mail['text'], mail['html'], kind=Kind.INVITATION

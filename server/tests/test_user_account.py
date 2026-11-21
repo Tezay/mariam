@@ -262,9 +262,7 @@ class TestProfile:
         org = Organization(name='Crous Paris', slug='crous-paris')
         db.session.add(org)
         db.session.commit()
-        uid = make_user(None, role='org_admin', restaurant_id=None)
-        db.session.get(User, uid).organization_id = org.id
-        db.session.commit()
+        uid = make_user(None, role='org_admin', organization_id=org.id)
 
         body = client.get('/v1/user', headers=session_headers(uid)).get_json()
 

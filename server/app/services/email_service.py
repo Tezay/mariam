@@ -21,11 +21,19 @@ from jinja2 import TemplateNotFound
 from limits import parse
 
 from ..extensions import db
-from ..models import DishCatalog, Menu, Organization, Restaurant, User
+from ..models import (
+    DishCatalog,
+    Menu,
+    Organization,
+    OrgSupervision,
+    Restaurant,
+    SiteMembership,
+    User,
+)
 from ..security import spend
 from ..utils.time import format_date_fr, paris_now, paris_today
 from ..utils.urls import api_base_url, frontend_base_url
-from .access import accessible_restaurant_ids
+from .access import ADMIN, first_place, member_site_ids, supervised_site_ids
 from .alerts import live_alerts
 from .analytics_stats import Scope, overview, satisfaction_stats, traffic_stats
 from .dish_stats import first_served
@@ -408,8 +416,17 @@ def _org_blocks(data: dict) -> dict:
     }
 
 
+def _supervisor(user) -> bool:
+    # The dashboard opens on the account's oldest place.
+    return isinstance(first_place(user), OrgSupervision)
+
+
 def _account_url(user) -> str:
-    return _base_url() + ('/org/account' if user.is_org_admin() else '/admin/account')
+    return _base_url() + ('/org/account' if _supervisor(user) else '/admin/account')
+
+
+def digest_site_ids(user) -> list[int]:
+    return sorted(member_site_ids(user, (ADMIN,)) | supervised_site_ids(user))
 
 
 def build_digest(
@@ -423,7 +440,7 @@ def build_digest(
     multi = len(site_ids) > 1
     # The links follow the role and the layout the number of sites: a supervisor
     # of a single site still works from /org.
-    supervisor = user.is_org_admin()
+    supervisor = _supervisor(user)
     metrics = _metric_blocks(data['kpis'])
 
     scored = {dish['dish_id']: dish for dish in satisfaction['top_dishes']}
@@ -446,10 +463,16 @@ def build_digest(
     }
 
     if multi:
-        organization = db.session.get(Organization, user.organization_id)
+        organizations = {
+            org_id for (org_id,) in
+            db.session.query(Restaurant.organization_id).filter(Restaurant.id.in_(site_ids))
+        }
+        organization = (
+            db.session.get(Organization, organizations.pop()) if len(organizations) == 1 else None
+        )
         return render_email(
             'weekly_digest_org',
-            org_name=organization.name if organization else 'Votre organisation',
+            org_name=organization.name if organization else 'Vos restaurants',
             **common,
             **metrics,
             **_org_blocks(data),
@@ -519,7 +542,7 @@ def _build_reopening(user, sites: list[Restaurant], closures: ClosureRanges, tod
                 for day in open_days if day not in published
             ],
         })
-    supervisor = user.is_org_admin()
+    supervisor = _supervisor(user)
     return render_email(
         'reopening',
         sites=rows,
@@ -563,8 +586,11 @@ def weekly_mail(user, site_ids: list[int], today: date) -> dict | None:
 
 def digest_recipients(weekday: int | None = None, hour: int | None = None) -> list[User]:
     """Subscribers, optionally only those expecting the email in this very hour."""
+    administrators = db.session.query(SiteMembership.user_id).filter(SiteMembership.role == ADMIN)
+    supervisors = db.session.query(OrgSupervision.user_id)
     users = User.query.filter(
-        User.is_active.is_(True), User.role.in_(('admin', 'org_admin'))
+        User.is_active.is_(True),
+        db.or_(User.id.in_(administrators), User.id.in_(supervisors)),
     ).all()
     recipients = []
     for user in users:
@@ -598,7 +624,7 @@ def send_weekly_digest(app) -> int:
         for user in digest_recipients(now.weekday(), now.hour):
             if not acquire_job_lock(f'digest_lock:{user.id}:{week}', DIGEST_LOCK_TTL):
                 continue
-            site_ids = sorted(accessible_restaurant_ids(user))
+            site_ids = digest_site_ids(user)
             if not site_ids:
                 continue
             try:

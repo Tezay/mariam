@@ -12,6 +12,9 @@ class AuditLog(db.Model):
     restaurant_id = db.Column(
         db.Integer, db.ForeignKey('restaurants.id'), nullable=True, index=True
     )
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey('organizations.id'), nullable=True, index=True
+    )
     action = db.Column(db.String(50), nullable=False, index=True)
     target_type = db.Column(db.String(50), nullable=True)  # user, menu, event, etc.
     target_id = db.Column(db.Integer, nullable=True)
@@ -29,6 +32,8 @@ class AuditLog(db.Model):
     ACTION_USER_CREATE = 'user_create'
     ACTION_USER_UPDATE = 'user_update'
     ACTION_USER_DELETE = 'user_delete'
+    ACTION_MEMBER_JOIN = 'member_join'
+    ACTION_MEMBER_REMOVE = 'member_remove'
     ACTION_MENU_CREATE = 'menu_create'
     ACTION_MENU_UPDATE = 'menu_update'
     ACTION_MENU_PUBLISH = 'menu_publish'
@@ -68,11 +73,13 @@ class AuditLog(db.Model):
 
     @classmethod
     def log(cls, action, user_id=None, target_type=None, target_id=None,
-            details=None, ip_address=None, user_agent=None, restaurant_id=None):
+            details=None, ip_address=None, user_agent=None, restaurant_id=None,
+            organization_id=None):
         """Added to the session; the caller commits it with the change it records."""
         log_entry = cls(
             user_id=user_id,
             restaurant_id=restaurant_id,
+            organization_id=organization_id,
             action=action,
             target_type=target_type,
             target_id=target_id,

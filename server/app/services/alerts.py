@@ -18,6 +18,7 @@ from ..models import AuditLog, Menu, Restaurant
 from ..models.restaurant import RestaurantServiceHours
 from ..utils.time import format_date_fr, paris_now
 from . import holidays
+from .access import member_site_ids
 from .analytics_stats import uniques_per_site, views_per_site, votes_per_site
 from .anti_abuse import env_cap
 from .service_calendar import closures_by_site, is_open_on
@@ -323,7 +324,9 @@ RULES = [
 ]
 
 
-def build_context(user, site_ids: list[int]) -> Context | None:
+def build_context(
+    user, site_ids: list[int], audience: Audience, multi: bool
+) -> Context | None:
     sites = (
         Restaurant.query
         .filter(Restaurant.id.in_(site_ids), Restaurant.is_active.is_(True))
@@ -341,21 +344,28 @@ def build_context(user, site_ids: list[int]) -> Context | None:
         time=now.strftime('%H:%M'),
         weekday=now.weekday(),
         prefs=user.get_notification_preferences(),
-        multi=len(sites) > 1,
-        audience=Audience.SUPERVISOR if user.is_org_admin() else Audience.SITE_TEAM,
+        multi=multi,
+        audience=audience,
     )
 
 
 def live_alerts(user, site_ids: list[int]) -> list[dict]:
-    """Active alerts for the sites the caller may read, worst first."""
-    context = build_context(user, site_ids)
-    if context is None:
-        return []
-
+    """Active alerts for these sites, worst first: the team's rules on the sites the
+    account belongs to, the supervisor's on those it only supervises.
+    """
+    team = member_site_ids(user)
     alerts = []
-    for rule in RULES:
-        if rule.only in (None, context.audience) and context.prefs.get(rule.preference, True):
-            alerts.extend(rule.check(context))
+    for audience, ids in (
+        (Audience.SITE_TEAM, [site_id for site_id in site_ids if site_id in team]),
+        (Audience.SUPERVISOR, [site_id for site_id in site_ids if site_id not in team]),
+    ):
+        # Worded for all the account's sites: two contexts of one site each are two sites.
+        context = build_context(user, ids, audience, multi=len(site_ids) > 1)
+        if context is None:
+            continue
+        for rule in RULES:
+            if rule.only in (None, audience) and context.prefs.get(rule.preference, True):
+                alerts.extend(rule.check(context))
 
     order = {'error': 0, 'warning': 1, 'info': 2}
     alerts.sort(key=lambda alert: order.get(alert['severity'], 3))

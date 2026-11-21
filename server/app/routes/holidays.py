@@ -1,10 +1,10 @@
+from flask_jwt_extended import jwt_required
 from flask_smorest import Blueprint
 
 from ..problems import Problem
 from ..schemas.holidays import HolidayListSchema, SchoolHolidayListSchema, ZoneQuerySchema
 from ..security import limiter
 from ..services import holidays
-from .helpers import editor_required
 
 holidays_bp = Blueprint('holidays', __name__, description='French public and school holidays')
 
@@ -36,7 +36,7 @@ def list_holidays(year: int):
 
 
 @holidays_bp.route('/school-holidays/<int:year>', methods=['GET'])
-@editor_required
+@jwt_required()
 @holidays_bp.arguments(ZoneQuerySchema, location='query')
 @holidays_bp.response(200, SchoolHolidayListSchema)
 def list_school_holidays(query, year: int):

@@ -2,11 +2,11 @@
 from flask import Response, request
 from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 
-from ..models import Organization, Restaurant
+from ..extensions import db
+from ..models import Organization, Restaurant, User
 from ..problems import Problem
 from ..security import ACCESS_COOKIE
-from ..services.access import accessible_restaurant_ids
-from .helpers import get_current_user
+from ..services.access import site_role, supervises
 
 # Documents a route open to anyone, where a session sees more.
 SESSION_OPTIONAL: list[dict] = [{}, {'bearer': []}, {'session': []}]
@@ -27,11 +27,18 @@ def public_org(slug: str) -> Organization:
     return org
 
 
+def get_current_user():
+    """The account of the session, on a route that asks for one.
+
+    Never None: the token loader has already refused a token whose account is gone.
+    """
+    return db.session.get(User, int(get_jwt_identity()))
+
+
 def member_org(slug: str) -> Organization:
     """The organization the session supervises, open or not; any other reads as missing."""
-    user = get_current_user()
     org = Organization.query.filter_by(slug=slug).first()
-    if org is None or not user.is_org_admin() or org.id != user.organization_id:
+    if org is None or not supervises(get_current_user(), org.id):
         raise _org_not_found()
     return org
 
@@ -39,7 +46,7 @@ def member_org(slug: str) -> Organization:
 def readable_org(slug: str) -> tuple[Organization, bool]:
     """The organization, and whether the caller is one of its supervisors."""
     verify_jwt_in_request(optional=True)
-    if get_jwt_identity() is not None and get_current_user().is_org_admin():
+    if get_jwt_identity() is not None:
         try:
             return member_org(slug), True
         except Problem:
@@ -57,8 +64,8 @@ def public_site(org_slug: str, site_slug: str) -> Restaurant:
     return site
 
 
-def member_site(org_slug: str, site_slug: str) -> Restaurant:
-    """The site the session works on, open or not.
+def site_access(org_slug: str, site_slug: str) -> tuple[Restaurant, str]:
+    """The site the session works on, open or not, and its role there.
 
     Out of reach reads as missing, so a path does not tell whether a site exists.
     """
@@ -67,9 +74,14 @@ def member_site(org_slug: str, site_slug: str) -> Restaurant:
         .filter(Organization.slug == org_slug, Restaurant.slug == site_slug)
         .first()
     )
-    if site is None or site.id not in accessible_restaurant_ids(get_current_user()):
+    role = site_role(get_current_user(), site) if site is not None else None
+    if role is None:
         raise _site_not_found()
-    return site
+    return site, role
+
+
+def member_site(org_slug: str, site_slug: str) -> Restaurant:
+    return site_access(org_slug, site_slug)[0]
 
 
 def readable_site(org_slug: str, site_slug: str) -> tuple[Restaurant, bool]:

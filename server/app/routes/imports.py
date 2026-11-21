@@ -469,6 +469,7 @@ def confirm_menu_import(body, org: str, site: str, import_id: str):
         action='csv_import',
         user_id=session.user_id,
         restaurant_id=restaurant.id,
+        organization_id=restaurant.organization_id,
         details={
             'filename': session.filename,
             'imported_count': imported,
@@ -584,6 +585,7 @@ def confirm_dish_import(body, org: str, site: str, import_id: str):
         action='catalog_import',
         user_id=session.user_id,
         restaurant_id=restaurant.id,
+        organization_id=restaurant.organization_id,
         details={
             'filename': session.filename,
             'category_id': body['category_id'],

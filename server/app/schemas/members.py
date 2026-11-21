@@ -6,21 +6,42 @@ from .common import NamedRefSchema, NormalizedEmail
 SITE_ROLES = (User.ROLE_ADMIN, User.ROLE_EDITOR)
 
 
-class MemberSchema(Schema):
+class AccountFieldsSchema(Schema):
     id = fields.Int(required=True)
     email = fields.Email(required=True)
     username = fields.Str(required=True, allow_none=True, metadata={'description': "Display name"})
-    role = fields.Str(required=True, validate=validate.OneOf(User.VALID_ROLES))
     is_active = fields.Bool(required=True)
     mfa_enabled = fields.Bool(required=True, metadata={'description': "An authenticator app is set up"})
     passkeys_count = fields.Int(required=True)
     is_rescue_account = fields.Bool(required=True)
+    created_at = fields.DateTime(required=True, allow_none=True)
+    last_login = fields.DateTime(required=True, allow_none=True)
+
+
+class MemberSiteSchema(NamedRefSchema):
+    role = fields.Str(required=True, validate=validate.OneOf(SITE_ROLES))
+
+
+class MemberSchema(AccountFieldsSchema):
+    role = fields.Str(
+        required=True, validate=validate.OneOf(User.VALID_ROLES),
+        metadata={'description': "On the site; on an organization's list, `org_admin` for its supervisors"},
+    )
     site = fields.Nested(
         NamedRefSchema, required=True, allow_none=True,
         metadata={'description': "None for a supervisor"},
     )
-    created_at = fields.DateTime(required=True, allow_none=True)
-    last_login = fields.DateTime(required=True, allow_none=True)
+    sites = fields.List(
+        fields.Nested(MemberSiteSchema), required=True,
+        metadata={'description': "Its sites in this organization; on a site's list, that site"},
+    )
+    shared = fields.Bool(
+        required=True,
+        metadata={'description': (
+            "It holds places beyond the caller's reach: it can be removed from here, "
+            "but not turned off nor reset"
+        )},
+    )
 
 
 class MemberListSchema(Schema):

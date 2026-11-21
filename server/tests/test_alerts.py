@@ -18,7 +18,7 @@ from app.models.restaurant import RestaurantServiceHours
 from app.models.telemetry import VisitorDailyUnique
 from app.services.alerts import live_alerts
 from app.utils.time import paris_now, paris_today
-from conftest import auth_headers, get_token, make_category, make_restaurant, make_user
+from conftest import auth_headers, get_token, join_site, make_category, make_restaurant, make_user
 
 
 def _quiet(user, **overrides):
@@ -54,11 +54,9 @@ def _org_with_two_sites(app):
         restaurant = db.session.get(Restaurant, rid)
         restaurant.organization_id = org.id
         restaurant.service_days = [0, 1, 2, 3, 4, 5, 6]
-    director = db.session.get(User, make_user(app, email='dir@mariam.app', role='org_admin',
-                                        restaurant_id=first))
-    director.restaurant_id = None
-    director.organization_id = org.id
-    db.session.commit()
+    director = db.session.get(
+        User, make_user(app, email='dir@mariam.app', role='org_admin', organization_id=org.id)
+    )
     return org.id, first, second, director
 
 
@@ -261,6 +259,16 @@ class TestAudience:
 
         assert len(live_alerts(director, [first, second])) == 1
         assert live_alerts(site_admin, [first]) == []
+
+    def test_a_supervisor_also_on_a_sites_team_hears_that_site_as_its_team(self, app, client):
+        _, first, second, director = _org_with_two_sites(app)
+        join_site(director.id, first, 'editor')
+        _quiet(director, notify_site_inactive=True)
+
+        alerts = live_alerts(director, [first, second])
+
+        assert [site['name'] for alert in alerts for site in alert['sites']] == ['Villejuif']
+        assert alerts[0]['body'] == 'Villejuif'
 
     def test_a_supervisor_hears_of_a_service_without_menu(self, app, client):
         _, first, second, director = _org_with_two_sites(app)

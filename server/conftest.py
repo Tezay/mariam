@@ -315,9 +315,15 @@ def probe_path(rule: str) -> str:
 _AUTO_RESTAURANT = object()
 
 
-def make_user(app, email='admin@mariam.app', role='admin', restaurant_id=_AUTO_RESTAURANT):
-    """Written straight to the database, without a second factor."""
-    from app.models import Restaurant, User
+def make_user(
+    app, email='admin@mariam.app', role='admin', restaurant_id=_AUTO_RESTAURANT,
+    organization_id=None,
+):
+    """Written straight to the database, without a second factor: `role` on
+    `restaurant_id`, or `org_admin` over `organization_id`.
+    """
+    from app.models import OrgSupervision, Restaurant, SiteMembership, User
+    from app.services.access import mirror_first_place
     if restaurant_id is _AUTO_RESTAURANT:
         restaurant = Restaurant.query.order_by(Restaurant.id).first()
         restaurant_id = restaurant.id if restaurant else make_restaurant(app, 'RU Test Auto', 'RU_AUTO')
@@ -328,11 +334,40 @@ def make_user(app, email='admin@mariam.app', role='admin', restaurant_id=_AUTO_R
         role=role,
         is_active=True,
         mfa_enabled=False,
-        restaurant_id=restaurant_id,
     )
+    if role == User.ROLE_ORG_ADMIN:
+        if organization_id is not None:
+            user.supervisions.append(OrgSupervision(organization_id=organization_id))
+    elif restaurant_id is not None:
+        user.memberships.append(
+            SiteMembership(restaurant=_db.session.get(Restaurant, restaurant_id), role=role)
+        )
+    mirror_first_place(user)
     _db.session.add(user)
     _db.session.commit()
     return user.id
+
+
+def join_site(user_id, restaurant_id, role):
+    """Another site for the account, with its role there."""
+    from app.models import Restaurant, SiteMembership, User
+    from app.services.access import mirror_first_place
+    user = _db.session.get(User, user_id)
+    user.memberships.append(
+        SiteMembership(restaurant=_db.session.get(Restaurant, restaurant_id), role=role)
+    )
+    mirror_first_place(user)
+    _db.session.commit()
+
+
+def supervise(user_id, organization_id):
+    """Another organization for the account to supervise."""
+    from app.models import OrgSupervision, User
+    from app.services.access import mirror_first_place
+    user = _db.session.get(User, user_id)
+    user.supervisions.append(OrgSupervision(organization_id=organization_id))
+    mirror_first_place(user)
+    _db.session.commit()
 
 
 TEST_ORG_SLUG = 'test-org'
@@ -369,7 +404,7 @@ def own_site(client, token) -> tuple[int, str]:
     from app.models import User
     account = client.get('/v1/user', headers=auth_headers(token)).get_json()
     return (
-        _db.session.get(User, int(decode_token(token)['sub'])).restaurant_id,
+        _db.session.get(User, int(decode_token(token)['sub'])).memberships[0].restaurant_id,
         f"/v1/orgs/{account['organization']['slug']}/sites/{account['site']['slug']}",
     )
 
