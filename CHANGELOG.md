@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A release that reaches production is published on GitHub**, with the provenance of its images attached.
+
 ## [0.20.2] - 2026-11-19
 
 ### Security

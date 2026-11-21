@@ -286,6 +286,9 @@ instance's deploy hook and runs the smoke test.
 - **Each image is signed with its provenance**, and a channel tag only ever points at an image
   `delivery.yml` built from the expected ref: `promote-images.sh` checks it. Anyone can check an
   image: `gh attestation verify oci://ghcr.io/tezay/mariam-backend:X.Y.Z --repo Tezay/mariam`.
+- **A release that reaches production is published on GitHub**, with its CHANGELOG section and the
+  provenance of each image (`mariam-<component>-X.Y.Z.intoto.jsonl`), which
+  `gh attestation verify --bundle` checks offline.
 - **The registry keeps the ten latest `main-*` images** of each component
   ([`registry-cleanup.yml`](../.github/workflows/registry-cleanup.yml)); release images stay. Each
   package grants this repository the Admin role in its Actions access.
@@ -301,7 +304,7 @@ instance's deploy hook and runs the smoke test.
 - **`production` requires a reviewer:** its secrets reach the job only once the deploy is approved.
 - **`production` also holds `RELEASE_APP_CLIENT_ID` and `RELEASE_APP_PRIVATE_KEY`:** a GitHub
   App, installed on this repository alone with Contents and Workflows, that moves the `production`
-  branch.
+  branch and publishes the release.
 - **A staging database receives each migration** of `main`, and none can be rolled back.
 
 ## Migrating a tenant to a new hostname
