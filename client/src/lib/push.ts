@@ -2,6 +2,7 @@ import { isAxiosError } from 'axios';
 import { detectPlatform } from './app-install';
 import type { SiteRef } from './api/client';
 import { getApiErrorMessage } from './api/errors';
+import { orgScope } from './worker-scope';
 import {
   pushSubscriptionsApi,
   type NotificationPreferences,
@@ -28,10 +29,10 @@ const SW_READY_TIMEOUT = 30_000;
 
 const PUSH_SW_URL = '/sw-push.js';
 
-async function getRegistration(): Promise<ServiceWorkerRegistration | null> {
+async function getRegistration(scope: string): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) return null;
   try {
-    const reg = await navigator.serviceWorker.getRegistration('/');
+    const reg = await navigator.serviceWorker.getRegistration(scope);
     return reg?.active ? reg : null;
   } catch {
     return null;
@@ -88,9 +89,10 @@ function waitForActivation(
 }
 
 async function awaitReadyRegistration(
+  scope: string,
   timeoutMs = SW_READY_TIMEOUT
 ): Promise<ServiceWorkerRegistration> {
-  let reg = await navigator.serviceWorker.getRegistration('/');
+  let reg = await navigator.serviceWorker.getRegistration(scope);
   if (reg?.active) return reg;
 
   if (reg && (reg.installing || reg.waiting)) {
@@ -98,7 +100,7 @@ async function awaitReadyRegistration(
   }
 
   try {
-    reg = await navigator.serviceWorker.register(PUSH_SW_URL, { scope: '/' });
+    reg = await navigator.serviceWorker.register(PUSH_SW_URL, { scope });
   } catch (err) {
     throw new Error(
       "Impossible d'enregistrer le Service Worker : " +
@@ -159,9 +161,9 @@ function failureMessage(err: unknown): string {
   return err instanceof Error ? err.message : 'Erreur inconnue';
 }
 
-async function getExistingSubscription(): Promise<PushSubscription | null> {
+async function getExistingSubscription(site: SiteRef): Promise<PushSubscription | null> {
   if (!isPushSupported()) return null;
-  const reg = await getRegistration();
+  const reg = await getRegistration(orgScope(site.org));
   if (!reg) return null;
   try {
     return await reg.pushManager.getSubscription();
@@ -193,7 +195,7 @@ export async function subscribeToPush(
 
     const vapidKey = await getVapidPublicKey();
 
-    const registration = await awaitReadyRegistration();
+    const registration = await awaitReadyRegistration(orgScope(site.org));
 
     let subscription: PushSubscription;
     try {
@@ -225,7 +227,7 @@ export async function unsubscribeFromPush(
   site: SiteRef
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const subscription = await getExistingSubscription();
+    const subscription = await getExistingSubscription(site);
     if (!subscription) {
       return { success: true };
     }
@@ -246,7 +248,7 @@ export async function updatePreferences(
   site: SiteRef
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const subscription = await getExistingSubscription();
+    const subscription = await getExistingSubscription(site);
     if (!subscription) {
       return { success: false, error: 'Aucune souscription active.' };
     }
@@ -263,7 +265,7 @@ export async function updatePreferences(
 /** `null` when this browser does not follow the site. */
 export async function getServerPreferences(site: SiteRef): Promise<ServerSubscription | null> {
   try {
-    const subscription = await getExistingSubscription();
+    const subscription = await getExistingSubscription(site);
     if (!subscription) return null;
     return await pushSubscriptionsApi.get(site, subscription.endpoint);
   } catch {
@@ -275,7 +277,7 @@ export async function sendTestNotification(
   site: SiteRef
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const subscription = await getExistingSubscription();
+    const subscription = await getExistingSubscription(site);
     if (!subscription) {
       return { success: false, error: 'Aucune souscription active.' };
     }

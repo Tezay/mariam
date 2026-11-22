@@ -2,7 +2,8 @@
 # Checks a deployed instance: smoke-test.sh BASE_URL [VERSION]
 #
 # Waits until /health reports VERSION (any version if omitted) and /health/ready
-# answers ready, then checks that a page and the API answer for this host.
+# answers ready, then checks that the API lists an organization and that its
+# page answers.
 # SMOKE_HEADERS_FILE names a file of request headers, one per line, for an
 # instance behind an access control. SMOKE_TIMEOUT is in seconds (600).
 set -eu
@@ -11,7 +12,6 @@ base=${1:?usage: smoke-test.sh BASE_URL [VERSION]}
 base=${base%/}
 want=${2:-}
 timeout=${SMOKE_TIMEOUT:-600}
-host=$(echo "$base" | sed -E 's#^[a-z]+://##; s#[/:].*$##')
 
 get() {
     if [ -n "${SMOKE_HEADERS_FILE:-}" ]; then
@@ -36,15 +36,15 @@ while :; do
 done
 echo "ok - $base runs ${running} and is ready"
 
-page=$(get -o /dev/null -w '%{http_code} %{content_type}' "$base/")
-case $page in
-    "200 text/html"*) echo "ok - the home page answers" ;;
-    *) echo "The home page answered: $page" >&2; exit 1 ;;
-esac
-
-domain=$(get -o /dev/null -w '%{http_code}' "$base/v1/domains/$host")
-if [ "$domain" != 200 ]; then
-    echo "The API gave no organization for $host: $domain" >&2
+org=$(get "$base/v1/orgs" | jq -r '.items[0].slug // empty' 2>/dev/null || true)
+if [ -z "$org" ]; then
+    echo "The API lists no organization" >&2
     exit 1
 fi
-echo "ok - the API serves an organization for $host"
+echo "ok - the API lists the organization $org"
+
+page=$(get -o /dev/null -w '%{http_code} %{content_type}' "$base/$org")
+case $page in
+    "200 text/html"*) echo "ok - the page of $org answers" ;;
+    *) echo "The page of $org answered: $page" >&2; exit 1 ;;
+esac

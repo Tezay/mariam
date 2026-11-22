@@ -12,8 +12,7 @@ Hierarchy: Organization -> Restaurant -> (Menu, Event, User, ...).
 from ..extensions import db
 from ..utils.time import utc_now_naive
 
-# Slugs that cannot be assigned to an organization (technical / marketing
-# subdomains of mariam.app).
+# Names the service keeps for its own hosts and pages.
 RESERVED_ORG_SLUGS = frozenset({
     'www', 'app', 'api', 'admin', 'demo', 'staging', 'mail', 'blog',
     'status', 'docs', 'cdn', 'assets', 'static', 'help', 'support',

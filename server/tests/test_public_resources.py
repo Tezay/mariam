@@ -55,6 +55,17 @@ class TestOrganization:
         sites = client.get('/v1/orgs/crous-test/sites').get_json()['items']
         assert [site['slug'] for site in sites] == ['efrei']
 
+    def test_the_active_organizations_are_listed_by_name(self, client):
+        _org()
+        _org('closed-org', is_active=False)
+        db.session.add(Organization(name='Autre Crous', slug='autre-crous'))
+        db.session.commit()
+
+        assert client.get('/v1/orgs').get_json() == {'items': [
+            {'slug': 'autre-crous', 'name': 'Autre Crous'},
+            {'slug': 'crous-test', 'name': 'Crous Test'},
+        ]}
+
     def test_an_inactive_organization_is_not_found(self, client):
         _site(_org(is_active=False))
 

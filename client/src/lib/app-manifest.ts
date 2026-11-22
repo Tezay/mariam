@@ -1,3 +1,5 @@
+import { orgScope } from './worker-scope';
+
 // Each context names its own manifest: a phone installs the app of the page it is on,
 // whatever the browser remembers of an earlier visit.
 export const DASHBOARD_APPS = [
@@ -30,12 +32,13 @@ interface AppIdentity {
 
 export function appIdentity(
   pathname: string,
-  site: { slug: string; name: string } | null
+  site: { org: string; slug: string; name: string } | null
 ): AppIdentity {
   const dashboard = dashboardApp(pathname);
   if (dashboard) return { manifest: dashboard.manifest, title: dashboard.title };
   if (site) {
-    return { manifest: `/app.webmanifest?site=${encodeURIComponent(site.slug)}`, title: site.name };
+    const query = new URLSearchParams({ org: site.org, site: site.slug });
+    return { manifest: `/app.webmanifest?${query}`, title: site.name };
   }
   return { manifest: null, title: 'Mariam' };
 }
@@ -57,15 +60,15 @@ const ICONS = [
   { src: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png', purpose: 'any' },
 ];
 
-// `id` equals `start_url`, the identity browsers gave the app before it was explicit.
-export function siteManifest(name: string, pagePath: string) {
+export function siteManifest(name: string, org: string, site: string) {
+  const pagePath = `/${org}/${site}`;
   return {
     id: pagePath,
     name,
     short_name: name,
     description: 'Le menu du jour, les horaires et les infos pratiques du restaurant.',
     start_url: pagePath,
-    scope: '/',
+    scope: orgScope(org),
     display: 'standalone',
     theme_color: '#093EAA',
     background_color: '#ffffff',

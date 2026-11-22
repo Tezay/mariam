@@ -4,18 +4,23 @@ import type { Closure } from './closures';
 import type { News } from './news';
 import type { Quality } from './quality';
 import type { LiveStatus, PublicOrg, PublicSiteSummary, Site } from './sites';
+import { hostsOf } from '../hosts.server';
 
 type Env = Record<string, string | undefined>;
 
 const TIMEOUT_MS = 5000;
 
 // TLS ends at the proxy in front: this server only ever sees plain HTTP.
-export function publicOrigin(request: Request): string {
+function requestOrigin(request: Request): string {
   return `https://${new URL(request.url).host}`;
 }
 
+export function publicOrigin(request: Request, env: Env = process.env): string {
+  return hostsOf(env).public?.origin ?? requestOrigin(request);
+}
+
 export function apiBaseUrl(request: Request, env: Env = process.env): string {
-  const base = env.API_INTERNAL_URL || new URL(env.API_URL || '/v1', publicOrigin(request)).href;
+  const base = env.API_INTERNAL_URL || new URL(env.API_URL || '/v1', requestOrigin(request)).href;
   return base.replace(/\/+$/, '');
 }
 
@@ -42,25 +47,13 @@ async function getJson<T>(request: Request, path: string): Promise<T | null> {
   return response ? ((await response.json()) as T) : null;
 }
 
-const domains = new Map<string, { organization: PublicOrg; until: number }>();
-const DOMAINS_KEPT = 500;
+export async function fetchOrgs(request: Request): Promise<PublicOrg[]> {
+  const list = await getJson<{ items: PublicOrg[] }>(request, '/orgs');
+  return list?.items ?? [];
+}
 
-// Cached as long as the API allows: the answer changes rarely and every page needs it.
-export async function fetchDomain(request: Request): Promise<PublicOrg | null> {
-  const host = new URL(request.url).hostname;
-  const cached = domains.get(host);
-  if (cached && cached.until > Date.now()) return cached.organization;
-
-  const response = await getResponse(request, `/domains/${encodeURIComponent(host)}`);
-  if (!response) return null;
-  const { organization } = (await response.json()) as { organization: PublicOrg };
-  const maxAge = Number(/max-age=(\d+)/.exec(response.headers.get('cache-control') ?? '')?.[1]);
-  if (maxAge > 0) {
-    const oldest = domains.keys().next();
-    if (domains.size >= DOMAINS_KEPT && !oldest.done) domains.delete(oldest.value);
-    domains.set(host, { organization, until: Date.now() + maxAge * 1000 });
-  }
-  return organization;
+export async function fetchOrg(request: Request, org: string): Promise<PublicOrg | null> {
+  return getJson<PublicOrg>(request, `/orgs/${encodeURIComponent(org)}`);
 }
 
 export async function fetchSites(

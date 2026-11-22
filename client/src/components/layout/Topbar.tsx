@@ -27,6 +27,7 @@ import {
   Menu as MenuIcon,
 } from 'lucide-react';
 import { placeName } from '@/lib/dashboard-routes';
+import { publicPageUrl } from '@/lib/public-page';
 
 export type PageTitleMap = Array<[string, string]>;
 
@@ -139,13 +140,22 @@ export function Topbar({
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            {/* Root resolves to the single menu or to the site list, per tenant. */}
-            <NavLink to="/" target="_blank" className="cursor-pointer gap-2">
-              <ExternalLink className="h-4 w-4" />
-              Voir le menu public
-            </NavLink>
-          </DropdownMenuItem>
+          {place && (
+            <DropdownMenuItem asChild>
+              <a
+                href={publicPageUrl(
+                  place.place.org,
+                  place.place.kind === 'site' ? place.place.site : undefined
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="cursor-pointer gap-2"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Voir la page publique
+              </a>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem asChild>
             <NavLink to={accountPath} className="cursor-pointer gap-2">
               <User className="h-4 w-4" />

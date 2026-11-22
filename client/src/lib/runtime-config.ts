@@ -3,6 +3,9 @@ const config = typeof window === 'undefined' ? undefined : window.__RUNTIME_CONF
 
 export const API_URL = config?.API_URL || '/v1';
 
+// Empty when one host serves the dashboard and the public pages.
+export const PUBLIC_URL = config?.PUBLIC_URL || '';
+
 /** Deployment tag of the running frontend image; 'dev' outside a built container. */
 export const APP_VERSION = config?.APP_VERSION || 'dev';
 

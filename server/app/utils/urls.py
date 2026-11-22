@@ -18,6 +18,6 @@ def api_base_url() -> str:
 
 
 def public_page_path(restaurant, day: date | None = None) -> str:
-    """A site's public page, on its organization's host; a single-site one redirects it to `/`."""
-    path = f'/{restaurant.slug}'
+    """A site's public page, relative to the public host."""
+    path = f'/{restaurant.organization.slug}/{restaurant.slug}'
     return f'{path}?date={day.isoformat()}' if day else path

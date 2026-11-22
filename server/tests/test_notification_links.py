@@ -55,7 +55,7 @@ def test_the_menu_of_the_day_opens_the_page(app, client, pushed):
 
     notification_service.check_and_send_notifications(app)
 
-    assert [payload['url'] for payload in pushed] == ['/ru-a']
+    assert [payload['url'] for payload in pushed] == ['/test-org/ru-a']
 
 
 def test_the_menu_of_tomorrow_opens_that_day(app, client, pushed):
@@ -68,7 +68,7 @@ def test_the_menu_of_tomorrow_opens_that_day(app, client, pushed):
 
     notification_service.check_and_send_notifications(app)
 
-    assert [payload['url'] for payload in pushed] == [f'/ru-a?date={tomorrow.isoformat()}']
+    assert [payload['url'] for payload in pushed] == [f'/test-org/ru-a?date={tomorrow.isoformat()}']
 
 
 def test_events_and_closures_open_the_page(app, pushed):
@@ -83,7 +83,7 @@ def test_events_and_closures_open_the_page(app, pushed):
     notification_service._check_event_notifications(db, NOW, 0)
     notification_service._check_closure_notifications(db, NOW, 0)
 
-    assert [payload['url'] for payload in pushed] == ['/ru-a', '/ru-a']
+    assert [payload['url'] for payload in pushed] == ['/test-org/ru-a', '/test-org/ru-a']
 
 
 def test_the_test_notification_opens_the_page(app, client, pushed):
@@ -93,4 +93,4 @@ def test_the_test_notification_opens_the_page(app, client, pushed):
     res = client.post(f'{site_path(rid)}/push-subscriptions/{endpoint_fingerprint(ENDPOINT)}/test')
 
     assert res.status_code == 204
-    assert [payload['url'] for payload in pushed] == ['/ru-a']
+    assert [payload['url'] for payload in pushed] == ['/test-org/ru-a']

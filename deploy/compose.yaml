@@ -63,8 +63,6 @@ x-backend-env: &backend-env
   SENTRY_DSN: ${SENTRY_DSN:-}
   SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
-  BASE_DOMAIN: ${BASE_DOMAIN:-mariam.app}
-  DEFAULT_ORG_SLUG: ${DEFAULT_ORG_SLUG:-}
 
 services:
   db:
@@ -153,7 +151,9 @@ services:
     environment:
       API_URL: ${API_URL:-/v1}
       API_INTERNAL_URL: http://backend:5000/v1
-      CANONICAL_HOST: ${CANONICAL_HOST:-}
+      DASHBOARD_URL: ${DASHBOARD_URL:-}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      LEGACY_HOSTS: ${LEGACY_HOSTS:-}
       UMAMI_SCRIPT_URL: ${UMAMI_SCRIPT_URL:-}
       UMAMI_WEBSITE_ID: ${UMAMI_WEBSITE_ID:-}
       MAP_TILE_URL: ${MAP_TILE_URL:-}

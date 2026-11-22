@@ -34,8 +34,8 @@ describe('theme-init.js', () => {
   });
 
   it('keeps the TV light', () => {
-    expect(themeAt('/tv', { system: 'dark' })).toBe('light');
-    expect(themeAt('/alpha/tv', { system: 'dark' })).toBe('light');
+    expect(themeAt('/crous/alpha/tv', { system: 'dark' })).toBe('light');
+    expect(themeAt('/crous/tv', { system: 'dark' })).toBe('dark');
   });
 
   it("applies the dashboard's saved choice on every private page", () => {

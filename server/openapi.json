@@ -2267,7 +2267,7 @@
         }
       ]
     },
-    "/v1/domains/{host}": {
+    "/v1/orgs": {
       "get": {
         "responses": {
           "200": {
@@ -2275,7 +2275,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Domain"
+                  "$ref": "#/components/schemas/PublicOrgList"
                 }
               }
             }
@@ -2284,24 +2284,12 @@
             "$ref": "#/components/responses/DEFAULT_ERROR"
           }
         },
-        "summary": "The organization a host serves.",
-        "description": "For a frontend that renders an organization's pages: it names the\norganization to read under `/v1/orgs/{org}`. The answer may be cached\nfive minutes.",
+        "summary": "The active organizations, by name.",
         "tags": [
-          "domains"
+          "orgs"
         ],
         "security": []
-      },
-      "parameters": [
-        {
-          "in": "path",
-          "name": "host",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      ]
+      }
     },
     "/v1/orgs/{org}": {
       "get": {
@@ -7932,10 +7920,6 @@
       "description": "Web Push: a visitor's notifications of a site's menus and events"
     },
     {
-      "name": "domains",
-      "description": "Domains: which organization serves a host"
-    },
-    {
       "name": "orgs",
       "description": "Organizations and their sites"
     },
@@ -9322,19 +9306,18 @@
         ],
         "additionalProperties": false
       },
-      "Domain": {
+      "PublicOrgList": {
         "type": "object",
         "properties": {
-          "host": {
-            "type": "string"
-          },
-          "organization": {
-            "$ref": "#/components/schemas/PublicOrg"
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicOrg"
+            }
           }
         },
         "required": [
-          "host",
-          "organization"
+          "items"
         ],
         "additionalProperties": false
       },

@@ -3,14 +3,14 @@ import { fetchLiveStatus, fetchSitePage } from '@/lib/api/public.server';
 import { addDays, parisToday } from '@/lib/date-utils';
 import { publicMenuData } from './public-menu-data';
 import { tenantOf } from './tenant';
-import { siteFor, tenantContext } from './tenant.server';
+import { siteFor, sitePath, tenantContext } from './tenant.server';
 import { TvScreen } from './tv/TvScreen';
 import { rotationOf } from './tv/tv-layout';
 import type { Route } from './+types/tv-route';
 
 export async function loader({ request, params, context }: Route.LoaderArgs) {
   const tenant = context.get(tenantContext);
-  const { site, multiSite } = siteFor(tenant, request, params.restaurantSlug, 'tv');
+  const site = siteFor(tenant, params.site);
   const now = Date.now();
   const today = parisToday(new Date(now));
   const org = tenant.organization.slug;
@@ -40,7 +40,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     menu: publicMenuData(page, new Date(now)),
     live,
     now,
-    pageUrl: `${tenant.origin}${multiSite ? `/${site.slug}` : '/'}`,
+    pageUrl: `${tenant.origin}${sitePath(tenant, site.slug)}`,
     rotation: rotationOf(new URL(request.url).searchParams.get('rotation')),
   };
 }

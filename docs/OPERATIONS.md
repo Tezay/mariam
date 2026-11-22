@@ -53,7 +53,7 @@ after confirming its own identity.
 
 ### Provisioning a new client
 
-An organization is a client; its slug is the public subdomain, `<slug>.mariam.app`. A supervisor
+An organization is a client; its slug opens the addresses of its pages, `/<slug>`. A supervisor
 (`org_admin`) manages every site of that organization from `/org`; a site is opened here.
 
 ```bash
@@ -135,7 +135,7 @@ minutes of view counters and the current day's unique visitors. Two things to kn
 
 ### TV display
 
-A screen shows `https://<organization host>/<site>/tv` (`/tv` for a single site) in a browser or a
+A screen shows `https://<public host>/<org>/<site>/tv` in a browser or a
 signage player's web page widget.
 - It fills any resolution, 720p to 4K, in landscape or portrait. A screen mounted upright whose
   player sends a landscape picture takes `?rotation=90` (or `270`).
@@ -308,53 +308,30 @@ instance's deploy hook and runs the smoke test.
   branch and publishes the release.
 - **A staging database receives each migration** of `main`, and none can be rolled back.
 
-## Migrating a tenant to a new hostname
+## Changing hosts
 
-Renaming a tenant's public hostname touches passkeys, cached service workers and printed QR codes.
-Run it while the service is closed, in this order.
+Moving the pages to other hosts changes no data. Route the new hosts to the proxy, set `DASHBOARD_URL`,
+`PUBLIC_URL` and `FRONTEND_URL`, and list the former hosts in `LEGACY_HOSTS`: each of their
+addresses then answers a 301 to its new one, the links of the emails already sent included. Keep
+them routed, and listed, for a year at least.
 
-Before anything, list who would be locked out. A passkey is sealed to the hostname that registered
-it, so a rename invalidates every one of them; an account holding only passkeys has no way back in.
+A push subscription belongs to the address that made it: once the public pages move, to other
+hosts or from the addresses of 0.20 to `/<org>/<site>`, delete the old ones, or a visitor who
+subscribes again receives every notification twice.
+
+```sql
+DELETE FROM push_subscriptions;
+```
+
+A passkey is sealed to the `WEBAUTHN_RP_ID` it was registered under. Keep the value while it still
+covers the dashboard's host; changing it invalidates every passkey, so first list the accounts that
+hold nothing else, and have them enrol an authenticator app.
 
 ```sql
 SELECT u.id, u.email, (u.mfa_secret IS NOT NULL) AS totp,
        (SELECT COUNT(*) FROM passkeys p WHERE p.user_id = u.id) AS passkeys
 FROM users u ORDER BY u.id;
 ```
-
-Any row with passkeys and no TOTP must enrol one first, or wait for an admin to reset its MFA
-afterwards. Keep one administrator account whose TOTP you control: it is what lets you reset the
-others.
-
-1. Publish the new hostname and leave the old one serving: route it to the same service at the edge
-   (DNS, tunnel or load balancer), and to the frontend in the platform's proxy, or it answers 404.
-2. Set `WEBAUTHN_RP_ID` to the apex domain rather than the tenant host, so future passkeys survive
-   every later rename. `WEBAUTHN_ORIGIN` and `FRONTEND_URL` take the new hostname; both accept a
-   single origin for WebAuthn.
-3. Update the slug, then redeploy the backend and the scheduler. The public menu answers 404 for the
-   minute it takes the containers to swap, since the slug and the deployed configuration must agree.
-
-```sql
-UPDATE organizations SET slug='new-slug' WHERE slug='old-slug';
-```
-
-4. Check the new hostname end to end before redirecting anything: public menu, then an admin login
-   with password and TOTP.
-5. Redirect the old hostname with a 301 that preserves the path, or printed QR codes pointing at
-   `/menu` land on a root. Keep its DNS record: the rule only fires if the name still resolves.
-6. Drop the dead credentials, then tell their owners to enrol again.
-
-```sql
-DELETE FROM passkeys;
-```
-
-A device that already visited the old hostname serves the app from its service worker cache without
-touching the network, so the redirect never reaches it. Two measures help. Exclude the service
-worker scripts (`/sw*`) from the redirect, so the browser can still fetch them, and add
-`Clear-Site-Data: "storage"` on responses from the old hostname, which unregisters the workers and
-clears the origin. Support is wide but not universal, so set `CANONICAL_HOST` on the old
-deployment: the app then unregisters its own worker and redirects, which is the only measure that
-covers every browser.
 
 ## Troubleshooting
 
@@ -504,7 +481,7 @@ entry and vote ceiling keys on this address.
 Each application sets the headers of what it answers, whatever proxy stands in front.
 
 - The frontend server (`client/server.js`) sends HSTS, `X-Content-Type-Options`, `X-Frame-Options`,
-  `Referrer-Policy` and `Permissions-Policy`. The TV display (`/tv`, `/<site>/tv`) goes without
+  `Referrer-Policy` and `Permissions-Policy`. The TV display (`/<org>/<site>/tv`) goes without
   `X-Frame-Options`, so that a signage player may show it in a frame.
 - The API (`server/app/security_headers.py`) sends HSTS, `X-Content-Type-Options`,
   `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Cache-Control: no-store`,
@@ -535,6 +512,7 @@ The image runs a Node server as an unprivileged user.
 | `API_INTERNAL_URL` | Optional. Where the server itself reaches the API, for instance `http://backend:5000/v1` on a shared Docker network. Without it the server goes through `API_URL`: its calls then all carry the server's own address and draw on a single `PUBLIC_RATE_LIMIT` budget |
 | `UMAMI_SCRIPT_URL`, `UMAMI_WEBSITE_ID` | Optional, together: the tracker's script and the site it reports as |
 | `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | Optional: error reporting from the browser |
-| `CANONICAL_HOST` | See "Migrating a tenant to a new hostname" |
+| `DASHBOARD_URL`, `PUBLIC_URL` | Optional, together: the dashboard's host and the public pages' one, which then redirect each other's pages |
+| `LEGACY_HOSTS` | Optional: former hosts, comma-separated, whose addresses redirect to their new ones; needs `PUBLIC_URL`. See "Changing hosts" |
 
 The variables are read at each request: changing one takes a restart, not a rebuild.

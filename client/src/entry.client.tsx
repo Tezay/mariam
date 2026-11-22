@@ -2,13 +2,14 @@ import { StrictMode, startTransition } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { HydratedRouter } from 'react-router/dom';
 import * as Sentry from '@sentry/react';
-import { canonicalTarget, migrateToCanonicalHost } from './lib/canonical-host';
+import { workerScope } from './lib/worker-scope';
 
 async function registerServiceWorker() {
-  if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
+  const scope = workerScope(window.location.pathname);
+  if (!import.meta.env.PROD || !('serviceWorker' in navigator) || !scope) return;
   try {
     const { Workbox } = await import('workbox-window');
-    const worker = new Workbox('/sw-push.js', { scope: '/' });
+    const worker = new Workbox('/sw-push.js', { scope });
     // The worker takes over as soon as it is installed: a page still running
     // the previous build reloads onto the new one.
     worker.addEventListener('activated', (event) => {
@@ -51,9 +52,4 @@ function bootstrap() {
   });
 }
 
-// A retired host must not register a service worker it is about to leave.
-if (canonicalTarget(window.location.host, window.__RUNTIME_CONFIG__?.CANONICAL_HOST)) {
-  void migrateToCanonicalHost();
-} else {
-  bootstrap();
-}
+bootstrap();

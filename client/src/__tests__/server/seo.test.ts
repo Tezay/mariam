@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { menuDescription, restaurantJsonLd, websiteJsonLd } from '@/pages/public/seo/jsonld';
+import { menuDescription, restaurantJsonLd } from '@/pages/public/seo/jsonld';
 import { pageMeta } from '@/pages/public/seo/meta';
 import type { DisplayCategory, RestaurantPublic } from '@/pages/public/menu-types';
 
@@ -51,7 +51,7 @@ function site(fields: Partial<RestaurantPublic> = {}): RestaurantPublic {
   return { ...base, config: { service_days, dietary_tags, certifications } };
 }
 
-const ORG = { name: 'Crous Démo', url: 'https://demo.test/' };
+const ORG = { name: 'Crous Démo', url: 'https://demo.test/crous' };
 
 describe('pageMeta', () => {
   const base = { title: 'T', description: 'D', url: 'https://x.test/menu', siteName: 'S' };
@@ -92,16 +92,16 @@ describe('menuDescription', () => {
 });
 
 describe('restaurantJsonLd', () => {
-  const input = { url: 'https://demo.test/alpha', organization: ORG, multiSite: false };
+  const input = { url: 'https://demo.test/crous/alpha', organization: ORG };
 
   it('describes the restaurant and the menu of the day, one section per category', () => {
     const today = day([category('Plats', ['Curry'], [category('Poissons', ['Colin'])])]);
-    const data = restaurantJsonLd({ ...input, site: site(), day: today });
+    const [data] = restaurantJsonLd({ ...input, site: site(), day: today });
 
     expect(data).toMatchObject({
       '@type': 'Restaurant',
       name: 'Alpha',
-      url: 'https://demo.test/alpha',
+      url: 'https://demo.test/crous/alpha',
       parentOrganization: { name: 'Crous Démo' },
       hasMenu: {
         name: 'Menu du 15/10/2026',
@@ -114,7 +114,7 @@ describe('restaurantJsonLd', () => {
   });
 
   it('gives the address in parts, the hours, the services and the links', () => {
-    const data = restaurantJsonLd({
+    const [data] = restaurantJsonLd({
       ...input,
       day: null,
       site: site({
@@ -150,35 +150,23 @@ describe('restaurantJsonLd', () => {
   });
 
   it('claims no menu on a day without dishes', () => {
-    const data = restaurantJsonLd({ ...input, site: site(), day: day([category('Plats', [])]) });
+    const [data] = restaurantJsonLd({ ...input, site: site(), day: day([category('Plats', [])]) });
     expect(data).not.toHaveProperty('hasMenu');
     expect(data).not.toHaveProperty('image');
   });
 
-  it('adds the trail to the organization when it has several sites', () => {
-    const data = restaurantJsonLd({ ...input, multiSite: true, site: site(), day: null });
+  it('adds the trail to the organization', () => {
+    const data = restaurantJsonLd({ ...input, site: site(), day: null });
 
     expect(data).toMatchObject([
       { '@type': 'Restaurant' },
       {
         '@type': 'BreadcrumbList',
         itemListElement: [
-          { position: 1, name: 'Crous Démo', item: 'https://demo.test/' },
-          { position: 2, name: 'Alpha', item: 'https://demo.test/alpha' },
+          { position: 1, name: 'Crous Démo', item: 'https://demo.test/crous' },
+          { position: 2, name: 'Alpha', item: 'https://demo.test/crous/alpha' },
         ],
       },
     ]);
-  });
-});
-
-describe('websiteJsonLd', () => {
-  it('names the site after its organization and Mariam, and Mariam alone as an alternate', () => {
-    expect(websiteJsonLd('Organisation Démo', 'https://demo.test/')).toEqual({
-      '@context': 'https://schema.org',
-      '@type': 'WebSite',
-      name: 'Organisation Démo · Mariam',
-      alternateName: 'Mariam',
-      url: 'https://demo.test/',
-    });
   });
 });

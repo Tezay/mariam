@@ -46,6 +46,7 @@ from ..routes.helpers import get_or_create_dish
 from ..services.access import mirror_first_place
 from ..services.votes import vote_dish_groups
 from ..utils.time import PARIS_TZ, paris_today
+from ..utils.urls import frontend_base_url
 
 _DEMO_CODE = 'DEMO'
 _DEMO_SLUG = 'demo'
@@ -133,11 +134,8 @@ def register_commands(app):
         db.session.commit()
         restaurant = restaurants[0]
 
-        frontend_url = app.config.get('FRONTEND_URL', 'http://localhost:5173')
-        site_count = Restaurant.query.filter_by(
-            organization_id=restaurant.organization_id, is_active=True
-        ).count()
-        site_path = '' if site_count == 1 else f'/{restaurant.slug}'
+        frontend_url = frontend_base_url()
+        site_path = f'/{organization.slug}/{restaurant.slug}'
         click.echo('\n' + '=' * 55)
         click.echo('  DEMO — Presentation dataset ready')
         click.echo('=' * 55)

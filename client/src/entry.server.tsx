@@ -19,7 +19,7 @@ export const handleError: HandleErrorFunction = (error, { request }) => {
 };
 
 // The pages server.js lets a signage player frame: same rule as FRAMED there.
-const FRAMED = /^\/(?:[^/]+\/)?tv\/?$/;
+const FRAMED = /^\/[^/]+\/[^/]+\/tv\/?$/;
 
 export default function handleRequest(
   request: Request,

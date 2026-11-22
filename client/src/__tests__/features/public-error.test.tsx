@@ -1,23 +1,37 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ErrorBoundary } from '@/pages/public/tenant-layout';
+import { MemoryRouter } from 'react-router';
+import { PublicError } from '@/pages/public/PublicError';
 
-type Props = Parameters<typeof ErrorBoundary>[0];
+const notFound = (data: unknown) => ({
+  status: 404,
+  statusText: 'Not Found',
+  internal: false,
+  data,
+});
 
-function notFound(data: unknown) {
-  return {
-    error: { status: 404, statusText: 'Not Found', internal: false, data },
-  } as unknown as Props;
+function show(data: unknown) {
+  render(
+    <MemoryRouter>
+      <PublicError error={notFound(data)} org="crous" />
+    </MemoryRouter>
+  );
 }
 
 describe('the public error screen', () => {
   it.each([
-    ['organization', 'Organisation introuvable.'],
-    ['site', 'Restaurant introuvable.'],
-    ['404 page not found', 'Menu momentanément indisponible'],
-  ])('a 404 carrying %j shows %j', (data, text) => {
-    render(<ErrorBoundary {...notFound(data)} />);
+    ['organization', 'Page introuvable.', '/'],
+    ['site', 'Restaurant introuvable.', '/crous'],
+  ])('a 404 carrying %j shows %j, with a way back', (data, text, back) => {
+    show(data);
 
     expect(screen.getByText(text)).toBeTruthy();
+    expect(screen.getByRole('link').getAttribute('href')).toBe(back);
+  });
+
+  it("takes a proxy's 404 for an outage", () => {
+    show('404 page not found');
+
+    expect(screen.getByText('Menu momentanément indisponible')).toBeTruthy();
   });
 });

@@ -6,8 +6,11 @@ import http from 'node:http';
 import { after, before, beforeEach, test } from 'node:test';
 import vm from 'node:vm';
 
-const HOST = 'demo.example.test';
+const HOST = 'example.test';
 const ORIGIN = `https://${HOST}`;
+const APP_HOST = 'app.example.test';
+const LEGACY_HOST = 'demo.legacy.test';
+const onApp = { headers: { Host: APP_HOST } };
 
 let api;
 let tenant;
@@ -50,7 +53,7 @@ function request(path, { method = 'GET', headers = {} } = {}) {
 }
 
 function organization(...sites) {
-  return { status: 200, sites };
+  return { status: 200, sites, orgs: ['demo'] };
 }
 
 const HOSTILE_DISH = '</script><script>alert(1)</script>';
@@ -130,11 +133,11 @@ const SITE_ANSWERS = {
 
 function answer(url) {
   const { pathname, searchParams } = new URL(url, 'http://api');
-  if (pathname.startsWith('/v1/domains/')) {
-    if (tenant.status !== 200) return { status: tenant.status };
-    const headers = tenant.maxAge ? { 'Cache-Control': `public, max-age=${tenant.maxAge}` } : {};
-    return { status: 200, headers, body: { organization: { name: 'Demo', slug: 'demo' } } };
+  if (tenant.status !== 200) return { status: tenant.status };
+  if (pathname === '/v1/orgs') {
+    return { status: 200, body: { items: tenant.orgs.map((slug) => ({ slug, name: slug })) } };
   }
+  if (pathname === '/v1/orgs/demo') return { status: 200, body: { slug: 'demo', name: 'Demo' } };
   if (pathname === '/v1/orgs/demo/sites') {
     return { status: 200, body: { items: tenant.sites.map((slug) => SITE_ANSWERS[''](slug)) } };
   }
@@ -166,6 +169,9 @@ before(async () => {
       API_URL: 'https://api.example.test/v1',
       API_INTERNAL_URL: `http://127.0.0.1:${apiPort}/v1`,
       APP_VERSION: '9.9.9',
+      DASHBOARD_URL: `https://${APP_HOST}`,
+      PUBLIC_URL: ORIGIN,
+      LEGACY_HOSTS: LEGACY_HOST,
       UMAMI_SCRIPT_URL: 'https://stats.example.test/script.js',
       UMAMI_WEBSITE_ID: 'site-1',
       SENTRY_DSN: 'https://key@errors.example.test/1',
@@ -190,7 +196,7 @@ beforeEach(() => {
 });
 
 test('a page is the loading shell, with the security headers', async () => {
-  const page = await request('/admin/users');
+  const page = await request('/admin/users', onApp);
   assert.equal(page.status, 200);
   assert.match(page.headers['content-type'], /^text\/html/);
   assert.match(page.body, /role="status"/);
@@ -203,7 +209,7 @@ test('a page is the loading shell, with the security headers', async () => {
 });
 
 test('every inline script carries the nonce the policy announces', async () => {
-  const page = await request('/');
+  const page = await request('/demo');
   const policy = page.headers['content-security-policy'];
   const nonce = /'nonce-([^']+)'/.exec(policy)?.[1];
   assert.ok(nonce, 'no nonce in the policy');
@@ -215,17 +221,30 @@ test('every inline script carries the nonce the policy announces', async () => {
   assert.ok(inline.length > 0, 'the page has no inline script to check');
   for (const tag of inline) assert.ok(tag.includes(`nonce="${nonce}"`), tag);
 
-  const next = await request('/');
+  const next = await request('/demo');
   assert.ok(!next.headers['content-security-policy'].includes(nonce));
 });
 
-test('the home page names the site for search engines', async () => {
-  const page = await request('/');
-  assert.match(page.body, /"@type":"WebSite","name":"[^"]+ · Mariam","alternateName":"Mariam"/);
+test('the home leads to the only organization, and lists several', async () => {
+  const home = await request('/');
+  assert.equal(home.status, 302);
+  assert.equal(home.headers.location, '/demo');
+
+  tenant = { ...organization('alpha'), orgs: ['demo', 'other'] };
+  const list = await request('/');
+  assert.equal(list.status, 200);
+  assert.ok(list.body.includes('href="/other"'));
+});
+
+test('an organization lists its sites, even a single one', async () => {
+  tenant = organization('solo');
+  const page = await request('/demo');
+  assert.equal(page.status, 200);
+  assert.ok(page.body.includes('href="/demo/solo"'));
 });
 
 test('the policy lists the configured third parties and nothing else', async () => {
-  const policy = (await request('/')).headers['content-security-policy'];
+  const policy = (await request('/demo')).headers['content-security-policy'];
   const directive = (name) => policy.split('; ').find((part) => part.startsWith(`${name} `));
   assert.match(
     directive('script-src'),
@@ -238,7 +257,7 @@ test('the policy lists the configured third parties and nothing else', async () 
 });
 
 test('a HEAD request gets the headers without a body', async () => {
-  const head = await request('/', { method: 'HEAD' });
+  const head = await request('/demo', { method: 'HEAD' });
   assert.equal(head.status, 200);
   assert.equal(head.body, '');
   assert.ok(head.headers['content-security-policy']);
@@ -257,7 +276,7 @@ test('/config.js exposes the public settings only', async () => {
     {
       API_URL: 'https://api.example.test/v1',
       APP_VERSION: '9.9.9',
-      CANONICAL_HOST: '',
+      PUBLIC_URL: ORIGIN,
       UMAMI_SCRIPT_URL: 'https://stats.example.test/script.js',
       UMAMI_WEBSITE_ID: 'site-1',
       SENTRY_DSN: 'https://key@errors.example.test/1',
@@ -267,29 +286,29 @@ test('/config.js exposes the public settings only', async () => {
 });
 
 test('a site page installs its own app, named after it', async () => {
-  const manifest = await request('/app.webmanifest?site=alpha');
+  const manifest = await request('/app.webmanifest?org=demo&site=alpha');
   assert.equal(manifest.status, 200);
   assert.match(manifest.headers['content-type'], /^application\/manifest\+json/);
   const app = JSON.parse(manifest.body);
-  assert.deepEqual([app.id, app.start_url, app.name], ['/alpha', '/alpha', 'alpha']);
-  assert.equal((await request('/app.webmanifest?site=nope')).status, 404);
-
-  tenant = organization('solo');
-  assert.equal(JSON.parse((await request('/app.webmanifest?site=solo')).body).start_url, '/');
+  assert.deepEqual(
+    [app.id, app.start_url, app.scope, app.name],
+    ['/demo/alpha', '/demo/alpha', '/demo/', 'alpha']
+  );
+  assert.equal((await request('/app.webmanifest?org=demo&site=nope')).status, 404);
 });
 
 test('each context links the manifest of its own app, and the others none', async () => {
-  const manifestOf = async (path) =>
-    /<link rel="manifest" href="([^"]+)"/.exec((await request(path)).body)?.[1] ?? null;
-  assert.equal(await manifestOf('/alpha'), '/app.webmanifest?site=alpha');
-  assert.equal(await manifestOf('/admin/users'), '/manifest-admin.webmanifest');
-  assert.equal(await manifestOf('/org'), '/manifest-org.webmanifest');
+  const manifestOf = async (path, options) =>
+    /<link rel="manifest" href="([^"]+)"/.exec((await request(path, options)).body)?.[1] ?? null;
+  assert.equal(await manifestOf('/demo/alpha'), '/app.webmanifest?org=demo&amp;site=alpha');
+  assert.equal(await manifestOf('/admin/users', onApp), '/manifest-admin.webmanifest');
+  assert.equal(await manifestOf('/org', onApp), '/manifest-org.webmanifest');
   assert.equal(await manifestOf('/privacy'), null);
-  assert.equal(await manifestOf('/'), null);
+  assert.equal(await manifestOf('/demo'), null);
 
   const title = /<meta name="apple-mobile-web-app-title" content="([^"]+)"/;
-  assert.equal(title.exec((await request('/admin/users')).body)?.[1], 'Gestion');
-  assert.equal(title.exec((await request('/alpha')).body)?.[1], 'alpha');
+  assert.equal(title.exec((await request('/admin/users', onApp)).body)?.[1], 'Gestion');
+  assert.equal(title.exec((await request('/demo/alpha')).body)?.[1], 'alpha');
 });
 
 test('/robots.txt points at the sitemap of the requested host', async () => {
@@ -297,6 +316,7 @@ test('/robots.txt points at the sitemap of the requested host', async () => {
   assert.match(robots.headers['content-type'], /^text\/plain/);
   assert.match(robots.body, /^Disallow: \/admin$/m);
   assert.match(robots.body, new RegExp(`^Sitemap: ${ORIGIN}/sitemap\\.xml$`, 'm'));
+  assert.equal((await request('/robots.txt', onApp)).body, 'User-agent: *\nDisallow: /\n');
 });
 
 test('/sitemap.xml lists the sites, asking the API as the visitor', async () => {
@@ -305,29 +325,19 @@ test('/sitemap.xml lists the sites, asking the API as the visitor', async () => 
   });
 
   assert.match(sitemap.headers['content-type'], /^application\/xml/);
-  assert.ok(sitemap.body.includes(`<loc>${ORIGIN}/</loc>`));
-  assert.ok(sitemap.body.includes(`<loc>${ORIGIN}/alpha</loc>`));
-  assert.ok(sitemap.body.includes(`<loc>${ORIGIN}/beta</loc>`));
+  assert.ok(sitemap.body.includes(`<loc>${ORIGIN}/demo</loc>`));
+  assert.ok(sitemap.body.includes(`<loc>${ORIGIN}/demo/alpha</loc>`));
+  assert.ok(sitemap.body.includes(`<loc>${ORIGIN}/demo/beta</loc>`));
 
   assert.deepEqual(
     apiRequests.map((asked) => asked.url),
-    [`/v1/domains/${HOST}`, '/v1/orgs/demo/sites']
+    ['/v1/orgs', '/v1/orgs/demo/sites']
   );
   for (const asked of apiRequests) assert.equal(asked.headers['x-real-ip'], '203.0.113.7');
 });
 
-test('/sitemap.xml of a single site is its page at the root', async () => {
-  tenant = organization('solo');
-  const sitemap = await request('/sitemap.xml');
-  assert.ok(sitemap.body.includes(`<loc>${ORIGIN}/</loc>`));
-  assert.ok(!sitemap.body.includes('/solo'));
-});
-
-test('/sitemap.xml is empty for an unknown host and unavailable when the API fails', async () => {
-  tenant = { status: 404 };
-  const unknown = await request('/sitemap.xml');
-  assert.equal(unknown.status, 200);
-  assert.ok(!unknown.body.includes('<loc>'));
+test('/sitemap.xml is none on the dashboard host, and unavailable when the API fails', async () => {
+  assert.equal((await request('/sitemap.xml', onApp)).status, 404);
 
   tenant = { status: 500 };
   const failing = await request('/sitemap.xml');
@@ -336,7 +346,7 @@ test('/sitemap.xml is empty for an unknown host and unavailable when the API fai
 });
 
 test('static files are cached by how they are named', async () => {
-  const page = await request('/');
+  const page = await request('/demo');
   const hashed = /\/assets\/[^"]+\.js/.exec(page.body)?.[0];
   assert.ok(hashed, 'no hashed script in the page');
 
@@ -346,10 +356,10 @@ test('static files are cached by how they are named', async () => {
 });
 
 test('a site page is rendered by the server, with its title, its dishes and its JSON-LD', async () => {
-  const page = await request('/alpha');
+  const page = await request('/demo/alpha');
   assert.equal(page.status, 200);
   assert.match(page.body, /<title>alpha – Demo : menu du jour, horaires et accès<\/title>/);
-  assert.ok(page.body.includes(`<link rel="canonical" href="${ORIGIN}/alpha"/>`));
+  assert.ok(page.body.includes(`<link rel="canonical" href="${ORIGIN}/demo/alpha"/>`));
   assert.ok(!page.body.includes('noindex'));
   assert.ok(page.body.includes('Curry de pois chiches'));
   assert.ok(page.body.includes('450 repas par service'));
@@ -363,81 +373,78 @@ test('a site page is rendered by the server, with its title, its dishes and its 
 });
 
 test('a page asks the API as the visitor the proxy named', async () => {
-  await request('/alpha', { headers: { 'X-Real-IP': '203.0.113.7' } });
+  await request('/demo/alpha', { headers: { 'X-Real-IP': '203.0.113.7' } });
   assert.equal(apiRequests.length, 8);
   for (const { headers } of apiRequests) assert.equal(headers['x-real-ip'], '203.0.113.7');
 });
 
-test('the organization of a host is asked once while the API lets it be kept', async () => {
-  tenant = { ...organization('alpha', 'beta'), maxAge: 300 };
-  const headers = { Host: 'kept.example.test' };
-  await request('/', { headers });
-  await request('/', { headers });
-  assert.equal(apiRequests.filter((asked) => asked.url.startsWith('/v1/domains/')).length, 1);
-});
-
 test('an unknown site answers 404, an unreachable API 503', async () => {
-  const unknown = await request('/nope');
+  const unknown = await request('/demo/nope');
   assert.equal(unknown.status, 404);
   assert.ok(unknown.body.includes('Restaurant introuvable.'));
-  tenant = { status: 404 };
-  assert.equal((await request('/')).status, 404);
+  const elsewhere = await request('/nope');
+  assert.equal(elsewhere.status, 404);
+  assert.ok(elsewhere.body.includes('Page introuvable.'));
   tenant = { status: 500 };
-  const unavailable = await request('/');
+  const unavailable = await request('/demo');
   assert.equal(unavailable.status, 503);
   assert.ok(unavailable.body.includes('<meta http-equiv="refresh" content="60"/>'));
 });
 
 test('the TV display is rendered by the server, and signage players may frame it', async () => {
-  const tv = await request('/alpha/tv');
+  const tv = await request('/demo/alpha/tv');
   assert.equal(tv.status, 200);
   assert.ok(tv.body.includes('Curry de pois chiches'));
   assert.ok(tv.body.includes('450 repas par service'));
   assert.ok(tv.body.includes('<script src="/tv-watchdog.js">'));
   assert.equal(tv.headers['x-frame-options'], undefined);
   assert.ok(!tv.headers['content-security-policy'].includes('frame-ancestors'));
-  const site = await request('/alpha');
+  const site = await request('/demo/alpha');
   assert.equal(site.headers['x-frame-options'], 'SAMEORIGIN');
   assert.ok(site.headers['content-security-policy'].includes("frame-ancestors 'self'"));
 });
 
 test('a dated page is the menu of that day, kept out of the index', async () => {
   const tomorrow = addDays(TODAY, 1);
-  const page = await request(`/alpha?date=${tomorrow}`);
+  const page = await request(`/demo/alpha?date=${tomorrow}`);
   assert.equal(page.status, 200);
   assert.ok(page.body.includes('<meta name="robots" content="noindex"/>'));
-  assert.ok(page.body.includes(`<link rel="canonical" href="${ORIGIN}/alpha"/>`));
+  assert.ok(page.body.includes(`<link rel="canonical" href="${ORIGIN}/demo/alpha"/>`));
   assert.ok(
     apiRequests.some((asked) => asked.url.includes(`from=${tomorrow}&to=${addDays(tomorrow, 1)}`))
   );
 
   for (const date of [TODAY, 'demain', `${TODAY.slice(0, 4)}-02-30`, addDays(TODAY, 8)]) {
-    const moved = await request(`/alpha?date=${date}`);
+    const moved = await request(`/demo/alpha?date=${date}`);
     assert.equal(moved.status, 302, date);
-    assert.equal(moved.headers.location, '/alpha', date);
+    assert.equal(moved.headers.location, '/demo/alpha', date);
   }
 });
 
-test('the former addresses lead to the page, and the TV mode to its own', async () => {
-  const menu = await request('/alpha/menu?mode=tv');
-  assert.equal(menu.status, 301);
-  assert.equal(menu.headers.location, '/alpha?mode=tv');
-  const tv = await request('/alpha?mode=tv');
-  assert.equal(tv.status, 301);
-  assert.equal(tv.headers.location, '/alpha/tv');
+test('each host sends the other one its pages, on the same path', async () => {
+  const dashboard = await request('/admin/calendar?x=1');
+  assert.equal(dashboard.status, 301);
+  assert.equal(dashboard.headers.location, `https://${APP_HOST}/admin/calendar?x=1`);
 
-  const hostile = await request('/%5Cevil.example/menu');
-  assert.equal(hostile.headers.location, '/%5Cevil.example');
+  const page = await request('/demo/alpha?date=x', onApp);
+  assert.equal(page.status, 301);
+  assert.equal(page.headers.location, `${ORIGIN}/demo/alpha?date=x`);
+  assert.equal((await request('/', onApp)).headers.location, '/admin');
+});
 
+test('a former host leads each address to its new one, in a single step', async () => {
+  const legacy = { headers: { Host: LEGACY_HOST } };
   tenant = organization('solo');
-  for (const [path, status, location] of [
-    ['/menu', 301, '/'],
-    ['/solo/menu', 301, '/solo'],
-    ['/solo?date=x', 302, '/?date=x'],
+  for (const [path, location] of [
+    ['/', `${ORIGIN}/demo/solo`],
+    ['/?mode=tv', `${ORIGIN}/demo/solo/tv`],
+    ['/alpha/menu?date=x', `${ORIGIN}/demo/alpha?date=x`],
+    ['/privacy', `${ORIGIN}/privacy`],
+    ['/activate/abc', `https://${APP_HOST}/activate/abc`],
+    ['/%5Cevil.example/menu', `${ORIGIN}/demo/%5Cevil.example`],
   ]) {
-    const moved = await request(path);
-    assert.equal(moved.status, status, path);
+    const moved = await request(path, legacy);
+    assert.equal(moved.status, 301, path);
     assert.equal(moved.headers.location, location, path);
   }
-  assert.equal((await request('/')).status, 200);
 });

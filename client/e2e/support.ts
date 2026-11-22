@@ -4,7 +4,7 @@ const SCHEME = process.env.E2E_SCHEME ?? 'http';
 const PORT = process.env.E2E_PORT ?? '3000';
 export const API = process.env.E2E_API ?? 'http://localhost:5000';
 
-export const at = (org: string, path = '/') => `${SCHEME}://${org}.localhost:${PORT}${path}`;
+export const at = (path = '/') => `${SCHEME}://localhost:${PORT}${path}`;
 
 // In a deployment the proxy sends /v1 to the API; here the test replays each call.
 export async function proxyApi(page: Page) {

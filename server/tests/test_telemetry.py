@@ -109,6 +109,16 @@ class TestAbuseResistance:
         assert res.status_code == 204
         assert fake.hashes == {}
 
+    def test_an_origin_counts_only_when_the_deployment_lists_it(self, app, client, monkeypatch):
+        fake = _use_fake_redis(monkeypatch)
+        _org_with_site('abuse-org-4', 'ABU4')
+        monkeypatch.setenv('FRONTEND_URL', 'https://app.example.test,https://example.test')
+
+        _track(client, 'today', 'abu4', origin='https://crous.example.test')
+        assert fake.hashes == {}
+        _track(client, 'today', 'abu4', origin='https://example.test')
+        assert fake.hashes
+
     def test_one_visitor_cannot_run_the_counter_up(self, app, client, monkeypatch):
         fake = _use_fake_redis(monkeypatch)
         _, rid = _org_with_site('abuse-org-3', 'ABU3')
