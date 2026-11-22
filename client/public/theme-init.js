@@ -5,7 +5,7 @@
   try {
     var path = location.pathname;
     var dashboard = /^\/(admin|org|login|activate|reset-password|unsubscribe)(\/|$)/;
-    var tv = /^\/([^/]+\/)?tv\/?$/;
+    var tv = /^\/[^/]+\/[^/]+\/tv\/?$/;
     var system = window.matchMedia('(prefers-color-scheme: dark)');
     var root = document.documentElement;
     if (dashboard.test(path)) {

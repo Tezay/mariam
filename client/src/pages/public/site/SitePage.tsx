@@ -33,7 +33,6 @@ const CLOSURES_SHOWN = 5;
 interface SitePageProps {
   organization: PublicOrg;
   siteSlug: string;
-  multiSite: boolean;
   loadedDate: string;
   initial: SitePageData;
   initialLive: LiveStatus | null;
@@ -45,7 +44,6 @@ interface SitePageProps {
 export function SitePage({
   organization,
   siteSlug,
-  multiSite,
   loadedDate,
   initial,
   initialLive,
@@ -113,7 +111,6 @@ export function SitePage({
       <div className="h-1 bg-site-brand-solid" />
       <SiteHeader
         organization={organization}
-        multiSite={multiSite}
         site={site}
         closure={menu.activeClosure}
         now={now}

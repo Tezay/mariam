@@ -2561,28 +2561,19 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/domains/{host}": {
+    "/v1/orgs": {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                host: string;
-            };
+            path?: never;
             cookie?: never;
         };
-        /**
-         * The organization a host serves.
-         * @description For a frontend that renders an organization's pages: it names the
-         *     organization to read under `/v1/orgs/{org}`. The answer may be cached
-         *     five minutes.
-         */
+        /** The active organizations, by name. */
         get: {
             parameters: {
                 query?: never;
                 header?: never;
-                path: {
-                    host: string;
-                };
+                path?: never;
                 cookie?: never;
             };
             requestBody?: never;
@@ -2593,7 +2584,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Domain"];
+                        "application/json": components["schemas"]["PublicOrgList"];
                     };
                 };
                 default: components["responses"]["DEFAULT_ERROR"];
@@ -7404,9 +7395,8 @@ export interface components {
             slug: string;
             name: string;
         };
-        Domain: {
-            host: string;
-            organization: components["schemas"]["PublicOrg"];
+        PublicOrgList: {
+            items: components["schemas"]["PublicOrg"][];
         };
         OrgSite: {
             slug: string;

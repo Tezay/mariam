@@ -1,9 +1,13 @@
-import type { PublicSiteSummary } from '@/lib/api/sites';
+interface SitemapOrg {
+  slug: string;
+  sites: { slug: string }[];
+}
 
-export function sitemapUrls(origin: string, sites: PublicSiteSummary[]): string[] {
-  if (sites.length === 0) return [];
-  if (sites.length === 1) return [`${origin}/`];
-  return [`${origin}/`, ...sites.map((site) => `${origin}/${site.slug}`)];
+export function sitemapUrls(origin: string, organizations: SitemapOrg[]): string[] {
+  return organizations.flatMap(({ slug, sites }) => [
+    `${origin}/${slug}`,
+    ...sites.map((site) => `${origin}/${slug}/${site.slug}`),
+  ]);
 }
 
 function escapeXml(value: string): string {

@@ -5,7 +5,7 @@ from ..extensions import db
 from ..models import PAGE_KINDS, Event, Menu, Organization, Restaurant, SiteMembership
 from ..models.telemetry import ORG_PAGE_KINDS
 from ..schemas.orgs import OrgSiteListSchema
-from ..schemas.public import PublicOrgSchema
+from ..schemas.public import PublicOrgListSchema, PublicOrgSchema
 from ..security import get_client_ip, limiter, public_limit
 from ..services.service_calendar import closures_by_site, menu_status
 from ..services.telemetry import beacon_origin_allowed, record_page_view
@@ -14,6 +14,16 @@ from .scope import SESSION_OPTIONAL, finish_public_read, public_org, readable_or
 
 orgs_bp = Blueprint('orgs', __name__, description='Organizations and their sites')
 orgs_bp.after_request(finish_public_read)
+
+
+@orgs_bp.route('', methods=['GET'])
+@orgs_bp.doc(security=[])
+@limiter.limit(public_limit)
+@orgs_bp.response(200, PublicOrgListSchema)
+def list_orgs():
+    """The active organizations, by name."""
+    organizations = Organization.query.filter_by(is_active=True).order_by(Organization.name)
+    return {'items': organizations.all()}
 
 
 @orgs_bp.route('/<org>', methods=['GET'])

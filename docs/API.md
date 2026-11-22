@@ -333,7 +333,7 @@ campus behind a single address rather than for one visitor.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `/v1/domains/{host}` | The organization a host serves; may be cached five minutes |
+| `GET` | `/v1/orgs` | The active organizations, by name |
 | `GET` | `/v1/orgs/{org}` | An organization |
 | `GET` | `/v1/orgs/{org}/sites` | Its active sites; its supervisors read them all, with their fields (see Organization) |
 | `GET` | `/v1/orgs/{org}/sites/{site}` | A site: its page (tagline, presentation, logo, cover, gallery, access, services, links), address, contact, hours, vote settings, the labels in use, `menu_window` |
@@ -581,9 +581,9 @@ Notes:
 - Rates are `null` when their denominator is zero.
 - The status matrix covers the last 30 days, whatever the period.
 - Traffic excludes signage screens (`page_kind` `tv`), which refresh unattended;
-  those appear only in the page-kind split. The public root of a multi-site
-  organization is counted against the organization and reported separately as
-  `totals.org_root_views`, under `O` only.
+  those appear only in the page-kind split. The page of an organization, which
+  lists its sites, is counted against the organization and reported separately
+  as `totals.org_root_views`, under `O` only.
 - `capacity_reached` counts the services a team said full over the period, and their sites;
   `usual_time` is the median hour they filled, in Paris time to five minutes, `null` without one.
 - Unique visitors are an estimate: a HyperLogLog over hashes of IP and user

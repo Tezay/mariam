@@ -269,7 +269,6 @@ def create_app(config_class=None):
     from .routes.devices import devices_bp
     from .routes.dish_groups import dish_groups_bp
     from .routes.dishes import dishes_bp
-    from .routes.domains import domains_bp
     from .routes.holidays import holidays_bp
     from .routes.imports import imports_bp
     from .routes.members import members_bp
@@ -289,7 +288,6 @@ def create_app(config_class=None):
     api.register_blueprint(user_bp,          url_prefix='/v1/user')
     api.register_blueprint(weekly_emails_bp, url_prefix='/v1/weekly-emails')
     api.register_blueprint(push_bp,          url_prefix='/v1')
-    api.register_blueprint(domains_bp,       url_prefix='/v1/domains')
     api.register_blueprint(orgs_bp,          url_prefix='/v1/orgs')
     api.register_blueprint(members_bp,       url_prefix='/v1/orgs')
     api.register_blueprint(audit_bp,         url_prefix='/v1/orgs')
@@ -399,7 +397,7 @@ def create_app(config_class=None):
 
     @app.cli.command('create-org')
     @click.option('--name', required=True, help='Organization name')
-    @click.option('--slug', required=True, help='URL slug, its subdomain')
+    @click.option('--slug', required=True, help='URL slug, its first path segment')
     def create_org(name, slug):
         """Create an organization, unless its slug is taken."""
         from .models.organization import RESERVED_ORG_SLUGS

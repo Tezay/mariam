@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Links, Meta, Outlet, Scripts, useLocation, useRouteLoaderData } from 'react-router';
 import { AppErrorFallback } from '@/components/ErrorBoundary';
 import { appIdentity } from '@/lib/app-manifest';
+import { redirectHosts } from './host-redirects.server';
 import type { loader as siteLoader } from './pages/public/site-route';
 import type { Route } from './+types/root';
 import '@fontsource-variable/inter';
@@ -16,12 +17,15 @@ export const meta: Route.MetaFunction = () => [
   },
 ];
 
+export const middleware: Route.MiddlewareFunction[] = [redirectHosts];
+
 function useAppIdentity() {
   const { pathname } = useLocation();
-  const home = useRouteLoaderData<typeof siteLoader>('home');
   const page = useRouteLoaderData<typeof siteLoader>('site');
-  const site = home?.kind === 'site' ? home : page?.kind === 'site' ? page : null;
-  return appIdentity(pathname, site && { slug: site.siteSlug, name: site.page.site.name });
+  return appIdentity(
+    pathname,
+    page ? { org: page.organization.slug, slug: page.siteSlug, name: page.page.site.name } : null
+  );
 }
 
 export function Layout({ children }: { children: ReactNode }) {

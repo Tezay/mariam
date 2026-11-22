@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **An address that has an account can be invited**: it accepts once signed in and keeps its other places.
 - **A place switcher in the sidebar** moves between sites and supervisions; sign-in opens the last one.
 - **Any admin of a shared account resets its second factors**, and sends its password link by email only.
+- **`GET /v1/orgs` lists the active organizations.**
+- **The dashboard may take a host of its own**, and former hosts redirect: `DASHBOARD_URL`, `PUBLIC_URL`, `LEGACY_HOSTS`.
 
 ### Changed
 
@@ -21,10 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dashboard addresses name the site or organization** (`/admin/<org>/<site>`, `/org/<org>`); old ones lead home.
 - **A site or organization out of the caller's reach answers 404** on every route, where some answered 403.
 - **`flask user grant` and `revoke` replace `set-role`**, adding or removing one place at a time.
+- **Public pages live at `/<org>` and `/<org>/<site>`**, the TV at `/<org>/<site>/tv`; notifications follow.
 
 ### Removed
 
 - **`GET /v1/user` drops `role`, `site` and `organization`**, and a member drops `site`, for `sites`.
+- **`/v1/domains`, `BASE_DOMAIN`, `DEFAULT_ORG_SLUG` and `CANONICAL_HOST`**: the path names the organization.
+- **`/menu`, `/<site>/menu` and `?mode=tv`**, which only former hosts still redirect.
 
 ## [0.20.2] - 2026-11-19
 

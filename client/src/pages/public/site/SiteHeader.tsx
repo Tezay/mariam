@@ -43,7 +43,6 @@ export function NotificationsButton({
 
 interface SiteHeaderProps {
   organization: PublicOrg;
-  multiSite: boolean;
   site: RestaurantPublic;
   closure: Closure | null;
   now: Date;
@@ -53,7 +52,6 @@ interface SiteHeaderProps {
 
 export function SiteHeader({
   organization,
-  multiSite,
   site,
   closure,
   now,
@@ -62,12 +60,10 @@ export function SiteHeader({
 }: SiteHeaderProps) {
   const status = siteStatus(site, closure, now, capacityReached);
   const address = addressLines(site);
-  const orgName = multiSite ? (
-    <Link to="/" className="hover:text-site-text">
+  const orgName = (
+    <Link to={`/${organization.slug}`} className="hover:text-site-text">
       {organization.name}
     </Link>
-  ) : (
-    organization.name
   );
 
   return (
@@ -79,12 +75,8 @@ export function SiteHeader({
         >
           <p className="flex items-center gap-2 text-sm text-site-subtle">
             <span className="py-2.5 font-semibold">{orgName}</span>
-            {multiSite && (
-              <>
-                <ChevronRight aria-hidden className="h-3.5 w-3.5" />
-                <span className="font-semibold text-site-text">{site.name}</span>
-              </>
-            )}
+            <ChevronRight aria-hidden className="h-3.5 w-3.5" />
+            <span className="font-semibold text-site-text">{site.name}</span>
           </p>
           <NotificationsButton onClick={onOpenNotifications} />
         </nav>

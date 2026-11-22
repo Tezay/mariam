@@ -69,8 +69,8 @@ origin, which avoids CORS entirely. It is the only service that receives outside
 
 1. `/v1/*` and `/health` go to `backend:5000`.
 2. Every other path goes to `frontend:3000`.
-3. `server_name _` accepts any `*.mariam.app` subdomain; the `Host` header reaches both
-   containers, which resolve the organization from it.
+3. `server_name _` accepts any host and passes it on: the frontend server decides the
+   redirections between hosts.
 4. The visitor's address is established here, from the trusted proxies in front, and passed on
    as `X-Real-IP`. Rate limits live in the API alone.
 
@@ -91,16 +91,16 @@ The public pages are rendered by the server, then hydrated in the browser:
 
 | Path | Page |
 |---|---|
-| `/` | A single-site organization's page, or the list of its sites |
-| `/<site>` | A site's page; `?date=` picks a day of its menu window |
-| `/menu`, `/<site>/menu` | Permanent redirects to the site's page, query kept |
-| `/tv`, `/<site>/tv` | The display screen, rendered by the server, refreshed in the browser, framable, not indexed |
+| `/` | The only organization's page, or the list of the organizations |
+| `/<org>` | An organization's page: the list of its sites |
+| `/<org>/<site>` | A site's page; `?date=` picks a day of its menu window |
+| `/<org>/<site>/tv` | The display screen, rendered by the server, refreshed in the browser, framable, not indexed |
 | `/privacy` | The privacy notice for visitors |
 
 The other paths (the dashboard, sign-in) answer a loading indicator, and the application renders
 them in the browser.
 
-Each context is an app of its own: a site's page installs the site's app, `/admin` the
+Each context is an app of its own: a site's page installs the site's app, within `/<org>/`, `/admin` the
 dashboard (`manifest-admin.webmanifest`) and `/org` the supervision (`manifest-org.webmanifest`);
 the other pages link no manifest. An account installs the app of its own dashboard, from
 `/admin/install` or `/org/install`.
@@ -116,21 +116,25 @@ the proxy: from any other peer it drops it.
 
 ## Multi-tenancy, URLs and SEO
 
-### Tenant resolution
+### Addresses
 
-Organization is the subdomain, restaurant is the path: `crous-example.mariam.app/site-a/menu`.
-A single-site organization serves its menu at the root, `site-a.mariam.app/menu`.
+The organization and the site are the path, `/<org>/<site>`, on every instance. The API names them
+the same way, `/v1/orgs/{org}/sites/{site}/…`, and `GET /v1/orgs` lists the active organizations.
 
-The API names the organization and the site in the path: `/v1/orgs/{org}/sites/{site}/…`.
-Which organization a host serves is the API's answer too, `GET /v1/domains/{host}`
-(`services/tenancy.py`): the subdomain of `BASE_DOMAIN`, or `DEFAULT_ORG_SLUG` for any other host,
-or 404 when that is empty. The frontend server asks it for every page, and keeps the answer as long
-as the response allows.
+### Hosts
+
+One host serves everything by default. With `DASHBOARD_URL` and `PUBLIC_URL`, the dashboard (`/admin`,
+`/org`, sign-in, the links of the emails) has a host of its own, and each host answers the other's
+pages with a 301 to the same path. `LEGACY_HOSTS` names an organization's former hosts
+(`<org>.<domain>`): each of their addresses redirects, in one step, to its new one. The rules live
+in `client/src/lib/hosts.server.ts`.
+
+A public page registers its service worker for `/<org>/` alone, so that it never controls a page
+of another site served on the same host; the dashboard's covers `/`.
 
 ### DNS
 
-One record per tenant host, or a wildcard `*.mariam.app`, pointing at the TLS terminator in front
-of the proxy. `server_name _` accepts every subdomain and forwards the host.
+One record per host, pointing at the TLS terminator in front of the proxy.
 
 ### Indexing
 
@@ -138,8 +142,8 @@ Each public page carries its own title, description, canonical address and Open 
 menu also carries a Schema.org `Restaurant` in JSON-LD, with the dishes of the day. All of it is in
 the HTML the server sends, so a crawler or a link preview reads it without running JavaScript.
 
-`robots.txt` allows public pages and blocks `/admin`, `/org` and the API. `sitemap.xml` lists the
-organization's active sites. The frontend server answers both for the requested host.
+`robots.txt` allows public pages and blocks the dashboard and the API; on the dashboard's own host
+it blocks everything. `sitemap.xml` lists every active organization and its sites.
 
 ### Onboarding a client
 
@@ -147,16 +151,9 @@ Create the organization, then invite the supervisor through the CLI, see
 [OPERATIONS.md](OPERATIONS.md), "Provisioning a new client". The supervisor then creates the
 restaurants and their slugs from the `/org` dashboard.
 
-### Local multi-tenant development
+### Local development
 
-Modern browsers resolve `*.localhost` to `127.0.0.1` with no configuration:
-
-```
-http://crous-example.localhost:5173/site-a/menu
-curl -k https://crous-example.localhost:5173/sitemap.xml
-```
-
-`lvh.me` works the same way if needed.
+Every page answers on `https://localhost:5173`: `/demo`, `/demo/<site>`, `/admin`.
 
 ## Security
 

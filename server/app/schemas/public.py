@@ -22,9 +22,8 @@ class PublicOrgSchema(Schema):
     name = fields.Str(required=True)
 
 
-class DomainSchema(Schema):
-    host = fields.Str(required=True)
-    organization = fields.Nested(PublicOrgSchema, required=True)
+class PublicOrgListSchema(Schema):
+    items = fields.List(fields.Nested(PublicOrgSchema), required=True)
 
 
 class PublicSiteSummarySchema(Schema):

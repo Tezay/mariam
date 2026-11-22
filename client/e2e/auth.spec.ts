@@ -51,7 +51,7 @@ test('a passkey enrolled after a password sign-in then signs in from the address
   });
 
   await test.step('a password sign-in enrols the passkey the account must have', async () => {
-    await page.goto(at('demo', '/login'));
+    await page.goto(at('/login'));
     await page.getByLabel('Adresse e-mail').fill(EMAIL);
     await page.getByRole('button', { name: 'Continuer' }).click();
     await page.getByLabel('Mot de passe', { exact: true }).fill(PASSWORD!);
@@ -76,7 +76,7 @@ test('a passkey enrolled after a password sign-in then signs in from the address
   await test.step('the dashboard is closed once signed out', async () => {
     await setPresence(cdp, authenticatorId, false);
     await signOut(page);
-    await page.goto(at('demo', '/admin'));
+    await page.goto(at('/admin'));
     await expect(page).toHaveURL(/\/login$/);
   });
 

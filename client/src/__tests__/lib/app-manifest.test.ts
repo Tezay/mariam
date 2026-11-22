@@ -4,15 +4,15 @@ import { describe, expect, it } from 'vitest';
 import { appIdentity, DASHBOARD_APPS, siteManifest } from '@/lib/app-manifest';
 
 const publicDir = path.resolve(import.meta.dirname, '../../../public');
-const SITE = { slug: 'sciences', name: 'Restaurant des Sciences' };
+const SITE = { org: 'crous', slug: 'sciences', name: 'Restaurant des Sciences' };
 
 describe('appIdentity', () => {
   it('names the app of each context', () => {
     expect(appIdentity('/admin/calendar', SITE).manifest).toBe('/manifest-admin.webmanifest');
     expect(appIdentity('/admin', null).title).toBe('Gestion');
     expect(appIdentity('/org/sites/sciences', null).manifest).toBe('/manifest-org.webmanifest');
-    expect(appIdentity('/sciences', SITE)).toEqual({
-      manifest: '/app.webmanifest?site=sciences',
+    expect(appIdentity('/crous/sciences', SITE)).toEqual({
+      manifest: '/app.webmanifest?org=crous&site=sciences',
       title: 'Restaurant des Sciences',
     });
   });
@@ -35,15 +35,14 @@ describe('appIdentity', () => {
 });
 
 describe('siteManifest', () => {
-  it('opens the page of the site, under its name, as one app per page', () => {
-    expect(siteManifest('Restaurant des Sciences', '/sciences')).toMatchObject({
-      id: '/sciences',
-      start_url: '/sciences',
-      scope: '/',
+  it('opens the page of the site, under its name, within its organization', () => {
+    expect(siteManifest('Restaurant des Sciences', 'crous', 'sciences')).toMatchObject({
+      id: '/crous/sciences',
+      start_url: '/crous/sciences',
+      scope: '/crous/',
       name: 'Restaurant des Sciences',
       short_name: 'Restaurant des Sciences',
       display: 'standalone',
     });
-    expect(siteManifest('Solo', '/')).toMatchObject({ id: '/', start_url: '/' });
   });
 });

@@ -1,6 +1,8 @@
+import { DASHBOARD_SEGMENTS } from '@/lib/dashboard-paths';
+
 // The API stays open to crawlers, which fetch it to render the pages; its
 // responses carry X-Robots-Tag: noindex.
-const PRIVATE_PATHS = ['/admin', '/org', '/login', '/activate', '/reset-password', '/unsubscribe'];
+const PRIVATE_PATHS = DASHBOARD_SEGMENTS.map((segment) => `/${segment}`);
 
 export function robotsTxt(origin: string): string {
   return [

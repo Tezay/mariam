@@ -1,6 +1,6 @@
-import { createContext, data, redirect, type MiddlewareFunction } from 'react-router';
+import { createContext, data, type MiddlewareFunction } from 'react-router';
 import type { PublicOrg, PublicSiteSummary } from '@/lib/api/sites';
-import { fetchDomain, fetchSites, publicOrigin } from '@/lib/api/public.server';
+import { fetchOrg, fetchSites, publicOrigin } from '@/lib/api/public.server';
 
 export interface Tenant {
   organization: PublicOrg;
@@ -11,12 +11,12 @@ export interface Tenant {
 export const tenantContext = createContext<Tenant>();
 
 // Once per request, ahead of every public loader that needs the organization.
-export const loadTenant: MiddlewareFunction<Response> = async ({ request, context }) => {
+export const loadTenant: MiddlewareFunction<Response> = async ({ request, params, context }) => {
+  const slug = params.org ?? '';
   let organization: PublicOrg | null;
-  let sites: PublicSiteSummary[] | null = null;
+  let sites: PublicSiteSummary[] | null;
   try {
-    organization = await fetchDomain(request);
-    if (organization) sites = await fetchSites(request, organization.slug);
+    [organization, sites] = await Promise.all([fetchOrg(request, slug), fetchSites(request, slug)]);
   } catch (error) {
     console.error(error);
     throw data('unavailable', { status: 503 });
@@ -25,13 +25,12 @@ export const loadTenant: MiddlewareFunction<Response> = async ({ request, contex
   context.set(tenantContext, { organization, sites, origin: publicOrigin(request) });
 };
 
-// A single site lives at /, several at /<site>. The query survives the redirection,
-// which ?mode=tv and the dated links of the notifications need.
-export function siteFor(tenant: Tenant, request: Request, slug: string | undefined, page = '') {
-  const multiSite = tenant.sites.length > 1;
-  if (!slug && multiSite) throw redirect('/');
-  const site = slug ? tenant.sites.find((s) => s.slug === slug) : tenant.sites[0];
+export function siteFor(tenant: Tenant, slug: string | undefined): PublicSiteSummary {
+  const site = tenant.sites.find((candidate) => candidate.slug === slug);
   if (!site) throw data('site', { status: 404 });
-  if (slug && !multiSite) throw redirect(`/${page}${new URL(request.url).search}`);
-  return { site, multiSite };
+  return site;
+}
+
+export function sitePath(tenant: Tenant, site: string): string {
+  return `/${tenant.organization.slug}/${site}`;
 }

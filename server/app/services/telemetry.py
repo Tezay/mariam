@@ -78,13 +78,11 @@ def beacon_origin_allowed(origin: str | None) -> bool:
     host = (urlparse(origin).hostname or '').lower()
     if host in ('localhost', '127.0.0.1'):
         return True
-    allowed = {
+    return host in {
         urlparse(url.strip()).hostname
         for url in os.environ.get('FRONTEND_URL', '').split(',')
         if url.strip()
     }
-    base = os.environ.get('BASE_DOMAIN', 'mariam.app').lower()
-    return host in allowed or host == base or host.endswith(f'.{base}')
 
 
 def record_page_view(

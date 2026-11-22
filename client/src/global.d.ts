@@ -10,7 +10,7 @@ interface Window {
   __RUNTIME_CONFIG__?: {
     API_URL?: string;
     APP_VERSION?: string;
-    CANONICAL_HOST?: string;
+    PUBLIC_URL?: string;
     UMAMI_SCRIPT_URL?: string;
     UMAMI_WEBSITE_ID?: string;
     SENTRY_DSN?: string;

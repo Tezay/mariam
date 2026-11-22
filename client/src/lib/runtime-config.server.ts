@@ -7,7 +7,7 @@ export function publicRuntimeConfig(env: Env = process.env) {
   return {
     API_URL: env.API_URL || '/v1',
     APP_VERSION: env.APP_VERSION || 'dev',
-    CANONICAL_HOST: env.CANONICAL_HOST || '',
+    PUBLIC_URL: (env.PUBLIC_URL || '').replace(/\/+$/, ''),
     UMAMI_SCRIPT_URL: env.UMAMI_SCRIPT_URL || '',
     UMAMI_WEBSITE_ID: env.UMAMI_WEBSITE_ID || '',
     SENTRY_DSN: env.SENTRY_DSN || '',

@@ -57,7 +57,6 @@ interface JsonLdInput {
   site: RestaurantPublic;
   url: string;
   organization: { name: string; url: string };
-  multiSite: boolean;
   day: Day | null;
 }
 
@@ -66,23 +65,12 @@ export function siteName(organization: string): string {
 }
 
 // Read by search engines on a host's home page only.
-export function websiteJsonLd(organization: string, url: string): Record<string, unknown> {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    name: siteName(organization),
-    alternateName: 'Mariam',
-    url,
-  };
-}
-
 export function restaurantJsonLd({
   site,
   url,
   organization,
-  multiSite,
   day,
-}: JsonLdInput): Record<string, unknown> | Record<string, unknown>[] {
+}: JsonLdInput): Record<string, unknown>[] {
   const data: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'Restaurant',
@@ -139,8 +127,6 @@ export function restaurantJsonLd({
       })),
     };
   }
-  if (!multiSite) return data;
-
   const breadcrumb = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',

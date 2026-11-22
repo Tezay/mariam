@@ -427,8 +427,8 @@ jobs:
       JWT_SECRET_KEY: ci-jwt-secret-key
       FLASK_APP: run.py
       FLASK_ENV: development
-      WEBAUTHN_RP_ID: demo.localhost
-      WEBAUTHN_ORIGIN: http://demo.localhost:3000
+      WEBAUTHN_RP_ID: localhost
+      WEBAUTHN_ORIGIN: http://localhost:3000
       E2E_PASSWORD: ci-demo-password
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

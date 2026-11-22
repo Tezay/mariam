@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { publicPagePath } from '@/lib/public-page';
+import { publicPageUrl } from '@/lib/public-page';
 import { MENU_DAYS_MAX, SERVICES, TEXT_MAX } from '@/lib/site-profile';
 import { UnsavedChanges } from './settings/UnsavedChanges';
 import { CountedField } from './public-page/CountedField';
@@ -91,7 +91,7 @@ export function PublicPagePage() {
           .
         </p>
         <Button asChild size="sm" variant="outline" className="shrink-0">
-          <a href={publicPagePath(site.site)} target="_blank" rel="noopener noreferrer">
+          <a href={publicPageUrl(site.org, site.site)} target="_blank" rel="noopener noreferrer">
             <ExternalLink />
             Voir la page
           </a>

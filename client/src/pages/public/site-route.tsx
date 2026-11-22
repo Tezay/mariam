@@ -4,12 +4,11 @@ import { addDays, parisToday } from '@/lib/date-utils';
 import { mapTiles } from '@/lib/runtime-config.server';
 import { publicMenuData } from './public-menu-data';
 import { onlyTheDayChanged } from './site/days';
-import { menuDescription, restaurantJsonLd, siteName, websiteJsonLd } from './seo/jsonld';
+import { menuDescription, restaurantJsonLd, siteName } from './seo/jsonld';
 import { pageMeta } from './seo/meta';
 import { SitePage } from './site/SitePage';
-import { SiteListPage } from './SiteListPage';
 import { tenantOf } from './tenant';
-import { siteFor, tenantContext } from './tenant.server';
+import { siteFor, sitePath, tenantContext } from './tenant.server';
 import type { Route } from './+types/site-route';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -24,14 +23,9 @@ function isDate(value: string): boolean {
 
 export async function loader({ request, params, context }: Route.LoaderArgs) {
   const tenant = context.get(tenantContext);
-  if (!params.restaurantSlug && tenant.sites.length > 1) return { kind: 'sites' as const };
-
-  const { site, multiSite } = siteFor(tenant, request, params.restaurantSlug);
+  const site = siteFor(tenant, params.site);
   const url = new URL(request.url);
-  const pagePath = multiSite ? `/${site.slug}` : '/';
-  if (url.searchParams.get('mode') === 'tv') {
-    throw redirect(multiSite ? `/${site.slug}/tv` : '/tv', 301);
-  }
+  const pagePath = sitePath(tenant, site.slug);
 
   const now = Date.now();
   const today = parisToday(new Date(now));
@@ -58,10 +52,8 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   if (asked !== null && (asked < from || asked > to)) throw redirect(pagePath);
 
   return {
-    kind: 'site' as const,
     organization: tenant.organization,
     siteSlug: site.slug,
-    multiSite,
     date,
     page,
     live,
@@ -84,20 +76,7 @@ export const meta: Route.MetaFunction = ({ loaderData, matches, location }) => {
   const tenant = tenantOf(matches);
   if (!tenant || !loaderData) return [{ title: 'Mariam' }];
   const org = tenant.organization.name;
-  const home = `${tenant.origin}/`;
-  if (loaderData.kind === 'sites') {
-    return [
-      ...pageMeta({
-        title: `${org} — Nos restaurants`,
-        description: `Découvrez les menus des restaurants de ${org}.`,
-        url: home,
-        siteName: siteName(org),
-      }),
-      { 'script:ld+json': websiteJsonLd(org, home) },
-    ];
-  }
-
-  const { page, url, multiSite, now } = loaderData;
+  const { page, url, now } = loaderData;
   const today = parisToday(new Date(now));
   const date = new URLSearchParams(location.search).get('date') ?? today;
   const menu = publicMenuData(page, new Date(now), date);
@@ -116,23 +95,19 @@ export const meta: Route.MetaFunction = ({ loaderData, matches, location }) => {
     'script:ld+json': restaurantJsonLd({
       site,
       url,
-      organization: { name: org, url: home },
-      multiSite,
+      organization: { name: org, url: `${tenant.origin}/${tenant.organization.slug}` },
       day: menu.day,
     }),
   });
-  if (!multiSite) tags.push({ 'script:ld+json': websiteJsonLd(org, home) });
   return tags;
 };
 
 export default function SiteRoute({ loaderData }: Route.ComponentProps) {
-  if (loaderData.kind === 'sites') return <SiteListPage />;
   return (
     <SitePage
       key={loaderData.siteSlug}
       organization={loaderData.organization}
       siteSlug={loaderData.siteSlug}
-      multiSite={loaderData.multiSite}
       loadedDate={loaderData.date}
       initial={loaderData.page}
       initialLive={loaderData.live}

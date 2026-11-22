@@ -43,7 +43,7 @@ One file per domain in `server/tests/`, grouped roughly as:
 |---|---|
 | Authentication and hardening | `test_auth.py`, `test_auth_<module>.py` (one per module of `routes/auth/`), `test_user_<module>.py` (one per module of `routes/user/`), `test_crypto.py`, `test_hardening.py` |
 | Site content | `test_site_settings.py`, `test_site_media.py`, `test_menus.py`, `test_categories.py`, `test_catalog.py`, `test_csv_import.py`, `test_events.py`, `test_closures.py`, `test_holidays.py` |
-| Public surface | `test_public_resources.py`, `test_domains.py`, `test_push_subscriptions.py` |
+| Public surface | `test_public_resources.py`, `test_push_subscriptions.py` |
 | Analytics | `test_analytics_stats.py`, `test_telemetry.py`, `test_votes.py` |
 | Organization | `test_members.py`, `test_audit_access.py`, `test_org_catalog.py`, `test_alerts.py`, `test_email_digest.py` |
 | Cross-cutting | `test_tenant_isolation.py`, `test_retention.py`, `test_storage.py` |
@@ -162,7 +162,7 @@ runs once per freshly seeded database.
 ```bash
 cd server && uv run flask db upgrade
 uv run flask seed-demo --password e2e-demo-password
-WEBAUTHN_RP_ID=demo.localhost WEBAUTHN_ORIGIN=http://demo.localhost:3000 uv run flask run --port 5000
+WEBAUTHN_RP_ID=localhost WEBAUTHN_ORIGIN=http://localhost:3000 uv run flask run --port 5000
 
 cd client && bun run build
 API_INTERNAL_URL=http://localhost:5000/v1 node server.js
