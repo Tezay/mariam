@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router';
 import { auditApi, type AuditLog, type AuditScope } from '@/lib/api/audit';
 import { getProblemCode } from '@/lib/api/errors';
 import { notify } from '@/lib/toast';
-import { useAuth } from '@/contexts/AuthContext';
+import { useOptionalPlace } from '@/contexts/PlaceContext';
 import { useOptionalSiteRef } from '@/contexts/SiteContext';
 import { useOrgSites } from '@/features/analytics/hooks/useAnalyticsQueries';
 import { useOrgRef } from '@/hooks/useOrgRef';
 import { useStepUp } from '@/hooks/useStepUp';
-import { accountPathForRole } from '@/lib/dashboard-routes';
+import { ACCOUNT_PATH } from '@/lib/dashboard-routes';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -88,7 +88,6 @@ const getActionBadgeVariant = (
 };
 
 export function AuditLogsPage() {
-  const { user } = useAuth();
   const confirmIdentity = useStepUp();
   const navigate = useNavigate();
 
@@ -96,7 +95,7 @@ export function AuditLogsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [mfaRequired, setMfaRequired] = useState(false);
   const [siteFilter, setSiteFilter] = useState('');
-  const isOrgScope = user?.role === 'org_admin';
+  const isOrgScope = useOptionalPlace()?.place.kind === 'org';
   const orgSlug = useOrgRef()?.org;
   const site = useOptionalSiteRef();
   const [siteOrg, siteSlug] = [site?.org, site?.site];
@@ -199,7 +198,7 @@ export function AuditLogsPage() {
               utilisateurs, etc.). Pour y accéder, vous devez d'abord activer l'authentification à
               deux facteurs sur votre compte.
             </p>
-            <Button onClick={() => navigate(accountPathForRole(user?.role))} className="gap-2">
+            <Button onClick={() => navigate(ACCOUNT_PATH)} className="gap-2">
               <Shield className="h-4 w-4" />
               Configurer l'A2F
             </Button>

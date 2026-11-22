@@ -14,6 +14,7 @@ import { GalleryField } from './public-page/GalleryField';
 import { LinksField } from './public-page/LinksField';
 import { MediaField } from './public-page/MediaField';
 import { usePublicPageState } from './public-page/usePublicPageState';
+import { useSitePage } from '@/contexts/SiteContext';
 
 function DaysField({
   id,
@@ -56,6 +57,7 @@ function DaysField({
 
 export function PublicPagePage() {
   const state = usePublicPageState();
+  const sitePage = useSitePage();
   const { site, form, update, images, busyMedia } = state;
 
   if (state.isLoading) {
@@ -80,7 +82,10 @@ export function PublicPagePage() {
         <p className="text-sm text-muted-foreground">
           Ce que les étudiants découvrent de votre restaurant en ligne. L'adresse, les horaires, les
           paiements et l'accessibilité se règlent dans{' '}
-          <Link to="/admin/settings" className="text-primary underline-offset-4 hover:underline">
+          <Link
+            to={sitePage('/settings')}
+            className="text-primary underline-offset-4 hover:underline"
+          >
             Mon restaurant
           </Link>
           .

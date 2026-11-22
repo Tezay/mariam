@@ -20,10 +20,10 @@ from ...schemas.auth import (
 )
 from ...security import get_client_ip, limiter
 from ...services import passkeys, totp
-from ...services.access import grant_invitation
+from ...services.access import grant_invitation, site_is_full
 from ...services.crypto import decrypt_secret, encrypt_secret
 from ...services.passkeys import Ceremony
-from ..helpers import account_view
+from ..helpers import account_view, member_limit
 from ._common import (
     CONFIRMATION_WINDOW,
     account_disabled,
@@ -128,7 +128,7 @@ def check_activation_link(token):
 @auth_bp.arguments(ActivateAccountSchema)
 @auth_bp.response(201, ActivationSchema)
 @auth_bp.problem(404, 'link_unknown')
-@auth_bp.problem(409, 'email_taken')
+@auth_bp.problem(409, 'email_taken', 'member_limit')
 @auth_bp.problem(410, 'link_expired')
 def activate_account(body):
     """Create an account from an invitation link.
@@ -145,6 +145,8 @@ def activate_account(body):
         raise _email_taken()
 
     user = User(email=email, username=body['username'], role=link.role)
+    if link.restaurant_id is not None and site_is_full(link.restaurant_id):
+        raise member_limit()
     grant_invitation(user, link)
     user.set_password(body['password'])
     link.mark_as_used()

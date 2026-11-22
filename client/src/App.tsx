@@ -1,12 +1,25 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+import { Routes, Route, Navigate, Outlet, useParams } from 'react-router';
 import { Toaster } from 'sonner';
 import { useAuth } from './contexts/AuthContext';
 import { PwaInstallProvider } from './contexts/PwaInstallContext';
 import { SiteProvider } from './contexts/SiteContext';
 import { useTheme } from './contexts/ThemeProvider';
 import { PageLoader } from './components/PageLoader';
-import { dashboardPathForRole } from './lib/dashboard-routes';
+import { PlaceProvider, usePlace } from './contexts/PlaceContext';
+import {
+  LANDING_PATH,
+  landingPath,
+  orgPath,
+  placePath,
+  placeRole,
+  placesOf,
+  readLastPlace,
+  rememberPlace,
+  sitePath,
+  siteRole,
+  supervises,
+} from './lib/dashboard-routes';
 
 const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
 const Activate = lazy(() => import('./pages/Activate').then((m) => ({ default: m.Activate })));
@@ -50,6 +63,7 @@ const InstallPage = lazy(() =>
 const SetupTransferPage = lazy(() =>
   import('./pages/admin/SetupTransferPage').then((m) => ({ default: m.SetupTransferPage }))
 );
+const Landing = lazy(() => import('./pages/PlacesPage').then((m) => ({ default: m.Landing })));
 const CalendarPage = lazy(() =>
   import('./pages/admin/calendar/CalendarPage').then((m) => ({ default: m.CalendarPage }))
 );
@@ -114,63 +128,94 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
-
-  if (isLoading) {
-    return <PageLoader />;
-  }
-
-  if (user?.role !== 'admin') {
-    return <Forbidden />;
-  }
-
-  return <>{children}</>;
+  return usePlace().role === 'admin' ? <>{children}</> : <Forbidden />;
 }
 
-// A supervisor is sent to their own dashboard.
-function SiteDashboardRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
+// Former addresses (/admin/calendar) name no site the account holds: they lead to the landing.
+function SiteRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const { org = '', site = '' } = useParams();
+  const role = user ? siteRole(user, { org, site }) : null;
+  const value = useMemo(
+    () => (role ? { place: { kind: 'site' as const, org, site }, role } : null),
+    [org, site, role]
+  );
+  useEffect(() => {
+    if (value) rememberPlace(value.place);
+  }, [value]);
 
-  if (isLoading) {
-    return <PageLoader />;
-  }
+  if (!value) return <Navigate to={LANDING_PATH} replace />;
+  return (
+    <PlaceProvider value={value}>
+      <SiteProvider site={value.place}>{children}</SiteProvider>
+    </PlaceProvider>
+  );
+}
 
-  if (user?.role === 'org_admin') {
-    return <Navigate to="/org" replace />;
-  }
+function OrgRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const { org = '' } = useParams();
+  const held = !!user && supervises(user, org);
+  const value = useMemo(
+    () => (held ? { place: { kind: 'org' as const, org }, role: 'org_admin' as const } : null),
+    [org, held]
+  );
+  useEffect(() => {
+    if (value) rememberPlace(value.place);
+  }, [value]);
 
-  const org = user?.organization?.slug;
-  const site = user?.site?.slug;
-  if (!org || !site) {
-    return <NotFound />;
-  }
-  return <SiteProvider site={{ org, site }}>{children}</SiteProvider>;
+  if (!value) return <Navigate to={LANDING_PATH} replace />;
+  return <PlaceProvider value={value}>{children}</PlaceProvider>;
+}
+
+function OrgSitesRoute() {
+  const { user } = useAuth();
+  const { org = '' } = useParams();
+  const sites = user?.sites.filter((s) => s.organization.slug === org) ?? [];
+  const target = sites.length === 1 ? sitePath({ org, site: sites[0].slug }) : LANDING_PATH;
+  return <Navigate to={target} replace />;
+}
+
+function SupervisionRoute() {
+  const { user } = useAuth();
+  const last = readLastPlace();
+  const org =
+    (last?.kind === 'org' && user?.organizations.some((o) => o.slug === last.org) && last.org) ||
+    user?.organizations[0]?.slug;
+  return <Navigate to={org ? orgPath(org) : LANDING_PATH} replace />;
+}
+
+// One page in the frame of the place the account lands on.
+function AccountLayout() {
+  const { user } = useAuth();
+  const places = user ? placesOf(user) : [];
+  const target = user && landingPath(user, readLastPlace());
+  const place = places.find((p) => placePath(p) === target) ?? places[0];
+  const role = user && place && placeRole(user, place);
+  if (!place || !role) return <Outlet />;
+  return (
+    <PlaceProvider value={{ place, role }}>
+      {place.kind === 'site' ? (
+        <SiteProvider site={place}>
+          <AdminLayout />
+        </SiteProvider>
+      ) : (
+        <OrgLayout />
+      )}
+    </PlaceProvider>
+  );
 }
 
 // Sends a signed-in user to the dashboard.
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return <PageLoader />;
   }
 
   if (isAuthenticated) {
-    return <Navigate to={dashboardPathForRole(user?.role)} replace />;
-  }
-
-  return <>{children}</>;
-}
-
-function OrgRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
-
-  if (isLoading) {
-    return <PageLoader />;
-  }
-
-  if (user?.role !== 'org_admin') {
-    return <Forbidden />;
+    return <Navigate to={LANDING_PATH} replace />;
   }
 
   return <>{children}</>;
@@ -210,48 +255,125 @@ function App() {
           />
 
           <Route path="/activate/:token" element={<Activate />} />
-
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/unsubscribe/:token" element={<Unsubscribe />} />
-
-          <Route
-            path="/admin/security"
-            element={
-              <ProtectedRoute>
-                <SecurityPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/org/security"
-            element={
-              <ProtectedRoute>
-                <SecurityPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/install"
-            element={
-              <ProtectedRoute>
-                <InstallPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/org/install"
-            element={
-              <ProtectedRoute>
-                <InstallPage />
-              </ProtectedRoute>
-            }
-          />
-
           <Route path="/admin/setup" element={<SetupTransferPage />} />
+
+          {['/admin/security', '/org/security'].map((path) => (
+            <Route
+              key={path}
+              path={path}
+              element={
+                <ProtectedRoute>
+                  <SecurityPage />
+                </ProtectedRoute>
+              }
+            />
+          ))}
+          {['/admin/install', '/org/install'].map((path) => (
+            <Route
+              key={path}
+              path={path}
+              element={
+                <ProtectedRoute>
+                  <InstallPage />
+                </ProtectedRoute>
+              }
+            />
+          ))}
+
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <Landing />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/account"
+            element={
+              <ProtectedRoute>
+                <AccountLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<AccountPage />} />
+          </Route>
+          <Route
+            path="/admin/:org"
+            element={
+              <ProtectedRoute>
+                <OrgSitesRoute />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/:org/:site"
+            element={
+              <ProtectedRoute>
+                <SiteRoute>
+                  <AdminLayout />
+                </SiteRoute>
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<CalendarPage />} />
+            <Route path="calendar" element={<CalendarPage />} />
+            <Route path="service" element={<ServicePage />} />
+            <Route path="news" element={<NewsPage />} />
+            <Route path="news/new" element={<NewsEditPage />} />
+            <Route path="news/:id/edit" element={<NewsEditPage />} />
+            <Route path="closures" element={<ClosuresPage />} />
+            <Route path="catalogue" element={<CataloguePage />} />
+            <Route path="catalogue/compare" element={<ComparePage />} />
+            <Route path="catalogue/:id" element={<DishDetailPage />} />
+            <Route path="stats" element={<StatsPage />} />
+            <Route
+              path="users"
+              element={
+                <AdminRoute>
+                  <UsersPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="settings"
+              element={
+                <AdminRoute>
+                  <SettingsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="public-page"
+              element={
+                <AdminRoute>
+                  <PublicPagePage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="audit-logs"
+              element={
+                <AdminRoute>
+                  <AuditLogsPage />
+                </AdminRoute>
+              }
+            />
+            <Route path="*" element={<NotFound />} />
+          </Route>
 
           <Route
             path="/org"
+            element={
+              <ProtectedRoute>
+                <SupervisionRoute />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/org/:org"
             element={
               <ProtectedRoute>
                 <OrgRoute>
@@ -265,80 +387,11 @@ function App() {
             <Route path="analytics/satisfaction" element={<OrgSatisfactionPage />} />
             <Route path="analytics/publications" element={<OrgPublicationsPage />} />
             <Route path="sites" element={<OrgSitesPage />} />
-            <Route path="catalog" element={<OrgCatalogPage />} />
             <Route path="sites/:site" element={<OrgSiteDetailPage />} />
+            <Route path="catalog" element={<OrgCatalogPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="audit" element={<AuditLogsPage />} />
-            <Route path="account" element={<AccountPage />} />
-          </Route>
-
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute>
-                <SiteDashboardRoute>
-                  <AdminLayout />
-                </SiteDashboardRoute>
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<CalendarPage />} />
-            <Route path="calendar" element={<CalendarPage />} />
-
-            {/* Former addresses, kept for bookmarks */}
-            <Route path="menus" element={<Navigate to="/admin/calendar" replace />} />
-
-            <Route path="account" element={<AccountPage />} />
-
-            <Route path="service" element={<ServicePage />} />
-
-            <Route path="news" element={<NewsPage />} />
-            <Route path="news/new" element={<NewsEditPage />} />
-            <Route path="news/:id/edit" element={<NewsEditPage />} />
-
-            <Route path="closures" element={<ClosuresPage />} />
-
-            <Route path="catalogue" element={<CataloguePage />} />
-            <Route path="catalogue/compare" element={<ComparePage />} />
-            <Route path="catalogue/:id" element={<DishDetailPage />} />
-
-            <Route path="stats" element={<StatsPage />} />
-
-            <Route
-              path="users"
-              element={
-                <AdminRoute>
-                  <UsersPage />
-                </AdminRoute>
-              }
-            />
-
-            <Route
-              path="settings"
-              element={
-                <AdminRoute>
-                  <SettingsPage />
-                </AdminRoute>
-              }
-            />
-
-            <Route
-              path="public-page"
-              element={
-                <AdminRoute>
-                  <PublicPagePage />
-                </AdminRoute>
-              }
-            />
-
-            <Route
-              path="audit-logs"
-              element={
-                <AdminRoute>
-                  <AuditLogsPage />
-                </AdminRoute>
-              }
-            />
+            <Route path="*" element={<NotFound />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

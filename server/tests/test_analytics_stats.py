@@ -77,13 +77,12 @@ def _item(menu_id, rid, category_id, name, image_url=None):
 
 
 def _director(rid, org_id, email='dir@mariam.app'):
-    from app.models import User
     return make_user(None, email=email, role='org_admin', organization_id=org_id)
 
 
 def _org_path(client, token):
     account = client.get('/v1/user', headers=auth_headers(token)).get_json()
-    return f"/v1/orgs/{account['organization']['slug']}"
+    return f"/v1/orgs/{account['organizations'][0]['slug']}"
 
 
 def _analytics(client, token, path, query=''):

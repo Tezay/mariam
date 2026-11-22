@@ -28,8 +28,8 @@ describe('appIdentity', () => {
       const manifest = JSON.parse(readFileSync(path.join(publicDir, app.manifest), 'utf8'));
       expect(manifest.name).toBe(app.name);
       expect(manifest.short_name).toBe(app.title);
-      expect(manifest.id).toBe(manifest.start_url);
-      expect(manifest.start_url.startsWith(app.prefix)).toBe(true);
+      expect(manifest.id.startsWith(app.prefix)).toBe(true);
+      expect(manifest.start_url).toBe(app.prefix);
     }
   });
 });

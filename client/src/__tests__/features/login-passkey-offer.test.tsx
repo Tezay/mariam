@@ -7,11 +7,12 @@ import type { Account } from '@/lib/api/user';
 import { stubLocalStorage } from '../session-fixtures';
 
 const account = {
-  role: 'admin',
+  sites: [],
+  organizations: [],
   mfa_enabled: true,
   passkeys_count: 1,
   username: 'Eliot',
-} as Account;
+} as unknown as Account;
 const signIn = vi.fn();
 const registerPasskey = vi.fn();
 const login = vi.fn();

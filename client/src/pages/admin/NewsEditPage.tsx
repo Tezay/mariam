@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { isRichTextHtml } from '@/lib/rich-text';
 import { cn } from '@/lib/utils';
-import { useSiteRef } from '@/contexts/SiteContext';
+import { useSiteRef, useSitePage } from '@/contexts/SiteContext';
 
 export function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
   // Tiptap's state lives outside React: without this subscription a button only
@@ -148,6 +148,7 @@ export function NewsEditPage() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const sitePage = useSitePage();
   const isCreating = !id;
 
   const [loading, setLoading] = useState(!isCreating);
@@ -217,7 +218,7 @@ export function NewsEditPage() {
       })
       .catch(() => {
         notify.error('Actualité introuvable');
-        navigate('/admin/news');
+        navigate(sitePage('/news'));
       })
       .finally(() => {
         setLoading(false);
@@ -312,7 +313,7 @@ export function NewsEditPage() {
         );
 
         if (isCreating) {
-          navigate(`/admin/news/${savedEvent.id}/edit`, { replace: true });
+          navigate(sitePage(`/news/${savedEvent.id}/edit`), { replace: true });
         }
       } catch (err: unknown) {
         notify.error(getApiErrorMessage(err, "Erreur lors de l'enregistrement"));
@@ -339,6 +340,7 @@ export function NewsEditPage() {
       serverImages,
       site,
       navigate,
+      sitePage,
     ]
   );
 
@@ -366,7 +368,7 @@ export function NewsEditPage() {
       <div className="sticky top-0 z-10 -mx-4 mb-6 flex items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
         <button
           type="button"
-          onClick={() => navigate('/admin/news')}
+          onClick={() => navigate(sitePage('/news'))}
           aria-label="Retour aux actualités"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border transition-colors hover:bg-muted"
         >

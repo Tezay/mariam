@@ -6,11 +6,11 @@ from flask_jwt_extended import jwt_required, verify_jwt_in_request
 from flask_jwt_extended.exceptions import FreshTokenRequired
 
 from ..extensions import db
-from ..models import AuditLog, DishCatalog, Organization, Restaurant, SiteMembership
+from ..models import AuditLog, DishCatalog, Organization, Restaurant
 from ..models.taxonomy import Certification, DietaryTag
 from ..problems import Problem
 from ..security import get_client_ip
-from ..services.access import ADMIN, SUPERVISOR, Reach, first_place, oversees
+from ..services.access import ADMIN, SITE_MEMBERS_MAX, SUPERVISOR, Reach, oversees
 from ..services.storage import storage
 from ..utils.time import as_utc
 from .scope import get_current_user, member_org, site_access
@@ -19,6 +19,14 @@ from .scope import get_current_user, member_org, site_access
 def refuse_supervisor(role: str) -> None:
     if role == SUPERVISOR:
         raise Problem(403, 'supervisor_read_only', 'Un superviseur ne peut pas modifier un site.')
+
+
+def member_limit(with_invitations: bool = False) -> Problem:
+    counted = ', invitations en attente comprises' if with_invitations else ''
+    return Problem(
+        409, 'member_limit',
+        f'Ce restaurant a atteint sa limite de {SITE_MEMBERS_MAX} comptes{counted}.',
+    )
 
 
 def _admin_required() -> Problem:
@@ -166,26 +174,14 @@ def member_view(
     return {
         **_account_fields(user),
         'role': user.ROLE_ORG_ADMIN if supervisor else memberships[0].role,
-        'site': None if supervisor else _ref(memberships[0].restaurant),
         'sites': [{**_ref(m.restaurant), 'role': m.role} for m in memberships],
         'shared': not reach.covers(user),
     }
 
 
 def account_view(user) -> dict:
-    """The signed-in account. `role`, `site` and `organization` are its oldest place."""
-    place = first_place(user)
-    if isinstance(place, SiteMembership):
-        role, site, organization = place.role, place.restaurant, place.restaurant.organization
-    elif place is not None:
-        role, site, organization = user.ROLE_ORG_ADMIN, None, place.organization
-    else:
-        role, site, organization = user.role, None, None
     return {
         **_account_fields(user),
-        'role': role,
-        'site': _ref(site) if site else None,
-        'organization': _ref(organization) if organization else None,
         'sites': [
             {**_ref(m.restaurant), 'role': m.role, 'organization': _ref(m.restaurant.organization)}
             for m in user.memberships

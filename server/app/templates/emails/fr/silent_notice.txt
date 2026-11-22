@@ -1,4 +1,4 @@
-{% if supervisor -%}
+{% if overview -%}
 Aucun menu publié depuis deux semaines
 Aucun de vos sites n'a publié de menu depuis deux semaines. Ce résumé se met en pause et reprendra au prochain menu publié.
 {%- else -%}

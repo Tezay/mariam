@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
-import { dashboardPathForRole, installPathForRole } from '@/lib/dashboard-routes';
 import { QRCodeSVG } from 'qrcode.react';
 import { authApi } from '@/lib/api/auth';
 import { needsSecuritySetup } from '@/hooks/useSecurityOnboarding';
@@ -9,6 +8,7 @@ import { markInstallSeen } from '@/hooks/usePwaOnboarding';
 import { useIdentityConfirmed, useStepUp } from '@/hooks/useStepUp';
 import { detectPlatform, type InstallMethod } from '@/lib/app-install';
 import { dashboardApp, type DashboardApp } from '@/lib/app-manifest';
+import { installPath } from '@/lib/dashboard-routes';
 import { useInstallMethod, usePwaInstall } from '@/contexts/PwaInstallContext';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
@@ -421,15 +421,18 @@ export function InstallPage() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { user } = useAuth();
-  const ownPath = installPathForRole(user?.role);
   const app = dashboardApp(pathname);
+  const holds = app?.prefix === '/org' ? user?.organizations.length : user?.sites.length;
 
-  if (!app || pathname !== ownPath) return <Navigate to={ownPath} replace />;
+  if (!app) return <Navigate to="/admin/install" replace />;
+  if (!holds && installPath(user) !== pathname) {
+    return <Navigate to={installPath(user)} replace />;
+  }
 
   const platform = detectPlatform();
   const handleDone = () => {
     markInstallSeen();
-    navigate(dashboardPathForRole(user?.role), { replace: true });
+    navigate(app.prefix, { replace: true });
   };
 
   return (

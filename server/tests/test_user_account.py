@@ -254,9 +254,13 @@ class TestProfile:
 
         body = client.get('/v1/user', headers=session_headers(uid)).get_json()
 
-        assert body['site'] == {'slug': 'ru-nord', 'name': 'RU Nord'}
-        assert body['organization'] == {'slug': 'crous-paris', 'name': 'Crous Paris'}
-        assert not {'restaurant_id', 'organization_id', 'mfa_secret', 'password_hash'} & body.keys()
+        assert body['sites'] == [{
+            'slug': 'ru-nord', 'name': 'RU Nord', 'role': 'admin',
+            'organization': {'slug': 'crous-paris', 'name': 'Crous Paris'},
+        }]
+        assert not {
+            'restaurant_id', 'organization_id', 'role', 'mfa_secret', 'password_hash'
+        } & body.keys()
 
     def test_a_supervisor_has_an_organization_and_no_site(self, app, client):
         org = Organization(name='Crous Paris', slug='crous-paris')
@@ -266,7 +270,9 @@ class TestProfile:
 
         body = client.get('/v1/user', headers=session_headers(uid)).get_json()
 
-        assert (body['site'], body['organization']['slug']) == (None, 'crous-paris')
+        assert (body['sites'], body['organizations']) == (
+            [], [{'slug': 'crous-paris', 'name': 'Crous Paris'}]
+        )
 
     def test_the_profile_requires_a_session(self, client):
         assert client.get('/v1/user').status_code == 401

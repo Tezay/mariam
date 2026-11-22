@@ -4,6 +4,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Logo } from '@/components/Logo';
 import { useSidebar } from '@/contexts/SidebarContext';
 import { cn } from '@/lib/utils';
+import { PlaceSwitcher } from './PlaceSwitcher';
 import { ExternalLink, HelpCircle } from 'lucide-react';
 
 export interface SidebarNavItem {
@@ -16,42 +17,12 @@ export interface SidebarNavItem {
   shortLabel?: string;
 }
 
-export interface SidebarTenant {
-  /** Overline above the name, e.g. "Site" or "Organisation". */
-  label: string;
-  name: string;
-}
+// Must match the `sidebar` screen of tailwind.config.js.
+export const SIDEBAR_SCREEN = '(min-width: 1024px)';
 
 interface SidebarProps {
   navItems: SidebarNavItem[];
   homePath?: string;
-  tenant?: SidebarTenant;
-}
-
-export function TenantChip({ tenant }: { tenant: SidebarTenant }) {
-  return (
-    <div className="rounded-[10px] bg-muted px-2.5 py-2" title={tenant.name}>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-        {tenant.label}
-      </p>
-      <p className="truncate text-sm font-semibold text-foreground">{tenant.name}</p>
-    </div>
-  );
-}
-
-function CollapsedTenantChip({ tenant }: { tenant: SidebarTenant }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-[10px] bg-muted text-xs font-semibold text-foreground">
-          {tenant.name.charAt(0).toUpperCase()}
-        </div>
-      </TooltipTrigger>
-      <TooltipContent side="right" sideOffset={8}>
-        {tenant.label} · {tenant.name}
-      </TooltipContent>
-    </Tooltip>
-  );
 }
 
 function SidebarItem({
@@ -105,7 +76,7 @@ function SidebarItem({
   );
 }
 
-export function Sidebar({ navItems, homePath = '/admin', tenant }: SidebarProps) {
+export function Sidebar({ navItems, homePath = '/admin' }: SidebarProps) {
   const { isCollapsed } = useSidebar();
 
   return (
@@ -134,11 +105,9 @@ export function Sidebar({ navItems, homePath = '/admin', tenant }: SidebarProps)
       </div>
 
       <TooltipProvider delayDuration={300}>
-        {tenant && (
-          <div className={cn('shrink-0 px-2 pt-2', isCollapsed && 'px-1')}>
-            {isCollapsed ? <CollapsedTenantChip tenant={tenant} /> : <TenantChip tenant={tenant} />}
-          </div>
-        )}
+        <div className={cn('shrink-0 px-2 pt-2', isCollapsed && 'px-1')}>
+          <PlaceSwitcher collapsed={isCollapsed} />
+        </div>
 
         <nav data-tour="nav" className="flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden p-2">
           {navItems.map((item) => (

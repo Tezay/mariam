@@ -405,7 +405,7 @@ def own_site(client, token) -> tuple[int, str]:
     account = client.get('/v1/user', headers=auth_headers(token)).get_json()
     return (
         _db.session.get(User, int(decode_token(token)['sub'])).memberships[0].restaurant_id,
-        f"/v1/orgs/{account['organization']['slug']}/sites/{account['site']['slug']}",
+        f"/v1/orgs/{account['sites'][0]['organization']['slug']}/sites/{account['sites'][0]['slug']}",
     )
 
 

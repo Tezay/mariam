@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { closuresApi, type Closure } from '@/lib/api/closures';
 import { notify } from '@/lib/toast';
 import { parisNow, parisToday } from '@/lib/date-utils';
-import { useAuth } from '@/contexts/AuthContext';
+import { useOptionalPlace } from '@/contexts/PlaceContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { InlineError } from '@/components/InlineError';
@@ -85,8 +85,8 @@ function formatDateRange(start: string, end: string): string {
 
 export function ClosuresPage() {
   const site = useSiteRef();
-  const { user } = useAuth();
-  const canEdit = user?.role === 'admin' || user?.role === 'editor';
+  const role = useOptionalPlace()?.role;
+  const canEdit = role === 'admin' || role === 'editor';
   const today = parisToday();
 
   const [closures, setClosures] = useState<Closure[]>([]);

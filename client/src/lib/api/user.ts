@@ -5,7 +5,7 @@ import { forgetConfirmation } from './session';
 type Schemas = components['schemas'];
 
 export type Account = Schemas['Account'];
-export type Role = Account['role'];
+export type Role = Schemas['Member']['role'];
 export type UiPreferences = Required<Schemas['UiPreferences']>;
 export type NotifPreferences = Required<Schemas['NotificationPreferences']>;
 export type Alert = Schemas['Alert'];
@@ -16,6 +16,8 @@ export type WebAuthnOptions = Schemas['WebAuthnOptions'];
 
 export const userApi = {
   get: async (): Promise<Account> => (await api.get('/user')).data,
+  acceptInvitation: async (token: string): Promise<Account> =>
+    (await api.post('/user/invitations', { token })).data,
 
   /** A new address comes with a session of its own, not confirmed. */
   update: async (changes: { username?: string; email?: string }): Promise<Account> => {

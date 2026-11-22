@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router';
 import { PublicationsView } from '@/features/analytics/PublicationsView';
 import { useOrgSites } from '@/features/analytics/hooks/useAnalyticsQueries';
 import { PageHeader } from '../ui';
+import { useOrgPage } from '@/contexts/PlaceContext';
 
 export function OrgPublicationsPage() {
   const navigate = useNavigate();
+  const orgPage = useOrgPage();
   const { data: orgSites } = useOrgSites();
 
   const sites = useMemo(
@@ -19,7 +21,7 @@ export function OrgPublicationsPage() {
         title="Publications"
         description="Régularité de publication, ponctualité et complétude des menus."
       />
-      <PublicationsView sites={sites} onSiteClick={(site) => navigate(`/org/sites/${site}`)} />
+      <PublicationsView sites={sites} onSiteClick={(site) => navigate(orgPage(`/sites/${site}`))} />
     </div>
   );
 }

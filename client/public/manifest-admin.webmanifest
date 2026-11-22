@@ -3,7 +3,7 @@
   "short_name": "Gestion",
   "description": "Tableau de bord de gestion MARIAM.",
   "id": "/admin/calendar",
-  "start_url": "/admin/calendar",
+  "start_url": "/admin",
   "scope": "/",
   "display": "standalone",
   "theme_color": "#093EAA",

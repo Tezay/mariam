@@ -1,4 +1,4 @@
-{% if supervisor -%}
+{% if overview -%}
 Vos sites rouvrent bientôt.
 {% for site in sites %}
   {{ site.name }} : {{ site.date }}, {{ site.published }} menu{{ 's' if site.published > 1 }} publié{{ 's' if site.published > 1 }} sur {{ site.open_days }}

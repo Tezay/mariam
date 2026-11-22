@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, BookOpen, ImagePlus, Pencil, Scale, Trash2 } from 'lucide-react';
 import { TagIcon } from '@/components/TagIcon';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
-import { useSiteRef } from '@/contexts/SiteContext';
+import { useSiteRef, useSitePage } from '@/contexts/SiteContext';
 import { dishesApi, type CatalogPeriod } from '@/lib/api/dishes';
 import { categoriesApi } from '@/lib/api/categories';
 import { publicApi } from '@/lib/api/public';
@@ -77,6 +77,7 @@ function Figure({ label, value }: { label: string; value: string }) {
 export function DishDetailView({ dishId }: { dishId: number }) {
   const site = useSiteRef();
   const navigate = useNavigate();
+  const sitePage = useSitePage();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<DishDraft | null>(null);
@@ -161,7 +162,7 @@ export function DishDetailView({ dishId }: { dishId: number }) {
     mutationFn: () => dishesApi.remove(site, dishId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['catalogue'] });
-      navigate('/admin/catalogue');
+      navigate(sitePage('/catalogue'));
     },
     onError: () => notify.error("Le plat n'a pas pu être supprimé"),
   });
@@ -181,7 +182,7 @@ export function DishDetailView({ dishId }: { dishId: number }) {
       <div className="container-mariam flex min-h-64 flex-col items-center justify-center gap-4 py-6">
         <BookOpen className="h-12 w-12 text-muted-foreground/30" />
         <p className="text-muted-foreground">Plat introuvable</p>
-        <Button variant="outline" onClick={() => navigate('/admin/catalogue')}>
+        <Button variant="outline" onClick={() => navigate(sitePage('/catalogue'))}>
           <ArrowLeft className="h-4 w-4" /> Retour au catalogue
         </Button>
       </div>
@@ -202,7 +203,7 @@ export function DishDetailView({ dishId }: { dishId: number }) {
         variant="ghost"
         size="sm"
         className="-ml-2 w-fit text-muted-foreground"
-        onClick={() => navigate('/admin/catalogue')}
+        onClick={() => navigate(sitePage('/catalogue'))}
       >
         <ArrowLeft className="h-4 w-4" /> Catalogue
       </Button>
@@ -317,7 +318,9 @@ export function DishDetailView({ dishId }: { dishId: number }) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => navigate('/admin/catalogue', { state: { compare: dish.id } })}
+                      onClick={() =>
+                        navigate(sitePage('/catalogue'), { state: { compare: dish.id } })
+                      }
                     >
                       <Scale className="h-3.5 w-3.5" />
                       <span className="hidden sm:inline">Comparer</span>
@@ -377,7 +380,7 @@ export function DishDetailView({ dishId }: { dishId: number }) {
         ) : (
           stats && (
             <div className="rounded-xl border border-border bg-card p-4">
-              <ReviewPanel satisfaction={stats.satisfaction} settingsPath="/admin/settings" />
+              <ReviewPanel satisfaction={stats.satisfaction} settingsPath={sitePage('/settings')} />
             </div>
           )
         )}

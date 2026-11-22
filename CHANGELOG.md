@@ -7,21 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Security
-
-- **A shared account is reset or turned off only by whoever reaches all its places**: others may remove it.
-- **An audit entry shows in its own organization's logs only**, even when its account holds places elsewhere.
-
 ### Added
 
 - **A release that reaches production is published on GitHub**, with the provenance of its images attached.
-- **An account holds a role per site, on sites of several organizations**, and may supervise several organizations.
-- **An existing account accepts an invitation** once signed in (`POST /v1/user/invitations`), keeping its other sites.
+- **An account holds a role per site, across organizations**, and may supervise several organizations.
+- **An address that has an account can be invited**: it accepts once signed in and keeps its other places.
+- **A place switcher in the sidebar** moves between sites and supervisions; sign-in opens the last one.
+- **Any admin of a shared account resets its second factors**, and sends its password link by email only.
 
 ### Changed
 
-- **A site or an organization out of the caller's reach answers 404** on every route, where some answered 403.
-- **`flask user grant` and `flask user revoke`** replace `set-role`: an account's places are added and taken one by one.
+- **A site holds 200 accounts at most**, pending invitations included.
+- **Dashboard addresses name the site or organization** (`/admin/<org>/<site>`, `/org/<org>`); old ones lead home.
+- **A site or organization out of the caller's reach answers 404** on every route, where some answered 403.
+- **`flask user grant` and `revoke` replace `set-role`**, adding or removing one place at a time.
+
+### Removed
+
+- **`GET /v1/user` drops `role`, `site` and `organization`**, and a member drops `site`, for `sites`.
 
 ## [0.20.2] - 2026-11-19
 

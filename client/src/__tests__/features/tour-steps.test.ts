@@ -18,10 +18,8 @@ describe('stepsFor', () => {
   });
 
   it('scopes navigation links to the bar it shows', () => {
-    expect(targets('orientation', false)).toContain('[data-tour="nav"] a[href="/admin/service"]');
-    expect(targets('orientation', true)).toContain(
-      '[data-tour="nav-mobile"] a[href="/admin/service"]'
-    );
+    expect(targets('orientation', false)).toContain('[data-tour="nav"] a[href$="/service"]');
+    expect(targets('orientation', true)).toContain('[data-tour="nav-mobile"] a[href$="/service"]');
   });
 
   it('gives the same steps to both layouts of the statistics tour', () => {
@@ -31,8 +29,8 @@ describe('stepsFor', () => {
   it('drops the statistics step for an account without the page', () => {
     const withStats = targets('orientation', false);
     const without = targets('orientation', false, false);
-    expect(withStats).toContain('[data-tour="nav"] a[href="/admin/stats"]');
-    expect(without).not.toContain('[data-tour="nav"] a[href="/admin/stats"]');
+    expect(withStats).toContain('[data-tour="nav"] a[href$="/stats"]');
+    expect(without).not.toContain('[data-tour="nav"] a[href$="/stats"]');
     expect(without).toHaveLength(withStats.length - 1);
   });
 

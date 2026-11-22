@@ -7,8 +7,11 @@ import { parisToday } from '@/lib/date-utils';
 const site = { org: 'demo', site: 'sciences' };
 const api = vi.hoisted(() => ({ list: vi.fn(), create: vi.fn() }));
 
-vi.mock('@/contexts/SiteContext', () => ({ useSiteRef: () => site }));
-vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { role: 'editor' } }) }));
+vi.mock('@/contexts/SiteContext', () => ({
+  useSiteRef: () => site,
+  useSitePage: () => (page: string) => `/admin/${site.org}/${site.site}${page}`,
+}));
+vi.mock('@/contexts/PlaceContext', () => ({ useOptionalPlace: () => ({ role: 'editor' }) }));
 vi.mock('@/lib/toast', () => ({ notify: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/api/news', async (actual) => ({
   ...(await actual<typeof import('@/lib/api/news')>()),

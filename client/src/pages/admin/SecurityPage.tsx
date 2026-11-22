@@ -15,7 +15,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { needsSecuritySetup } from '@/hooks/useSecurityOnboarding';
 import { userApi } from '@/lib/api/user';
-import { dashboardPathForRole } from '@/lib/dashboard-routes';
+import { LANDING_PATH } from '@/lib/dashboard-routes';
 import { registerPasskey } from '@/lib/passkey-registration';
 
 export default function SecurityPage() {
@@ -25,7 +25,7 @@ export default function SecurityPage() {
   // Refreshing the profile is what ends the enrolment, so this fires on its own.
   useEffect(() => {
     if (user && !needsSecuritySetup(user)) {
-      navigate(dashboardPathForRole(user.role), { replace: true });
+      navigate(LANDING_PATH, { replace: true });
     }
   }, [user, navigate]);
 

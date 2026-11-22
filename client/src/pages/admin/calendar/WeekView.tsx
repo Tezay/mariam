@@ -23,7 +23,7 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
-import { useSiteRef } from '@/contexts/SiteContext';
+import { useSiteRef, useSitePage } from '@/contexts/SiteContext';
 import { menusApi, type MenuDish } from '@/lib/api/menus';
 import { dishesApi } from '@/lib/api/dishes';
 import type { Dish } from '@/lib/api/dishes';
@@ -95,6 +95,7 @@ export function WeekView({
   const site = useSiteRef();
   const today = parisToday();
   const navigate = useNavigate();
+  const sitePage = useSitePage();
   const selection = useSelection();
 
   // Once the Radix context menu has closed and given focus back: a dialog opened
@@ -722,7 +723,7 @@ export function WeekView({
                       className="gap-2"
                       onClick={() =>
                         runAfterMenuClose(() =>
-                          navigate(`/admin/catalogue/${contextTarget.dishId}`)
+                          navigate(sitePage(`/catalogue/${contextTarget.dishId}`))
                         )
                       }
                     >

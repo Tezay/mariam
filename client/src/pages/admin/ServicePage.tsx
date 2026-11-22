@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { useSiteRef } from '@/contexts/SiteContext';
+import { useSiteRef, useSitePage } from '@/contexts/SiteContext';
 import { menusApi, type Menu, type MenuItem } from '@/lib/api/menus';
 import { menuItems, withItem } from '@/lib/menu-tree';
 import { categoriesApi, MenuCategory } from '@/lib/api/categories';
@@ -267,6 +267,7 @@ function ActionsCard({ isFullscreen, onToggleFullscreen, onOpenEditor }: Actions
 
 export function ServicePage() {
   const navigate = useNavigate();
+  const sitePage = useSitePage();
   const site = useSiteRef();
   const today = parisToday();
 
@@ -458,7 +459,10 @@ export function ServicePage() {
                   Publiez le menu du jour depuis le calendrier.
                 </p>
               </div>
-              <Button variant="outline" onClick={() => navigate(`/admin/calendar?date=${today}`)}>
+              <Button
+                variant="outline"
+                onClick={() => navigate(sitePage(`/calendar?date=${today}`))}
+              >
                 Aller au calendrier
               </Button>
             </div>
@@ -493,7 +497,7 @@ export function ServicePage() {
           <ActionsCard
             isFullscreen={isFullscreen}
             onToggleFullscreen={toggleFullscreen}
-            onOpenEditor={() => navigate(`/admin/calendar?date=${today}`)}
+            onOpenEditor={() => navigate(sitePage(`/calendar?date=${today}`))}
           />
         </aside>
       </div>

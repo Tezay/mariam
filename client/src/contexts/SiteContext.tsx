@@ -1,5 +1,6 @@
-import { createContext, useContext } from 'react';
+import { createContext, useCallback, useContext } from 'react';
 import type { SiteRef } from '@/lib/api/sites';
+import { sitePath } from '@/lib/dashboard-routes';
 
 const SiteContext = createContext<SiteRef | null>(null);
 
@@ -16,4 +17,10 @@ export function useSiteRef(): SiteRef {
 /** For what renders outside a site too, such as the search on the supervisor's pages. */
 export function useOptionalSiteRef(): SiteRef | null {
   return useContext(SiteContext);
+}
+
+/** A page of the open site's dashboard: `page` is its path below the site, such as `/calendar`. */
+export function useSitePage(): (page: string) => string {
+  const site = useSiteRef();
+  return useCallback((page: string) => sitePath(site, page), [site]);
 }

@@ -251,7 +251,7 @@ neither cannot confirm (`403 second_factor_required`).
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `U` | The account: `sites` with its role on each and their organization, `organizations` it supervises; `site`, `organization` and `role` are its oldest place |
+| `GET` | `U` | The account: `sites` with its role on each and their organization, `organizations` it supervises |
 | `PATCH` | `U` | Display name or sign-in address (*confirmed*); the account |
 | `GET`, `PATCH` | `U/ui-preferences` | Interface state carried by the account: the guided tours already seen |
 | `GET`, `PATCH` | `U/notification-preferences` | Which alerts the account sees, and when its weekly email lands |
@@ -703,10 +703,12 @@ organization out of the caller's reach answers 404.
 | `POST` | `O/members/{user_id}/password-reset` | As for a site, on a supervisor (*confirmed*) |
 | `GET`, `POST`, `DELETE` | `O/invitations`, `O/invitations/{invitation_id}` | The supervisors' invitations, without `role` |
 
-Every account carries its `role` and `site` there (`org_admin` and `null` for a supervisor),
-its `sites` in that organization only, and `shared` when it holds a place beyond the
-caller's reach. A shared account is never turned off nor reset by the caller (`403
-account_shared`): it can only be removed from here. The caller's own account answers `403
+Every account carries its `role` there (`org_admin` for a supervisor), its `sites` in that
+organization only, and `shared` when it holds a place beyond the
+caller's reach. A shared account is turned off only by whoever reaches all its places (`403
+account_shared`); its reset link leaves by email only (`409 email_unavailable` without email,
+`502 email_failed` when it could not leave). A site holds 200 accounts at most (`409
+member_limit`, at invitation and at acceptance). The caller's own account answers `403
 own_account` (removing, deactivating, changing its role, resetting it), the rescue account
 `403 rescue_account`. A reset link needs an active account with a second factor (`409
 member_inactive`, `409 second_factor_missing`); the reset leaves the account active, to sign

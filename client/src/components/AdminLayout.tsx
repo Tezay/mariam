@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePlace } from '@/contexts/PlaceContext';
 import { useSiteRef } from '@/contexts/SiteContext';
+import { ACCOUNT_PATH, sitePath } from '@/lib/dashboard-routes';
 import { sitesApi, type ServiceHours } from '@/lib/api/sites';
 import { isInServiceHours } from '@/lib/utils';
 import { DashboardShell } from '@/components/layout/DashboardShell';
@@ -22,45 +24,38 @@ import {
   Globe,
 } from 'lucide-react';
 
-const PAGE_TITLES: PageTitleMap = [
-  ['/admin/calendar', 'Calendrier'],
-  ['/admin/service', 'Service en cours'],
-  ['/admin/catalogue', 'Catalogue'],
-  ['/admin/news', 'Actualités'],
-  ['/admin/closures', 'Fermetures'],
-  ['/admin/stats', 'Statistiques'],
-  ['/admin/users', 'Utilisateurs'],
-  ['/admin/settings', 'Mon restaurant'],
-  ['/admin/public-page', 'Page publique'],
-  ['/admin/audit-logs', "Logs d'audit"],
-  ['/admin/account', 'Mon compte'],
-  ['/admin', 'Calendrier'],
+const PAGES: [string, string][] = [
+  ['/calendar', 'Calendrier'],
+  ['/service', 'Service en cours'],
+  ['/catalogue', 'Catalogue'],
+  ['/news', 'Actualités'],
+  ['/closures', 'Fermetures'],
+  ['/stats', 'Statistiques'],
+  ['/users', 'Utilisateurs'],
+  ['/settings', 'Mon restaurant'],
+  ['/public-page', 'Page publique'],
+  ['/audit-logs', "Logs d'audit"],
 ];
 
-const BOTTOM_NAV_PATHS = ['/admin/calendar', '/admin/service', '/admin/catalogue', '/admin/stats'];
+const BOTTOM_NAV_PAGES = ['/calendar', '/service', '/catalogue', '/stats'];
 
-const ADMIN_ONLY_PATHS = [
-  '/admin/users',
-  '/admin/settings',
-  '/admin/public-page',
-  '/admin/audit-logs',
-];
+const ADMIN_ONLY_PAGES = ['/users', '/settings', '/public-page', '/audit-logs'];
 
 export function AdminLayout() {
   const { user } = useAuth();
   const site = useSiteRef();
+  const { role } = usePlace();
   const { pathname } = useLocation();
+  const base = sitePath(site);
   const [serviceHours, setServiceHours] = useState<ServiceHours>({});
   const [duringService, setDuringService] = useState(false);
 
   useSecurityOnboarding(user, '/admin/security');
   usePwaOnboarding('/admin/install');
 
-  // Identify in Umami by role — intentionally re-runs on id change only
   useEffect(() => {
-    if (user?.role) window.umami?.identify({ role: user.role });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+    window.umami?.identify({ role });
+  }, [role]);
 
   useEffect(() => {
     sitesApi
@@ -84,59 +79,64 @@ export function AdminLayout() {
   ) : undefined;
 
   const navItems: SidebarNavItem[] = [
-    { to: '/admin/calendar', label: 'Calendrier', icon: <CalendarDays className="h-5 w-5" /> },
+    { to: `${base}/calendar`, label: 'Calendrier', icon: <CalendarDays className="h-5 w-5" /> },
     {
-      to: '/admin/service',
+      to: `${base}/service`,
       label: 'Service en cours',
       shortLabel: 'Service',
       icon: <ChefHat className="h-5 w-5" />,
       badge: servicePulse,
     },
-    { to: '/admin/catalogue', label: 'Catalogue', icon: <BookOpen className="h-5 w-5" /> },
-    { to: '/admin/news', label: 'Actualités', icon: <Newspaper className="h-5 w-5" /> },
+    { to: `${base}/catalogue`, label: 'Catalogue', icon: <BookOpen className="h-5 w-5" /> },
+    { to: `${base}/news`, label: 'Actualités', icon: <Newspaper className="h-5 w-5" /> },
     {
-      to: '/admin/stats',
+      to: `${base}/stats`,
       label: 'Statistiques',
       shortLabel: 'Stats',
       icon: <ChartColumn className="h-5 w-5" />,
     },
-    { to: '/admin/users', label: 'Utilisateurs', icon: <Users className="h-5 w-5" /> },
+    { to: `${base}/users`, label: 'Utilisateurs', icon: <Users className="h-5 w-5" /> },
     {
-      to: '/admin/settings',
+      to: `${base}/settings`,
       label: 'Mon restaurant',
       shortLabel: 'Restaurant',
       icon: <Settings className="h-5 w-5" />,
     },
     {
-      to: '/admin/public-page',
+      to: `${base}/public-page`,
       label: 'Page publique',
       shortLabel: 'Page',
       icon: <Globe className="h-5 w-5" />,
     },
-    { to: '/admin/audit-logs', label: "Logs d'audit", icon: <Shield className="h-5 w-5" /> },
+    { to: `${base}/audit-logs`, label: "Logs d'audit", icon: <Shield className="h-5 w-5" /> },
   ];
 
+  const adminOnly = ADMIN_ONLY_PAGES.map((page) => base + page);
   const filteredNavItems = navItems.filter(
-    (item) => !ADMIN_ONLY_PATHS.includes(item.to) || user?.role === 'admin'
+    (item) => !adminOnly.includes(item.to) || role === 'admin'
   );
+  const pageTitles: PageTitleMap = [
+    ...PAGES.map(([page, title]): [string, string] => [base + page, title]),
+    [ACCOUNT_PATH, 'Mon compte'],
+    [base, 'Calendrier'],
+  ];
 
   // One of its steps points at the calendar's own toolbar.
-  const onCalendar = pathname === '/admin' || pathname.startsWith('/admin/calendar');
+  const onCalendar = pathname === base || pathname.startsWith(`${base}/calendar`);
 
   return (
     <>
       <DashboardShell
         navItems={filteredNavItems}
-        homePath="/admin"
-        bottomNavPaths={BOTTOM_NAV_PATHS}
-        pageTitles={PAGE_TITLES}
+        homePath={base}
+        bottomNavPaths={BOTTOM_NAV_PAGES.map((page) => base + page)}
+        pageTitles={pageTitles}
         fallbackTitle="Admin"
         showSearch
         showNotifications
-        accountPath="/admin/account"
-        tenant={user?.site ? { label: 'Site', name: user.site.name } : undefined}
+        accountPath={ACCOUNT_PATH}
       />
-      <TourHost tour="orientation" enabled={onCalendar} canSeeStats={user?.role === 'admin'} />
+      <TourHost tour="orientation" enabled={onCalendar} canSeeStats={role === 'admin'} />
     </>
   );
 }

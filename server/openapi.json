@@ -81,7 +81,7 @@
             }
           },
           "409": {
-            "description": "`email_taken`",
+            "description": "`email_taken`, `member_limit`",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1512,7 +1512,7 @@
             }
           },
           "409": {
-            "description": "`already_member`",
+            "description": "`already_member`, `member_limit`",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -8248,37 +8248,6 @@
             "format": "date-time",
             "nullable": true
           },
-          "role": {
-            "type": "string",
-            "enum": [
-              "org_admin",
-              "admin",
-              "editor"
-            ],
-            "description": "On its oldest place, as `site` and `organization`"
-          },
-          "site": {
-            "anyOf": [
-              {
-                "type": "object",
-                "nullable": true
-              },
-              {
-                "$ref": "#/components/schemas/NamedRef"
-              }
-            ]
-          },
-          "organization": {
-            "anyOf": [
-              {
-                "type": "object",
-                "nullable": true
-              },
-              {
-                "$ref": "#/components/schemas/NamedRef"
-              }
-            ]
-          },
           "sites": {
             "type": "array",
             "description": "The sites it belongs to, with its role on each",
@@ -8302,11 +8271,8 @@
           "is_rescue_account",
           "last_login",
           "mfa_enabled",
-          "organization",
           "organizations",
           "passkeys_count",
-          "role",
-          "site",
           "sites",
           "username"
         ],
@@ -9506,18 +9472,6 @@
             ],
             "description": "On the site; on an organization's list, `org_admin` for its supervisors"
           },
-          "site": {
-            "description": "None for a supervisor",
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/NamedRef"
-              },
-              {
-                "type": "object",
-                "nullable": true
-              }
-            ]
-          },
           "sites": {
             "type": "array",
             "description": "Its sites in this organization; on a site's list, that site",
@@ -9541,7 +9495,6 @@
           "passkeys_count",
           "role",
           "shared",
-          "site",
           "sites",
           "username"
         ],

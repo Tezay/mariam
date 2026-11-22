@@ -2,7 +2,7 @@ import { Link } from 'react-router';
 import { AlertTriangle, MessageSquareHeart, SmilePlus, Users, Utensils } from 'lucide-react';
 import type { SatisfactionDishRow, SatisfactionSiteRow } from '@/lib/api/analytics';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
+import { useOptionalPlace } from '@/contexts/PlaceContext';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { DataTable, type DataTableColumn } from '@/components/dashboard/DataTable';
 import { RATING_LEVELS, nearestLevel, ratingPreset } from '@/features/rating/scale';
@@ -16,6 +16,8 @@ import { SatisfactionTrendChart } from './ui/charts/SatisfactionTrendChart';
 import { useAnalyticsFilters } from './hooks/useAnalyticsFilters';
 import { useAnalyticsSatisfaction } from './hooks/useAnalyticsQueries';
 import { formatNumber, formatPercent, formatScore, formatScoreDelta, plural } from './format';
+import { useOptionalSiteRef } from '@/contexts/SiteContext';
+import { sitePath } from '@/lib/dashboard-routes';
 
 /** Below this a score swings on a handful of answers; the table says so. */
 const THIN_EVIDENCE = 20;
@@ -110,7 +112,8 @@ function DishList({
 }
 
 export function SatisfactionView({ sites = [], onSiteClick, onDishClick }: SatisfactionViewProps) {
-  const { user } = useAuth();
+  const role = useOptionalPlace()?.role;
+  const site = useOptionalSiteRef();
   const { filters, query, setPeriod, setCustomRange, setSites } = useAnalyticsFilters();
   const { data, isLoading, isError } = useAnalyticsSatisfaction(query);
 
@@ -123,7 +126,7 @@ export function SatisfactionView({ sites = [], onSiteClick, onDishClick }: Satis
     settings !== undefined && settings.site_count > 0 && settings.sites_with_vote === 0;
   const silentSites = settings ? settings.site_count - settings.sites_with_vote : 0;
   // Only a site's own admin can act on a link to its settings.
-  const ownSite = settings?.site_count === 1 && user?.role === 'admin';
+  const ownSite = settings?.site_count === 1 && role === 'admin' && site;
   const dishEmpty =
     settings?.dish_question === false
       ? "La question du plat n'est pas posée : aucune catégorie n'est cochée dans les réglages."
@@ -198,7 +201,7 @@ export function SatisfactionView({ sites = [], onSiteClick, onDishClick }: Satis
               action={
                 ownSite ? (
                   <Button asChild variant="outline" size="sm">
-                    <Link to="/admin/settings">Ouvrir les réglages</Link>
+                    <Link to={sitePath(site, '/settings')}>Ouvrir les réglages</Link>
                   </Button>
                 ) : undefined
               }

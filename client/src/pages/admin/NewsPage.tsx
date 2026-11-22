@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { newsApi, type News, type NewsQuery } from '@/lib/api/news';
 import { notify } from '@/lib/toast';
 import { parisToday } from '@/lib/date-utils';
-import { useAuth } from '@/contexts/AuthContext';
+import { useOptionalPlace } from '@/contexts/PlaceContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -42,7 +42,7 @@ import {
   Pin,
 } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
-import { useSiteRef } from '@/contexts/SiteContext';
+import { useSiteRef, useSitePage } from '@/contexts/SiteContext';
 
 type Tab = 'all' | 'upcoming' | 'drafts';
 
@@ -83,9 +83,10 @@ function whenOf(item: News): string | null {
 
 export function NewsPage() {
   const site = useSiteRef();
-  const { user } = useAuth();
+  const role = useOptionalPlace()?.role;
   const navigate = useNavigate();
-  const canEdit = user?.role === 'admin' || user?.role === 'editor';
+  const sitePage = useSitePage();
+  const canEdit = role === 'admin' || role === 'editor';
 
   const [tab, setTab] = useState<Tab>('all');
   const [page, setPage] = useState(1);
@@ -156,7 +157,7 @@ export function NewsPage() {
     }
   };
 
-  const edit = (item: News) => navigate(`/admin/news/${item.id}/edit`);
+  const edit = (item: News) => navigate(sitePage(`/news/${item.id}/edit`));
 
   const renderCard = (item: News) => {
     const photo = item.images[0]?.url;
@@ -287,7 +288,7 @@ export function NewsPage() {
         </div>
 
         {canEdit && (
-          <Button onClick={() => navigate('/admin/news/new')} className="gap-2 self-start">
+          <Button onClick={() => navigate(sitePage('/news/new'))} className="gap-2 self-start">
             <Plus className="h-4 w-4" /> Nouvelle actualité
           </Button>
         )}
@@ -316,7 +317,7 @@ export function NewsPage() {
               <p className="mb-4 text-sm text-muted-foreground">
                 Annoncez un repas à thème, une animation ou une nouveauté du restaurant.
               </p>
-              <Button onClick={() => navigate('/admin/news/new')} className="gap-2">
+              <Button onClick={() => navigate(sitePage('/news/new'))} className="gap-2">
                 <Plus className="h-4 w-4" /> Créer une actualité
               </Button>
             </>

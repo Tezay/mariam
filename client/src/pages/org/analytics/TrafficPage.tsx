@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router';
 import { TrafficView } from '@/features/analytics/TrafficView';
 import { useOrgSites } from '@/features/analytics/hooks/useAnalyticsQueries';
 import { PageHeader } from '../ui';
+import { useOrgPage } from '@/contexts/PlaceContext';
 
 export function OrgTrafficPage() {
   const navigate = useNavigate();
+  const orgPage = useOrgPage();
   const { data: orgSites } = useOrgSites();
 
   const sites = useMemo(
@@ -19,7 +21,7 @@ export function OrgTrafficPage() {
         title="Consultations du menu"
         description="Ouvertures des pages de menu en ligne, hors fréquentation sur place."
       />
-      <TrafficView sites={sites} onSiteClick={(site) => navigate(`/org/sites/${site}`)} />
+      <TrafficView sites={sites} onSiteClick={(site) => navigate(orgPage(`/sites/${site}`))} />
     </div>
   );
 }

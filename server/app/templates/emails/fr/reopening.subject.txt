@@ -1,1 +1,1 @@
-{% if supervisor %}Mariam, réouverture de vos sites{% else %}Mariam, réouverture {{ sites[0].date }}{% endif %}
+{% if overview %}Mariam, réouverture de vos sites{% else %}Mariam, réouverture {{ sites[0].date }}{% endif %}

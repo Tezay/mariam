@@ -18,8 +18,8 @@ const PREFS: NotifPreferences = {
   digest_hour: 8,
 };
 
-function switchesFor(scope: 'site' | 'org'): (string | null)[] {
-  render(<NotificationPreferences prefs={PREFS} scope={scope} onChange={() => {}} />);
+function switchesFor(...scopes: ('site' | 'org')[]): (string | null)[] {
+  render(<NotificationPreferences prefs={PREFS} scopes={scopes} onChange={() => {}} />);
   return screen.getAllByRole('switch').map((toggle) => toggle.getAttribute('aria-label'));
 }
 
@@ -35,6 +35,13 @@ describe('alert switches', () => {
       'Alerter si un jour férié approche',
       'Résumé hebdomadaire par email',
     ]);
+  });
+
+  it('offers an account that is both every rule of either', () => {
+    const switches = switchesFor('site', 'org');
+
+    expect(switches).toContain('Menu du jour non publié');
+    expect(switches).toContain('Site sans activité');
   });
 
   it('offers a supervisor the rules that reach it', () => {

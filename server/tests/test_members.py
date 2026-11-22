@@ -4,7 +4,7 @@ from datetime import timedelta
 from app.extensions import db
 from app.models import ActivationLink, AuditLog, Organization, User
 from app.utils.time import utc_now_naive
-from conftest import auth_headers, get_token, join_site, make_restaurant, make_user, site_path
+from conftest import auth_headers, join_site, make_restaurant, make_user, site_path
 from tests.auth_support import (
     confirmed_headers,
     enable_totp,
@@ -69,7 +69,7 @@ class TestSiteMembers:
         assert body['total_count'] == 2
         assert len(body['items']) == 1
         assert 'rel="next"' in res.headers['Link']
-        assert body['items'][0]['site'] == {'slug': 'ru-auto', 'name': 'RU Test Auto'}
+        assert body['items'][0]['sites'] == [{'slug': 'ru-auto', 'name': 'RU Test Auto', 'role': 'editor'}]
 
     def test_another_site_is_not_found(self, app, client):
         admin, _ = _site_admin(app)
@@ -210,9 +210,9 @@ class TestOrgMembers:
 
         res = client.get(f'/v1/orgs/{org.slug}/members', headers=session_headers(supervisor))
 
-        assert {m['email']: m['site'] for m in res.get_json()['items']} == {
-            'editor@mariam.app': {'slug': 'ru-nord', 'name': 'RU Nord'},
-            'sup@mariam.app': None,
+        assert {m['email']: m['sites'] for m in res.get_json()['items']} == {
+            'editor@mariam.app': [{'slug': 'ru-nord', 'name': 'RU Nord', 'role': 'editor'}],
+            'sup@mariam.app': [],
         }
 
     def test_a_site_admin_reaches_none_of_it(self, app, client):
@@ -706,18 +706,37 @@ class TestSharedAccounts:
 
         assert res.get_json()['role'] == 'admin'
 
-    def test_its_password_and_second_factors_are_not_reset(self, app, client):
+    def test_its_second_factors_are_reset(self, app, client):
         admin, path, editor = _shared_editor(app)
         enable_totp(editor)
-        headers = confirmed_headers(client, admin)
 
-        reset = client.post(f'{path}/members/{editor}/password-reset', headers=headers)
-        factors = client.delete(f'{path}/members/{editor}/second-factors', headers=headers)
+        res = client.delete(
+            f'{path}/members/{editor}/second-factors', headers=confirmed_headers(client, admin)
+        )
 
-        assert reset.get_json()['code'] == 'account_shared'
-        assert factors.get_json()['code'] == 'account_shared'
+        assert res.status_code == 204
+        assert db.session.get(User, editor).mfa_enabled is False
+
+    def test_its_reset_link_leaves_by_email_only(self, app, client, smtp):
+        admin, path, editor = _shared_editor(app)
+        enable_totp(editor)
+
+        res = client.post(
+            f'{path}/members/{editor}/password-reset', headers=confirmed_headers(client, admin)
+        )
+
+        assert res.get_json() == {'emailed': True, 'reset_url': None}
+
+    def test_without_email_its_reset_link_is_refused(self, app, client):
+        admin, path, editor = _shared_editor(app)
+        enable_totp(editor)
+
+        res = client.post(
+            f'{path}/members/{editor}/password-reset', headers=confirmed_headers(client, admin)
+        )
+
+        assert res.get_json()['code'] == 'email_unavailable'
         assert ActivationLink.query.filter_by(link_type='password_reset').count() == 0
-        assert db.session.get(User, editor).mfa_enabled is True
 
     def test_removing_it_keeps_its_other_site(self, app, client):
         admin, path, editor = _shared_editor(app)
@@ -752,6 +771,34 @@ def _invitation(admin, path, client, **body):
         headers=confirmed_headers(client, admin),
     )
     return ActivationLink.query.filter_by(id=res.get_json()['id']).one()
+
+
+class TestSiteMembersLimit:
+    def test_an_invitation_past_the_limit_is_refused(self, app, client, monkeypatch):
+        admin, path = _site_admin(app)
+        monkeypatch.setattr('app.services.access.SITE_MEMBERS_MAX', 2)
+        headers = confirmed_headers(client, admin)
+
+        first = client.post(f'{path}/invitations', json={'role': 'editor'}, headers=headers)
+        second = client.post(f'{path}/invitations', json={'role': 'editor'}, headers=headers)
+
+        assert first.status_code == 201
+        assert second.get_json()['code'] == 'member_limit'
+
+    def test_an_invitation_is_not_accepted_into_a_full_site(self, app, client, monkeypatch):
+        admin, path = _site_admin(app)
+        link = _invitation(admin, path, client)
+        joiner = make_user(
+            app, email='joiner@mariam.app',
+            restaurant_id=make_restaurant(app, name='Autre', code='RU_OTHER'),
+        )
+        monkeypatch.setattr('app.services.access.SITE_MEMBERS_MAX', 1)
+
+        res = client.post(
+            '/v1/user/invitations', json={'token': link.token}, headers=session_headers(joiner)
+        )
+
+        assert res.get_json()['code'] == 'member_limit'
 
 
 class TestAcceptingAnInvitation:

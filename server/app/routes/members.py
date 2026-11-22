@@ -32,7 +32,15 @@ from ..schemas.members import (
     SupervisorPatchSchema,
 )
 from ..security import spend
-from ..services.access import ADMIN, SUPERVISOR, mirror_first_place, reach_of, supervises
+from ..services import email_service
+from ..services.access import (
+    ADMIN,
+    SUPERVISOR,
+    mirror_first_place,
+    reach_of,
+    site_is_full,
+    supervises,
+)
 from ..services.account import (
     SecurityEvent,
     notify_invitation,
@@ -46,6 +54,7 @@ from .helpers import (
     admin_required,
     audit,
     get_current_user,
+    member_limit,
     member_view,
     org_admin_required,
     refuse_supervisor,
@@ -127,13 +136,12 @@ def _changeable(user, detail: str) -> None:
 
 
 def _in_reach(user) -> None:
-    # An admin's reset hands back the link when it cannot be emailed: on an account
-    # that opens other sites too, it would open them to this admin.
+    # Turning it off would lock it out of the places another admin answers for.
     if not reach_of(get_current_user()).covers(user):
         raise Problem(
             403, 'account_shared',
             "Ce compte a aussi accès à des restaurants que vous ne gérez pas : "
-            "vous pouvez seulement le retirer d'ici.",
+            "vous pouvez le retirer d'ici, pas le suspendre.",
         )
 
 
@@ -200,7 +208,6 @@ def _reset_second_factors(user, restaurant: Restaurant | None, org: Organization
     # The account page keeps one factor on the caller's own account at all
     # times; this route would be a way around it.
     _changeable(user, 'Gérez votre propre double authentification depuis Mon compte.')
-    _in_reach(user)
     removed = reset_second_factor(user)
     audit(
         AuditLog.ACTION_MFA_DISABLED, restaurant, org,
@@ -213,7 +220,14 @@ def _reset_second_factors(user, restaurant: Restaurant | None, org: Organization
 
 def _send_password_reset(user, restaurant: Restaurant | None, org: Organization) -> tuple[dict, int]:
     _changeable(user, 'Changez votre propre mot de passe depuis Mon compte.')
-    _in_reach(user)
+    # Shown to the caller, the link would open the places of the account it does not answer for.
+    by_email_only = not reach_of(get_current_user()).covers(user)
+    if by_email_only and not email_service.is_configured():
+        raise Problem(
+            409, 'email_unavailable',
+            "Ce compte a aussi accès à d'autres restaurants : son lien ne part que par e-mail, "
+            "et l'envoi d'e-mails n'est pas configuré.",
+        )
     if not user.is_active:
         raise Problem(409, 'member_inactive', 'Ce compte est désactivé.')
     if not user.has_second_factor():
@@ -226,13 +240,18 @@ def _send_password_reset(user, restaurant: Restaurant | None, org: Organization)
         email=user.email, created_by_id=get_current_user().id
     )
     db.session.add(link)
+    db.session.commit()
+    url = f'{frontend_base_url()}/reset-password/{link.token}'
+    emailed = notify_password_reset(user, url)
+    if by_email_only and not emailed:
+        link.mark_as_used()
+        db.session.commit()
+        raise Problem(502, 'email_failed', "Le lien n'a pas pu être envoyé : réessayez plus tard.")
     audit(
         AuditLog.ACTION_PASSWORD_RESET_REQUEST, restaurant, org,
         target_type='user', target_id=user.id, details={'method': 'dashboard'},
     )
     db.session.commit()
-    url = f'{frontend_base_url()}/reset-password/{link.token}'
-    emailed = notify_password_reset(user, url)
     return {'emailed': emailed, 'reset_url': None if emailed else url}, 201
 
 
@@ -257,6 +276,10 @@ def _invite(body: dict, role: str, org: Organization, restaurant: Restaurant | N
     account = User.query.filter_by(email=email).first() if email else None
     if account is not None and _place(account, restaurant, org) is not None:
         raise Problem(409, 'already_member', 'Ce compte a déjà cet accès.')
+    if restaurant is not None and site_is_full(
+        restaurant.id, _pending(_site_invitations(restaurant)).count()
+    ):
+        raise member_limit(with_invitations=True)
     # Spent before anything is written: a limiter that fails must stop the
     # request here, not after the invitation exists.
     by_email = body['send_email'] and spend(INVITATION_EMAILS, 'invitation-email', str(inviter.id))
