@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { useAuth } from '@/contexts/AuthContext';
+import { useOptionalPlace } from '@/contexts/PlaceContext';
 import { addDays, parisToday } from '@/lib/date-utils';
 import { categoriesApi } from '@/lib/api/categories';
 import type { Closure } from '@/lib/api/closures';
 import { News } from '@/lib/api/news';
 import type { MenuCategory } from '@/lib/api/categories';
 import { sitesApi, type CalendarSettings } from '@/lib/api/sites';
-import { useSiteRef } from '@/contexts/SiteContext';
+import { useSiteRef, useSitePage } from '@/contexts/SiteContext';
 import { InlineError } from '@/components/InlineError';
 import { getErrorType } from '@/lib/api/errors';
 import { CalendarToolbar, DesktopView, MobileView } from './CalendarToolbar';
@@ -101,9 +101,10 @@ function formatDayLabel(dateStr: string): string {
 
 export function CalendarPage() {
   const site = useSiteRef();
-  const { user } = useAuth();
+  const role = useOptionalPlace()?.role;
   const navigate = useNavigate();
-  const canEdit = user?.role === 'admin' || user?.role === 'editor';
+  const sitePage = useSitePage();
+  const canEdit = role === 'admin' || role === 'editor';
   const today = parisToday();
 
   const todayYear = new Date(today + 'T12:00:00').getFullYear();
@@ -315,9 +316,9 @@ export function CalendarPage() {
 
   const handleEditEvent = useCallback(
     (event: News) => {
-      navigate(`/admin/news/${event.id}/edit`);
+      navigate(sitePage(`/news/${event.id}/edit`));
     },
-    [navigate]
+    [navigate, sitePage]
   );
 
   const [onboardingDate, setOnboardingDate] = useState<string | null>(null);
@@ -382,7 +383,7 @@ export function CalendarPage() {
               setDesktopView('day');
             })
           }
-          onAddEvent={() => navigate('/admin/news/new?dated=1')}
+          onAddEvent={() => navigate(sitePage('/news/new?dated=1'))}
           onAddClosure={() => openCreateClosure(today)}
           canEdit={canEdit}
           canGoPrev={canGoPrev}

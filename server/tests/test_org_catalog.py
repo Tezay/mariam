@@ -11,7 +11,6 @@ from app.models import (
     MenuVote,
     Organization,
     Restaurant,
-    User,
 )
 from app.utils.time import paris_today
 from conftest import auth_headers, get_token, make_restaurant, make_user
@@ -75,7 +74,7 @@ def _director(rid, org_id, email='dir@mariam.app'):
 
 def _org_path(client, token):
     account = client.get('/v1/user', headers=auth_headers(token)).get_json()
-    return f"/v1/orgs/{account['organization']['slug']}"
+    return f"/v1/orgs/{account['organizations'][0]['slug']}"
 
 
 def _catalog(client, token, query=''):

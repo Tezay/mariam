@@ -5,7 +5,7 @@ import { getApiErrorMessage, isConfirmationRequired } from '@/lib/api/errors';
 import { passkeyRegistrationError } from '@/lib/passkey-errors';
 import { registerPasskey } from '@/lib/passkey-registration';
 import { useAuth } from '@/contexts/AuthContext';
-import { installPathForRole } from '@/lib/dashboard-routes';
+import { installPath } from '@/lib/dashboard-routes';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, AlertCircle, Fingerprint } from 'lucide-react';
@@ -62,7 +62,7 @@ export function SetupTransferPage() {
   };
 
   const handleContinue = () => {
-    window.location.href = installPathForRole(user?.role);
+    window.location.href = installPath(user);
   };
 
   return (

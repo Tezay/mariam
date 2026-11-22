@@ -27,10 +27,6 @@ class MemberSchema(AccountFieldsSchema):
         required=True, validate=validate.OneOf(User.VALID_ROLES),
         metadata={'description': "On the site; on an organization's list, `org_admin` for its supervisors"},
     )
-    site = fields.Nested(
-        NamedRefSchema, required=True, allow_none=True,
-        metadata={'description': "None for a supervisor"},
-    )
     sites = fields.List(
         fields.Nested(MemberSiteSchema), required=True,
         metadata={'description': "Its sites in this organization; on a site's list, that site"},

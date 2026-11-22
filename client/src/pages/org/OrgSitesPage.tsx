@@ -8,9 +8,11 @@ import { useOrgSites } from '@/features/analytics/hooks/useAnalyticsQueries';
 import { PageHeader, StatusPill } from './ui';
 import { AddSiteButton } from './AddSiteButton';
 import { EmptyState } from '@/components/dashboard/EmptyState';
+import { useOrgPage } from '@/contexts/PlaceContext';
 
 export function OrgSitesPage() {
   const { data, isError } = useOrgSites();
+  const orgPage = useOrgPage();
   const sites = isError ? [] : (data ?? null);
 
   return (
@@ -35,7 +37,7 @@ export function OrgSitesPage() {
           {sites.map((s) => (
             <Link
               key={s.slug}
-              to={`/org/sites/${s.slug}`}
+              to={orgPage(`/sites/${s.slug}`)}
               className="flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/40"
             >
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">

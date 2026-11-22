@@ -1,6 +1,5 @@
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 
-from ..models import User
 from .common import (
     DeviceName,
     DisplayName,
@@ -17,12 +16,6 @@ class AccountSiteSchema(MemberSiteSchema):
 
 
 class AccountSchema(AccountFieldsSchema):
-    role = fields.Str(
-        required=True, validate=validate.OneOf(User.VALID_ROLES),
-        metadata={'description': "On its oldest place, as `site` and `organization`"},
-    )
-    site = fields.Nested(NamedRefSchema, required=True, allow_none=True)
-    organization = fields.Nested(NamedRefSchema, required=True, allow_none=True)
     sites = fields.List(
         fields.Nested(AccountSiteSchema), required=True,
         metadata={'description': "The sites it belongs to, with its role on each"},

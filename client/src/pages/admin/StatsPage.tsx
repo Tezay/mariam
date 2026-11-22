@@ -10,9 +10,11 @@ import { PublicationsView } from '@/features/analytics/PublicationsView';
 import { SatisfactionView } from '@/features/analytics/SatisfactionView';
 import { TrafficView } from '@/features/analytics/TrafficView';
 import { TourHost } from '@/features/tour/TourHost';
+import { useSitePage } from '@/contexts/SiteContext';
 
 export function StatsPage() {
   const navigate = useNavigate();
+  const sitePage = useSitePage();
   const [tab, setTab] = useState<AnalyticsTab>('traffic');
 
   return (
@@ -21,7 +23,9 @@ export function StatsPage() {
 
       {tab === 'traffic' && <TrafficView />}
       {tab === 'satisfaction' && (
-        <SatisfactionView onDishClick={(dish) => navigate(`/admin/catalogue/${dish.dish_id}`)} />
+        <SatisfactionView
+          onDishClick={(dish) => navigate(sitePage(`/catalogue/${dish.dish_id}`))}
+        />
       )}
       {tab === 'publications' && <PublicationsView />}
 

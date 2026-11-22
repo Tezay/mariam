@@ -121,12 +121,16 @@ class TestRecipients:
         assert email_service.digest_site_ids(db.session.get(User, uid)) == [administered]
 
 
-    def test_its_links_follow_the_dashboard_of_its_oldest_place(self, app):
+    def test_a_site_it_belongs_to_leads_to_that_site_even_when_it_supervises(self, app):
         org = _org('crous-links')
-        uid = make_user(app, restaurant_id=make_restaurant(app, organization_id=org.id))
+        rid = make_restaurant(app, code='RU_LINK', organization_id=org.id)
+        uid = make_user(app, restaurant_id=rid)
         supervise(uid, org.id)
 
-        assert email_service._account_url(db.session.get(User, uid)).endswith('/admin/account')
+        overview, (url,) = email_service._dashboard(db.session.get(User, uid), [rid], '/stats')
+
+        assert url.endswith('/admin/crous-links/ru-link/stats')
+        assert overview is False
 
 
 class TestContent:
@@ -152,7 +156,7 @@ class TestContent:
 
         assert 'RU Test' in digest['text']
         assert 'Publication' in digest['text']
-        assert '/admin/stats' in digest['text']
+        assert '/admin/test-org/ru-test/stats' in digest['text']
         assert '/admin/account"' in digest['html']
         assert start.strftime('%d/%m') in digest['subject']
 
@@ -167,8 +171,8 @@ class TestContent:
 
         assert '2 sites' in digest['text']
         assert 'Couverture' in digest['text']
-        assert '/org' in digest['text']
-        assert '/org/account"' in digest['html']
+        assert '/org/org-digest' in digest['text']
+        assert '/admin/account"' in digest['html']
         assert '<html' in digest['html']
 
     def test_a_director_of_a_single_site_is_still_sent_to_the_organization(self, app):
@@ -178,8 +182,8 @@ class TestContent:
         digest = email_service.build_digest(director, [rid], *email_service.last_week())
 
         assert 'RU Test' in digest['text']
-        assert '/org/account"' in digest['html']
-        assert '/admin' not in digest['text'] + digest['html']
+        assert '/org/org-digest' in digest['text']
+        assert '/admin/org-digest' not in digest['text'] + digest['html']
 
 
 MONDAY = date(2026, 9, 7)
@@ -246,7 +250,7 @@ class TestWeeklySlot:
 
         assert 'Votre restaurant est fermé ?' in mail['text']
         assert '« Nouvelle fermeture »' in mail['text']
-        assert '/admin/calendar' in mail['html']
+        assert '/admin/test-org/ru-test/calendar' in mail['html']
 
 
 class TestReopening:
@@ -277,7 +281,7 @@ class TestReopening:
         assert mail['subject'] == 'Mariam, réouverture lundi 14 septembre'
         assert "2 publiés sur 5 jours d'ouverture" in mail['text']
         assert 'À préparer : mercredi 16 septembre, jeudi 17 septembre, vendredi 18 septembre.' in mail['text']
-        assert '/admin/calendar' in mail['html']
+        assert '/admin/test-org/ru-test/calendar' in mail['html']
 
     def test_it_says_so_when_every_menu_is_ready(self, app):
         rid = make_restaurant(app)
@@ -324,7 +328,19 @@ class TestSupervisor:
         assert mail['subject'] == 'Mariam, réouverture de vos sites'
         assert 'Créteil : lundi 14 septembre, 0 menu publié sur 5' in mail['text']
         assert 'Villejuif : mardi 15 septembre, 1 menu publié sur 4' in mail['text']
-        assert '/org' in mail['html']
+        assert '/org/org-digest' in mail['html']
+
+    def test_an_admin_of_two_sites_reads_of_both(self, app):
+        _, first, second = self._sites(app)
+        admin = make_user(app, email='two@mariam.app', restaurant_id=first)
+        join_site(admin, second, 'admin')
+        _close(first, date(2026, 8, 1), date(2026, 9, 13))
+        _close(second, date(2026, 8, 1), date(2026, 9, 13))
+
+        mail = email_service.weekly_mail(db.session.get(User, admin), [first, second], date(2026, 9, 14))
+
+        assert 'Créteil : lundi 14 septembre' in mail['text']
+        assert 'Villejuif : lundi 14 septembre' in mail['text']
 
 
 class TestJob:

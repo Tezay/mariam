@@ -33,6 +33,7 @@ import { DishCards, DishCardsSkeleton } from './ui/DishCards';
 import { DishTable } from './ui/DishTable';
 import { DishCreateDialog } from './DishCreateDialog';
 import { DishGroupPanel } from './DishGroupPanel';
+import { LANDING_PATH, sitePath } from '@/lib/dashboard-routes';
 
 const PAGE_SIZE = 24;
 const VIEW_KEY = 'mariam-catalogue-view';
@@ -43,6 +44,7 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
   const site = useOptionalSiteRef();
   const org = useOrgRef();
   const navigate = useNavigate();
+  const base = site ? sitePath(site) : LANDING_PATH;
   const queryClient = useQueryClient();
   const { filters, patch, activeCount, clear } = useCatalogFilters('usage');
   const query = useDebounce(filters.q, 300);
@@ -196,7 +198,7 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
       toggleKeys([row.key]);
       return;
     }
-    navigate(`/admin/catalogue/${row.key}`);
+    navigate(`${base}/catalogue/${row.key}`);
   };
 
   const exportCsv = async () => {
@@ -227,7 +229,7 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
     onDone: () => setSelected(null),
   });
 
-  const compare = (keys: string[]) => navigate(`/admin/catalogue/compare?ids=${keys.join(',')}`);
+  const compare = (keys: string[]) => navigate(`${base}/catalogue/compare?ids=${keys.join(',')}`);
 
   const ascending = isAscending(filters.sort, filters.order);
   const empty = (
@@ -303,7 +305,7 @@ export function CatalogView({ scope }: { scope: CatalogScope }) {
       targetName={contextKey ? (rows.find((row) => row.key === contextKey)?.name ?? null) : null}
       actions={bulk}
       onClose={() => setContextKey(null)}
-      onOpen={() => contextKey && navigate(`/admin/catalogue/${contextKey}`)}
+      onOpen={() => contextKey && navigate(`${base}/catalogue/${contextKey}`)}
       onDeselect={() => setSelected(null)}
       onCompare={() => compare(selectedKeys)}
     >

@@ -1,5 +1,6 @@
 import { useLocation, useNavigate, NavLink } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOptionalPlace } from '@/contexts/PlaceContext';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { useSidebar } from '@/contexts/SidebarContext';
 import { roleLabel } from '@/lib/roles';
@@ -25,6 +26,7 @@ import {
   ChevronDown,
   Menu as MenuIcon,
 } from 'lucide-react';
+import { placeName } from '@/lib/dashboard-routes';
 
 export type PageTitleMap = Array<[string, string]>;
 
@@ -53,6 +55,8 @@ export function Topbar({
   accountPath,
 }: TopbarProps) {
   const { user, logout } = useAuth();
+  const place = useOptionalPlace();
+  const role = place?.role;
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const { toggle, setMobileOpen } = useSidebar();
@@ -93,7 +97,14 @@ export function Topbar({
       </Button>
 
       {/* Page title */}
-      <h1 className="min-w-0 truncate text-sm font-semibold text-foreground">{title}</h1>
+      <div className="min-w-0">
+        <h1 className="truncate text-sm font-semibold text-foreground">{title}</h1>
+        {place && user && (
+          <p className="truncate text-xs text-muted-foreground sidebar:hidden">
+            {placeName(user, place.place)}
+          </p>
+        )}
+      </div>
 
       {/* Spacer */}
       <div className="flex-1" />
@@ -124,7 +135,7 @@ export function Topbar({
           <DropdownMenuLabel>
             <div>
               <p className="text-sm font-medium">{user?.username || user?.email}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{roleLabel(user?.role)}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{roleLabel(role)}</p>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />

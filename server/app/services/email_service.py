@@ -33,7 +33,7 @@ from ..models import (
 from ..security import spend
 from ..utils.time import format_date_fr, paris_now, paris_today
 from ..utils.urls import api_base_url, frontend_base_url
-from .access import ADMIN, first_place, member_site_ids, supervised_site_ids
+from .access import ADMIN, member_site_ids, supervised_site_ids, supervises
 from .alerts import live_alerts
 from .analytics_stats import Scope, overview, satisfaction_stats, traffic_stats
 from .dish_stats import first_served
@@ -416,13 +416,27 @@ def _org_blocks(data: dict) -> dict:
     }
 
 
-def _supervisor(user) -> bool:
-    # The dashboard opens on the account's oldest place.
-    return isinstance(first_place(user), OrgSupervision)
+def _dashboard(user, site_ids: list[int], *pages: str) -> tuple[bool, list[str]]:
+    """Whether an email about these sites is an overview rather than a word to one site's team,
+    and its links: that site's pages when the account belongs to it, else the one organization
+    it supervises, else its landing.
+    """
+    sites = Restaurant.query.filter(Restaurant.id.in_(site_ids)).all()
+    if len(sites) == 1 and sites[0].id in member_site_ids(user):
+        site = sites[0]
+        base = f'{_base_url()}/admin/{site.organization.slug}/{site.slug}'
+        return False, [base + page for page in pages]
+    organizations = {site.organization for site in sites}
+    target = f'{_base_url()}/admin'
+    if len(organizations) == 1:
+        (organization,) = organizations
+        if supervises(user, organization.id):
+            target = f'{_base_url()}/org/{organization.slug}'
+    return True, [target] * len(pages)
 
 
-def _account_url(user) -> str:
-    return _base_url() + ('/org/account' if _supervisor(user) else '/admin/account')
+def _account_url() -> str:
+    return _base_url() + '/admin/account'
 
 
 def digest_site_ids(user) -> list[int]:
@@ -438,9 +452,7 @@ def build_digest(
     satisfaction = satisfaction_stats(scope)
     alerts = live_alerts(user, site_ids)
     multi = len(site_ids) > 1
-    # The links follow the role and the layout the number of sites: a supervisor
-    # of a single site still works from /org.
-    supervisor = _supervisor(user)
+    general, (url, calendar_url) = _dashboard(user, site_ids, '/stats', '/calendar')
     metrics = _metric_blocks(data['kpis'])
 
     scored = {dish['dish_id']: dish for dish in satisfaction['top_dishes']}
@@ -453,12 +465,12 @@ def build_digest(
         'flop_dishes': _dish_lines(satisfaction['flop_dishes'], limit=1),
         'new_dishes': _new_dish_lines(site_ids, start, end, scored),
         'alerts': [f'{alert["title"]} : {alert["body"]}' for alert in alerts],
-        'url': _base_url() + ('/org' if supervisor else '/admin/stats'),
-        'settings_url': _account_url(user),
+        'url': url,
+        'settings_url': _account_url(),
         'unsubscribe_url': unsubscribe_page_url(user.id),
         'silent_notice': silent_notice,
-        'supervisor': supervisor,
-        'calendar_url': _base_url() + '/admin/calendar',
+        'overview': general,
+        'calendar_url': calendar_url,
         'send_day': WEEKDAYS[min(6, max(0, user.get_notification_preferences().get('digest_day', 0)))],
     }
 
@@ -542,13 +554,13 @@ def _build_reopening(user, sites: list[Restaurant], closures: ClosureRanges, tod
                 for day in open_days if day not in published
             ],
         })
-    supervisor = _supervisor(user)
+    overview, (url,) = _dashboard(user, [site.id for site in sites], '/calendar')
     return render_email(
         'reopening',
         sites=rows,
-        supervisor=supervisor,
-        url=_base_url() + ('/org' if supervisor else '/admin/calendar'),
-        settings_url=_account_url(user),
+        overview=overview,
+        url=url,
+        settings_url=_account_url(),
         unsubscribe_url=unsubscribe_page_url(user.id),
     )
 

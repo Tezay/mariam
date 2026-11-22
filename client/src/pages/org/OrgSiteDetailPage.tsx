@@ -19,6 +19,7 @@ import { DataTable, type DataTableColumn } from '@/components/dashboard/DataTabl
 import { SiteWeekCalendar } from './site/SiteWeekCalendar';
 import { TrafficView } from '@/features/analytics/TrafficView';
 import { SatisfactionView } from '@/features/analytics/SatisfactionView';
+import { useOrgPage } from '@/contexts/PlaceContext';
 
 const SITE_USER_COLUMNS: DataTableColumn<Member>[] = [
   {
@@ -43,6 +44,7 @@ const SITE_USER_COLUMNS: DataTableColumn<Member>[] = [
 
 export function OrgSiteDetailPage() {
   const { site: slug } = useParams<{ site: string }>();
+  const orgPage = useOrgPage();
   const org = useOrgRef()?.org;
   const { data: sites, isPending } = useOrgSites();
   const site = sites?.find((candidate) => candidate.slug === slug) ?? null;
@@ -67,7 +69,7 @@ export function OrgSiteDetailPage() {
         icon={Building2}
         title="Site introuvable"
         action={
-          <Link to="/org/sites">
+          <Link to={orgPage('/sites')}>
             <PrimaryButton>Retour aux sites</PrimaryButton>
           </Link>
         }
@@ -78,7 +80,7 @@ export function OrgSiteDetailPage() {
   return (
     <div>
       <Link
-        to="/org/sites"
+        to={orgPage('/sites')}
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />

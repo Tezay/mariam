@@ -15,6 +15,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import { useSitePage } from '@/contexts/SiteContext';
 
 interface AdminMenuItemCardProps {
   item: EditorItem;
@@ -33,6 +34,7 @@ export function AdminMenuItemCard({
   hint,
 }: AdminMenuItemCardProps) {
   const navigate = useNavigate();
+  const sitePage = useSitePage();
 
   const color = getCategoryColor(category.color_key, category.order);
   const isOos = item.is_out_of_stock ?? false;
@@ -163,7 +165,7 @@ export function AdminMenuItemCard({
               </>
             )}
             {item.dish_id && (
-              <ContextMenuItem onClick={() => navigate(`/admin/catalogue/${item.dish_id}`)}>
+              <ContextMenuItem onClick={() => navigate(sitePage(`/catalogue/${item.dish_id}`))}>
                 <BookOpen className="mr-2 h-4 w-4" />
                 Voir dans le catalogue
               </ContextMenuItem>

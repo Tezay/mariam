@@ -19,8 +19,9 @@ import { dishesApi } from '@/lib/api/dishes';
 import { newsApi } from '@/lib/api/news';
 import { closuresApi } from '@/lib/api/closures';
 import { useDebounce } from '@/hooks/useDebounce';
-import { useAuth } from '@/contexts/AuthContext';
+import { useOptionalPlace } from '@/contexts/PlaceContext';
 import { useOptionalSiteRef } from '@/contexts/SiteContext';
+import { LANDING_PATH, sitePath } from '@/lib/dashboard-routes';
 import { cn } from '@/lib/utils';
 import { fuzzyMatches } from '@/lib/fuzzy';
 import { Spinner } from '@/components/ui/spinner';
@@ -35,34 +36,34 @@ type SearchResult =
 const PAGES: { label: string; to: string; icon: ReactNode; adminOnly?: boolean }[] = [
   {
     label: 'Calendrier',
-    to: '/admin/calendar',
+    to: '/calendar',
     icon: <CalendarDays className="h-4 w-4 text-muted-foreground" />,
   },
   {
     label: 'Service en cours',
-    to: '/admin/service',
+    to: '/service',
     icon: <ChefHat className="h-4 w-4 text-muted-foreground" />,
   },
   {
     label: 'Catalogue',
-    to: '/admin/catalogue',
+    to: '/catalogue',
     icon: <BookOpen className="h-4 w-4 text-muted-foreground" />,
   },
   {
     label: 'Utilisateurs',
-    to: '/admin/users',
+    to: '/users',
     icon: <Users className="h-4 w-4 text-muted-foreground" />,
     adminOnly: true,
   },
   {
     label: 'Mon restaurant',
-    to: '/admin/settings',
+    to: '/settings',
     icon: <Settings className="h-4 w-4 text-muted-foreground" />,
     adminOnly: true,
   },
   {
     label: "Logs d'audit",
-    to: '/admin/audit-logs',
+    to: '/audit-logs',
     icon: <Shield className="h-4 w-4 text-muted-foreground" />,
     adminOnly: true,
   },
@@ -140,9 +141,9 @@ export function GlobalSearch() {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { user } = useAuth();
   const site = useOptionalSiteRef();
-  const isAdmin = user?.role === 'admin';
+  const base = site ? sitePath(site) : LANDING_PATH;
+  const isAdmin = useOptionalPlace()?.role === 'admin';
 
   const debouncedQuery = useDebounce(query, 300);
 
@@ -160,7 +161,7 @@ export function GlobalSearch() {
       for (const p of PAGES) {
         if (p.adminOnly && !isAdmin) continue;
         if (fuzzyMatches(p.label, q)) {
-          next.push({ kind: 'page', label: p.label, to: p.to, icon: p.icon });
+          next.push({ kind: 'page', label: p.label, to: base + p.to, icon: p.icon });
         }
       }
 
@@ -212,7 +213,7 @@ export function GlobalSearch() {
       setActiveIndex(-1);
       setLoading(false);
     },
-    [isAdmin, site]
+    [isAdmin, site, base]
   );
 
   useEffect(() => {
@@ -235,11 +236,11 @@ export function GlobalSearch() {
     if (result.kind === 'page') {
       navigate(result.to);
     } else if (result.kind === 'dish') {
-      navigate(`/admin/catalogue/${result.id}`);
+      navigate(`${base}/catalogue/${result.id}`);
     } else if (result.kind === 'news') {
-      navigate(`/admin/news/${result.id}/edit`);
+      navigate(`${base}/news/${result.id}/edit`);
     } else if (result.kind === 'closure' || result.kind === 'date') {
-      navigate(`/admin/calendar?date=${result.date}`);
+      navigate(`${base}/calendar?date=${result.date}`);
     }
   };
 

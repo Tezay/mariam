@@ -114,7 +114,7 @@ export interface paths {
                         "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description `email_taken` */
+                /** @description `email_taken`, `member_limit` */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -1750,7 +1750,7 @@ export interface paths {
                         "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description `already_member` */
+                /** @description `already_member`, `member_limit` */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -7071,13 +7071,6 @@ export interface components {
             created_at: string | null;
             /** Format: date-time */
             last_login: string | null;
-            /**
-             * @description On its oldest place, as `site` and `organization`
-             * @enum {string}
-             */
-            role: "org_admin" | "admin" | "editor";
-            site: (Record<string, never> | null) | components["schemas"]["NamedRef"];
-            organization: (Record<string, never> | null) | components["schemas"]["NamedRef"];
             /** @description The sites it belongs to, with its role on each */
             sites: components["schemas"]["AccountSite"][];
             /** @description The organizations it supervises */
@@ -7465,8 +7458,6 @@ export interface components {
              * @enum {string}
              */
             role: "org_admin" | "admin" | "editor";
-            /** @description None for a supervisor */
-            site: components["schemas"]["NamedRef"] | (Record<string, never> | null);
             /** @description Its sites in this organization; on a site's list, that site */
             sites: components["schemas"]["MemberSite"][];
             /** @description It holds places beyond the caller's reach: it can be removed from here, but not turned off nor reset */

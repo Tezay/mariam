@@ -112,12 +112,13 @@ function Row({
 export function NotificationPreferences({
   prefs,
   onChange,
-  scope,
+  scopes,
   saveState,
 }: {
   prefs: NotifPreferences;
   onChange: (patch: Partial<NotifPreferences>) => void;
-  scope: 'site' | 'org';
+  /** The rules shown: a site team's, a supervisor's, or both for an account that is both. */
+  scopes: ('site' | 'org')[];
   /** Set where preferences save on change, which is the account page. */
   saveState?: SaveState;
 }) {
@@ -126,7 +127,7 @@ export function NotificationPreferences({
   return (
     <div className="space-y-6">
       {GROUPS.map((group) => {
-        const rules = group.rules.filter((rule) => !rule.only || rule.only === scope);
+        const rules = group.rules.filter((rule) => !rule.only || scopes.includes(rule.only));
         return (
           <div key={group.title} className="space-y-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -146,7 +147,7 @@ export function NotificationPreferences({
         );
       })}
 
-      {scope === 'site' && (
+      {scopes.includes('site') && (
         <div className="space-y-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Jours fériés

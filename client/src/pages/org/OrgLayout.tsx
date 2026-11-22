@@ -15,72 +15,76 @@ import {
 } from 'lucide-react';
 import { DashboardShell } from '@/components/layout/DashboardShell';
 import { type SidebarNavItem } from '@/components/layout/Sidebar';
-import { type PageTitleMap } from '@/components/layout/Topbar';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePlace } from '@/contexts/PlaceContext';
+import { ACCOUNT_PATH, orgPath } from '@/lib/dashboard-routes';
 import { usePwaOnboarding } from '@/hooks/usePwaOnboarding';
 import { useSecurityOnboarding } from '@/hooks/useSecurityOnboarding';
 
-const NAV_ITEMS: SidebarNavItem[] = [
-  {
-    to: '/org',
-    label: "Vue d'ensemble",
-    shortLabel: 'Résumé',
-    icon: <LayoutDashboard className="h-5 w-5" />,
-    end: true,
-  },
-  {
-    to: '/org/analytics/traffic',
-    label: 'Consultations menu',
-    icon: <TrendingUp className="h-5 w-5" />,
-  },
-  {
-    to: '/org/analytics/satisfaction',
-    label: 'Satisfaction',
-    icon: <SmilePlus className="h-5 w-5" />,
-  },
-  {
-    to: '/org/analytics/publications',
-    label: 'Publications',
-    icon: <CalendarCheck className="h-5 w-5" />,
-  },
-  { to: '/org/sites', label: 'Sites', icon: <Building2 className="h-5 w-5" /> },
-  { to: '/org/catalog', label: 'Catalogue', icon: <BookOpen className="h-5 w-5" /> },
-  { to: '/org/users', label: 'Utilisateurs', icon: <Users className="h-5 w-5" /> },
-  { to: '/org/audit', label: 'Journal', icon: <ScrollText className="h-5 w-5" /> },
+function navItems(base: string): SidebarNavItem[] {
+  return [
+    {
+      to: base,
+      label: "Vue d'ensemble",
+      shortLabel: 'Résumé',
+      icon: <LayoutDashboard className="h-5 w-5" />,
+      end: true,
+    },
+    {
+      to: `${base}/analytics/traffic`,
+      label: 'Consultations menu',
+      icon: <TrendingUp className="h-5 w-5" />,
+    },
+    {
+      to: `${base}/analytics/satisfaction`,
+      label: 'Satisfaction',
+      icon: <SmilePlus className="h-5 w-5" />,
+    },
+    {
+      to: `${base}/analytics/publications`,
+      label: 'Publications',
+      icon: <CalendarCheck className="h-5 w-5" />,
+    },
+    { to: `${base}/sites`, label: 'Sites', icon: <Building2 className="h-5 w-5" /> },
+    { to: `${base}/catalog`, label: 'Catalogue', icon: <BookOpen className="h-5 w-5" /> },
+    { to: `${base}/users`, label: 'Utilisateurs', icon: <Users className="h-5 w-5" /> },
+    { to: `${base}/audit`, label: 'Journal', icon: <ScrollText className="h-5 w-5" /> },
+  ];
+}
+
+const PAGES: [string, string][] = [
+  ['/analytics/traffic', 'Consultations du menu'],
+  ['/analytics/satisfaction', 'Satisfaction'],
+  ['/analytics/publications', 'Publications'],
+  ['/sites', 'Sites'],
+  ['/catalog', 'Catalogue'],
+  ['/users', 'Utilisateurs'],
+  ['/audit', 'Journal'],
 ];
 
-const PAGE_TITLES: PageTitleMap = [
-  ['/org/analytics/traffic', 'Consultations du menu'],
-  ['/org/analytics/satisfaction', 'Satisfaction'],
-  ['/org/analytics/publications', 'Publications'],
-  ['/org/sites', 'Sites'],
-  ['/org/catalog', 'Catalogue'],
-  ['/org/users', 'Utilisateurs'],
-  ['/org/audit', 'Journal'],
-  ['/org/account', 'Mon compte'],
-  ['/org', "Vue d'ensemble"],
-];
-
-const BOTTOM_NAV_PATHS = ['/org', '/org/analytics/traffic', '/org/sites', '/org/users'];
+const BOTTOM_NAV_PAGES = ['', '/analytics/traffic', '/sites', '/users'];
 
 export function OrgLayout() {
   const { user } = useAuth();
+  const { place } = usePlace();
+  const base = orgPath(place.org);
 
   useSecurityOnboarding(user, '/org/security');
   usePwaOnboarding('/org/install');
 
   return (
     <DashboardShell
-      navItems={NAV_ITEMS}
-      homePath="/org"
-      bottomNavPaths={BOTTOM_NAV_PATHS}
-      pageTitles={PAGE_TITLES}
+      navItems={navItems(base)}
+      homePath={base}
+      bottomNavPaths={BOTTOM_NAV_PAGES.map((page) => base + page)}
+      pageTitles={[
+        ...PAGES.map(([page, title]): [string, string] => [base + page, title]),
+        [ACCOUNT_PATH, 'Mon compte'],
+        [base, "Vue d'ensemble"],
+      ]}
       fallbackTitle="Organisation"
       showNotifications
-      accountPath="/org/account"
-      tenant={
-        user?.organization ? { label: 'Organisation', name: user.organization.name } : undefined
-      }
+      accountPath={ACCOUNT_PATH}
       contentClassName="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8"
     />
   );

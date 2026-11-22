@@ -18,8 +18,8 @@ export const TOUR_FLAGS: Record<TourName, 'tour_done' | 'tour_catalog_done' | 't
  * The sidebar is rendered but hidden below the `sidebar:` breakpoint, so a step
  * aiming at it on a phone would spotlight nothing. Each scope scopes its links.
  */
-function navLink(path: string, mobile: boolean) {
-  return `${mobile ? '[data-tour="nav-mobile"]' : '[data-tour="nav"]'} a[href="${path}"]`;
+function navLink(page: string, mobile: boolean) {
+  return `${mobile ? '[data-tour="nav-mobile"]' : '[data-tour="nav"]'} a[href$="${page}"]`;
 }
 
 /**
@@ -67,14 +67,14 @@ function orientation(mobile: boolean, canSeeStats: boolean): Step[] {
           placement: 'bottom',
         },
     {
-      target: navLink('/admin/service', mobile),
+      target: navLink('/service', mobile),
       title: 'Pendant le service',
       content:
         'Un plat vient de manquer ? Signalez la rupture ici, elle s’affiche aussitôt côté étudiants.',
       placement: mobile ? 'top' : 'right',
     },
     {
-      target: navLink('/admin/catalogue', mobile),
+      target: navLink('/catalogue', mobile),
       title: 'Votre catalogue',
       content:
         'Vos plats réutilisables, avec leur photo, leurs labels et leurs certifications. Composer un menu revient à y piocher.',
@@ -85,7 +85,7 @@ function orientation(mobile: boolean, canSeeStats: boolean): Step[] {
   // An editor has no statistics entry, so the step would spotlight nothing.
   if (canSeeStats) {
     steps.push({
-      target: navLink('/admin/stats', mobile),
+      target: navLink('/stats', mobile),
       title: 'Ce que ça donne',
       content:
         'Combien d’étudiants consultent le menu, et la note qu’ils lui donnent. Vous voyez rapidement ce qui plaît le plus.',

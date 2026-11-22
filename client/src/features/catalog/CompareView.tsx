@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Scale } from 'lucide-react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
-import { useSiteRef } from '@/contexts/SiteContext';
+import { useSiteRef, useSitePage } from '@/contexts/SiteContext';
 import { dishesApi, type CatalogPeriod, type DishStats } from '@/lib/api/dishes';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,6 +28,7 @@ function Figure({ label, value }: { label: string; value: string }) {
 
 export function CompareView() {
   const navigate = useNavigate();
+  const sitePage = useSitePage();
   const [params] = useSearchParams();
   const period = (params.get('period') as CatalogPeriod | null) ?? 'all';
   const ids = useMemo(
@@ -77,7 +78,7 @@ export function CompareView() {
           title="Rien à comparer"
           description="Sélectionnez au moins deux plats depuis le catalogue."
           action={
-            <Button variant="outline" onClick={() => navigate('/admin/catalogue')}>
+            <Button variant="outline" onClick={() => navigate(sitePage('/catalogue'))}>
               Retour au catalogue
             </Button>
           }
@@ -93,7 +94,7 @@ export function CompareView() {
           variant="ghost"
           size="sm"
           className="-ml-2 mb-3 text-muted-foreground"
-          onClick={() => navigate('/admin/catalogue')}
+          onClick={() => navigate(sitePage('/catalogue'))}
         >
           <ArrowLeft className="h-4 w-4" /> Catalogue
         </Button>

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router';
+import { Link, useParams, useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { authApi, type ActivationLink } from '@/lib/api/auth';
+import { userApi } from '@/lib/api/user';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import { DISPLAY_NAME_RULE, parseDisplayName } from '@/lib/display-name';
 import { EMAIL_RULE, canonicalEmail } from '@/lib/email-address';
@@ -21,13 +22,14 @@ import {
   type PublicKeyCredentialCreationOptionsJSON,
 } from '@simplewebauthn/browser';
 import { PageLoader } from '@/components/PageLoader';
+import { LANDING_PATH, orgPath, sitePath } from '@/lib/dashboard-routes';
 
 type Step = 'loading' | 'invalid' | 'password' | 'second-factor';
 
 export function Activate() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
-  const { signIn } = useAuth();
+  const { user, isLoading: sessionLoading, signIn, logout } = useAuth();
 
   const [step, setStep] = useState<Step>('loading');
   const [linkInfo, setLinkInfo] = useState<ActivationLink | null>(null);
@@ -82,6 +84,25 @@ export function Activate() {
       ? linkInfo.organization?.name
       : (linkInfo?.site?.name ?? linkInfo?.organization?.name);
   const role = roleLabel(linkInfo?.role);
+  const joined =
+    linkInfo?.site && linkInfo.organization
+      ? sitePath({ org: linkInfo.organization.slug, site: linkInfo.site.slug })
+      : linkInfo?.organization
+        ? orgPath(linkInfo.organization.slug)
+        : LANDING_PATH;
+
+  const join = async () => {
+    setError('');
+    setIsLoading(true);
+    try {
+      signIn(await userApi.acceptInvitation(token!));
+      navigate(joined);
+    } catch (err) {
+      setError(getApiErrorMessage(err, "L'invitation n'a pas pu être acceptée."));
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,17 +141,17 @@ export function Activate() {
       });
       const user = await authApi.passkeySetupComplete(challenge_token, credential);
       signIn(user);
-      navigate('/admin');
+      navigate(LANDING_PATH);
     },
     beginTotp: async () => ({ qrCode, secret: mfaSecret }),
     confirmTotp: async (code) => {
       const user = await authApi.verifyMfaSetup(setupToken, code);
       signIn(user);
-      navigate('/admin');
+      navigate(LANDING_PATH);
     },
   };
 
-  if (step === 'loading') {
+  if (step === 'loading' || sessionLoading) {
     return <PageLoader />;
   }
 
@@ -159,14 +180,42 @@ export function Activate() {
         <div className="flex flex-col items-center text-center">
           <Logo className="h-20 w-auto" />
           <p className="mt-4 text-muted-foreground">
-            {linkInfo?.link_type === 'first_admin'
-              ? 'Configuration du premier administrateur'
-              : 'Création de votre compte'}
+            {user
+              ? 'Invitation'
+              : linkInfo?.link_type === 'first_admin'
+                ? 'Configuration du premier administrateur'
+                : 'Création de votre compte'}
           </p>
         </div>
 
         <div className="rounded-lg border border-border bg-card p-8 shadow-lg">
-          {step === 'password' && (
+          {step === 'password' && user && (
+            <div className="space-y-5">
+              {destination && (
+                <p className="rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
+                  Vous rejoignez <strong>{destination}</strong> en tant{' '}
+                  {/^[aeéiou]/i.test(role) ? 'qu’' : 'que '}
+                  {role.toLowerCase()}, avec le compte <strong>{user.email}</strong>.
+                </p>
+              )}
+              {error && <p className="text-sm text-destructive">{error}</p>}
+              <Button onClick={join} disabled={isLoading} className="w-full">
+                {isLoading ? 'Un instant…' : 'Rejoindre'}
+              </Button>
+              <p className="text-center text-sm text-muted-foreground">
+                Ce n'est pas votre compte ?{' '}
+                <button
+                  type="button"
+                  onClick={() => logout()}
+                  className="text-primary underline-offset-4 hover:underline"
+                >
+                  Se déconnecter
+                </button>
+              </p>
+            </div>
+          )}
+
+          {step === 'password' && !user && (
             <form method="post" onSubmit={handlePasswordSubmit} className="space-y-5">
               {destination && (
                 <p className="rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
@@ -276,6 +325,16 @@ export function Activate() {
               >
                 {isLoading ? 'Création…' : 'Créer mon compte'}
               </Button>
+
+              <p className="text-center text-sm text-muted-foreground">
+                Vous avez déjà un compte Mariam ?{' '}
+                <Link
+                  to={`/login?next=${encodeURIComponent(`/activate/${token}`)}`}
+                  className="text-primary underline-offset-4 hover:underline"
+                >
+                  Connectez-vous pour accepter
+                </Link>
+              </p>
             </form>
           )}
 

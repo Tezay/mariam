@@ -3,7 +3,8 @@ import { API, at, collectPolicyViolations, proxyApi } from './support';
 
 const EMAIL = 'demo@mariam.app';
 const PASSWORD = process.env.E2E_PASSWORD;
-const DASHBOARD = /\/admin(\/calendar)?$/;
+// The demo account holds one site, which the landing opens.
+const DASHBOARD = /\/admin\/demo\/[a-z-]+(\/calendar)?$/;
 
 // The flow adds a passkey to the demo account: a second attempt would find it there.
 test.describe.configure({ retries: 0 });
@@ -75,7 +76,7 @@ test('a passkey enrolled after a password sign-in then signs in from the address
   await test.step('the dashboard is closed once signed out', async () => {
     await setPresence(cdp, authenticatorId, false);
     await signOut(page);
-    await page.goto(at('demo', '/admin/calendar'));
+    await page.goto(at('demo', '/admin'));
     await expect(page).toHaveURL(/\/login$/);
   });
 

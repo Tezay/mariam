@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSiteRef } from '@/contexts/SiteContext';
+import { useSiteRef, useSitePage } from '@/contexts/SiteContext';
 import { dishesApi } from '@/lib/api/dishes';
 import { type MenuCategory } from '@/lib/api/categories';
 import {
@@ -31,6 +31,7 @@ export function DishCreateDialog({
   onClose: () => void;
 }) {
   const navigate = useNavigate();
+  const sitePage = useSitePage();
   const site = useSiteRef();
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
@@ -45,7 +46,7 @@ export function DishCreateDialog({
       setName('');
       setCategoryId('');
       onClose();
-      navigate(`/admin/catalogue/${dish.id}`);
+      navigate(sitePage(`/catalogue/${dish.id}`));
     },
     onError: (error) => {
       const existing = duplicateFrom(error);

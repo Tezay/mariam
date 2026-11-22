@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { userApi, type Alert } from '@/lib/api/user';
 import { cn } from '@/lib/utils';
+import { useOptionalPlace } from '@/contexts/PlaceContext';
+import { orgPath } from '@/lib/dashboard-routes';
 
 const POLL_INTERVAL_MS = 15_000;
 
@@ -33,6 +35,8 @@ function AlertText({ alert }: { alert: Alert }) {
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
+  const place = useOptionalPlace()?.place;
+  const orgSites = place?.kind === 'org' ? orgPath(place.org, '/sites') : null;
   const [liveAlerts, setLiveAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -95,9 +99,9 @@ export function NotificationBell() {
                     key={alert.key}
                     className={cn('flex gap-3', LIVE_ALERT_STYLES[alert.severity])}
                   >
-                    {grouped ? (
+                    {grouped && orgSites ? (
                       <Link
-                        to="/org/sites"
+                        to={orgSites}
                         onClick={() => setOpen(false)}
                         className="flex min-w-0 flex-1 gap-3 px-4 py-3 transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
                       >

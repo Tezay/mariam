@@ -10,6 +10,9 @@ from datetime import UTC, datetime
 from ..extensions import db
 from ..models import OrgSupervision, Restaurant, SiteMembership, User
 
+# Far above a restaurant's team: a bound for a script inviting in a loop, not for a customer.
+SITE_MEMBERS_MAX = 200
+
 ADMIN = 'admin'
 EDITOR = 'editor'
 SUPERVISOR = 'supervisor'
@@ -120,3 +123,8 @@ def grant_invitation(user, link) -> None:
     elif link.organization_id is not None:
         user.supervisions.append(OrgSupervision(organization_id=link.organization_id))
     mirror_first_place(user)
+
+
+def site_is_full(restaurant_id: int, pending: int = 0) -> bool:
+    members = SiteMembership.query.filter_by(restaurant_id=restaurant_id).count()
+    return members + pending >= SITE_MEMBERS_MAX

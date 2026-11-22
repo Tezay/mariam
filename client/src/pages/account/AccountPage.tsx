@@ -1,8 +1,9 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
-import { installPathForRole } from '@/lib/dashboard-routes';
-import { RoleBadge } from '@/components/dashboard/RoleBadge';
+import type { Account } from '@/lib/api/user';
+import { LANDING_PATH, installPath, placeGroups, sitePath } from '@/lib/dashboard-routes';
+import { roleLabel } from '@/lib/roles';
 import { APP_ENVIRONMENT, APP_VERSION } from '@/lib/runtime-config';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import { userApi, type NotifPreferences } from '@/lib/api/user';
@@ -30,7 +31,6 @@ import {
 } from '@/components/ui/dialog';
 import {
   Mail,
-  Building2,
   Calendar,
   Clock,
   Key,
@@ -56,10 +56,14 @@ import {
   startAuthentication,
   type PublicKeyCredentialRequestOptionsJSON,
 } from '@simplewebauthn/browser';
+import { useOptionalPlace } from '@/contexts/PlaceContext';
 
 function NotificationSection() {
   const { user } = useAuth();
-  const role = user?.role;
+  const scopes = [
+    ...(user?.sites.length ? ['site' as const] : []),
+    ...(user?.organizations.length ? ['org' as const] : []),
+  ];
   const [prefs, setPrefs] = useState<NotifPreferences | null>(null);
   const [saveState, setSaveState] = useState<SaveState>(null);
 
@@ -94,7 +98,7 @@ function NotificationSection() {
       <div className="rounded-xl border border-border bg-card p-4">
         <NotificationPreferences
           prefs={prefs}
-          scope={role === 'org_admin' ? 'org' : 'site'}
+          scopes={scopes}
           saveState={saveState}
           onChange={save}
         />
@@ -127,7 +131,7 @@ function AppInstallSection() {
           <p className="text-sm text-muted-foreground">
             Installez Mariam sur votre appareil pour un accès rapide sans passer par le navigateur.
           </p>
-          <Button onClick={() => navigate(installPathForRole(user?.role))} className="gap-2">
+          <Button onClick={() => navigate(installPath(user))} className="gap-2">
             <Smartphone className="h-4 w-4" />
             Installer l'application
           </Button>
@@ -140,11 +144,15 @@ function AppInstallSection() {
 function TourSection() {
   const navigate = useNavigate();
   const update = useUpdateUiPreferences();
+  const place = useOptionalPlace()?.place;
 
   const replay = () =>
     update.mutate(
       { tour_done: false, tour_catalog_done: false, tour_stats_done: false },
-      { onSuccess: () => navigate('/admin/calendar') }
+      {
+        onSuccess: () =>
+          navigate(place?.kind === 'site' ? sitePath(place, '/calendar') : LANDING_PATH),
+      }
     );
 
   return (
@@ -173,6 +181,13 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
       {children}
     </section>
   );
+}
+
+function placeLabels(account: Account): string[] {
+  return placeGroups(account).flatMap((group) => [
+    ...(group.supervised ? [`${group.organization.name} · Supervision`] : []),
+    ...group.sites.map((site) => `${site.name} · ${roleLabel(site.role)}`),
+  ]);
 }
 
 function PrivacyDialog({ tenant }: { tenant?: string | null }) {
@@ -285,8 +300,7 @@ function PrivacyDialog({ tenant }: { tenant?: string | null }) {
   );
 }
 
-function AboutDialog({ tenant }: { tenant?: string | null }) {
-  const { user } = useAuth();
+function AboutDialog({ places }: { places: string[] }) {
   const { isInstalled } = usePwaInstall();
   const [open, setOpen] = useState(false);
   const [serverVersion, setServerVersion] = useState<string | null>(null);
@@ -311,7 +325,7 @@ function AboutDialog({ tenant }: { tenant?: string | null }) {
       `Client : ${APP_VERSION}`,
       `Serveur : ${serverVersion ?? 'indisponible'}`,
       `Environnement : ${APP_ENVIRONMENT}`,
-      `Compte : ${user?.role ?? '—'}${tenant ? ` · ${tenant}` : ''}`,
+      `Accès : ${places.join(', ') || '—'}`,
       `Affichage : ${isInstalled ? 'application installée' : 'navigateur'}`,
       `Navigateur : ${navigator.userAgent}`,
       `Horodatage : ${nowInstant().toISOString()}`,
@@ -391,7 +405,10 @@ function DetailRow({
 export function AccountPage() {
   const { user } = useAuth();
   const confirmIdentity = useStepUp();
-  const tenant = user?.role === 'org_admin' ? user.organization?.name : user?.site?.name;
+  const places = user ? placeLabels(user) : [];
+  const groups = user ? placeGroups(user) : [];
+  // The privacy notice names who decides on accounts: one organization, or none to name.
+  const tenant = groups.length === 1 ? groups[0].organization.name : null;
 
   const hasMfa = user?.mfa_enabled ?? false;
   const hasPasskeys = (user?.passkeys_count ?? 0) > 0;
@@ -523,12 +540,14 @@ export function AccountPage() {
             </h1>
             <p className="mt-0.5 break-all text-sm text-muted-foreground">{user?.email}</p>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <RoleBadge role={user?.role} />
-              {tenant && (
-                <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-                  {tenant}
+              {places.map((place) => (
+                <span
+                  key={place}
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground"
+                >
+                  {place}
                 </span>
-              )}
+              ))}
             </div>
           </div>
           <Button
@@ -547,11 +566,6 @@ export function AccountPage() {
           <h2 className="text-sm font-semibold text-foreground">Compte</h2>
           <dl className="divide-y divide-border rounded-xl border border-border bg-card">
             <DetailRow icon={Mail} label="Email" value={user?.email} />
-            <DetailRow
-              icon={Building2}
-              label={user?.role === 'org_admin' ? 'Organisation' : 'Site'}
-              value={tenant}
-            />
             <DetailRow
               icon={Calendar}
               label="Compte activé le"
@@ -782,7 +796,7 @@ export function AccountPage() {
         {/* Personal by nature, so they live with the account rather than with the site. */}
         <NotificationSection />
 
-        {(user?.role === 'admin' || user?.role === 'editor') && (
+        {!!user?.sites.length && (
           <>
             <AppInstallSection />
             <TourSection />
@@ -792,7 +806,7 @@ export function AccountPage() {
         {/* Not role-gated, unlike the section above: every account is audited. */}
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border pt-4">
           <PrivacyDialog tenant={tenant} />
-          <AboutDialog tenant={tenant} />
+          <AboutDialog places={places} />
         </div>
       </div>
     </div>

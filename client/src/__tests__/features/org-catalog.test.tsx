@@ -3,10 +3,9 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-vi.mock('@/contexts/AuthContext', () => ({
-  useAuth: () => ({
-    user: { role: 'org_admin', site: null, organization: { slug: 'crous', name: 'Crous' } },
-  }),
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { sites: [] } }) }));
+vi.mock('@/contexts/PlaceContext', () => ({
+  useOptionalPlace: () => ({ place: { kind: 'org', org: 'crous' }, role: 'org_admin' }),
 }));
 vi.mock('@/lib/api/user', () => ({
   userApi: { getUiPreferences: async () => ({}), updateUiPreferences: async () => ({}) },

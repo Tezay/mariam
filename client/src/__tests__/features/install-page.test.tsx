@@ -12,8 +12,10 @@ vi.mock('@/hooks/useStepUp', () => ({
 
 const { InstallPage } = await import('@/pages/admin/InstallPage');
 
-function openAs(role: Account['role'], path: string) {
-  account = { role, mfa_enabled: true };
+const SUPERVISION = [{ slug: 'crous', name: 'Crous' }];
+
+function open(path: string, organizations: Account['organizations'] = []) {
+  account = { mfa_enabled: true, sites: [], organizations };
   render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
@@ -25,20 +27,20 @@ function openAs(role: Account['role'], path: string) {
 }
 
 describe('the install page', () => {
-  it("sends a supervisor to the supervision's own", () => {
-    openAs('org_admin', '/admin/install');
+  it('installs the app its address names', () => {
+    open('/org/install', SUPERVISION);
 
     expect(screen.getByRole('heading', { name: 'Installez Mariam - Supervision' })).toBeDefined();
   });
 
-  it("sends a site's admin to the dashboard's own", () => {
-    openAs('admin', '/org/install');
+  it('sends an account to the app it holds a place in', () => {
+    open('/org/install');
 
     expect(screen.getByRole('heading', { name: 'Installez Mariam - Gestion' })).toBeDefined();
   });
 
   it('says when this browser cannot install it', () => {
-    openAs('editor', '/admin/install');
+    open('/admin/install');
 
     expect(screen.getByText(/ouvrez cette page dans Chrome, Edge ou Safari/)).toBeDefined();
   });

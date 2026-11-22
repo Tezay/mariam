@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router';
+import { useNavigate, useSearchParams, Link } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { PasskeyOffer } from '@/features/security/PasskeyOffer';
 import { usePasskeyAutofill } from '@/hooks/usePasskeyAutofill';
 import { needsSecuritySetup } from '@/hooks/useSecurityOnboarding';
 import { detectPlatform } from '@/lib/app-install';
-import { dashboardPathForRole } from '@/lib/dashboard-routes';
+import { LANDING_PATH, safeNext } from '@/lib/dashboard-routes';
 import { authApi } from '@/lib/api/auth';
 import { getApiErrorMessage, getProblemCode } from '@/lib/api/errors';
 import type { Account } from '@/lib/api/user';
@@ -39,6 +39,7 @@ function passkeySignInError(err: unknown): string {
 
 export function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { signIn } = useAuth();
   const passkeySupported = typeof window !== 'undefined' && !!window.PublicKeyCredential;
 
@@ -63,7 +64,7 @@ export function Login() {
   // which would leave no time for the offer.
   const enter = (account: Account) => {
     signIn(account);
-    navigate(dashboardPathForRole(account.role));
+    navigate(safeNext(searchParams.get('next')) ?? LANDING_PATH);
   };
 
   const finishSignIn = async (

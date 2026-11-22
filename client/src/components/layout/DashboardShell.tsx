@@ -9,12 +9,8 @@ import { Outlet, NavLink } from 'react-router';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { Logo } from '@/components/Logo';
-import {
-  Sidebar,
-  TenantChip,
-  type SidebarNavItem,
-  type SidebarTenant,
-} from '@/components/layout/Sidebar';
+import { Sidebar, type SidebarNavItem } from '@/components/layout/Sidebar';
+import { PlaceSwitcher } from '@/components/layout/PlaceSwitcher';
 import { Topbar, type PageTitleMap } from '@/components/layout/Topbar';
 import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -30,7 +26,6 @@ export interface DashboardShellProps {
   showSearch?: boolean;
   showNotifications?: boolean;
   accountPath: string;
-  tenant?: SidebarTenant;
   /** Rendered between the top bar and the page. */
   banner?: ReactNode;
   /** Omit so a page can manage its own padding. */
@@ -53,12 +48,10 @@ function ContentSkeleton() {
 
 function MobileDrawer({
   navItems,
-  tenant,
   isOpen,
   onClose,
 }: {
   navItems: SidebarNavItem[];
-  tenant?: SidebarTenant;
   isOpen: boolean;
   onClose: () => void;
 }) {
@@ -92,11 +85,9 @@ function MobileDrawer({
               </button>
             </div>
 
-            {tenant && (
-              <div className="shrink-0 px-3 pt-3">
-                <TenantChip tenant={tenant} />
-              </div>
-            )}
+            <div className="shrink-0 px-3 pt-3">
+              <PlaceSwitcher onChoose={onClose} />
+            </div>
 
             <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
               {navItems.map((item) => (
@@ -175,7 +166,6 @@ function DashboardShellContent({
   showSearch,
   showNotifications,
   accountPath,
-  tenant,
   banner,
   contentClassName,
 }: DashboardShellProps) {
@@ -188,7 +178,7 @@ function DashboardShellContent({
   return (
     <>
       <div className="flex h-screen overflow-hidden bg-background">
-        <Sidebar navItems={navItems} homePath={homePath} tenant={tenant} />
+        <Sidebar navItems={navItems} homePath={homePath} />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <Topbar
@@ -220,7 +210,6 @@ function DashboardShellContent({
 
       <MobileDrawer
         navItems={navItems}
-        tenant={tenant}
         isOpen={isMobileOpen}
         onClose={() => setMobileOpen(false)}
       />

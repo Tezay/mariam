@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router';
 import { SatisfactionView } from '@/features/analytics/SatisfactionView';
 import { useOrgSites } from '@/features/analytics/hooks/useAnalyticsQueries';
 import { PageHeader } from '../ui';
+import { useOrgPage } from '@/contexts/PlaceContext';
 
 export function OrgSatisfactionPage() {
   const navigate = useNavigate();
+  const orgPage = useOrgPage();
   const { data: orgSites } = useOrgSites();
 
   const sites = useMemo(
@@ -21,8 +23,8 @@ export function OrgSatisfactionPage() {
       />
       <SatisfactionView
         sites={sites}
-        onSiteClick={(site) => navigate(`/org/sites/${site}`)}
-        onDishClick={(dish) => navigate(`/org/catalog?q=${encodeURIComponent(dish.name)}`)}
+        onSiteClick={(site) => navigate(orgPage(`/sites/${site}`))}
+        onDishClick={(dish) => navigate(orgPage(`/catalog?q=${encodeURIComponent(dish.name)}`))}
       />
     </div>
   );

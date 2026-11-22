@@ -38,6 +38,7 @@ import {
   PLACEHOLDER,
   plural,
 } from '@/features/analytics/format';
+import { useOrgPage } from '@/contexts/PlaceContext';
 
 interface OverviewRow extends AnalyticsOverviewSite {
   todayStatus: MenuDayStatus;
@@ -105,6 +106,7 @@ const COLUMNS: DataTableColumn<OverviewRow>[] = [
 
 export function OrgOverviewPage() {
   const navigate = useNavigate();
+  const orgPage = useOrgPage();
   const { filters, query, setPeriod, setCustomRange, setSites } = useAnalyticsFilters();
   const { data: overview, isLoading } = useAnalyticsOverview(query);
   const { data: orgSites } = useOrgSites();
@@ -249,7 +251,7 @@ export function OrgOverviewPage() {
             {isComparative ? 'Vos sites' : 'Votre site'}
           </h2>
           <Link
-            to="/org/analytics/publications"
+            to={orgPage('/analytics/publications')}
             className="text-xs font-medium text-primary hover:underline"
           >
             Détail des publications
@@ -261,7 +263,7 @@ export function OrgOverviewPage() {
           rowKey={(row) => row.site}
           defaultSortKey="publication_rate"
           loading={isLoading}
-          onRowClick={(row) => navigate(`/org/sites/${row.site}`)}
+          onRowClick={(row) => navigate(orgPage(`/sites/${row.site}`))}
           emptyState={
             <EmptyState
               icon={Building2}

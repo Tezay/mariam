@@ -6,9 +6,9 @@ from ...models import AuditLog
 from ...problems import Problem
 from ...schemas.user import AccountSchema, InvitationAcceptSchema
 from ...security import get_client_ip, limiter
-from ...services.access import grant_invitation, holds_invitation_place
+from ...services.access import grant_invitation, holds_invitation_place, site_is_full
 from ..auth._common import invitation_link
-from ..helpers import account_view, get_current_user
+from ..helpers import account_view, get_current_user, member_limit
 from .blueprint import user_bp
 
 
@@ -22,7 +22,7 @@ def _already_member() -> Problem:
 @user_bp.arguments(InvitationAcceptSchema)
 @user_bp.response(201, AccountSchema)
 @user_bp.problem(404, 'link_unknown')
-@user_bp.problem(409, 'already_member')
+@user_bp.problem(409, 'already_member', 'member_limit')
 @user_bp.problem(410, 'link_expired')
 def accept_invitation(body):
     """Accept an invitation with the signed-in account: it gains the invitation's site and
@@ -35,6 +35,8 @@ def accept_invitation(body):
     link = invitation_link(body['token'], lock=True)
     if holds_invitation_place(user, link):
         raise _already_member()
+    if link.restaurant_id is not None and site_is_full(link.restaurant_id):
+        raise member_limit()
     link.mark_as_used()
     try:
         grant_invitation(user, link)

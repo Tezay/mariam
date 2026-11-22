@@ -10,6 +10,7 @@ import { getApiErrorMessage } from '@/lib/api/errors';
 import { EMAIL_RULE, canonicalEmail } from '@/lib/email-address';
 import { notify } from '@/lib/toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOptionalPlace } from '@/contexts/PlaceContext';
 import { useOptionalSiteRef } from '@/contexts/SiteContext';
 import { useOrgRef } from '@/hooks/useOrgRef';
 import { ROLES, SITE_ROLES } from '@/lib/roles';
@@ -75,10 +76,13 @@ function DeliveryIcon({ emailed }: { emailed: boolean }) {
 const expiryDate = (expiresAt: string) =>
   new Date(expiresAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
 
+const SHARED_ACCOUNT =
+  "Ce compte a aussi accès à des restaurants que vous ne gérez pas : vous pouvez le retirer d'ici, pas le suspendre.";
+
 export function UsersPage() {
   const { user: currentUser } = useAuth();
   const confirmIdentity = useStepUp();
-  const isOrgScope = currentUser?.role === 'org_admin';
+  const isOrgScope = useOptionalPlace()?.place.kind === 'org';
   const orgSlug = useOrgRef()?.org;
   const site = useOptionalSiteRef();
   const [siteOrg, siteSlug] = [site?.org, site?.site];
@@ -131,20 +135,24 @@ export function UsersPage() {
   };
 
   const handleDeleteUser = async (target: Member) => {
+    const name = target.username || target.email;
     const confirmed = await confirmIdentity({
-      title: `Supprimer ${target.username || target.email}`,
-      description:
-        "Cette action est irréversible : le compte et ses accès sont supprimés. L'historique d'audit est conservé.",
-      confirmLabel: 'Supprimer définitivement',
+      title: isOrgScope ? `Retirer ${name} de la supervision` : `Retirer ${name} de ce restaurant`,
+      description: `${
+        isOrgScope
+          ? 'Il ne supervise plus cette organisation.'
+          : "Il n'a plus accès à ce restaurant."
+      } Son compte est supprimé s'il n'a plus aucun autre accès. L'historique d'audit est conservé.`,
+      confirmLabel: 'Retirer',
       tone: 'destructive',
     });
     if (!confirmed) return;
     try {
       await membersApi.remove(scope!, target.id);
       setUsers((previous) => previous.filter((u) => u.id !== target.id));
-      notify.success(`Compte ${target.email} supprimé`);
+      notify.success(`Accès de ${target.email} retiré`);
     } catch (err) {
-      notify.error(getApiErrorMessage(err, 'La suppression a échoué'));
+      notify.error(getApiErrorMessage(err, "Le retrait de l'accès a échoué"));
     }
   };
 
@@ -244,9 +252,13 @@ export function UsersPage() {
     if (isOrgScope) {
       base.push({
         key: 'site',
-        header: 'Site',
-        render: (user) => <span className="text-muted-foreground">{user.site?.name ?? '—'}</span>,
-        sortValue: (user) => user.site?.name ?? '',
+        header: 'Sites',
+        render: (user) => (
+          <span className="text-muted-foreground">
+            {user.sites.map((s) => s.name).join(', ') || '—'}
+          </span>
+        ),
+        sortValue: (user) => user.sites.map((s) => s.name).join(', '),
       });
     }
 
@@ -298,7 +310,7 @@ export function UsersPage() {
                       className="gap-2 text-destructive focus:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
-                      Supprimer le compte
+                      {isOrgScope ? 'Retirer de la supervision' : 'Retirer de ce restaurant'}
                     </DropdownMenuItem>
                   </>
                 )}
@@ -322,7 +334,10 @@ export function UsersPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Utilisateurs</h1>
-          <p className="text-muted-foreground">Gérez les accès à l'interface d'administration</p>
+          <p className="text-muted-foreground">
+            Invitez toute votre équipe : un même compte peut travailler sur plusieurs de vos
+            restaurants.
+          </p>
         </div>
         <Button onClick={openInvitation} className="gap-2">
           <UserPlus className="h-4 w-4" />
@@ -855,10 +870,17 @@ function EditUserModal({
             <div>
               <p className="text-sm font-medium text-foreground">Connexion autorisée</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Un compte suspendu conserve ses données mais ne peut plus se connecter.
+                {user.shared
+                  ? SHARED_ACCOUNT
+                  : 'Un compte suspendu conserve ses données mais ne peut plus se connecter.'}
               </p>
             </div>
-            <Switch id="isActive" checked={isActive} onCheckedChange={setIsActive} />
+            <Switch
+              id="isActive"
+              checked={isActive}
+              onCheckedChange={setIsActive}
+              disabled={user.shared}
+            />
           </div>
 
           {error && <div className="text-sm text-destructive">{error}</div>}
