@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-11-22
+
 ### Added
 
 - **A release that reaches production is published on GitHub**, with the provenance of its images attached.
@@ -30,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`GET /v1/user` drops `role`, `site` and `organization`**, and a member drops `site`, for `sites`.
 - **`/v1/domains`, `BASE_DOMAIN`, `DEFAULT_ORG_SLUG` and `CANONICAL_HOST`**: the path names the organization.
 - **`/menu`, `/<site>/menu` and `?mode=tv`**, which only former hosts still redirect.
+
+### Fixed
+
+- **A production deployment moves the `production` branch**: its job fetches the history first.
 
 ## [0.20.2] - 2026-11-19
 
