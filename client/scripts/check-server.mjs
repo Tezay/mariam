@@ -432,6 +432,11 @@ test('each host sends the other one its pages, on the same path', async () => {
   assert.equal((await request('/', onApp)).headers.location, '/admin');
 });
 
+test('a navigation within the app that changes host leads to the page, not its data', async () => {
+  const data = await request('/demo/alpha.data?_routes=root', onApp);
+  assert.ok(data.body.includes(`"${ORIGIN}/demo/alpha"`), data.body);
+});
+
 test('a former host leads each address to its new one, in a single step', async () => {
   const legacy = { headers: { Host: LEGACY_HOST } };
   tenant = organization('solo');

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`SIGNED_IN_HINT_DOMAIN`**: an open session leaves a data-free cookie on that domain.
+
+### Changed
+
+- **The sign-in page links to the public menus**, in a new tab.
+
+### Fixed
+
+- **A link to the other host no longer opens a page of raw data.**
+
 ## [0.21.0] - 2026-11-22
 
 ### Added

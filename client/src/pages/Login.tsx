@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { PasskeyOffer } from '@/features/security/PasskeyOffer';
 import { usePasskeyAutofill } from '@/hooks/usePasskeyAutofill';
@@ -11,12 +11,13 @@ import { getApiErrorMessage, getProblemCode } from '@/lib/api/errors';
 import type { Account } from '@/lib/api/user';
 import { readOfferAnswer, shouldOfferPasskey } from '@/lib/passkey-offer';
 import { signalUnknownPasskey } from '@/lib/passkey-signals';
+import { publicHomeUrl } from '@/lib/public-page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/Logo';
 import { PasswordInput } from '@/components/PasswordInput';
-import { ChevronDown, Fingerprint, ShieldCheck } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, Fingerprint, ShieldCheck } from 'lucide-react';
 import {
   platformAuthenticatorIsAvailable,
   startAuthentication,
@@ -404,11 +405,19 @@ export function Login() {
         </div>
 
         {step === 'identify' && (
-          <div className="text-center">
-            <Link to="/" className="text-sm text-muted-foreground hover:text-primary">
-              Consulter le menu du jour →
-            </Link>
-          </div>
+          <p className="text-center text-sm text-muted-foreground">
+            Vous cherchez un menu ?{' '}
+            <a
+              href={publicHomeUrl()}
+              target="_blank"
+              rel="noopener"
+              className="inline-flex items-center gap-0.5 font-medium text-foreground underline-offset-4 hover:underline"
+            >
+              Menus des restaurants
+              <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="sr-only">(nouvel onglet)</span>
+            </a>
+          </p>
         )}
       </div>
     </div>

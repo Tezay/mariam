@@ -109,6 +109,7 @@ def create_app(config_class=None):
     app.config['JWT_REFRESH_CSRF_COOKIE_NAME'] = '__Host-csrf-refresh'
     app.config['JWT_COOKIE_SECURE'] = True
     app.config['JWT_COOKIE_SAMESITE'] = 'Strict'
+    app.config['SIGNED_IN_HINT_DOMAIN'] = os.environ.get('SIGNED_IN_HINT_DOMAIN', '').strip()
     
     app.config['MFA_ISSUER_NAME'] = os.environ.get('MFA_ISSUER_NAME', 'MARIAM')
 
