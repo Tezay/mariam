@@ -36,13 +36,27 @@ CONFIRMATION_WINDOW = timedelta(minutes=10)
 # Counted by account, whatever the addresses the codes come from.
 WRONG_CODES = parse('10 per hour')
 
+# A display hint for a site of the parent domain, holding nothing and proving
+# nothing: no code reads it.
+SIGNED_IN_HINT = 'mariam_signed_in'
+
 
 def _lifetime(setting: str) -> int | None:
     expires = current_app.config[setting]
     return int(expires.total_seconds()) if expires else None
 
 
-def _hand_over(access_token: str, refresh_token: str | None = None) -> None:
+def _hint_domain() -> str:
+    return current_app.config['SIGNED_IN_HINT_DOMAIN']
+
+
+def _hand_over(
+    access_token: str, refresh_token: str | None = None, *, hint_for: int | None = None
+) -> None:
+    hint = refresh_token is not None or hint_for is not None
+    if refresh_token:
+        hint_for = _lifetime('JWT_REFRESH_TOKEN_EXPIRES')
+
     @after_this_request
     def set_cookies(response):
         # Runs on an error response too, which must not open a session.
@@ -56,6 +70,11 @@ def _hand_over(access_token: str, refresh_token: str | None = None) -> None:
         if refresh_token:
             set_refresh_cookies(
                 response, refresh_token, max_age=_lifetime('JWT_REFRESH_TOKEN_EXPIRES')
+            )
+        if hint and _hint_domain():
+            response.set_cookie(
+                SIGNED_IN_HINT, '1', max_age=hint_for, domain=_hint_domain(),
+                path='/', secure=True, samesite='Lax',
             )
         return response
 
@@ -101,11 +120,16 @@ def renew_session(*, confirmed: timedelta | None = None) -> dict[str, int]:
             presented['jti'] if presented['type'] == 'refresh' else presented.get(SESSION_CLAIM)
         ),
     }
-    _hand_over(create_access_token(
-        identity=get_jwt_identity(),
-        fresh=confirmed or False,
-        additional_claims={name: value for name, value in carried.items() if value},
-    ))
+    # The refresh token does not rotate: the hint ends with it, not a lifetime later.
+    expires = presented.get('exp') if presented['type'] == 'refresh' else None
+    _hand_over(
+        create_access_token(
+            identity=get_jwt_identity(),
+            fresh=confirmed or False,
+            additional_claims={name: value for name, value in carried.items() if value},
+        ),
+        hint_for=max(1, int(expires - time.time())) if expires else None,
+    )
     return {'confirmed_for': _confirmed_for(confirmed)}
 
 
@@ -119,11 +143,17 @@ def reopen_session(user: User) -> None:
     open_session(user, claims={User.REVOCATION_MARKER: user.revocation_marker()})
 
 
+def clear_session_cookies(response):
+    unset_jwt_cookies(response)
+    if _hint_domain():
+        response.delete_cookie(
+            SIGNED_IN_HINT, domain=_hint_domain(), path='/', secure=True, samesite='Lax'
+        )
+    return response
+
+
 def forget_session() -> None:
-    @after_this_request
-    def unset_cookies(response):
-        unset_jwt_cookies(response)
-        return response
+    after_this_request(clear_session_cookies)
 
 
 def revoke_until_expiry(claims: dict) -> None:

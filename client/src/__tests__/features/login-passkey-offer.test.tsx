@@ -40,6 +40,10 @@ vi.mock('@/lib/passkey-signals', () => ({
   signalUnknownPasskey: (rpId: string, credentialId: string) =>
     signalUnknownPasskey(rpId, credentialId),
 }));
+vi.mock('@/lib/runtime-config', async (actual) => ({
+  ...(await actual<typeof import('@/lib/runtime-config')>()),
+  PUBLIC_URL: 'https://public.test',
+}));
 vi.mock('@simplewebauthn/browser', () => ({
   browserSupportsWebAuthnAutofill: async () => false,
   platformAuthenticatorIsAvailable: async () => true,
@@ -212,5 +216,15 @@ describe('the sign-in page', () => {
     openLogin();
 
     expect(screen.queryByText('Votre passkey est sur votre téléphone ?')).toBeNull();
+  });
+});
+
+describe('the way out to the public pages', () => {
+  it('opens them on their own host, in a new tab', () => {
+    openLogin();
+
+    const link = screen.getByRole('link', { name: /Menus des restaurants/ });
+    expect(link.getAttribute('href')).toBe('https://public.test/');
+    expect(link.getAttribute('target')).toBe('_blank');
   });
 });

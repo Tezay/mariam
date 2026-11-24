@@ -2,8 +2,10 @@
 from datetime import timedelta
 
 import pyotp
+import pytest
 from flask_jwt_extended import decode_token
 
+from app.routes.auth._common import SIGNED_IN_HINT
 from app.security import ACCESS_COOKIE, REFRESH_COOKIE
 from conftest import TEST_PASSWORD, auth_headers, make_restaurant, make_user, site_path
 from tests.auth_support import enable_totp
@@ -26,6 +28,16 @@ def _sign_in(client):
 
 def _cookie(client, name):
     return client.get_cookie(name).value
+
+
+def _attributes(header: str) -> set[str]:
+    return {attribute.strip() for attribute in header.split(';')}
+
+
+def _refresh(client):
+    return client.post(
+        '/v1/auth/refresh', headers={'X-CSRF-TOKEN': _cookie(client, CSRF_REFRESH)}
+    )
 
 
 class TestSignIn:
@@ -142,6 +154,66 @@ class TestLogout:
         for name in (ACCESS_COOKIE, REFRESH_COOKIE, CSRF_ACCESS, CSRF_REFRESH):
             assert client.get_cookie(name) is None
         assert client.get('/v1/user', headers=auth_headers(token)).status_code == 401
+
+
+class TestSignedInHint:
+    @pytest.fixture(autouse=True)
+    def _parent_domain(self, app, monkeypatch):
+        monkeypatch.setitem(app.config, 'SIGNED_IN_HINT_DOMAIN', 'example.test')
+        monkeypatch.setitem(app.config, 'JWT_REFRESH_TOKEN_EXPIRES', timedelta(days=7))
+
+    def test_signing_in_leaves_a_hint_scripts_of_the_parent_domain_read(self, app, client):
+        make_user(app)
+
+        hint = _set_cookies(_sign_in(client))[SIGNED_IN_HINT]
+
+        assert hint.startswith(f'{SIGNED_IN_HINT}=1;')
+        assert {
+            'Domain=example.test', 'Path=/', 'Secure', 'SameSite=Lax', 'Max-Age=604800'
+        } <= _attributes(hint)
+        assert 'HttpOnly' not in hint
+
+    def test_a_refresh_keeps_the_hint_no_longer_than_the_session(self, app, client):
+        make_user(app)
+        _sign_in(client)
+
+        hint = _set_cookies(_refresh(client))[SIGNED_IN_HINT]
+
+        (max_age,) = (a for a in _attributes(hint) if a.startswith('Max-Age='))
+        assert 604700 < int(max_age.removeprefix('Max-Age=')) < 604800
+
+    def test_signing_out_clears_the_hint(self, app, client):
+        make_user(app)
+        _sign_in(client)
+
+        res = client.post(
+            '/v1/auth/logout', headers={'X-CSRF-TOKEN': _cookie(client, CSRF_REFRESH)}
+        )
+
+        assert {'Domain=example.test', 'Max-Age=0'} <= _attributes(
+            _set_cookies(res)[SIGNED_IN_HINT]
+        )
+
+    def test_a_refused_refresh_clears_the_hint(self, app, client):
+        client.set_cookie(REFRESH_COOKIE, 'not-a-token')
+        client.set_cookie(CSRF_REFRESH, 'any')
+
+        res = client.post('/v1/auth/refresh', headers={'X-CSRF-TOKEN': 'any'})
+
+        assert 'Max-Age=0' in _attributes(_set_cookies(res)[SIGNED_IN_HINT])
+
+    def test_no_domain_no_hint(self, app, client, monkeypatch):
+        monkeypatch.setitem(app.config, 'SIGNED_IN_HINT_DOMAIN', '')
+        make_user(app)
+
+        responses = [_sign_in(client), _refresh(client)]
+        responses.append(client.post(
+            '/v1/auth/logout', headers={'X-CSRF-TOKEN': _cookie(client, CSRF_REFRESH)}
+        ))
+
+        for res in responses:
+            assert res.status_code < 400
+            assert SIGNED_IN_HINT not in _set_cookies(res)
 
 
 class TestPublicReads:

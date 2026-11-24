@@ -25,6 +25,8 @@ names it. Generate random values with `openssl rand -hex 32`.
 - `MARIAM_TAG` is the release checked out above.
 - `DASHBOARD_URL` and `PUBLIC_URL` stay empty for one host. To give the dashboard a host of its own, set
   both, route both hosts to the proxy, and list both in `FRONTEND_URL`, the dashboard first.
+- `SIGNED_IN_HINT_DOMAIN`, a parent domain of the dashboard, lets a site of that domain see that a
+  session is open, through a cookie that holds no data and proves nothing. Empty sets none.
 - `WEBAUTHN_ORIGIN` is the dashboard's address. `WEBAUTHN_RP_ID` is its host or a parent domain: a
   passkey is sealed to the value used when it was registered. Another installation under the same
   domain (demo, staging) takes its own host, so a device never mixes the passkeys of two databases.

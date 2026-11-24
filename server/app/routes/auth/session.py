@@ -7,7 +7,6 @@ from flask_jwt_extended import (
     get_jwt,
     get_jwt_identity,
     jwt_required,
-    unset_jwt_cookies,
 )
 
 from ...extensions import db
@@ -29,6 +28,7 @@ from ..helpers import account_view, get_current_user, step_up_once_enrolled
 from ._common import (
     account_disabled,
     account_not_found,
+    clear_session_cookies,
     forget_session,
     open_session,
     renew_session,
@@ -49,7 +49,7 @@ def _forget_refused_session(response):
     # Out of the page's reach, the cookies of a refused session would stay until
     # they expire.
     if request.endpoint in ('auth.refresh', 'auth.logout') and response.status_code == 401:
-        unset_jwt_cookies(response)
+        clear_session_cookies(response)
     return response
 
 
