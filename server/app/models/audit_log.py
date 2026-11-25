@@ -70,6 +70,10 @@ class AuditLog(db.Model):
     ACTION_SITE_MEDIA_DELETE = 'site_media_delete'
     ACTION_EGALIM_DECLARATION_UPDATE = 'egalim_declaration_update'
     ACTION_EGALIM_DECLARATION_DELETE = 'egalim_declaration_delete'
+    ACTION_ORG_CREATE = 'org_create'
+    ACTION_SITE_CREATE = 'site_create'
+    ACTION_SITE_ENABLE = 'site_enable'
+    ACTION_SITE_DISABLE = 'site_disable'
 
     @classmethod
     def log(cls, action, user_id=None, target_type=None, target_id=None,

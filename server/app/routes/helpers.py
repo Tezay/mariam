@@ -33,8 +33,23 @@ def _admin_required() -> Problem:
     return Problem(403, 'admin_required', 'Accès réservé aux administrateurs.')
 
 
-def _role_on_path_site(kwargs) -> str:
-    return site_access(kwargs['org'], kwargs['site'])[1]
+def open_on_disabled_site(f):
+    """Lets a write through on a disabled site: the gestures that take access away
+    or secure an account, which must outlive the site's subscription.
+
+    Goes right under the guard, which reads the mark on the function it wraps.
+    """
+    f.open_on_disabled_site = True
+    return f
+
+
+def _refuse_disabled_site(site, view) -> None:
+    if not site.is_active and not getattr(view, 'open_on_disabled_site', False):
+        raise Problem(
+            403, 'site_inactive',
+            'Ce site est désactivé : ses données restent consultables, '
+            'mais ne peuvent plus être modifiées.',
+        )
 
 
 def _oversee_path_site(kwargs) -> str:
@@ -45,29 +60,35 @@ def _oversee_path_site(kwargs) -> str:
 
 
 def editor_required(f):
-    """Any role on the site; a supervisor reads but never writes."""
+    """Any role on the site; a supervisor reads but never writes, nor does anyone
+    on a disabled site.
+    """
     @wraps(f)
     @jwt_required()
     def decorated_function(*args, **kwargs):
-        role = _role_on_path_site(kwargs)
+        site, role = site_access(kwargs['org'], kwargs['site'])
         if request.method != 'GET':
             refuse_supervisor(role)
+            _refuse_disabled_site(site, f)
         return f(*args, **kwargs)
     return decorated_function
 
 
 def site_admin_required(f):
-    """Admins of the site; a supervisor reads but never writes."""
+    """Admins of the site; a supervisor reads but never writes, nor does anyone on a
+    disabled site.
+    """
     @wraps(f)
     @jwt_required()
     def decorated_function(*args, **kwargs):
         if request.method == 'GET':
             _oversee_path_site(kwargs)
         else:
-            role = _role_on_path_site(kwargs)
+            site, role = site_access(kwargs['org'], kwargs['site'])
             if role != ADMIN:
                 refuse_supervisor(role)
                 raise _admin_required()
+            _refuse_disabled_site(site, f)
         return f(*args, **kwargs)
     return decorated_function
 

@@ -22,6 +22,7 @@ import {
   Settings,
   Shield,
   Globe,
+  Lock,
 } from 'lucide-react';
 
 const PAGES: [string, string][] = [
@@ -49,6 +50,7 @@ export function AdminLayout() {
   const base = sitePath(site);
   const [serviceHours, setServiceHours] = useState<ServiceHours>({});
   const [duringService, setDuringService] = useState(false);
+  const [siteDisabled, setSiteDisabled] = useState(false);
 
   useSecurityOnboarding(user, '/admin/security');
   usePwaOnboarding('/admin/install');
@@ -60,7 +62,10 @@ export function AdminLayout() {
   useEffect(() => {
     sitesApi
       .getOwn(site)
-      .then((own) => setServiceHours(own.service_hours))
+      .then((own) => {
+        setServiceHours(own.service_hours);
+        setSiteDisabled(own.is_active === false);
+      })
       .catch(() => {});
   }, [site]);
 
@@ -121,6 +126,20 @@ export function AdminLayout() {
     [base, 'Calendrier'],
   ];
 
+  const banner = siteDisabled ? (
+    <div
+      role="status"
+      className="flex items-start gap-2 border-b border-border bg-muted px-4 py-2.5 text-sm text-muted-foreground sm:px-6"
+    >
+      <Lock className="mt-0.5 h-4 w-4 shrink-0" />
+      <p>
+        Ce site est désactivé : sa page publique n'est plus accessible et ses données ne peuvent
+        plus être modifiées. Elles restent consultables. Pour le réactiver ou obtenir une copie de
+        vos données, contactez le support.
+      </p>
+    </div>
+  ) : undefined;
+
   // One of its steps points at the calendar's own toolbar.
   const onCalendar = pathname === base || pathname.startsWith(`${base}/calendar`);
 
@@ -135,6 +154,7 @@ export function AdminLayout() {
         showSearch
         showNotifications
         accountPath={ACCOUNT_PATH}
+        banner={banner}
       />
       <TourHost tour="orientation" enabled={onCalendar} canSeeStats={role === 'admin'} />
     </>

@@ -62,8 +62,8 @@ At its first start, the backend applies the migrations; the instance is empty.
 ### 5. Create the organization, its first site and its first account
 
 ```bash
-docker compose exec backend flask create-org --name "Example" --slug example
-docker compose exec backend flask create-site --org example --name "Restaurant Nord" --slug nord
+docker compose exec backend flask org create --name "Example" --slug example
+docker compose exec backend flask site create --org example --name "Restaurant Nord" --slug nord
 docker compose exec backend flask user invite admin@example.org --role admin --restaurant nord
 ```
 

@@ -195,7 +195,7 @@ def check_and_send_notifications(app):
 
                 for restaurant_id, subs in by_restaurant.items():
                     restaurant = db.session.get(Restaurant, restaurant_id)
-                    if not restaurant:
+                    if not restaurant or not restaurant.is_active:
                         continue
 
                     menu = Menu.query.filter_by(
@@ -227,7 +227,7 @@ def check_and_send_notifications(app):
 
                 for restaurant_id, subs in by_restaurant.items():
                     restaurant = db.session.get(Restaurant, restaurant_id)
-                    if not restaurant:
+                    if not restaurant or not restaurant.is_active:
                         continue
 
                     menu = Menu.query.filter_by(
@@ -271,7 +271,8 @@ def _check_event_notifications(db, now, sent_count: int) -> int:
     target_7d = today + timedelta(days=7)
     target_1d = today + timedelta(days=1)
 
-    events = Event.query.filter(
+    events = Event.query.join(Restaurant, Restaurant.id == Event.restaurant_id).filter(
+        Restaurant.is_active.is_(True),
         Event.status == 'published',
         Event.event_date.in_([target_7d, target_1d]),
     ).all()
@@ -322,7 +323,10 @@ def _check_closure_notifications(db, now, sent_count: int) -> int:
     target_7d = today + timedelta(days=7)
     target_1d = today + timedelta(days=1)
 
-    closures = ExceptionalClosure.query.filter(
+    closures = ExceptionalClosure.query.join(
+        Restaurant, Restaurant.id == ExceptionalClosure.restaurant_id
+    ).filter(
+        Restaurant.is_active.is_(True),
         ExceptionalClosure.start_date.in_([target_7d, target_1d]),
     ).all()
 

@@ -100,6 +100,8 @@ def site_view(restaurant: Restaurant, member: bool) -> dict:
         view['vote_category_ids'] = restaurant.get_votable_category_ids()
         view['menu_days_ahead'] = restaurant.menu_days_ahead
         view['menu_days_back'] = restaurant.menu_days_back
+    else:
+        del view['is_active']
     return view
 
 

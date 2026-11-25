@@ -7870,6 +7870,8 @@ export interface components {
             certifications: components["schemas"]["Certification"][];
             /** @description The dates whose published menus can be read */
             menu_window: components["schemas"]["MenuWindow"];
+            /** @description For the site's editors: false once the site is disabled; it then reads only */
+            is_active?: boolean;
             /** @description For the site's editors: the categories a vote names */
             vote_category_ids?: number[];
             /** @description For the site's editors: how many days ahead `menu_window` reaches */

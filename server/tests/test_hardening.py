@@ -6,10 +6,11 @@ from flask_limiter.util import get_qualified_name
 
 from app import create_app
 from app.extensions import db
-from app.models import Organization, User
+from app.models import Organization, Restaurant, User
 from app.security import ACCESS_COOKIE, REFRESH_COOKIE, limiter
 from conftest import (
     TEST_PASSWORD, auth_headers, get_token, make_restaurant, make_user, probe_path, session_tokens,
+    site_path,
 )
 from tests.auth_support import issue_session, session_headers
 
@@ -170,6 +171,56 @@ class TestUnauthorizedSpeaksOfTheSession:
         ]
 
         assert refused == []
+
+
+class TestADisabledSiteReadsOnly:
+    OPEN_ON_A_DISABLED_SITE = {
+        'members.patch_site_member',
+        'members.delete_site_member',
+        'members.reset_site_member_second_factors',
+        'members.reset_site_member_password',
+        'members.revoke_site_invitation',
+    }
+
+    @pytest.fixture()
+    def disabled(self, app):
+        site_id = make_restaurant(app)
+        db.session.get(Restaurant, site_id).is_active = False
+        db.session.commit()
+        return site_id, session_headers(make_user(app))
+
+    def test_no_write_reaches_a_disabled_site(self, app, client, disabled):
+        site_id, headers = disabled
+        prefix = '/v1/orgs/<org>/sites/<site>'
+        answers = {
+            f'{method} {rule.rule}': client.open(
+                probe_path(site_path(site_id) + rule.rule.removeprefix(prefix)),
+                method=method, json=[], headers=headers,
+            )
+            for rule in app.url_map.iter_rules()
+            if rule.rule.startswith(prefix) and rule.endpoint not in (
+                self.OPEN_ON_A_DISABLED_SITE | TestAuthenticationComesFirst.OPEN_TO_ANYONE
+            )
+            for method in sorted(rule.methods & {'POST', 'PUT', 'PATCH', 'DELETE'})
+        }
+
+        assert answers
+        assert {
+            route: res.status_code for route, res in answers.items()
+            if (res.get_json(silent=True) or {}).get('code') != 'site_inactive'
+        } == {}
+
+    def test_its_admin_still_reads_it_and_turns_an_account_off(self, app, client, disabled):
+        site_id, headers = disabled
+        member = make_user(app, email='editor@mariam.app', role='editor', restaurant_id=site_id)
+
+        assert client.get(f'{site_path(site_id)}/members', headers=headers).status_code == 200
+        res = client.patch(
+            f'{site_path(site_id)}/members/{member}', json={'is_active': False}, headers=headers
+        )
+
+        assert res.status_code == 200
+        assert db.session.get(User, member).is_active is False
 
 
 class TestCookieWritesCarryTheirCsrfToken:

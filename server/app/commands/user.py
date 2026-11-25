@@ -18,7 +18,6 @@ from ..extensions import db
 from ..models.activation_link import ActivationLink
 from ..models.audit_log import AuditLog
 from ..models.membership import OrgSupervision, SiteMembership
-from ..models.organization import Organization
 from ..models.restaurant import Restaurant
 from ..models.user import User
 from ..services.access import mirror_first_place
@@ -30,8 +29,8 @@ from ..services.account import (
     reset_second_factor,
 )
 from ..utils.email_address import canonical_email
-from ..utils.time import utc_naive_to_paris
 from ..utils.urls import frontend_base_url
+from .lookup import date_label, find_organization, find_site, row
 
 user_cli = AppGroup('user', help='Account administration.')
 
@@ -54,43 +53,17 @@ def _find_user(email: str) -> User:
     return user
 
 
-def _find_restaurant(value: str, org: str | None = None) -> Restaurant:
-    organization = _find_organization(org) if org else None
-    site = db.session.get(Restaurant, int(value)) if value.isdigit() else None
-    if site is None:
-        query = Restaurant.query.filter_by(slug=value)
-        if organization:
-            query = query.filter_by(organization_id=organization.id)
-        # A slug is unique within its organization only.
-        sites = query.limit(2).all()
-        if len(sites) > 1:
-            raise click.ClickException(f'Several organizations have a site {value}: pass --org.')
-        site = sites[0] if sites else None
-    if site is None or (organization and site.organization_id != organization.id):
-        raise click.ClickException(f'No such site: {value}')
-    return site
-
-
-def _find_organization(value: str) -> Organization:
-    org = db.session.get(Organization, int(value)) if value.isdigit() else None
-    if org is None:
-        org = Organization.query.filter_by(slug=value).first()
-    if org is None:
-        raise click.ClickException(f'No such organization: {value}')
-    return org
-
-
 def _resolve_tenant(role: str, restaurant: str | None, org: str | None) -> tuple:
     """(restaurant_id, organization_id, label) for a role and its target."""
     if role == User.ROLE_ORG_ADMIN:
         if not org:
             raise click.ClickException('--org is required for the org_admin role.')
-        organization = _find_organization(org)
+        organization = find_organization(org)
         return None, organization.id, organization.name
 
     if not restaurant:
         raise click.ClickException('--restaurant is required for a site role.')
-    site = _find_restaurant(restaurant, org)
+    site = find_site(restaurant, org)
     return site.id, site.organization_id, site.name
 
 
@@ -138,14 +111,6 @@ def _factors_label(user: User) -> str:
     return ' + '.join(factors) or 'none'
 
 
-def _date(value) -> str:
-    return utc_naive_to_paris(value).strftime('%Y-%m-%d %H:%M') if value else 'never'
-
-
-def _row(label: str, value) -> None:
-    click.echo(f'  {label:<20}: {value}')
-
-
 @user_cli.command('list')
 @click.option('--role', default=None, help='Filter by role on a place: org_admin | admin | editor')
 @click.option('--site', default=None, help='Filter by site (id or slug)')
@@ -161,11 +126,11 @@ def list_users(role, site, org, show_all):
             supervisions = supervisions.filter(db.false())
     if site:
         memberships = memberships.filter(
-            SiteMembership.restaurant_id == _find_restaurant(site, org).id
+            SiteMembership.restaurant_id == find_site(site, org).id
         )
         supervisions = supervisions.filter(db.false())
     elif org:
-        organization = _find_organization(org)
+        organization = find_organization(org)
         memberships = memberships.join(SiteMembership.restaurant).filter(
             Restaurant.organization_id == organization.id
         )
@@ -200,28 +165,28 @@ def show_user(email):
     click.echo('\n' + '=' * 60)
     click.echo(f'  {user.email}')
     click.echo('=' * 60)
-    _row('Id', user.id)
-    _row('Name', user.username or '—')
-    _row('Places', len(_places(user)))
+    row('Id', user.id)
+    row('Name', user.username or '—')
+    row('Places', len(_places(user)))
     for place in _places(user):
         click.echo(f'    · {place}')
-    _row('State', 'active' if user.is_active else 'disabled')
-    _row('Rescue account', 'yes' if user.is_rescue_account else 'no')
-    _row('TOTP', 'enabled' if user.mfa_enabled else 'disabled')
+    row('State', 'active' if user.is_active else 'disabled')
+    row('Rescue account', 'yes' if user.is_rescue_account else 'no')
+    row('TOTP', 'enabled' if user.mfa_enabled else 'disabled')
 
     passkeys = user.passkeys.all()
-    _row('Passkeys', len(passkeys))
+    row('Passkeys', len(passkeys))
     for passkey in passkeys:
-        used = f'last used {_date(passkey.last_used_at)}' if passkey.last_used_at else 'never used'
+        used = f'last used {date_label(passkey.last_used_at)}' if passkey.last_used_at else 'never used'
         click.echo(
             f"    · {passkey.device_name or 'Unnamed device'} — "
-            f'added {_date(passkey.created_at)}, {used}'
+            f'added {date_label(passkey.created_at)}, {used}'
         )
 
-    _row('Created', _date(user.created_at))
-    _row('Last login', _date(user.last_login))
+    row('Created', date_label(user.created_at))
+    row('Last login', date_label(user.last_login))
     if user.tokens_valid_after:
-        _row('Tokens revoked', _date(user.tokens_valid_after))
+        row('Tokens revoked', date_label(user.tokens_valid_after))
     click.echo('=' * 60 + '\n')
 
 
@@ -385,12 +350,12 @@ def revoke_place(email, restaurant, org):
     """Take a site, or the supervision of an organization, from an account."""
     user = _find_user(email)
     if restaurant:
-        site = _find_restaurant(restaurant, org)
+        site = find_site(restaurant, org)
         places, destination = user.memberships, site.name
         place = next((m for m in places if m.restaurant_id == site.id), None)
         restaurant_id, organization_id = site.id, site.organization_id
     elif org:
-        organization = _find_organization(org)
+        organization = find_organization(org)
         places, destination = user.supervisions, organization.name
         place = next((s for s in places if s.organization_id == organization.id), None)
         restaurant_id, organization_id = None, organization.id
