@@ -84,6 +84,7 @@ Any route may answer these:
 | 401 | `token_restricted`, `authentication_incomplete` | A token issued for one step of a flow, shown as a session |
 | 403 | `admin_required`, `supervisor_required`, `supervisor_read_only` | The account's role on that site or organization does not allow it |
 | 403 | `step_up_required` | The route needs a confirmed session |
+| 403 | `site_inactive` | A write to a disabled site; only the gestures on its accounts and invitations go through |
 | 404 | `not_found` | No such route or resource |
 | 405 | `method_not_allowed` | The route exists; `Allow` lists its methods |
 | 422 | `validation_failed` | The body or a parameter fails the route's schema |
@@ -534,7 +535,7 @@ Requires `org_admin` and the caller's own organization; another answers
 | `GET` | `O/dish-groups/{name}` | One group, by its `normalized_name` encoded in the path: the organization-wide figures and each site's; `404 dish_group_not_found` |
 
 Opening, renaming or deactivating a site is a billing event and is not exposed
-through the API: the Mariam team opens a site from the command line (`flask create-site`).
+through the API: the Mariam team opens a site from the command line (`flask site create`).
 
 Catalogue notes:
 

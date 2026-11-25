@@ -11065,6 +11065,10 @@
               }
             ]
           },
+          "is_active": {
+            "type": "boolean",
+            "description": "For the site's editors: false once the site is disabled; it then reads only"
+          },
           "vote_category_ids": {
             "type": "array",
             "description": "For the site's editors: the categories a vote names",

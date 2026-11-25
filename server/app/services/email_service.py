@@ -440,7 +440,11 @@ def _account_url() -> str:
 
 
 def digest_site_ids(user) -> list[int]:
-    return sorted(member_site_ids(user, (ADMIN,)) | supervised_site_ids(user))
+    ids = member_site_ids(user, (ADMIN,)) | supervised_site_ids(user)
+    active = db.session.query(Restaurant.id).filter(
+        Restaurant.id.in_(ids), Restaurant.is_active.is_(True)
+    )
+    return sorted(row[0] for row in active)
 
 
 def build_digest(

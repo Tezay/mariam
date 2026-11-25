@@ -1,12 +1,11 @@
-"""`flask create-org` and `create-site`: what an instance is set up with."""
+"""`flask org`: the organizations an instance serves."""
 import pytest
 
-from app.extensions import db
-from app.models import MenuCategory, Organization, Restaurant
+from app.models import AuditLog, Organization
 
 
 def _create(app, slug):
-    return app.test_cli_runner().invoke(args=['create-org', '--name', 'Org', '--slug', slug])
+    return app.test_cli_runner().invoke(args=['org', 'create', '--name', 'Org', '--slug', slug])
 
 
 class TestCreateOrg:
@@ -14,6 +13,7 @@ class TestCreateOrg:
     def test_a_reserved_or_malformed_slug_is_refused(self, app, slug):
         result = _create(app, slug)
 
+        assert result.exit_code != 0
         assert 'Invalid or reserved slug' in result.output
         assert Organization.query.count() == 0
 
@@ -21,41 +21,13 @@ class TestCreateOrg:
         result = _create(app, 'Crous-Creteil')
 
         assert result.exit_code == 0
-        assert Organization.query.one().slug == 'crous-creteil'
+        organization = Organization.query.one()
+        assert organization.slug == 'crous-creteil'
+        assert AuditLog.query.filter_by(organization_id=organization.id).one().action == 'org_create'
 
-
-def _create_site(app, slug, name='Restaurant Nord'):
-    return app.test_cli_runner().invoke(
-        args=['create-site', '--org', 'crous', '--name', name, '--slug', slug]
-    )
-
-
-class TestCreateSite:
-    @pytest.fixture(autouse=True)
-    def org(self, app):
-        org = Organization(name='Crous', slug='crous')
-        db.session.add(org)
-        db.session.commit()
-        return org
-
-    def test_a_site_is_created_in_its_organization_with_the_default_categories(self, app, org):
-        result = _create_site(app, 'Nord')
+    def test_a_taken_slug_leaves_the_organization_as_it_was(self, app):
+        _create(app, 'example')
+        result = _create(app, 'example')
 
         assert result.exit_code == 0
-        site = Restaurant.query.one()
-        assert (site.organization_id, site.slug, site.name) == (org.id, 'nord', 'Restaurant Nord')
-        assert MenuCategory.query.filter_by(restaurant_id=site.id).count() > 0
-
-    @pytest.mark.parametrize('slug', ['admin', 'tv', '2026'])
-    def test_a_reserved_or_malformed_slug_is_refused(self, app, slug):
-        result = _create_site(app, slug)
-
-        assert result.exit_code != 0
-        assert Restaurant.query.count() == 0
-
-    def test_a_slug_taken_in_the_organization_is_refused(self, app):
-        _create_site(app, 'nord')
-        result = _create_site(app, 'nord', name='Autre')
-
-        assert result.exit_code != 0
-        assert Restaurant.query.count() == 1
+        assert Organization.query.count() == 1

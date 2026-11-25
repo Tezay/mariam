@@ -76,6 +76,10 @@ const ACTION_LABELS: Record<string, string> = {
   site_media_delete: 'Suppr. image page publique',
   egalim_declaration_update: 'Déclaration EGalim',
   egalim_declaration_delete: 'Suppr. déclaration EGalim',
+  org_create: 'Création organisation',
+  site_create: 'Création site',
+  site_enable: 'Réactivation site',
+  site_disable: 'Désactivation site',
 };
 
 const getActionBadgeVariant = (

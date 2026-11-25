@@ -10,10 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **`SIGNED_IN_HINT_DOMAIN`**: an open session leaves a data-free cookie on that domain.
+- **`flask site` lists, shows, disables and re-enables sites**: a disabled one keeps its data, reads only and sends nothing.
 
 ### Changed
 
 - **The sign-in page links to the public menus**, in a new tab.
+- **`flask site create` and `flask org create` replace `create-site` and `create-org`.**
 
 ### Fixed
 

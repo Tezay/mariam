@@ -120,6 +120,16 @@ class TestRecipients:
 
         assert email_service.digest_site_ids(db.session.get(User, uid)) == [administered]
 
+    def test_it_leaves_out_a_disabled_site(self, app):
+        open_site = make_restaurant(app, name='Ouvert', code='RU_OPEN')
+        closed = make_restaurant(app, name='Désactivé', code='RU_OFF')
+        uid = make_user(app, restaurant_id=open_site)
+        join_site(uid, closed, 'admin')
+        db.session.get(Restaurant, closed).is_active = False
+        db.session.commit()
+
+        assert email_service.digest_site_ids(db.session.get(User, uid)) == [open_site]
+
 
     def test_a_site_it_belongs_to_leads_to_that_site_even_when_it_supervises(self, app):
         org = _org('crous-links')

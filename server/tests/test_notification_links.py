@@ -4,7 +4,7 @@ from datetime import time, timedelta
 import pytest
 
 from app.extensions import db
-from app.models import Event, ExceptionalClosure, PushSubscription
+from app.models import Event, ExceptionalClosure, PushSubscription, Restaurant
 from app.models.push_subscription import endpoint_fingerprint
 from app.routes import push_subscriptions
 from app.services import notification_service
@@ -94,3 +94,18 @@ def test_the_test_notification_opens_the_page(app, client, pushed):
 
     assert res.status_code == 204
     assert [payload['url'] for payload in pushed] == ['/test-org/ru-a']
+
+
+def test_a_disabled_site_sends_nothing(app, client, pushed):
+    rid = _site_with_menu(app, client, NOW.date())
+    tomorrow = NOW.date() + timedelta(days=1)
+    db.session.add(Event(restaurant_id=rid, title='Repas à thème', event_date=tomorrow,
+                         status='published'))
+    db.session.add(ExceptionalClosure(restaurant_id=rid, start_date=tomorrow, end_date=tomorrow))
+    _subscriber(rid, notify_today_menu_time=time(NOW.hour, NOW.minute))
+    db.session.get(Restaurant, rid).is_active = False
+    db.session.commit()
+
+    notification_service.check_and_send_notifications(app)
+
+    assert pushed == []

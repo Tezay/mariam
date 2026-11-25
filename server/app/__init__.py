@@ -1,5 +1,4 @@
 import os
-import secrets
 from datetime import timedelta
 from pathlib import Path
 
@@ -365,57 +364,6 @@ def create_app(config_class=None):
 
     import click
 
-    @app.cli.command('create-site')
-    @click.option('--org', 'org_slug', required=True, help='Organization slug')
-    @click.option('--name', required=True, help='Site name, as its page shows it')
-    @click.option('--slug', required=True, help='URL slug, unique in the organization')
-    def create_site(org_slug, name, slug):
-        """Create a site of an organization, with the default categories."""
-        from .utils.site_name import parse_site_name
-        from .utils.slug import is_valid_slug, normalize_slug
-
-        org = Organization.query.filter_by(slug=normalize_slug(org_slug)).first()
-        if not org:
-            raise click.ClickException(f"No organization '{org_slug}'.")
-        site_name = parse_site_name(name)
-        if site_name is None:
-            raise click.ClickException('Invalid site name.')
-        slug = normalize_slug(slug)
-        if not is_valid_slug(slug):
-            raise click.ClickException('Invalid or reserved slug.')
-        if Restaurant.query.filter_by(organization_id=org.id, slug=slug).first():
-            raise click.ClickException(f"Site '{slug}' already exists in '{org.slug}'.")
-
-        # The code is an internal identifier that no page or route shows.
-        restaurant = Restaurant(
-            name=site_name, code=secrets.token_hex(10), slug=slug, organization_id=org.id,
-        )
-        db.session.add(restaurant)
-        db.session.flush()
-        MenuCategory.create_defaults(restaurant.id)
-        db.session.commit()
-        click.echo(f'Site created: {site_name} ({org.slug}/{slug})')
-
-    @app.cli.command('create-org')
-    @click.option('--name', required=True, help='Organization name')
-    @click.option('--slug', required=True, help='URL slug, its first path segment')
-    def create_org(name, slug):
-        """Create an organization, unless its slug is taken."""
-        from .models.organization import RESERVED_ORG_SLUGS
-        from .utils.slug import is_valid_slug, normalize_slug
-
-        slug = normalize_slug(slug)
-        if not is_valid_slug(slug) or slug in RESERVED_ORG_SLUGS:
-            click.echo('Invalid or reserved slug.')
-            return
-        if Organization.query.filter_by(slug=slug).first():
-            click.echo(f"Organization '{slug}' already exists.")
-            return
-        org = Organization(name=name, slug=slug)
-        db.session.add(org)
-        db.session.commit()
-        click.echo(f'Organization created: {name} ({slug}), id={org.id}')
-
     @app.cli.command('seed-categories')
     def seed_categories_cmd():
         """Create the default categories of the active restaurant, if it has none."""
@@ -467,10 +415,14 @@ def create_app(config_class=None):
         click.echo(f'Digest sent to {to}.' if ok else f'Sending to {to} failed.')
 
     from .commands.demo import register_commands as register_demo
+    from .commands.org import register_commands as register_org
     from .commands.seed import register_commands as register_seed
+    from .commands.site import register_commands as register_site
     from .commands.user import register_commands as register_user
     register_seed(app)
     register_demo(app)
+    register_org(app)
+    register_site(app)
     register_user(app)
 
     _start_scheduler(app)

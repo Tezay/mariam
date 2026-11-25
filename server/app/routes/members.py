@@ -56,6 +56,7 @@ from .helpers import (
     get_current_user,
     member_limit,
     member_view,
+    open_on_disabled_site,
     org_admin_required,
     refuse_supervisor,
     site_admin_required,
@@ -341,6 +342,7 @@ def list_site_members(query, org: str, site: str):
 
 @members_bp.route('/<org>/sites/<site>/members/<int:user_id>', methods=['PATCH'])
 @site_admin_required
+@open_on_disabled_site
 @members_bp.arguments(MemberPatchSchema)
 @members_bp.response(200, MemberSchema)
 def patch_site_member(body, org: str, site: str, user_id: int):
@@ -355,6 +357,7 @@ def patch_site_member(body, org: str, site: str, user_id: int):
 
 @members_bp.route('/<org>/sites/<site>/members/<int:user_id>', methods=['DELETE'])
 @site_admin_required
+@open_on_disabled_site
 @step_up_required
 @members_bp.response(204)
 def delete_site_member(org: str, site: str, user_id: int):
@@ -365,6 +368,7 @@ def delete_site_member(org: str, site: str, user_id: int):
 
 @members_bp.route('/<org>/sites/<site>/members/<int:user_id>/second-factors', methods=['DELETE'])
 @site_admin_required
+@open_on_disabled_site
 @step_up_required
 @members_bp.response(204)
 def reset_site_member_second_factors(org: str, site: str, user_id: int):
@@ -378,6 +382,7 @@ def reset_site_member_second_factors(org: str, site: str, user_id: int):
 
 @members_bp.route('/<org>/sites/<site>/members/<int:user_id>/password-reset', methods=['POST'])
 @site_admin_required
+@open_on_disabled_site
 @step_up_required
 @members_bp.response(201, PasswordResetSchema)
 def reset_site_member_password(org: str, site: str, user_id: int):
@@ -424,6 +429,7 @@ def create_site_invitation(body, org: str, site: str):
 
 @members_bp.route('/<org>/sites/<site>/invitations/<int:invitation_id>', methods=['DELETE'])
 @site_admin_required
+@open_on_disabled_site
 @members_bp.response(204)
 def revoke_site_invitation(org: str, site: str, invitation_id: int):
     """Revoke a pending invitation: its link stops working at once."""

@@ -33,6 +33,9 @@ class SitePhotoListSchema(Schema):
 class SiteSchema(PublicSiteSchema):
     """A site; the fields described as for the site's editors are absent for anyone else."""
     photos = fields.List(fields.Nested(SitePhotoSchema), required=True)
+    is_active = fields.Bool(
+        metadata={'description': f'{EDITORS}: false once the site is disabled; it then reads only'}
+    )
     vote_category_ids = fields.List(
         fields.Int(), metadata={'description': f'{EDITORS}: the categories a vote names'}
     )

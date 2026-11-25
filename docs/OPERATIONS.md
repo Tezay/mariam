@@ -51,6 +51,24 @@ makes `user reset-2fa` the safe way to unlock someone who lost both their phone 
 laptop. An administrator does the same from the users page, for the accounts it manages,
 after confirming its own identity.
 
+### Sites
+
+`flask site` opens a site and turns it off or on, under the same rules as `flask user`. A site
+is named by its id or its slug, with `--org` when several organizations share the slug.
+
+| Command | What it does |
+| --- | --- |
+| `site list [--org] [--all]` | Sites with their path, accounts and state |
+| `site show SITE [--org]` | Full state: organization, path, accounts by role, last published menu |
+| `site create --org O --name N --slug S` | Opens a site with the default categories |
+| `site disable SITE [--org]` / `site enable SITE [--org]` | Turns a site off without deleting it, or back on |
+
+A disabled site keeps its data. Its public pages answer 404, it sends no push notification and
+no weekly digest, and every write to it answers `403 site_inactive`, except the gestures on its
+accounts: role, suspension, removal, second factors, password link, revoking an invitation.
+
+In development, `make site ARGS="list --all"` wraps the same group.
+
 ### Provisioning a new client
 
 An organization is a client; its slug opens the addresses of its pages, `/<slug>`. A supervisor
@@ -59,11 +77,11 @@ An organization is a client; its slug opens the addresses of its pages, `/<slug>
 ```bash
 # 1. Create the organization (idempotent on the slug)
 docker compose exec backend \
-  flask create-org --name "Example Organization" --slug example-org
+  flask org create --name "Example Organization" --slug example-org
 
 # 2. Open its first site, with the default categories
 docker compose exec backend \
-  flask create-site --org example-org --name "Restaurant Nord" --slug nord
+  flask site create --org example-org --name "Restaurant Nord" --slug nord
 
 # 3. Invite the supervisor, attached to the organization and to no site
 #    (--org takes an id or a slug; site roles take --restaurant instead)
