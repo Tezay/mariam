@@ -96,6 +96,14 @@ class StorageService:
             logger.error('S3 upload failed: %s', e)
             return None
 
+    def read_file(self, key) -> bytes | None:
+        if not self.is_configured or not key:
+            return None
+        try:
+            return self.client.get_object(Bucket=self.bucket, Key=key)['Body'].read()
+        except ClientError:
+            return None
+
     def delete_file(self, key):
         if not self.is_configured or not key:
             return False
@@ -110,12 +118,13 @@ class StorageService:
         if not self.is_configured or not keys:
             return False
 
+        objects = [{'Key': k} for k in keys if k]
         try:
-            objects = [{'Key': k} for k in keys if k]
-            if objects:
+            # S3 deletes at most 1,000 objects a request.
+            for start in range(0, len(objects), 1000):
                 self.client.delete_objects(
                     Bucket=self.bucket,
-                    Delete={'Objects': objects},
+                    Delete={'Objects': objects[start:start + 1000]},
                 )
             return True
         except ClientError:

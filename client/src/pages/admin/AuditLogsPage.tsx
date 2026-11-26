@@ -80,6 +80,7 @@ const ACTION_LABELS: Record<string, string> = {
   site_create: 'Création site',
   site_enable: 'Réactivation site',
   site_disable: 'Désactivation site',
+  site_delete: 'Suppression site',
   subscription_create: 'Création période abonnement',
   subscription_update: 'Modif. période abonnement',
   subscription_delete: 'Suppr. période abonnement',

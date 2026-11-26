@@ -284,6 +284,23 @@ def purge_telemetry(app) -> int:
         return deleted
 
 
+def forget_site(site_id: int) -> bool:
+    """Drops a deleted site's counters: a flush writing them would fail for every site."""
+    client = get_redis()
+    if client is None:
+        return True
+    token = _owner_token(site_id, None)
+    today = paris_today()
+    try:
+        for day in (today, today - timedelta(days=1)):
+            client.srem(_dirty_key(day), token)
+            client.delete(_views_key(token, day), _uniques_key(site_id, day))
+    except Exception:
+        logger.warning('Redis unavailable, counters of site %s not dropped', site_id)
+        return False
+    return True
+
+
 def flush_is_recent() -> bool | None:
     """None without Redis, where no flush can run and there is nothing to judge."""
     client = get_redis()

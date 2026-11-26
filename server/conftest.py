@@ -1,3 +1,4 @@
+import io
 import os
 import re
 import pytest
@@ -216,6 +217,14 @@ class FakeRedis:
     def smembers(self, key):
         return set(self.sets.get(key, set()))
 
+    def srem(self, key, *values):
+        self.sets.get(key, set()).difference_update(str(v) for v in values)
+
+    def delete(self, *keys):
+        for key in keys:
+            for store in (self.hashes, self.sets, self.strings, self.hll):
+                store.pop(key, None)
+
     def set(self, key, value, nx=False, ex=None):
         if nx and key in self.strings:
             return False
@@ -244,7 +253,7 @@ class FakeRedis:
 
 
 class BucketRecorder:
-    """The two calls the image store makes on S3."""
+    """The calls the image store makes on S3."""
 
     def __init__(self):
         self.objects: dict[str, bytes] = {}
@@ -256,6 +265,16 @@ class BucketRecorder:
     def delete_object(self, Bucket, Key):
         self.deleted.append(Key)
         self.objects.pop(Key, None)
+
+    def delete_objects(self, Bucket, Delete):
+        for item in Delete['Objects']:
+            self.delete_object(Bucket, item['Key'])
+
+    def get_object(self, Bucket, Key):
+        from botocore.exceptions import ClientError
+        if Key not in self.objects:
+            raise ClientError({'Error': {'Code': 'NoSuchKey'}}, 'GetObject')
+        return {'Body': io.BytesIO(self.objects[Key])}
 
 
 class SmtpRecorder:

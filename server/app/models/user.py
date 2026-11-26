@@ -35,7 +35,9 @@ class User(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     is_rescue_account = db.Column(db.Boolean, default=False)
 
-    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=True)
+    restaurant_id = db.Column(
+        db.Integer, db.ForeignKey('restaurants.id', ondelete='SET NULL'), nullable=True
+    )
     organization_id = db.Column(
         db.Integer, db.ForeignKey('organizations.id'), nullable=True, index=True
     )

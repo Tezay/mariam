@@ -19,6 +19,7 @@ from ..schemas.audit import (
     OrgAuditFilterSchema,
     OrgAuditQuerySchema,
 )
+from ..utils.spreadsheet import safe_cell
 from ..utils.time import PARIS_TZ, as_utc
 from .helpers import admin_required, audit, get_current_user, org_admin_required, step_up_required
 from .members import org_accounts
@@ -31,14 +32,6 @@ audit_bp = Blueprint(
 
 EXPORT_ROWS = 10_000
 CSV_TEXT = 'Comma-separated, at most 10,000 rows: ID, Date, User, Action, Target, IP, Details'
-
-# A spreadsheet runs as a formula any cell that starts with one of these.
-_FORMULA_LEADS = ('=', '+', '-', '@', '\t', '\r')
-
-
-def _cell(value) -> str:
-    text = str(value)
-    return f"'{text}" if text.startswith(_FORMULA_LEADS) else text
 
 
 def _utc_midnight(day) -> datetime:
@@ -135,19 +128,13 @@ def _page(scope, query: dict, slugs: dict[int, str], restaurant: Restaurant | No
     return body, headers
 
 
-def _export(scope, query: dict, restaurant: Restaurant | None,
-            organization: Organization) -> Response:
-    logs = (
-        _filtered(scope, query)
-        .options(joinedload(AuditLog.user))  # type: ignore[arg-type]
-        .limit(EXPORT_ROWS)
-        .all()
-    )
+def audit_csv(logs) -> str:
+    """The CSV of the dashboard's export, shared with the archive of a site."""
     output = StringIO()
     writer = csv.writer(output)
     writer.writerow(['ID', 'Date', 'User', 'Action', 'Target', 'IP', 'Details'])
     for log in logs:
-        writer.writerow(_cell(value) for value in (
+        writer.writerow(safe_cell(value) for value in (
             log.id,
             log.created_at.isoformat() if log.created_at else '',
             log.user.email if log.user else 'System',
@@ -156,6 +143,18 @@ def _export(scope, query: dict, restaurant: Restaurant | None,
             log.ip_address or '',
             log.details or '',
         ))
+    return output.getvalue()
+
+
+def _export(scope, query: dict, restaurant: Restaurant | None,
+            organization: Organization) -> Response:
+    logs = (
+        _filtered(scope, query)
+        .options(joinedload(AuditLog.user))  # type: ignore[arg-type]
+        .limit(EXPORT_ROWS)
+        .all()
+    )
+    body = audit_csv(logs)
     audit(
         AuditLog.ACTION_AUDIT_LOGS_EXPORT, restaurant, organization,
         user_agent=request.headers.get('User-Agent'),
@@ -164,7 +163,7 @@ def _export(scope, query: dict, restaurant: Restaurant | None,
     db.session.commit()
     stamp = datetime.now(PARIS_TZ).strftime('%Y%m%d_%H%M%S')
     return Response(
-        output.getvalue(),
+        body,
         mimetype='text/csv; charset=utf-8',
         headers={'Content-Disposition': f'attachment; filename=audit_logs_{stamp}.csv'},
     )

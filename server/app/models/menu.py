@@ -6,7 +6,9 @@ class Menu(db.Model):
     __tablename__ = 'menus'
     
     id = db.Column(db.Integer, primary_key=True)
-    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=False)
+    restaurant_id = db.Column(
+        db.Integer, db.ForeignKey('restaurants.id', ondelete='CASCADE'), nullable=False
+    )
     date = db.Column(db.Date, nullable=False, index=True)
     status = db.Column(db.String(20), default='draft')  # draft, published
     published_at = db.Column(db.DateTime, nullable=True)
@@ -36,7 +38,7 @@ class MenuItem(db.Model):
     __tablename__ = 'menu_items'
 
     id = db.Column(db.Integer, primary_key=True)
-    menu_id = db.Column(db.Integer, db.ForeignKey('menus.id'), nullable=False)
+    menu_id = db.Column(db.Integer, db.ForeignKey('menus.id', ondelete='CASCADE'), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('menu_categories.id'), nullable=False)
     dish_id = db.Column(
         db.Integer,

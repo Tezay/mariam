@@ -25,7 +25,7 @@ class ActivationLink(db.Model):
     created_at = db.Column(db.DateTime, default=utc_now_naive)
     created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
-    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=True)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id', ondelete='CASCADE'), nullable=True)
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=True)
     
     created_by = db.relationship('User', backref='created_activation_links', foreign_keys=[created_by_id])
