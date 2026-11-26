@@ -2,7 +2,7 @@
 from datetime import timedelta
 
 from app.extensions import db
-from app.models import Restaurant, User
+from app.models import Restaurant
 from app.utils.time import paris_today
 from conftest import auth_headers, get_token, make_restaurant, make_user, site_path
 

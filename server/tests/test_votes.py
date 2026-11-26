@@ -1,8 +1,6 @@
 """Menu vote: the guard chain, the one-vote-per-organization rule and its limits."""
 from datetime import date, timedelta
 
-import pytest
-
 from app.extensions import db
 from app.models import (
     DishCatalog,

@@ -4,7 +4,7 @@ import datetime
 import pytest
 
 from app.extensions import db
-from app.models import Organization, PageViewRollup, Restaurant, User, VisitorDailyUnique
+from app.models import Organization, PageViewRollup, Restaurant, VisitorDailyUnique
 from app.services import telemetry
 from app.utils.time import paris_today
 from conftest import TEST_ORG_SLUG, FakeRedis, auth_headers, get_token, make_restaurant, make_user

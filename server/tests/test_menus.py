@@ -2,7 +2,7 @@
 import datetime
 
 from app.extensions import db
-from app.models import AuditLog, DishCatalog, Menu, User
+from app.models import AuditLog, DishCatalog, Menu
 from app.utils.time import paris_today
 from conftest import auth_headers, get_token, make_category, make_restaurant, make_user, site_path
 

@@ -9,7 +9,13 @@ from app.extensions import db
 from app.models import Organization, Restaurant, User
 from app.security import ACCESS_COOKIE, REFRESH_COOKIE, limiter
 from conftest import (
-    TEST_PASSWORD, auth_headers, get_token, make_restaurant, make_user, probe_path, session_tokens,
+    TEST_PASSWORD,
+    auth_headers,
+    get_token,
+    make_restaurant,
+    make_user,
+    probe_path,
+    session_tokens,
     site_path,
 )
 from tests.auth_support import issue_session, session_headers
@@ -302,3 +308,15 @@ class TestProductionGuard:
 
         with pytest.raises(RuntimeError, match='REDIS_URL'):
             create_app()
+
+    def test_push_keys_need_a_contact(self, production_env):
+        production_env.delenv('REDIS_URL', raising=False)
+        production_env.setenv('VAPID_PRIVATE_KEY', 'a-production-push-key')
+        production_env.delenv('VAPID_CONTACT_EMAIL', raising=False)
+        with pytest.raises(RuntimeError, match='VAPID_CONTACT_EMAIL'):
+            create_app()
+
+        production_env.setenv('VAPID_CONTACT_EMAIL', 'push@example.org')
+        with pytest.raises(RuntimeError) as refused:
+            create_app()
+        assert 'VAPID' not in str(refused.value)

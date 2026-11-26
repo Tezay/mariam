@@ -1,5 +1,13 @@
 """The dish catalog: CRUD, roles, isolation between sites."""
-from conftest import auth_headers, get_token, make_category, make_restaurant, make_user, own_site, site_path
+from conftest import (
+    auth_headers,
+    get_token,
+    make_category,
+    make_restaurant,
+    make_user,
+    own_site,
+    site_path,
+)
 
 
 def _dishes(client, token):
@@ -637,7 +645,6 @@ class TestNovelties:
         assert list(found) == [newcomer['id']]
 
     def test_the_filter_needs_a_bounded_period(self, app, client):
-        import datetime
 
         from app.utils.time import paris_today
 

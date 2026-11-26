@@ -87,6 +87,9 @@ def create_app(config_class=None):
         redis_url = os.environ.get('REDIS_URL', '')
         if not redis_url or redis_url.startswith('memory://'):
             missing.append('REDIS_URL')
+        # Every push is signed with this address: the push services write to it.
+        if os.environ.get('VAPID_PRIVATE_KEY') and not os.environ.get('VAPID_CONTACT_EMAIL'):
+            missing.append('VAPID_CONTACT_EMAIL (required with the VAPID keys)')
         if not all(os.environ.get(k) for k in
                    ('S3_ENDPOINT_URL', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY')):
             missing.append('S3_ENDPOINT_URL/S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY')
