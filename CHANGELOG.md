@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`flask site` lists, shows, disables and re-enables sites**: a disabled one keeps its data, reads only and sends nothing.
 - **A subscription page for each site**, for its admins: period, renewal, references; supervisors see its state on the site's badge. `flask subscription` records it.
 - **`SUPPORT_EMAIL` reaches the pages**, with `STATUS_PAGE_URL` and the operator's documents (`TERMS_URL`, `DPA_URL`, `API_TERMS_URL`, `SOURCE_LICENSE_URL`).
-- **A subscription ending without a renewal decided is announced**: emails to the site's admins at set thresholds, a banner on their dashboard a month ahead (a week for a trial), the bell for them and the supervisors; `flask subscription send-reminder` sends one at once.
+- **Site admins hear of a subscription ending undecided**: emails, a dashboard banner, the bell (supervisors too); `flask subscription send-reminder` sends one.
 
 ### Changed
 
