@@ -1,8 +1,9 @@
 """
-flask site — opening a site, reading its state, turning it off and on.
+flask site — opening a site, reading its state, turning it off and on, handing
+its data over and deleting it.
 
 A disabled site keeps its data: its public pages answer 404 and its dashboard
-reads only, until it is enabled again.
+reads only, until it is enabled again or deleted.
 
 Every write records an AuditLog entry with no author and no address, carrying
 `via: cli` in its details. Failures raise ClickException.
@@ -10,19 +11,24 @@ Every write records an AuditLog entry with no author and no address, carrying
 Usage:
     docker compose exec backend flask site show nord --org example
 """
+import os
 import secrets
+from datetime import datetime
 
 import click
 from flask.cli import AppGroup
 
 from ..extensions import db
 from ..models import AuditLog, Menu, MenuCategory, Organization, Restaurant, SiteMembership
+from ..services.site_removal import removal_plan, remove_site
 from ..utils.site_name import parse_site_name
 from ..utils.slug import is_valid_slug, normalize_slug
+from ..utils.time import PARIS_TZ
 from ..utils.urls import public_page_path
 from .lookup import date_label, find_organization, find_site, row
+from .site_export import write_archive
 
-site_cli = AppGroup('site', help='Sites: open, read, turn off and on.')
+site_cli = AppGroup('site', help='Sites: open, read, turn off and on, export, delete.')
 
 ORG_OPTION = click.option(
     '--org', default=None, help='Organization (id or slug), when several share the slug'
@@ -172,3 +178,69 @@ def disable_site(site, org):
     click.echo(f'Site disabled: {_path(restaurant)}')
     click.echo('   · Its public pages answer 404 and its dashboard reads only')
     click.echo('   · No more push notifications nor weekly digest for it')
+
+
+@site_cli.command('export')
+@click.argument('site')
+@ORG_OPTION
+@click.option('--out', required=True, type=click.Path(dir_okay=False, writable=True),
+              help='The ZIP archive to write')
+def export_site(site, org, out):
+    """Write the site's data to a ZIP archive, for its client: menus, dishes, news,
+    closures, accounts, votes, EGalim declarations, audit log and images.
+    """
+    restaurant = find_site(site, org)
+    counts, missing = write_archive(restaurant, out)
+    click.echo(f'Archive written: {out} ({_path(restaurant)})')
+    for name, count in counts.items():
+        click.echo(f'   · {name}: {count}')
+    for name in missing:
+        click.echo(f'   ! Not read from storage: {name}')
+    click.echo(f'From the host: docker compose cp backend:{os.path.abspath(out)} .')
+
+
+def _emails(accounts: dict[int, str]) -> str:
+    return ', '.join(accounts.values()) or '—'
+
+
+@site_cli.command('delete')
+@click.argument('site')
+@ORG_OPTION
+@click.option('--yes', is_flag=True, help='Delete without typing the path back')
+def delete_site(site, org, yes):
+    """Delete a disabled site for good, with every row and file of it.
+
+    Its accounts with no other place go with it; the others only lose it.
+    Export it first: nothing of it can be read back afterwards.
+    """
+    restaurant = find_site(site, org)
+    if restaurant.is_active:
+        raise click.ClickException(f'{_path(restaurant)} is active: disable it first.')
+    plan = removal_plan(restaurant)
+    click.echo(f'Deleting {plan.name} ({plan.path}) takes with it:')
+    for name, count in plan.counts.items():
+        click.echo(f'   · {name.replace("_", " ")}: {count}')
+    click.echo(f'   · stored files: {len(plan.storage_keys)}')
+    click.echo(f'   · accounts deleted: {_emails(plan.accounts_deleted)}')
+    click.echo(f'   · accounts kept, which only lose this site: {_emails(plan.accounts_kept)}')
+    if not yes:
+        typed = click.prompt('Type the path to confirm', default='', show_default=False)
+        if typed.strip() != plan.path:
+            raise click.ClickException('The path does not match: nothing deleted.')
+
+    deleted, kept = len(plan.accounts_deleted), len(plan.accounts_kept)
+    removal = remove_site(plan)
+    click.echo(
+        f'\nSite deleted: {plan.name} ({plan.path}), '
+        f'{datetime.now(PARIS_TZ):%Y-%m-%d %H:%M %Z}'
+    )
+    for name, count in plan.counts.items():
+        click.echo(f'   · {name.replace("_", " ")}: {count}')
+    click.echo(f'   · accounts deleted: {deleted}, kept: {kept}')
+    click.echo(
+        f'   · stored files: {len(plan.storage_keys)}, '
+        + ('deleted' if removal.files_deleted else 'NOT deleted, see the backend logs')
+    )
+    if not removal.counters_dropped:
+        click.echo('   ! Its Redis counters were not dropped: Redis was unreachable')
+    click.echo('Backups keep these data until they expire.')

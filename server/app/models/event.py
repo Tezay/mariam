@@ -6,7 +6,9 @@ class Event(db.Model):
     __tablename__ = 'events'
 
     id = db.Column(db.Integer, primary_key=True)
-    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=False)
+    restaurant_id = db.Column(
+        db.Integer, db.ForeignKey('restaurants.id', ondelete='CASCADE'), nullable=False
+    )
 
     title = db.Column(db.String(100), nullable=False)
     subtitle = db.Column(db.String(200), nullable=True)
@@ -45,7 +47,9 @@ class EventImage(db.Model):
     __tablename__ = 'event_images'
 
     id = db.Column(db.Integer, primary_key=True)
-    event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False)
+    event_id = db.Column(
+        db.Integer, db.ForeignKey('events.id', ondelete='CASCADE'), nullable=False
+    )
     storage_key = db.Column(db.String(500), nullable=False)
     url = db.Column(db.String(500), nullable=False)
     filename = db.Column(db.String(255), nullable=True)  # As uploaded

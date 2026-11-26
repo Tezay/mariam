@@ -7,7 +7,9 @@ class ExceptionalClosure(db.Model):
     __tablename__ = 'exceptional_closures'
 
     id            = db.Column(db.Integer, primary_key=True)
-    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=False)
+    restaurant_id = db.Column(
+        db.Integer, db.ForeignKey('restaurants.id', ondelete='CASCADE'), nullable=False
+    )
 
     start_date  = db.Column(db.Date, nullable=False, index=True)
     end_date    = db.Column(db.Date, nullable=False, index=True)  # Inclusive

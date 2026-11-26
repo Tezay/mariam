@@ -10,7 +10,8 @@ class AuditLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     restaurant_id = db.Column(
-        db.Integer, db.ForeignKey('restaurants.id'), nullable=True, index=True
+        db.Integer, db.ForeignKey('restaurants.id', ondelete='CASCADE'), nullable=True,
+        index=True,
     )
     organization_id = db.Column(
         db.Integer, db.ForeignKey('organizations.id'), nullable=True, index=True
@@ -74,6 +75,7 @@ class AuditLog(db.Model):
     ACTION_SITE_CREATE = 'site_create'
     ACTION_SITE_ENABLE = 'site_enable'
     ACTION_SITE_DISABLE = 'site_disable'
+    ACTION_SITE_DELETE = 'site_delete'
     ACTION_SUBSCRIPTION_CREATE = 'subscription_create'
     ACTION_SUBSCRIPTION_UPDATE = 'subscription_update'
     ACTION_SUBSCRIPTION_DELETE = 'subscription_delete'

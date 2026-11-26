@@ -53,8 +53,9 @@ after confirming its own identity.
 
 ### Sites
 
-`flask site` opens a site and turns it off or on, under the same rules as `flask user`. A site
-is named by its id or its slug, with `--org` when several organizations share the slug.
+`flask site` opens a site, turns it off or on, hands its data over and deletes it, under the
+same rules as `flask user`. A site is named by its id or its slug, with `--org` when several
+organizations share the slug.
 
 | Command | What it does |
 | --- | --- |
@@ -62,12 +63,25 @@ is named by its id or its slug, with `--org` when several organizations share th
 | `site show SITE [--org]` | Full state: organization, path, accounts by role, last published menu |
 | `site create --org O --name N --slug S` | Opens a site with the default categories |
 | `site disable SITE [--org]` / `site enable SITE [--org]` | Turns a site off without deleting it, or back on |
+| `site export SITE [--org] --out FILE.zip` | Writes the site's data to a ZIP archive |
+| `site delete SITE [--org] [--yes]` | Deletes a disabled site for good; asks for its path back unless `--yes` |
 
 A disabled site keeps its data. Its public pages answer 404, it sends no push notification and
 no weekly digest, and every write to it answers `403 site_inactive`, except the gestures on its
 accounts: role, suspension, removal, second factors, password link, revoking an invitation.
 
 In development, `make site ARGS="list --all"` wraps the same group.
+
+At the end of a contract:
+
+1. `site disable`, so nothing changes any more.
+2. `site export --out /tmp/site.zip`, then `docker compose cp backend:/tmp/site.zip .` to hand
+   it to the client. It holds the site's profile and categories (JSON, as the API serves them),
+   its menus, catalogue (the CSV the import reads back), closures, accounts, votes, EGalim
+   declarations and audit log (CSV), news (JSON) and images.
+3. `site delete`. It takes every row of the site with it, its audit log included, deletes the
+   accounts it was the only place of and its stored files, then prints a summary to keep as the
+   record of the deletion. Backups keep these data until they expire.
 
 ### Subscriptions
 

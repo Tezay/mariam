@@ -20,7 +20,9 @@ class PushSubscription(db.Model):
     __tablename__ = 'push_subscriptions'
 
     id = db.Column(db.Integer, primary_key=True)
-    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=False)
+    restaurant_id = db.Column(
+        db.Integer, db.ForeignKey('restaurants.id', ondelete='CASCADE'), nullable=False
+    )
 
     endpoint = db.Column(db.Text, nullable=False, unique=True, index=True)
     endpoint_sha256 = db.Column(db.String(43), unique=True, nullable=True)
