@@ -175,6 +175,8 @@ before(async () => {
       UMAMI_SCRIPT_URL: 'https://stats.example.test/script.js',
       UMAMI_WEBSITE_ID: 'site-1',
       SENTRY_DSN: 'https://key@errors.example.test/1',
+      SUPPORT_EMAIL: 'support@example.test',
+      STATUS_PAGE_URL: 'https://status.example.test',
     },
   });
   for (let attempt = 0; attempt < 50; attempt += 1) {
@@ -281,8 +283,20 @@ test('/config.js exposes the public settings only', async () => {
       UMAMI_WEBSITE_ID: 'site-1',
       SENTRY_DSN: 'https://key@errors.example.test/1',
       SENTRY_ENVIRONMENT: 'production',
+      SUPPORT_EMAIL: 'support@example.test',
+      STATUS_PAGE_URL: 'https://status.example.test',
+      TERMS_URL: '',
+      DPA_URL: '',
+      API_TERMS_URL: '',
+      SOURCE_LICENSE_URL: '',
     }
   );
+});
+
+test('the privacy notice names the support address in its first rendering', async () => {
+  const page = await request('/privacy');
+  assert.equal(page.status, 200);
+  assert.match(page.body, /mailto:support@example\.test/);
 });
 
 test('a site page installs its own app, named after it', async () => {

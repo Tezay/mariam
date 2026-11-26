@@ -40,6 +40,7 @@ from ..models.menu_vote import MenuVote
 from ..models.organization import Organization
 from ..models.restaurant import DEFAULT_SERVICE_DAYS, Restaurant, RestaurantServiceHours
 from ..models.service_live_status import ServiceLiveStatus
+from ..models.subscription import SubscriptionPeriod
 from ..models.telemetry import PageViewRollup, VisitorDailyUnique
 from ..models.user import User
 from ..routes.helpers import get_or_create_dish
@@ -131,6 +132,7 @@ def register_commands(app):
         _ensure_public_page(restaurants[0], admin.id)
         db.session.commit()
         _seed_activity(restaurants, admin.id)
+        _ensure_subscriptions(restaurants)
         db.session.commit()
         restaurant = restaurants[0]
 
@@ -734,6 +736,25 @@ def _ensure_public_page(restaurant: Restaurant, user_id: int) -> None:
         reason=_CLOSURE_REASON,
         created_by_id=user_id,
     ))
+
+
+def _ensure_subscriptions(restaurants: list[Restaurant]) -> None:
+    """A tacitly renewed contract, a trial and a year to renew: one standing per site."""
+    today = paris_today()
+    year_start, year_end = date(today.year, 1, 1), date(today.year, 12, 31)
+    periods = [
+        dict(
+            kind='paid', starts_on=year_start, ends_on=year_end, renewal='tacit',
+            tacit_until=date(today.year + 2, 12, 31), notice_by=date(today.year, 9, 30),
+            quote_ref=f'DEVIS-{today.year}-001', order_ref=f'BC-{today.year}-0042',
+            payer_name='Organisation Démo',
+        ),
+        dict(kind='trial', starts_on=today - timedelta(days=40), ends_on=today + timedelta(days=20)),
+        dict(kind='paid', starts_on=year_start, ends_on=year_end, payer_name='Organisation Démo'),
+    ]
+    for restaurant, period in zip(restaurants, periods, strict=True):
+        if not SubscriptionPeriod.query.filter_by(restaurant_id=restaurant.id).first():
+            db.session.add(SubscriptionPeriod(restaurant_id=restaurant.id, **period))
 
 
 def _ensure_capacity_history(restaurant: Restaurant, site: dict) -> None:

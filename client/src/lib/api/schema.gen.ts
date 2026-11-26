@@ -4005,6 +4005,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/orgs/{org}/sites/{site}/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                site: string;
+            };
+            cookie?: never;
+        };
+        /** The site's current period, the next one and the past ones. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                    site: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Subscription"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orgs/{org}/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        /** Where each site of the organization stands, by name. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    org: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OrgSubscriptionList"];
+                    };
+                };
+                default: components["responses"]["DEFAULT_ERROR"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/orgs/{org}/dish-groups": {
         parameters: {
             query?: never;
@@ -7749,6 +7833,84 @@ export interface components {
             top_dishes: components["schemas"]["DishRow"][];
             flop_dishes: components["schemas"]["DishRow"][];
             settings: components["schemas"]["VoteSettings"];
+        };
+        SubscriptionPeriod: {
+            /** @enum {string} */
+            kind: "trial" | "paid" | "complimentary";
+            /** Format: date */
+            starts_on: string;
+            /**
+             * Format: date
+             * @description Its last day
+             */
+            ends_on: string;
+            /**
+             * @description `tacit` renews it each year until `tacit_until`
+             * @enum {string}
+             */
+            renewal: "undecided" | "tacit" | "ending";
+            /**
+             * Format: date
+             * @description The last day its tacit renewals may reach
+             */
+            tacit_until: string | null;
+            /**
+             * Format: date
+             * @description The last day the buyer may decline the next renewal
+             */
+            notice_by: string | null;
+            /** @description The quote it was ordered from */
+            quote_ref: string | null;
+            /** @description The purchase order, or a public buyer's legal commitment number */
+            order_ref: string | null;
+            /** @description Who pays for it */
+            payer_name: string | null;
+            /** @description The payer's SIRET, 14 digits */
+            payer_siret: string | null;
+            /** @description The payer's e-invoicing service or routing code */
+            payer_service_code: string | null;
+            /** @description A year of a tacit renewal that no record holds: no reference */
+            renewed_tacitly: boolean;
+        };
+        Subscription: {
+            /**
+             * @description `none`: no period recorded, nothing to show
+             * @enum {string}
+             */
+            state: "none" | "upcoming" | "active" | "expired" | "disabled";
+            /**
+             * @description What follows the current period
+             * @enum {string|null}
+             */
+            end: "covered" | "undecided" | "ending" | null;
+            /** @description Until its last day included */
+            days_left: number | null;
+            current: (Record<string, never> | null) | components["schemas"]["SubscriptionPeriod"];
+            next: (Record<string, never> | null) | components["schemas"]["SubscriptionPeriod"];
+            /** @description The latest first */
+            past: components["schemas"]["SubscriptionPeriod"][];
+        };
+        OrgSiteSubscription: {
+            /**
+             * @description `none`: no period recorded, nothing to show
+             * @enum {string}
+             */
+            state: "none" | "upcoming" | "active" | "expired" | "disabled";
+            /**
+             * @description What follows the current period
+             * @enum {string|null}
+             */
+            end: "covered" | "undecided" | "ending" | null;
+            /** @description Until its last day included */
+            days_left: number | null;
+            current: (Record<string, never> | null) | components["schemas"]["SubscriptionPeriod"];
+            next: (Record<string, never> | null) | components["schemas"]["SubscriptionPeriod"];
+            /** @description The site's slug */
+            site: string;
+            name: string;
+        };
+        OrgSubscriptionList: {
+            items: components["schemas"]["OrgSiteSubscription"][];
         };
         OrgDishGroupSite: {
             site: string;

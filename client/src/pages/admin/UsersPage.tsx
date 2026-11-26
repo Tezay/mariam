@@ -60,6 +60,7 @@ import {
   Link as LinkIcon,
 } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
+import { SUPPORT_EMAIL } from '@/lib/runtime-config';
 
 const INVITATION_CONFIRMATION = { description: 'Pour inviter un nouvel utilisateur.' };
 
@@ -401,16 +402,18 @@ export function UsersPage() {
             />
           </section>
 
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Mail className="h-3.5 w-3.5 shrink-0" />
-            Un changement d'accès particulier ? Écrivez-nous à{' '}
-            <a
-              href="mailto:contact@mariam.app"
-              className="font-medium text-foreground hover:underline"
-            >
-              contact@mariam.app
-            </a>
-          </p>
+          {SUPPORT_EMAIL && (
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Mail className="h-3.5 w-3.5 shrink-0" />
+              Un changement d'accès particulier ? Écrivez-nous à{' '}
+              <a
+                href={`mailto:${SUPPORT_EMAIL}`}
+                className="font-medium text-foreground hover:underline"
+              >
+                {SUPPORT_EMAIL}
+              </a>
+            </p>
+          )}
 
           {invitations.length > 0 && (
             <Card>

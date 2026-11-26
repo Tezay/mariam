@@ -4,6 +4,7 @@ from app.models import (
     Event,
     ExceptionalClosure,
     ServiceLiveStatus,
+    SubscriptionPeriod,
 )
 
 
@@ -15,7 +16,9 @@ def _seed(app):
 def _counts():
     return [
         model.query.count()
-        for model in (Event, ExceptionalClosure, EgalimDeclaration, ServiceLiveStatus)
+        for model in (
+            Event, ExceptionalClosure, EgalimDeclaration, ServiceLiveStatus, SubscriptionPeriod
+        )
     ]
 
 

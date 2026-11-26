@@ -14,7 +14,7 @@ function Basis({ children }: { children: React.ReactNode }) {
   return <p className="pt-1 text-xs text-site-subtle">{children}</p>;
 }
 
-export function PrivacyPage() {
+export function PrivacyPage({ supportEmail }: { supportEmail: string }) {
   return (
     <div className="public-page min-h-screen">
       <div className="mx-auto max-w-2xl px-5 py-10">
@@ -128,11 +128,17 @@ export function PrivacyPage() {
           <Section title="Qui traite ces données">
             <p>
               Eliot Cupillard, éditeur de Mariam, est responsable des traitements décrits sur cette
-              page. Vous pouvez le contacter à{' '}
-              <a className="text-site-brand underline" href="mailto:contact@mariam.app">
-                contact@mariam.app
-              </a>
-              .
+              page.
+              {supportEmail && (
+                <>
+                  {' '}
+                  Vous pouvez le contacter à{' '}
+                  <a className="text-site-brand underline" href={`mailto:${supportEmail}`}>
+                    {supportEmail}
+                  </a>
+                  .
+                </>
+              )}
             </p>
             <p>
               Le service, sa base de données et ses sauvegardes sont hébergés en France par
@@ -155,12 +161,17 @@ export function PrivacyPage() {
               impossibilité résulte de la conception même du service.
             </p>
             <p>
-              Pour toute question, écrivez-nous à{' '}
-              <a className="text-site-brand underline" href="mailto:contact@mariam.app">
-                contact@mariam.app
-              </a>
-              . Vous pouvez également introduire une réclamation auprès de la Commission nationale
-              de l’informatique et des libertés (CNIL).
+              {supportEmail && (
+                <>
+                  Pour toute question, écrivez-nous à{' '}
+                  <a className="text-site-brand underline" href={`mailto:${supportEmail}`}>
+                    {supportEmail}
+                  </a>
+                  .{' '}
+                </>
+              )}
+              Vous pouvez {supportEmail && 'également '}introduire une réclamation auprès de la
+              Commission nationale de l’informatique et des libertés (CNIL).
             </p>
           </Section>
         </div>

@@ -719,6 +719,25 @@ with `POST U/invitations`. One administrator emails twenty invitations a day at 
 
 ---
 
+## Subscription
+
+A site's subscription is read only: its operator records its periods from the command line
+(`flask subscription`). `S/subscription` is for the site's admins and its supervisors,
+`O/subscriptions` for the supervisors.
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `S/subscription` | `state`, `end`, `days_left`, the `current` and `next` periods, and the `past` ones, the latest first |
+| `GET` | `O/subscriptions` | The same for each site of the organization, by name, without `past` |
+
+`state` is `none` (no period recorded: nothing to show), `upcoming`, `active`, `expired` or
+`disabled`. Under `active`, `end` says what follows the current period: `covered` (a period
+recorded from the next day, or a tacit renewal still to come), `undecided` or `ending`. Past
+the end of a period renewed tacitly, `current` is the year of renewal that holds today, with
+`renewed_tacitly` and no reference. No state ever turns a site off.
+
+---
+
 ## Audit Log
 
 Requires an account carrying a second factor, code or passkey (`403 second_factor_required`

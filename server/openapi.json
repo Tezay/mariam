@@ -4159,6 +4159,83 @@
         }
       ]
     },
+    "/v1/orgs/{org}/sites/{site}/subscription": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Subscription"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "The site's current period, the next one and the past ones.",
+        "tags": [
+          "subscriptions"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "in": "path",
+          "name": "site",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/v1/orgs/{org}/subscriptions": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgSubscriptionList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Where each site of the organization stands, by name.",
+        "tags": [
+          "subscriptions"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "org",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
     "/v1/orgs/{org}/dish-groups": {
       "get": {
         "parameters": [
@@ -7936,6 +8013,10 @@
       "description": "Publication, traffic and rating reports, of a site or of an organization"
     },
     {
+      "name": "subscriptions",
+      "description": "A site's subscription to the service, read only"
+    },
+    {
       "name": "dish_groups",
       "description": "The same dish across the sites of an organization, by its normalized name"
     },
@@ -10596,6 +10677,249 @@
           "settings",
           "summary",
           "top_dishes"
+        ],
+        "additionalProperties": false
+      },
+      "SubscriptionPeriod": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "trial",
+              "paid",
+              "complimentary"
+            ]
+          },
+          "starts_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "ends_on": {
+            "type": "string",
+            "format": "date",
+            "description": "Its last day"
+          },
+          "renewal": {
+            "type": "string",
+            "enum": [
+              "undecided",
+              "tacit",
+              "ending"
+            ],
+            "description": "`tacit` renews it each year until `tacit_until`"
+          },
+          "tacit_until": {
+            "type": "string",
+            "format": "date",
+            "description": "The last day its tacit renewals may reach",
+            "nullable": true
+          },
+          "notice_by": {
+            "type": "string",
+            "format": "date",
+            "description": "The last day the buyer may decline the next renewal",
+            "nullable": true
+          },
+          "quote_ref": {
+            "type": "string",
+            "description": "The quote it was ordered from",
+            "nullable": true
+          },
+          "order_ref": {
+            "type": "string",
+            "description": "The purchase order, or a public buyer's legal commitment number",
+            "nullable": true
+          },
+          "payer_name": {
+            "type": "string",
+            "description": "Who pays for it",
+            "nullable": true
+          },
+          "payer_siret": {
+            "type": "string",
+            "description": "The payer's SIRET, 14 digits",
+            "nullable": true
+          },
+          "payer_service_code": {
+            "type": "string",
+            "description": "The payer's e-invoicing service or routing code",
+            "nullable": true
+          },
+          "renewed_tacitly": {
+            "type": "boolean",
+            "description": "A year of a tacit renewal that no record holds: no reference"
+          }
+        },
+        "required": [
+          "ends_on",
+          "kind",
+          "notice_by",
+          "order_ref",
+          "payer_name",
+          "payer_service_code",
+          "payer_siret",
+          "quote_ref",
+          "renewal",
+          "renewed_tacitly",
+          "starts_on",
+          "tacit_until"
+        ],
+        "additionalProperties": false
+      },
+      "Subscription": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "none",
+              "upcoming",
+              "active",
+              "expired",
+              "disabled"
+            ],
+            "description": "`none`: no period recorded, nothing to show"
+          },
+          "end": {
+            "type": "string",
+            "enum": [
+              "covered",
+              "undecided",
+              "ending",
+              null
+            ],
+            "description": "What follows the current period",
+            "nullable": true
+          },
+          "days_left": {
+            "type": "integer",
+            "description": "Until its last day included",
+            "nullable": true
+          },
+          "current": {
+            "anyOf": [
+              {
+                "type": "object",
+                "nullable": true
+              },
+              {
+                "$ref": "#/components/schemas/SubscriptionPeriod"
+              }
+            ]
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "object",
+                "nullable": true
+              },
+              {
+                "$ref": "#/components/schemas/SubscriptionPeriod"
+              }
+            ]
+          },
+          "past": {
+            "type": "array",
+            "description": "The latest first",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionPeriod"
+            }
+          }
+        },
+        "required": [
+          "current",
+          "days_left",
+          "end",
+          "next",
+          "past",
+          "state"
+        ],
+        "additionalProperties": false
+      },
+      "OrgSiteSubscription": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "none",
+              "upcoming",
+              "active",
+              "expired",
+              "disabled"
+            ],
+            "description": "`none`: no period recorded, nothing to show"
+          },
+          "end": {
+            "type": "string",
+            "enum": [
+              "covered",
+              "undecided",
+              "ending",
+              null
+            ],
+            "description": "What follows the current period",
+            "nullable": true
+          },
+          "days_left": {
+            "type": "integer",
+            "description": "Until its last day included",
+            "nullable": true
+          },
+          "current": {
+            "anyOf": [
+              {
+                "type": "object",
+                "nullable": true
+              },
+              {
+                "$ref": "#/components/schemas/SubscriptionPeriod"
+              }
+            ]
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "object",
+                "nullable": true
+              },
+              {
+                "$ref": "#/components/schemas/SubscriptionPeriod"
+              }
+            ]
+          },
+          "site": {
+            "type": "string",
+            "description": "The site's slug"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "current",
+          "days_left",
+          "end",
+          "name",
+          "next",
+          "site",
+          "state"
+        ],
+        "additionalProperties": false
+      },
+      "OrgSubscriptionList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrgSiteSubscription"
+            }
+          }
+        },
+        "required": [
+          "items"
         ],
         "additionalProperties": false
       },

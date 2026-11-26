@@ -161,6 +161,12 @@ services:
       MAP_TILE_ATTRIBUTION: ${MAP_TILE_ATTRIBUTION:-}
       SENTRY_DSN: ${FRONTEND_SENTRY_DSN:-}
       SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL:-}
+      STATUS_PAGE_URL: ${STATUS_PAGE_URL:-}
+      TERMS_URL: ${TERMS_URL:-}
+      DPA_URL: ${DPA_URL:-}
+      API_TERMS_URL: ${API_TERMS_URL:-}
+      SOURCE_LICENSE_URL: ${SOURCE_LICENSE_URL:-}
     depends_on:
       backend:
         condition: service_healthy

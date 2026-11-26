@@ -278,6 +278,7 @@ def create_app(config_class=None):
     from .routes.push_subscriptions import push_bp
     from .routes.quality import quality_bp
     from .routes.sites import sites_bp
+    from .routes.subscriptions import subscriptions_bp
     from .routes.taxonomy import taxonomy_bp
     from .routes.user import user_bp
     from .routes.weekly_emails import weekly_emails_bp
@@ -292,6 +293,7 @@ def create_app(config_class=None):
     api.register_blueprint(members_bp,       url_prefix='/v1/orgs')
     api.register_blueprint(audit_bp,         url_prefix='/v1/orgs')
     api.register_blueprint(analytics_bp,     url_prefix='/v1/orgs')
+    api.register_blueprint(subscriptions_bp, url_prefix='/v1/orgs')
     api.register_blueprint(dish_groups_bp,   url_prefix='/v1/orgs/<org>/dish-groups')
     api.register_blueprint(sites_bp,         url_prefix='/v1/orgs/<org>/sites')
     api.register_blueprint(menus_bp,         url_prefix='/v1/orgs/<org>/sites/<site>/menus')
@@ -418,11 +420,13 @@ def create_app(config_class=None):
     from .commands.org import register_commands as register_org
     from .commands.seed import register_commands as register_seed
     from .commands.site import register_commands as register_site
+    from .commands.subscription import register_commands as register_subscription
     from .commands.user import register_commands as register_user
     register_seed(app)
     register_demo(app)
     register_org(app)
     register_site(app)
+    register_subscription(app)
     register_user(app)
 
     _start_scheduler(app)
