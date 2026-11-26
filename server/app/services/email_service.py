@@ -80,6 +80,7 @@ class Kind(StrEnum):
     INVITATION = 'invitation'
     RESET = 'reset'
     SECURITY = 'security'
+    SUBSCRIPTION = 'subscription'
 
 
 # Counted per kind as well as per address: a flood of one kind of message
@@ -454,7 +455,7 @@ def build_digest(
     scope = _scope_for(site_ids, start, end)
     data = overview(scope)
     satisfaction = satisfaction_stats(scope)
-    alerts = live_alerts(user, site_ids)
+    alerts = live_alerts(user, site_ids, digest=True)
     multi = len(site_ids) > 1
     general, (url, calendar_url) = _dashboard(user, site_ids, '/stats', '/calendar')
     metrics = _metric_blocks(data['kpis'])

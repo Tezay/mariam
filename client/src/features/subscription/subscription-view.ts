@@ -17,6 +17,7 @@ export interface Badge {
 }
 
 const SOON_DAYS = 30;
+const TRIAL_BANNER_DAYS = 7;
 const DRAWN_RECONDUCTIONS = 4;
 
 const DAY = 86_400_000;
@@ -146,6 +147,23 @@ export function headline(subscription: Subscription): Headline {
     title: `Actif jusqu'au ${longDate(current.ends_on)}`,
     detail: daysLeft !== null && isEndNear(subscription) ? daysLeftLabel(daysLeft) : null,
   };
+}
+
+/** The dashboard banner's line while the renewal is to decide and the end is near, or past. */
+export function subscriptionBanner(subscription: Subscription): string | null {
+  const { state, current, past, days_left: daysLeft } = subscription;
+  if (state === 'expired' && past.length) {
+    return (
+      `L'abonnement de ce site est arrivé à échéance le ${longDate(past[0].ends_on)}. ` +
+      'Le service continue.'
+    );
+  }
+  if (!canRequestRenewal(subscription) || !current || daysLeft === null) return null;
+  const trial = current.kind === 'trial';
+  if (daysLeft > (trial ? TRIAL_BANNER_DAYS : SOON_DAYS)) return null;
+  return trial
+    ? `L'essai gratuit de ce site se termine le ${longDate(current.ends_on)}.`
+    : `L'abonnement de ce site se termine le ${longDate(current.ends_on)}.`;
 }
 
 export interface Span {

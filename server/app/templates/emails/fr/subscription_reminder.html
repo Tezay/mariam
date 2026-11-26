@@ -1,0 +1,34 @@
+{% extends "emails/base.html" %}
+
+{% block kicker %}Abonnement{% endblock %}
+
+{% block content %}
+{% set write %}{% if support_email %}écrivez à <a href="mailto:{{ support_email }}" style="color:#093EAA">{{ support_email }}</a>{% else %}écrivez-nous{% endif %}{% endset %}
+{% for site in sites %}
+<p style="margin:{{ '0' if loop.first else '24px' }} 0 8px;font-size:15px;color:#0f172a">
+  <strong>
+    {%- if site.reason == 'trial' %}L'essai gratuit de {{ site.name }} se termine le {{ site.date }}.
+    {%- elif site.reason == 'ending' %}Le service de {{ site.name }} prendra fin le {{ site.date }}.
+    {%- else %}L'abonnement de {{ site.name }} se termine le {{ site.date }}.
+    {%- endif -%}
+  </strong>
+</p>
+<p style="margin:0 0 14px">
+  {% if site.reason == 'trial' -%}
+  Pour continuer à utiliser Mariam, {{ write }} : nous vous adresserons un devis.
+  {%- elif site.reason == 'ending' -%}
+  Pour recevoir une copie de vos données (menus, plats, actualités, images), {{ write }} avant cette date.
+  {%- else -%}
+  Pour poursuivre sans interruption, {{ write }} : nous vous adresserons un devis.
+  Si un bon de commande est déjà en cours, vous pouvez ignorer ce message.
+  {%- endif %}
+</p>
+<p style="margin:0">
+  <a href="{{ site.url }}" style="display:inline-block;background:#093EAA;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:10px;font-size:14px;font-weight:600">Voir l'abonnement</a>
+</p>
+{% endfor %}
+{% endblock %}
+
+{% block footer %}
+Vous recevez ce message parce que vous administrez {{ sites[0].name if sites|length == 1 else 'ces sites' }} sur Mariam.
+{% endblock %}

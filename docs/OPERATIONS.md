@@ -72,8 +72,9 @@ In development, `make site ARGS="list --all"` wraps the same group.
 ### Subscriptions
 
 `flask subscription` records the periods of a site's subscription, which its admins read on its
-subscription page; its supervisors see its state on the site's badge. A period only describes the subscription: none of
-these commands turns a site off, and a site with no period shows no subscription at all.
+subscription page; its supervisors see its state on the site's badge. A period only describes
+the subscription: none of these commands turns a site off, and a site with no period shows no
+subscription at all.
 
 | Command | What it does |
 | --- | --- |
@@ -82,6 +83,7 @@ these commands turns a site off, and a site with no period shows no subscription
 | `subscription add SITE [--org] --kind K --start D --end D [terms] [--from-previous]` | Records a period, both days included |
 | `subscription update ID [terms] [--clear FIELD]` | Changes a period; `--clear` empties a field |
 | `subscription delete ID [--yes]` | Deletes a period recorded by mistake |
+| `subscription send-reminder SITE [--org] [--dry-run]` | Emails the site's admins the reminder its standing calls for, now |
 
 `--kind` is `trial`, `paid` or `complimentary`. The terms are `--renewal` (`undecided` by
 default, `tacit` or `ending`), `--tacit-until`, the last day tacit renewals may reach,
@@ -97,6 +99,14 @@ docker compose exec backend flask subscription add nord --org example-org \
 
 Once a period ends, a tacit renewal carries on as a year of renewal with no reference, up to
 `--tacit-until`; recording the next period gives it its own.
+
+Every day at 9:00 (Paris), the scheduler emails a site's admins as the end of a period whose
+renewal is still to decide comes near: 90, 30 and 7 days before its last day, 14 and 3 for a
+trial. An announced end (`--renewal ending`) gives notice 30 and 7 days ahead. A covered end
+sends nothing, each threshold goes out once for a given last day, and a day the scheduler
+missed sends the latest threshold crossed only. The same periods ring the bell of the site's
+admins and supervisors. `send-reminder` sends at once, outside these thresholds, and refuses a
+covered end.
 
 ### Provisioning a new client
 

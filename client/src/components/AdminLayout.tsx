@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePlace } from '@/contexts/PlaceContext';
 import { useSiteRef } from '@/contexts/SiteContext';
@@ -12,6 +12,7 @@ import { type PageTitleMap } from '@/components/layout/Topbar';
 import { usePwaOnboarding } from '@/hooks/usePwaOnboarding';
 import { useSecurityOnboarding } from '@/hooks/useSecurityOnboarding';
 import { TourHost } from '@/features/tour/TourHost';
+import { subscriptionBanner } from '@/features/subscription/subscription-view';
 import { useSiteSubscription } from '@/features/subscription/useSubscription';
 import { SUPPORT_EMAIL } from '@/lib/runtime-config';
 import {
@@ -26,6 +27,8 @@ import {
   Globe,
   Lock,
   BadgeCheck,
+  CalendarClock,
+  X,
 } from 'lucide-react';
 
 const PAGES: [string, string][] = [
@@ -56,6 +59,7 @@ export function AdminLayout() {
   const [duringService, setDuringService] = useState(false);
   const [siteDisabled, setSiteDisabled] = useState(false);
   const { data: subscription } = useSiteSubscription(site, role === 'admin');
+  const [renewalHidden, setRenewalHidden] = useState(false);
 
   useSecurityOnboarding(user, '/admin/security');
   usePwaOnboarding('/admin/install');
@@ -140,6 +144,10 @@ export function AdminLayout() {
     [base, 'Calendrier'],
   ];
 
+  const renewal =
+    subscription && !renewalHidden && pathname !== `${base}/subscription`
+      ? subscriptionBanner(subscription)
+      : null;
   const banner = siteDisabled ? (
     <div
       role="status"
@@ -161,6 +169,27 @@ export function AdminLayout() {
         )}
         .
       </p>
+    </div>
+  ) : renewal ? (
+    <div
+      role="status"
+      className="flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200 sm:px-6"
+    >
+      <CalendarClock className="mt-0.5 h-4 w-4 shrink-0" />
+      <p className="min-w-0 flex-1">
+        {renewal}{' '}
+        <Link to={`${base}/subscription`} className="font-medium underline">
+          Voir l'abonnement
+        </Link>
+      </p>
+      <button
+        type="button"
+        aria-label="Masquer"
+        onClick={() => setRenewalHidden(true)}
+        className="-m-1 shrink-0 rounded-xl p-1 hover:bg-amber-100 dark:hover:bg-amber-500/20"
+      >
+        <X className="h-4 w-4" />
+      </button>
     </div>
   ) : undefined;
 

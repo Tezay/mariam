@@ -1,0 +1,12 @@
+{%- set write = ('écrivez à ' ~ support_email) if support_email else 'écrivez-nous' -%}
+{% for site in sites %}
+{% if site.reason == 'trial' -%}
+L'essai gratuit de {{ site.name }} se termine le {{ site.date }}. Pour continuer à utiliser Mariam, {{ write }} : nous vous adresserons un devis.
+{%- elif site.reason == 'ending' -%}
+Le service de {{ site.name }} prendra fin le {{ site.date }}. Pour recevoir une copie de vos données (menus, plats, actualités, images), {{ write }} avant cette date.
+{%- else -%}
+L'abonnement de {{ site.name }} se termine le {{ site.date }}. Pour poursuivre sans interruption, {{ write }} : nous vous adresserons un devis. Si un bon de commande est déjà en cours, vous pouvez ignorer ce message.
+{%- endif %}
+Voir l'abonnement : {{ site.url }}
+{% endfor %}
+Vous recevez ce message parce que vous administrez {{ sites[0].name if sites|length == 1 else 'ces sites' }} sur Mariam.

@@ -48,3 +48,21 @@ class SubscriptionPeriod(db.Model):
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
     )
+
+
+class SubscriptionReminder(db.Model):
+    """A reminder its admins were sent before the end of a site's period, once per threshold."""
+
+    __tablename__ = 'subscription_reminders'
+    __table_args__ = (
+        db.UniqueConstraint('restaurant_id', 'ends_on', 'days', name='uq_subscription_reminder'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    restaurant_id = db.Column(
+        db.Integer, db.ForeignKey('restaurants.id', ondelete='CASCADE'), nullable=False, index=True
+    )
+    # The last day of the period it was sent for: a corrected or renewed end is a new one.
+    ends_on = db.Column(db.Date, nullable=False)
+    days = db.Column(db.Integer, nullable=False)
+    sent_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC))

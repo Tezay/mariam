@@ -15,13 +15,16 @@ import click
 from flask.cli import AppGroup
 
 from ..extensions import db
-from ..models import AuditLog, Organization, Restaurant, SubscriptionPeriod
+from ..models import AuditLog, Organization, Restaurant, SubscriptionPeriod, SubscriptionReminder
 from ..models.subscription import KINDS, RENEWALS
+from ..services.email_service import Kind, is_configured, send_email
+from ..services.subscription_reminders import reminder_mail, site_admins
 from ..services.subscriptions import (
     ACTIVE,
     EXPIRED,
     PERIOD_FIELDS,
     Period,
+    end_ahead,
     overlapping,
     periods_by_site,
     site_standing,
@@ -235,6 +238,15 @@ def show_subscription(site, org):
             click.echo(f'         {" · ".join(references)}')
     if not rows:
         click.echo('  No period recorded.')
+    reminders = (
+        SubscriptionReminder.query.filter_by(restaurant_id=restaurant.id)
+        .order_by(SubscriptionReminder.sent_at.desc()).all()
+    )
+    for reminder in reminders:
+        click.echo(
+            f'  Reminder: {reminder.days} days before {reminder.ends_on}, '
+            f'sent {reminder.sent_at:%Y-%m-%d}'
+        )
     click.echo('=' * 60 + '\n')
 
 
@@ -309,3 +321,38 @@ def delete_period(period_id, yes):
     db.session.delete(period)
     db.session.commit()
     click.echo(f'Period #{period_id} deleted: {label}')
+
+
+@subscription_cli.command('send-reminder')
+@click.argument('site')
+@click.option('--org', default=None, help='Organization (id or slug), when several share the slug')
+@click.option('--dry-run', is_flag=True, help='Show the recipients and the email, send nothing')
+def send_reminder(site, org, dry_run):
+    """Email the site's admins now the reminder its standing calls for.
+
+    Refused when the end is covered or the site is not active. The daily
+    reminders keep their own thresholds: this one is not counted among them.
+    """
+    restaurant = find_site(site, org)
+    position = site_standing(restaurant, paris_today())
+    end = end_ahead(position)
+    if end is None:
+        raise click.ClickException(f'Nothing to remind: {_state_label(position)}.')
+    admins = site_admins([restaurant.id])[restaurant.id]
+    if not admins:
+        raise click.ClickException('The site has no active admin with an email address.')
+    mail = reminder_mail([(restaurant, end)])
+
+    if dry_run:
+        click.echo(f'To: {", ".join(user.email for user in admins)}')
+        click.echo(f'Subject: {mail["subject"]}\n')
+        click.echo(mail['text'])
+        return
+    if not is_configured():
+        raise click.ClickException('SMTP is not configured: nothing sent.')
+    sent = [
+        user.email for user in admins
+        if send_email(user.email, mail['subject'], mail['text'], mail['html'],
+                      kind=Kind.SUBSCRIPTION)
+    ]
+    click.echo(f'Reminder sent to {len(sent)} of {len(admins)} admin(s): {", ".join(sent) or "—"}')

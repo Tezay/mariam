@@ -1,0 +1,9 @@
+{% if sites|length > 1 -%}
+Abonnements : {{ sites|length }} échéances à venir
+{%- else -%}
+{% set site = sites[0] -%}
+{% if site.reason == 'trial' %}L'essai gratuit de {{ site.name }} se termine le {{ site.date }}
+{%- elif site.reason == 'ending' %}Le service de {{ site.name }} prend fin le {{ site.date }}
+{%- else %}L'abonnement de {{ site.name }} se termine le {{ site.date }}
+{%- endif %}
+{%- endif %}

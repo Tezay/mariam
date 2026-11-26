@@ -13,6 +13,7 @@ import {
   siteBadge,
   siteBadgeTitle,
   statusBadge,
+  subscriptionBanner,
   supportText,
 } from '@/features/subscription/subscription-view';
 
@@ -273,5 +274,37 @@ describe('supportText', () => {
 
     expect(query.get('subject')).toBe("Renouvellement de l'abonnement — Café & Co");
     expect(query.get('body')).toContain('Devis : D-1');
+  });
+});
+
+describe('subscriptionBanner', () => {
+  it('speaks a month before an end still to decide, and never far from it', () => {
+    expect(subscriptionBanner(standing({ days_left: 30 }))).toBe(
+      "L'abonnement de ce site se termine le 31 décembre 2027."
+    );
+    expect(subscriptionBanner(standing({ days_left: 31 }))).toBeNull();
+  });
+
+  it('waits for the last week of a trial', () => {
+    const trial = (days: number) =>
+      standing({ current: { ...YEAR, kind: 'trial' }, days_left: days });
+
+    expect(subscriptionBanner(trial(8))).toBeNull();
+    expect(subscriptionBanner(trial(7))).toBe(
+      "L'essai gratuit de ce site se termine le 31 décembre 2027."
+    );
+  });
+
+  it('stays silent when the end is covered or announced', () => {
+    expect(subscriptionBanner(standing({ days_left: 10, end: 'covered' }))).toBeNull();
+    expect(subscriptionBanner(standing({ days_left: 10, end: 'ending' }))).toBeNull();
+  });
+
+  it('says the service carries on past the end', () => {
+    const expired = standing({ state: 'expired', end: null, current: null, past: [YEAR] });
+
+    expect(subscriptionBanner(expired)).toBe(
+      "L'abonnement de ce site est arrivé à échéance le 31 décembre 2027. Le service continue."
+    );
   });
 });
