@@ -28,7 +28,7 @@ db-upgrade:
 	docker compose exec backend flask db upgrade
 
 db-downgrade:
-	docker compose exec backend flask db downgrade -1
+	docker compose exec backend flask db downgrade
 
 db-seed:
 	docker compose exec backend flask seed

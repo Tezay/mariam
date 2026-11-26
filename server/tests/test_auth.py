@@ -1,7 +1,6 @@
 """Sign-in, refresh, sign-out, rate limits and TOTP."""
-import pytest
 from app.extensions import db
-from conftest import make_user, make_restaurant, session_tokens, TEST_PASSWORD
+from conftest import TEST_PASSWORD, make_restaurant, make_user, session_tokens
 
 
 class TestLogin:
@@ -53,6 +52,7 @@ class TestLogin:
     def test_login_mfa_required(self, app, client):
         """An account with a second factor gets an mfa_token, not a session."""
         import pyotp
+
         from app.models import User
         make_restaurant(app)
         uid = make_user(app)
@@ -73,6 +73,7 @@ class TestLogin:
 class TestMFA:
     def test_mfa_verify_success(self, app, client):
         import pyotp
+
         from app.models import User
         make_restaurant(app)
         uid = make_user(app)
@@ -98,6 +99,7 @@ class TestMFA:
 
     def test_mfa_verify_wrong_code(self, app, client):
         import pyotp
+
         from app.models import User
         make_restaurant(app)
         uid = make_user(app)

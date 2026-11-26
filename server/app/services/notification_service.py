@@ -17,7 +17,7 @@ def get_vapid_claims():
     return {
         'private_key': os.environ.get('VAPID_PRIVATE_KEY', ''),
         'claims': {
-            'sub': f"mailto:{os.environ.get('VAPID_CONTACT_EMAIL', 'contact@mariam.app')}"
+            'sub': f"mailto:{os.environ.get('VAPID_CONTACT_EMAIL', '')}"
         }
     }
 

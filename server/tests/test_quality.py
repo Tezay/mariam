@@ -12,7 +12,6 @@ from app.models import (
     MenuCategory,
     MenuItem,
     Restaurant,
-    User,
 )
 from app.models.taxonomy import (
     Certification,

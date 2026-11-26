@@ -5,7 +5,7 @@ import pytest
 from PIL import Image
 
 from app.extensions import db
-from app.models import AuditLog, Organization, Restaurant, RestaurantPhoto, User
+from app.models import AuditLog, Organization, Restaurant, RestaurantPhoto
 from conftest import auth_headers, get_token, make_restaurant, make_user, site_path
 
 STORE = 'https://images.test/'

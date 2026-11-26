@@ -34,7 +34,7 @@ names it. Generate random values with `openssl rand -hex 32`.
   generate it, and keep a copy offline.
 - `S3_PUBLIC_URL` is the public address of the media bucket: images are served from it directly.
 - `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` come from `npx web-push generate-vapid-keys`. Changing
-  the pair later forces every user to subscribe again.
+  the pair later forces every user to subscribe again. `VAPID_CONTACT_EMAIL` goes with them.
 - The `BACKUP_*` variables: see "Automated off-site backups" in [OPERATIONS.md](OPERATIONS.md).
 - Email is optional: without `SMTP_HOST`, every send is a logged no-op.
 
