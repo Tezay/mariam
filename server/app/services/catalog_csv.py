@@ -7,6 +7,7 @@ place in a CSV, so they are the one thing a round trip loses.
 """
 from ..models import MenuCategory
 from ..models.taxonomy import Certification, DietaryTag
+from ..utils.spreadsheet import read_cell, safe_cell
 from .csv_import import normalize_label
 
 COLUMNS = ['nom', 'categorie', 'sous_categorie', 'labels', 'certifications']
@@ -56,13 +57,13 @@ def serialize(dishes: list, paths: dict[int, tuple[str, str]]) -> list[list[str]
     rows = []
     for dish in dishes:
         parent, child = paths.get(dish.category_id, ('', ''))
-        rows.append([
+        rows.append([safe_cell(value) for value in (
             dish.name,
             parent,
             child,
             VALUE_SEPARATOR.join(tag.label for tag in dish.tags),
             VALUE_SEPARATOR.join(cert.name for cert in dish.certifications),
-        ])
+        )])
     return rows
 
 
@@ -81,7 +82,7 @@ def _taxonomy_index() -> tuple[dict[str, str], dict[str, str]]:
 def _cell(row: dict, column: str) -> str:
     for key, value in row.items():
         if normalize_label(key) == column:
-            return str(value or '').strip()
+            return read_cell(str(value or '').strip())
     return ''
 
 
