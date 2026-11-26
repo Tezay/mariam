@@ -18,13 +18,13 @@ from ..extensions import db
 from ..models import AuditLog, Organization, Restaurant, SubscriptionPeriod, SubscriptionReminder
 from ..models.subscription import KINDS, RENEWALS
 from ..services.email_service import Kind, is_configured, send_email
-from ..services.subscription_reminders import notice_of, reminder_mail, site_admins
+from ..services.subscription_reminders import reminder_mail, site_admins
 from ..services.subscriptions import (
     ACTIVE,
-    COVERED,
     EXPIRED,
     PERIOD_FIELDS,
     Period,
+    end_ahead,
     overlapping,
     periods_by_site,
     site_standing,
@@ -335,12 +335,13 @@ def send_reminder(site, org, dry_run):
     """
     restaurant = find_site(site, org)
     position = site_standing(restaurant, paris_today())
-    if position.state != ACTIVE or position.end == COVERED:
+    end = end_ahead(position)
+    if end is None:
         raise click.ClickException(f'Nothing to remind: {_state_label(position)}.')
     admins = site_admins([restaurant.id])[restaurant.id]
     if not admins:
         raise click.ClickException('The site has no active admin with an email address.')
-    mail = reminder_mail([notice_of(restaurant, position, position.days_left)])
+    mail = reminder_mail([(restaurant, end)])
 
     if dry_run:
         click.echo(f'To: {", ".join(user.email for user in admins)}')

@@ -4,6 +4,7 @@ Nothing here acts on a site: an expired subscription only reads as expired.
 """
 from dataclasses import dataclass, replace
 from datetime import date, timedelta
+from typing import Literal
 
 from ..extensions import db
 from ..models import SubscriptionPeriod
@@ -18,9 +19,12 @@ COVERED = 'covered'
 UNDECIDED = 'undecided'
 ENDING = 'ending'
 
+Reason = Literal['renewal', 'trial', 'ending']
+
 # Days before the last day of a period at which its admins hear of it.
-REMINDER_DAYS = {'paid': (90, 30, 7), 'complimentary': (90, 30, 7), 'trial': (14, 3)}
-ENDING_NOTICE_DAYS = (30, 7)
+REMINDER_DAYS: dict[Reason, tuple[int, ...]] = {
+    'renewal': (90, 30, 7), 'trial': (14, 3), 'ending': (30, 7),
+}
 
 PERIOD_FIELDS = (
     'kind', 'starts_on', 'ends_on', 'renewal', 'tacit_until', 'notice_by',
@@ -131,12 +135,31 @@ def standing(periods: list[Period], today: date, site_active: bool = True) -> St
     )
 
 
-def due_reminder(position: Standing) -> int | None:
-    """The tightest threshold the period has crossed: a missed one is never sent late."""
-    if position.state != ACTIVE or position.end == COVERED:
+@dataclass(frozen=True)
+class EndAhead:
+    ends_on: date
+    days_left: int
+    reason: Reason
+
+
+def end_ahead(position: Standing) -> EndAhead | None:
+    """The current period's end, unless it is covered: the only end a reminder speaks of."""
+    current, days_left = position.current, position.days_left
+    if position.state != ACTIVE or position.end == COVERED or current is None or days_left is None:
         return None
-    days = ENDING_NOTICE_DAYS if position.end == ENDING else REMINDER_DAYS[position.current.kind]
-    return min((threshold for threshold in days if position.days_left <= threshold), default=None)
+    reason: Reason
+    if position.end == ENDING:
+        reason = 'ending'
+    else:
+        reason = 'trial' if current.kind == 'trial' else 'renewal'
+    return EndAhead(current.ends_on, days_left, reason)
+
+
+def due_reminder(end: EndAhead) -> int | None:
+    """The tightest threshold the end has crossed: a missed one is never sent late."""
+    return min(
+        (days for days in REMINDER_DAYS[end.reason] if end.days_left <= days), default=None
+    )
 
 
 def periods_by_site(site_ids: list[int]) -> dict[int, list[Period]]:

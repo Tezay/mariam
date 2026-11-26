@@ -22,7 +22,7 @@ from .access import ADMIN, member_site_ids, supervised_site_ids
 from .analytics_stats import uniques_per_site, views_per_site, votes_per_site
 from .anti_abuse import env_cap
 from .service_calendar import closures_by_site, is_open_on
-from .subscriptions import ENDING, EXPIRED, due_reminder, periods_by_site, standing
+from .subscriptions import EXPIRED, due_reminder, end_ahead, periods_by_site, standing
 
 
 def _threshold(name: str, default: float) -> float:
@@ -293,20 +293,19 @@ def _subscription(context: Context) -> list[dict]:
                 site.id, site.name, f"L'abonnement de {site.name} est arrivé à échéance le {label}."
             ))
             urgent = True
-        elif due_reminder(position) is not None:
-            label = format_date_fr(position.current.ends_on)
-            if position.end == ENDING:
+        elif (end := end_ahead(position)) and due_reminder(end) is not None:
+            label = format_date_fr(end.ends_on)
+            if end.reason == 'ending':
                 ending.append(Finding(
                     site.id, site.name, f'Le service de {site.name} prend fin le {label}.'
                 ))
             else:
-                is_trial = position.current.kind == 'trial'
-                what = "L'essai gratuit" if is_trial else "L'abonnement"
+                what = "L'essai gratuit" if end.reason == 'trial' else "L'abonnement"
                 renewal.append(Finding(
                     site.id, site.name, f'{what} de {site.name} se termine le {label}.'
                 ))
-                trial |= is_trial
-                urgent |= position.days_left <= RENEWAL_WARNING_DAYS
+                trial |= end.reason == 'trial'
+                urgent |= end.days_left <= RENEWAL_WARNING_DAYS
     return [
         *_entry(
             f'subscription_renewal:{context.today}', 'warning' if urgent else 'info',

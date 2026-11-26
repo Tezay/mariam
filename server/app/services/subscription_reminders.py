@@ -14,7 +14,7 @@ from ..utils.urls import frontend_base_url
 from .access import ADMIN
 from .email_service import Kind, is_configured, render_email, send_email
 from .redis_client import acquire_job_lock
-from .subscriptions import ENDING, Standing, due_reminder, periods_by_site, standing
+from .subscriptions import EndAhead, due_reminder, end_ahead, periods_by_site, standing
 
 LOCK_TTL = 24 * 3600
 
@@ -22,17 +22,8 @@ LOCK_TTL = 24 * 3600
 @dataclass(frozen=True)
 class Notice:
     site: Restaurant
-    ends_on: date
+    end: EndAhead
     days: int
-    reason: str
-
-
-def notice_of(site: Restaurant, position: Standing, days: int) -> Notice:
-    if position.end == ENDING:
-        reason = 'ending'
-    else:
-        reason = 'trial' if position.current.kind == 'trial' else 'renewal'
-    return Notice(site, position.current.ends_on, days, reason)
 
 
 def due_notices(today: date) -> list[Notice]:
@@ -45,10 +36,10 @@ def due_notices(today: date) -> list[Notice]:
     }
     notices = []
     for site in sites:
-        position = standing(periods[site.id], today)
-        days = due_reminder(position)
-        if days is not None and (site.id, position.current.ends_on, days) not in sent:
-            notices.append(notice_of(site, position, days))
+        end = end_ahead(standing(periods[site.id], today))
+        days = due_reminder(end) if end else None
+        if end and days is not None and (site.id, end.ends_on, days) not in sent:
+            notices.append(Notice(site, end, days))
     return notices
 
 
@@ -70,18 +61,15 @@ def site_admins(site_ids: list[int]) -> dict[int, list[User]]:
     return admins
 
 
-def reminder_mail(notices: list[Notice]) -> dict:
+def reminder_mail(ends: list[tuple[Restaurant, EndAhead]]) -> dict:
     return render_email('subscription_reminder', sites=[
         {
-            'name': notice.site.name,
-            'date': format_date_fr(notice.ends_on),
-            'reason': notice.reason,
-            'url': (
-                f'{frontend_base_url()}/admin/{notice.site.organization.slug}/'
-                f'{notice.site.slug}/subscription'
-            ),
+            'name': site.name,
+            'date': format_date_fr(end.ends_on),
+            'reason': end.reason,
+            'url': f'{frontend_base_url()}/admin/{site.organization.slug}/{site.slug}/subscription',
         }
-        for notice in notices
+        for site, end in ends
     ])
 
 
@@ -92,9 +80,9 @@ def send_notices(notices: list[Notice]) -> set[int]:
     for notice in notices:
         for user in admins[notice.site.id]:
             recipients.setdefault(user.id, (user, []))[1].append(notice)
-    reached = set()
+    reached: set[int] = set()
     for user, own in recipients.values():
-        mail = reminder_mail(own)
+        mail = reminder_mail([(notice.site, notice.end) for notice in own])
         if send_email(user.email, mail['subject'], mail['text'], mail['html'],
                       kind=Kind.SUBSCRIPTION):
             reached.update(notice.site.id for notice in own)
@@ -115,7 +103,7 @@ def send_subscription_reminders(app) -> int:
         for notice in notices:
             if notice.site.id in reached:
                 db.session.add(SubscriptionReminder(
-                    restaurant_id=notice.site.id, ends_on=notice.ends_on, days=notice.days
+                    restaurant_id=notice.site.id, ends_on=notice.end.ends_on, days=notice.days
                 ))
         db.session.commit()
         app.logger.info('Subscription reminders sent for %s sites', len(reached))

@@ -8,7 +8,7 @@ from app.models import Organization, Restaurant, SubscriptionPeriod, Subscriptio
 from app.services import subscription_reminders
 from app.services.alerts import live_alerts
 from app.services.subscription_reminders import send_subscription_reminders
-from app.services.subscriptions import Period, due_reminder, standing
+from app.services.subscriptions import Period, due_reminder, end_ahead, standing
 from app.utils.time import paris_today
 from conftest import join_site, make_restaurant, make_user
 
@@ -24,21 +24,26 @@ def _position(days_left, kind='paid', renewal='undecided', tacit_until=None):
     return standing([period], TODAY)
 
 
+def _due(days_left, **terms):
+    end = end_ahead(_position(days_left, **terms))
+    return end and due_reminder(end)
+
+
 class TestDueReminder:
     @pytest.mark.parametrize(('days_left', 'due'), [(91, None), (90, 90), (25, 30), (7, 7), (0, 7)])
     def test_a_period_to_renew_takes_the_tightest_threshold_crossed(self, days_left, due):
-        assert due_reminder(_position(days_left)) == due
+        assert _due(days_left) == due
 
     def test_a_trial_is_reminded_closer_to_its_end(self):
-        assert [due_reminder(_position(days, kind='trial')) for days in (20, 10, 2)] == [None, 14, 3]
+        assert [_due(days, kind='trial') for days in (20, 10, 2)] == [None, 14, 3]
 
     def test_an_announced_end_gives_notice_a_month_ahead(self):
-        assert [due_reminder(_position(days, renewal='ending')) for days in (40, 25)] == [None, 30]
+        assert [_due(days, renewal='ending') for days in (40, 25)] == [None, 30]
 
     def test_a_covered_end_is_never_reminded(self):
         covered = _position(10, renewal='tacit', tacit_until=TODAY + timedelta(days=400))
 
-        assert (covered.end, due_reminder(covered)) == ('covered', None)
+        assert (covered.end, end_ahead(covered)) == ('covered', None)
 
 
 @pytest.fixture()
