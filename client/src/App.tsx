@@ -38,6 +38,9 @@ const UsersPage = lazy(() =>
 const SettingsPage = lazy(() =>
   import('./pages/admin/SettingsPage').then((m) => ({ default: m.SettingsPage }))
 );
+const SubscriptionPage = lazy(() =>
+  import('./pages/admin/SubscriptionPage').then((m) => ({ default: m.SubscriptionPage }))
+);
 const PublicPagePage = lazy(() =>
   import('./pages/admin/PublicPagePage').then((m) => ({ default: m.PublicPagePage }))
 );
@@ -342,6 +345,14 @@ function App() {
               element={
                 <AdminRoute>
                   <SettingsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="subscription"
+              element={
+                <AdminRoute>
+                  <SubscriptionPage />
                 </AdminRoute>
               }
             />

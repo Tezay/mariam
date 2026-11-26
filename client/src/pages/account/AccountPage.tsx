@@ -57,6 +57,7 @@ import {
   type PublicKeyCredentialRequestOptionsJSON,
 } from '@simplewebauthn/browser';
 import { useOptionalPlace } from '@/contexts/PlaceContext';
+import { SUPPORT_EMAIL } from '@/lib/runtime-config';
 
 function NotificationSection() {
   const { user } = useAuth();
@@ -274,11 +275,16 @@ function PrivacyDialog({ tenant }: { tenant?: string | null }) {
 
           <div className="space-y-2 border-t border-border pt-4">
             <p>
-              Pour toute question sur le service ou sur ce traitement, écrivez à{' '}
-              <a className="text-primary underline" href="mailto:contact@mariam.app">
-                contact@mariam.app
-              </a>
-              . Les demandes portant sur vos droits doivent être adressées à{' '}
+              {SUPPORT_EMAIL && (
+                <>
+                  Pour toute question sur le service ou sur ce traitement, écrivez à{' '}
+                  <a className="text-primary underline" href={`mailto:${SUPPORT_EMAIL}`}>
+                    {SUPPORT_EMAIL}
+                  </a>
+                  .{' '}
+                </>
+              )}
+              Les demandes portant sur vos droits doivent être adressées à{' '}
               {tenant ?? 'votre établissement'}.
             </p>
             <p>

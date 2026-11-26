@@ -2,6 +2,12 @@ import type { MapTiles } from './runtime-config';
 
 type Env = Record<string, string | undefined>;
 
+// Rendered as links: only https keeps a javascript: address out of the pages.
+function httpsUrl(value: string | undefined): string {
+  const url = value?.trim() ?? '';
+  return url.startsWith('https://') ? url : '';
+}
+
 // Served to every browser at /config.js: no secret belongs here.
 export function publicRuntimeConfig(env: Env = process.env) {
   return {
@@ -13,7 +19,17 @@ export function publicRuntimeConfig(env: Env = process.env) {
     SENTRY_DSN: env.SENTRY_DSN || '',
     SENTRY_ENVIRONMENT:
       env.SENTRY_ENVIRONMENT || (env.NODE_ENV === 'production' ? 'production' : 'development'),
+    SUPPORT_EMAIL: supportEmail(env),
+    STATUS_PAGE_URL: httpsUrl(env.STATUS_PAGE_URL),
+    TERMS_URL: httpsUrl(env.TERMS_URL),
+    DPA_URL: httpsUrl(env.DPA_URL),
+    API_TERMS_URL: httpsUrl(env.API_TERMS_URL),
+    SOURCE_LICENSE_URL: httpsUrl(env.SOURCE_LICENSE_URL),
   };
+}
+
+export function supportEmail(env: Env = process.env): string {
+  return env.SUPPORT_EMAIL?.trim() ?? '';
 }
 
 export function runtimeConfigScript(env: Env = process.env): string {

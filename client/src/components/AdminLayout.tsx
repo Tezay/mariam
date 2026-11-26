@@ -12,6 +12,8 @@ import { type PageTitleMap } from '@/components/layout/Topbar';
 import { usePwaOnboarding } from '@/hooks/usePwaOnboarding';
 import { useSecurityOnboarding } from '@/hooks/useSecurityOnboarding';
 import { TourHost } from '@/features/tour/TourHost';
+import { useSiteSubscription } from '@/features/subscription/useSubscription';
+import { SUPPORT_EMAIL } from '@/lib/runtime-config';
 import {
   CalendarDays,
   ChartColumn,
@@ -23,6 +25,7 @@ import {
   Shield,
   Globe,
   Lock,
+  BadgeCheck,
 } from 'lucide-react';
 
 const PAGES: [string, string][] = [
@@ -34,13 +37,14 @@ const PAGES: [string, string][] = [
   ['/stats', 'Statistiques'],
   ['/users', 'Utilisateurs'],
   ['/settings', 'Mon restaurant'],
+  ['/subscription', 'Abonnement'],
   ['/public-page', 'Page publique'],
   ['/audit-logs', "Logs d'audit"],
 ];
 
 const BOTTOM_NAV_PAGES = ['/calendar', '/service', '/catalogue', '/stats'];
 
-const ADMIN_ONLY_PAGES = ['/users', '/settings', '/public-page', '/audit-logs'];
+const ADMIN_ONLY_PAGES = ['/users', '/settings', '/subscription', '/public-page', '/audit-logs'];
 
 export function AdminLayout() {
   const { user } = useAuth();
@@ -51,6 +55,7 @@ export function AdminLayout() {
   const [serviceHours, setServiceHours] = useState<ServiceHours>({});
   const [duringService, setDuringService] = useState(false);
   const [siteDisabled, setSiteDisabled] = useState(false);
+  const { data: subscription } = useSiteSubscription(site, role === 'admin');
 
   useSecurityOnboarding(user, '/admin/security');
   usePwaOnboarding('/admin/install');
@@ -107,6 +112,15 @@ export function AdminLayout() {
       shortLabel: 'Restaurant',
       icon: <Settings className="h-5 w-5" />,
     },
+    ...(subscription && subscription.state !== 'none'
+      ? [
+          {
+            to: `${base}/subscription`,
+            label: 'Abonnement',
+            icon: <BadgeCheck className="h-5 w-5" />,
+          },
+        ]
+      : []),
     {
       to: `${base}/public-page`,
       label: 'Page publique',
@@ -135,7 +149,17 @@ export function AdminLayout() {
       <p>
         Ce site est désactivé : sa page publique n'est plus accessible et ses données ne peuvent
         plus être modifiées. Elles restent consultables. Pour le réactiver ou obtenir une copie de
-        vos données, contactez le support.
+        vos données, écrivez au support
+        {SUPPORT_EMAIL && (
+          <>
+            {' '}
+            :{' '}
+            <a className="font-medium text-foreground underline" href={`mailto:${SUPPORT_EMAIL}`}>
+              {SUPPORT_EMAIL}
+            </a>
+          </>
+        )}
+        .
       </p>
     </div>
   ) : undefined;

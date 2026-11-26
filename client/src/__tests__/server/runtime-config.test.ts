@@ -42,6 +42,16 @@ describe('publicRuntimeConfig', () => {
     expect(JSON.stringify(config)).not.toContain('backend');
   });
 
+  it('links a document only from an https address', () => {
+    const config = publicRuntimeConfig({
+      TERMS_URL: 'javascript:alert(1)',
+      DPA_URL: ' https://example.org/dpa.pdf ',
+    });
+
+    expect(config.TERMS_URL).toBe('');
+    expect(config.DPA_URL).toBe('https://example.org/dpa.pdf');
+  });
+
   it('names the environment after the build when none is given', () => {
     expect(publicRuntimeConfig({ NODE_ENV: 'production' }).SENTRY_ENVIRONMENT).toBe('production');
     expect(publicRuntimeConfig({}).SENTRY_ENVIRONMENT).toBe('development');

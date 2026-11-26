@@ -5,15 +5,20 @@
 import { Link } from 'react-router';
 import { Building2, ChevronRight } from 'lucide-react';
 import { useOrgSites } from '@/features/analytics/hooks/useAnalyticsQueries';
-import { PageHeader, StatusPill } from './ui';
+import { PageHeader } from './ui';
 import { AddSiteButton } from './AddSiteButton';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { useOrgPage } from '@/contexts/PlaceContext';
+import { SubscriptionBadge } from '@/features/subscription/SubscriptionBadge';
+import { siteBadge, siteBadgeTitle } from '@/features/subscription/subscription-view';
+import { useOrgSubscriptions } from '@/features/subscription/useSubscription';
 
 export function OrgSitesPage() {
   const { data, isError } = useOrgSites();
   const orgPage = useOrgPage();
   const sites = isError ? [] : (data ?? null);
+  const { data: subscriptions } = useOrgSubscriptions();
+  const subscriptionOf = new Map(subscriptions?.map((item) => [item.site, item]));
 
   return (
     <div>
@@ -34,26 +39,33 @@ export function OrgSitesPage() {
         />
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
-          {sites.map((s) => (
-            <Link
-              key={s.slug}
-              to={orgPage(`/sites/${s.slug}`)}
-              className="flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/40"
-            >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Building2 className="h-4 w-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-medium text-foreground">{s.name}</div>
-                <div className="truncate text-xs text-muted-foreground">
-                  /{s.slug} · {s.member_count} compte{s.member_count > 1 ? 's' : ''} ·{' '}
-                  {s.upcoming_events} événement{s.upcoming_events > 1 ? 's' : ''}
+          {sites.map((s) => {
+            const subscription = subscriptionOf.get(s.slug);
+            const badge = <SubscriptionBadge badge={siteBadge(s.is_active, subscription)} />;
+            return (
+              <Link
+                key={s.slug}
+                to={orgPage(`/sites/${s.slug}`)}
+                className="flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/40"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Building2 className="h-4 w-4" />
                 </div>
-              </div>
-              <StatusPill active={s.is_active} />
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-            </Link>
-          ))}
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium text-foreground">{s.name}</div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    /{s.slug} · {s.member_count} compte{s.member_count > 1 ? 's' : ''} ·{' '}
+                    {s.upcoming_events} événement{s.upcoming_events > 1 ? 's' : ''}
+                  </div>
+                  <div className="mt-1.5 flex sm:hidden">{badge}</div>
+                </div>
+                <span className="hidden sm:inline-flex" title={siteBadgeTitle(subscription)}>
+                  {badge}
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

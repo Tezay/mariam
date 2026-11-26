@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/Logo';
 import { PasswordInput } from '@/components/PasswordInput';
+import { SUPPORT_EMAIL } from '@/lib/runtime-config';
 import { ArrowUpRight, ChevronDown, Fingerprint, ShieldCheck } from 'lucide-react';
 import {
   platformAuthenticatorIsAvailable,
@@ -331,11 +332,15 @@ export function Login() {
                   )}
 
                   <p className="text-center text-sm text-muted-foreground">
-                    Mot de passe oublié ? Contactez l'administrateur de votre établissement, ou
-                    écrivez à{' '}
-                    <a className="text-primary underline" href="mailto:contact@mariam.app">
-                      contact@mariam.app
-                    </a>
+                    Mot de passe oublié ? Contactez l'administrateur de votre établissement
+                    {SUPPORT_EMAIL && (
+                      <>
+                        , ou écrivez à{' '}
+                        <a className="text-primary underline" href={`mailto:${SUPPORT_EMAIL}`}>
+                          {SUPPORT_EMAIL}
+                        </a>
+                      </>
+                    )}
                     .
                   </p>
                 </>

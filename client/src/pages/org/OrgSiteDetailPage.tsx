@@ -20,6 +20,9 @@ import { SiteWeekCalendar } from './site/SiteWeekCalendar';
 import { TrafficView } from '@/features/analytics/TrafficView';
 import { SatisfactionView } from '@/features/analytics/SatisfactionView';
 import { useOrgPage } from '@/contexts/PlaceContext';
+import { SubscriptionBadge } from '@/features/subscription/SubscriptionBadge';
+import { siteBadge, siteBadgeTitle } from '@/features/subscription/subscription-view';
+import { useOrgSubscriptions } from '@/features/subscription/useSubscription';
 
 const SITE_USER_COLUMNS: DataTableColumn<Member>[] = [
   {
@@ -53,6 +56,8 @@ export function OrgSiteDetailPage() {
     [org, slug]
   );
   const [users, setUsers] = useState<Member[]>([]);
+  const { data: subscriptions } = useOrgSubscriptions();
+  const subscription = subscriptions?.find((item) => item.site === slug);
 
   useEffect(() => {
     if (!ref) return;
@@ -94,7 +99,9 @@ export function OrgSiteDetailPage() {
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">/{site.slug}</p>
         </div>
-        <StatusPill active={site.is_active} />
+        <span className="inline-flex" title={siteBadgeTitle(subscription)}>
+          <SubscriptionBadge badge={siteBadge(site.is_active, subscription)} />
+        </span>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">

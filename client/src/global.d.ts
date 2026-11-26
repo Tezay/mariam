@@ -15,6 +15,12 @@ interface Window {
     UMAMI_WEBSITE_ID?: string;
     SENTRY_DSN?: string;
     SENTRY_ENVIRONMENT?: string;
+    SUPPORT_EMAIL?: string;
+    STATUS_PAGE_URL?: string;
+    TERMS_URL?: string;
+    DPA_URL?: string;
+    API_TERMS_URL?: string;
+    SOURCE_LICENSE_URL?: string;
   };
   umami?: {
     track: (event: string, data?: Record<string, unknown>) => void;

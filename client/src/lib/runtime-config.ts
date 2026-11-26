@@ -12,6 +12,18 @@ export const APP_VERSION = config?.APP_VERSION || 'dev';
 // Set with or without a DSN, so it names the deployment rather than the error tracker.
 export const APP_ENVIRONMENT = config?.SENTRY_ENVIRONMENT || 'development';
 
+/** The operator's address; empty, the pages name no contact. */
+export const SUPPORT_EMAIL = config?.SUPPORT_EMAIL || '';
+
+export const STATUS_PAGE_URL = config?.STATUS_PAGE_URL || '';
+
+export const DOCUMENT_URLS = {
+  terms: config?.TERMS_URL || '',
+  dpa: config?.DPA_URL || '',
+  apiTerms: config?.API_TERMS_URL || '',
+  sourceLicense: config?.SOURCE_LICENSE_URL || '',
+};
+
 export interface MapTiles {
   url: string;
   attribution: string;

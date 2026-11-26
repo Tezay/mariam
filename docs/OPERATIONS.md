@@ -69,6 +69,35 @@ accounts: role, suspension, removal, second factors, password link, revoking an 
 
 In development, `make site ARGS="list --all"` wraps the same group.
 
+### Subscriptions
+
+`flask subscription` records the periods of a site's subscription, which its admins read on its
+subscription page; its supervisors see its state on the site's badge. A period only describes the subscription: none of
+these commands turns a site off, and a site with no period shows no subscription at all.
+
+| Command | What it does |
+| --- | --- |
+| `subscription list [--org] [--ending-within DAYS]` | Each site's standing, sites with no period included |
+| `subscription show SITE [--org]` | The site's standing and every period recorded for it, with its id |
+| `subscription add SITE [--org] --kind K --start D --end D [terms] [--from-previous]` | Records a period, both days included |
+| `subscription update ID [terms] [--clear FIELD]` | Changes a period; `--clear` empties a field |
+| `subscription delete ID [--yes]` | Deletes a period recorded by mistake |
+
+`--kind` is `trial`, `paid` or `complimentary`. The terms are `--renewal` (`undecided` by
+default, `tacit` or `ending`), `--tacit-until`, the last day tacit renewals may reach,
+`--notice-by`, the last day the buyer may decline the next one, and the references: `--quote`,
+`--order`, `--payer-name`, `--payer-siret`, `--payer-service-code`. `--from-previous` takes the
+renewal terms and the payer from the site's latest period. Periods of a site never overlap.
+
+```bash
+docker compose exec backend flask subscription add nord --org example-org \
+  --kind paid --start 2027-01-01 --end 2027-12-31 \
+  --renewal tacit --tacit-until 2029-12-31 --notice-by 2027-09-30 --order 2100045871
+```
+
+Once a period ends, a tacit renewal carries on as a year of renewal with no reference, up to
+`--tacit-until`; recording the next period gives it its own.
+
 ### Provisioning a new client
 
 An organization is a client; its slug opens the addresses of its pages, `/<slug>`. A supervisor
@@ -218,9 +247,10 @@ SUPPORT_EMAIL=contact@example.org                # where replies go, named in th
 ```
 
 The digest leaves from the scheduler and the address alert from the backend: both need these
-variables. The digest's unsubscribe link points to the API, at `FRONTEND_URL/v1` unless `API_URL`
-says otherwise: when the API has a host of its own, give the backend and the scheduler the
-`API_URL` the front end is given.
+variables. The frontend reads `SUPPORT_EMAIL` too, and names it on the sign-in page, the account
+page, the privacy notice and the subscription page. The digest's unsubscribe link points to the
+API, at `FRONTEND_URL/v1` unless `API_URL` says otherwise: when the API has a host of its own,
+give the backend and the scheduler the `API_URL` the front end is given.
 
 Check it without waiting for the weekly run:
 

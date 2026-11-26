@@ -74,6 +74,9 @@ class AuditLog(db.Model):
     ACTION_SITE_CREATE = 'site_create'
     ACTION_SITE_ENABLE = 'site_enable'
     ACTION_SITE_DISABLE = 'site_disable'
+    ACTION_SUBSCRIPTION_CREATE = 'subscription_create'
+    ACTION_SUBSCRIPTION_UPDATE = 'subscription_update'
+    ACTION_SUBSCRIPTION_DELETE = 'subscription_delete'
 
     @classmethod
     def log(cls, action, user_id=None, target_type=None, target_id=None,
