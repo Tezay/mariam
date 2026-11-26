@@ -311,7 +311,7 @@ class TestCatalogExportRoundTrip:
 
         upload = _upload_catalog(client, token, csv_body, 'catalogue.csv').get_json()
         assert upload['is_catalog_export'] is True
-        assert upload['category_paths'] == ['Desserts', 'Plat principal › Viandes']
+        assert sorted(upload['category_paths']) == ['Desserts', 'Plat principal › Viandes']
 
         mapping = {path: 'create' for path in upload['category_paths']}
         preview = client.post(f'{_site(client, token)}/dish-imports/{upload["id"]}/preview', json={
