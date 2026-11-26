@@ -292,6 +292,9 @@ class TestCatalogExportRoundTrip:
         client.post(f'{_site(client, token)}/dishes', json={
             'name': 'Tarte aux pommes', 'category_id': dessert.id,
         }, headers=auth_headers(token))
+        client.post(f'{_site(client, token)}/dishes', json={
+            'name': '=SOMME(A1:A2)', 'category_id': dessert.id,
+        }, headers=auth_headers(token))
 
         csv_body = client.get(
             f'{_site(client, token)}/dishes/export', headers=auth_headers(token)
@@ -304,26 +307,27 @@ class TestCatalogExportRoundTrip:
 
     def test_reimport_restores_dishes_categories_and_labels(self, app, client):
         token, csv_body = self._export(app, client)
+        assert "\n'=SOMME(A1:A2);" in csv_body
 
         upload = _upload_catalog(client, token, csv_body, 'catalogue.csv').get_json()
         assert upload['is_catalog_export'] is True
-        assert upload['category_paths'] == ['Plat principal › Viandes', 'Desserts']
+        assert sorted(upload['category_paths']) == ['Desserts', 'Plat principal › Viandes']
 
         mapping = {path: 'create' for path in upload['category_paths']}
         preview = client.post(f'{_site(client, token)}/dish-imports/{upload["id"]}/preview', json={
             'category_map': mapping,
         }, headers=auth_headers(token)).get_json()
-        assert preview['new_count'] == 2
+        assert preview['new_count'] == 3
         assert sorted(preview['categories_to_create']) == ['Desserts', 'Plat principal › Viandes']
 
         result = client.post(f'{_site(client, token)}/dish-imports/{upload["id"]}/confirm', json={
             'category_map': mapping,
         }, headers=auth_headers(token))
-        assert result.get_json()['created_count'] == 2
+        assert result.get_json()['created_count'] == 3
 
         dishes = client.get(f'{_site(client, token)}/dishes', headers=auth_headers(token)).get_json()['items']
         restored = {dish['name']: dish for dish in dishes}
-        assert sorted(restored) == ['Bœuf bourguignon', 'Tarte aux pommes']
+        assert sorted(restored) == ['=SOMME(A1:A2)', 'Bœuf bourguignon', 'Tarte aux pommes']
         assert [tag['id'] for tag in restored['Bœuf bourguignon']['tags']] == ['vegetarian']
 
         again = client.get(f'{_site(client, token)}/dishes/export', headers=auth_headers(token))

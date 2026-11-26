@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **The catalogue's CSV export no longer lets a dish name run as a spreadsheet formula**; re-importing the file restores the name as typed.
+
 ### Added
 
 - **`SIGNED_IN_HINT_DOMAIN`**: an open session leaves a data-free cookie on that domain.
