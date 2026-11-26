@@ -4,7 +4,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { Account } from '@/lib/api/user';
 import { LANDING_PATH, installPath, placeGroups, sitePath } from '@/lib/dashboard-routes';
 import { roleLabel } from '@/lib/roles';
-import { APP_ENVIRONMENT, APP_VERSION } from '@/lib/runtime-config';
+import {
+  APP_ENVIRONMENT,
+  APP_VERSION,
+  DOCUMENT_URLS,
+  OPERATOR_NAME,
+  SUPPORT_EMAIL,
+} from '@/lib/runtime-config';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import { userApi, type NotifPreferences } from '@/lib/api/user';
 import { publicApi } from '@/lib/api/public';
@@ -39,6 +45,7 @@ import {
   Check,
   ClipboardCopy,
   Compass,
+  FileText,
   Fingerprint,
   FlaskConical,
   MonitorSmartphone,
@@ -57,7 +64,6 @@ import {
   type PublicKeyCredentialRequestOptionsJSON,
 } from '@simplewebauthn/browser';
 import { useOptionalPlace } from '@/contexts/PlaceContext';
-import { SUPPORT_EMAIL } from '@/lib/runtime-config';
 
 function NotificationSection() {
   const { user } = useAuth();
@@ -245,18 +251,31 @@ function PrivacyDialog({ tenant }: { tenant?: string | null }) {
             <p>
               {tenant ?? 'Votre établissement'} décide qui dispose d’un compte et pour quelles
               missions, et reste responsable du traitement de ces données. Toute demande d’accès, de
-              rectification ou de suppression lui revient. Mariam intervient comme sous-traitant et
-              agit sur ses instructions.
+              rectification ou de suppression lui revient. {OPERATOR_NAME || 'L’éditeur du service'}{' '}
+              intervient comme sous-traitant et agit sur ses instructions.
             </p>
           </Block>
 
           <Block title="Sous-traitants ultérieurs">
             <p>
-              Scaleway héberge le service en France : le serveur qui exécute l’application et sa
-              base de données, le stockage des images et des sauvegardes, et l’envoi des e-mails.
-              Cloudflare achemine les connexions jusqu’au service ; société américaine, elle est
-              certifiée au Data Privacy Framework, que la Commission européenne reconnaît comme
-              assurant un niveau de protection adéquat.
+              La liste des sous-traitants ultérieurs (hébergement, stockage, envoi des e-mails,
+              acheminement des connexions), leur localisation et leurs garanties{' '}
+              {DOCUMENT_URLS.dpa ? (
+                <>
+                  figurent dans l’
+                  <a
+                    className="text-primary underline"
+                    href={DOCUMENT_URLS.dpa}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    accord de sous-traitance
+                  </a>
+                  .
+                </>
+              ) : (
+                'sont communiquées à votre établissement sur demande.'
+              )}
             </p>
           </Block>
 
@@ -813,6 +832,17 @@ export function AccountPage() {
         {/* Not role-gated, unlike the section above: every account is audited. */}
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border pt-4">
           <PrivacyDialog tenant={tenant} />
+          {DOCUMENT_URLS.legalNotice && (
+            <a
+              href={DOCUMENT_URLS.legalNotice}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <FileText className="h-3.5 w-3.5 shrink-0" />
+              Mentions légales
+            </a>
+          )}
           <AboutDialog places={places} />
         </div>
       </div>

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The privacy notices name the operator from `OPERATOR_NAME`**, and leave its host and sub-processors to `LEGAL_NOTICE_URL` and `DPA_URL`.
 - **The sign-in page links to the public menus**, in a new tab.
 - **`flask site create` and `flask org create` replace `create-site` and `create-org`.**
 

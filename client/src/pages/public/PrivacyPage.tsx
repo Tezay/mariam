@@ -14,7 +14,15 @@ function Basis({ children }: { children: React.ReactNode }) {
   return <p className="pt-1 text-xs text-site-subtle">{children}</p>;
 }
 
-export function PrivacyPage({ supportEmail }: { supportEmail: string }) {
+export function PrivacyPage({
+  supportEmail,
+  operatorName,
+  legalNoticeUrl,
+}: {
+  supportEmail: string;
+  operatorName: string;
+  legalNoticeUrl: string;
+}) {
   return (
     <div className="public-page min-h-screen">
       <div className="mx-auto max-w-2xl px-5 py-10">
@@ -107,7 +115,6 @@ export function PrivacyPage({ supportEmail }: { supportEmail: string }) {
               <li>Aucune publicité, aucun profilage, aucune revente.</li>
               <li>Aucun cookie publicitaire, aucun traceur appartenant à un tiers.</li>
               <li>Aucune adresse IP conservée en clair dans notre base de données.</li>
-              <li>Aucune donnée hébergée hors de France.</li>
             </ul>
           </Section>
 
@@ -127,8 +134,8 @@ export function PrivacyPage({ supportEmail }: { supportEmail: string }) {
 
           <Section title="Qui traite ces données">
             <p>
-              Eliot Cupillard, éditeur de Mariam, est responsable des traitements décrits sur cette
-              page.
+              {operatorName ? `${operatorName}, éditeur de ce service,` : 'L’éditeur de ce service'}{' '}
+              est responsable des traitements décrits sur cette page.
               {supportEmail && (
                 <>
                   {' '}
@@ -141,10 +148,25 @@ export function PrivacyPage({ supportEmail }: { supportEmail: string }) {
               )}
             </p>
             <p>
-              Le service, sa base de données et ses sauvegardes sont hébergés en France par
-              Scaleway. Les requêtes vers ces pages transitent par Cloudflare, société américaine
-              certifiée au Data Privacy Framework, que la Commission européenne reconnaît comme
-              assurant un niveau de protection adéquat. Tous deux agissent comme sous-traitants.
+              Les prestataires qui hébergent le service et acheminent ses connexions agissent comme
+              sous-traitants. Leur liste, leur localisation et les garanties d’un éventuel transfert
+              hors de l’Union européenne{' '}
+              {legalNoticeUrl ? (
+                <>
+                  figurent dans les{' '}
+                  <a
+                    className="text-site-brand underline"
+                    href={legalNoticeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    mentions légales
+                  </a>
+                  .
+                </>
+              ) : (
+                'vous sont communiqués sur demande.'
+              )}
             </p>
           </Section>
 
@@ -177,7 +199,7 @@ export function PrivacyPage({ supportEmail }: { supportEmail: string }) {
         </div>
 
         <p className="mt-10 border-t border-site-line pt-5 text-xs text-site-subtle">
-          Dernière mise à jour : 15 octobre 2026
+          Dernière mise à jour : 26 novembre 2026
         </p>
       </div>
     </div>

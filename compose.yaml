@@ -149,6 +149,8 @@ services:
       DPA_URL: ${DPA_URL:-}
       API_TERMS_URL: ${API_TERMS_URL:-}
       SOURCE_LICENSE_URL: ${SOURCE_LICENSE_URL:-}
+      LEGAL_NOTICE_URL: ${LEGAL_NOTICE_URL:-https://example.org/mentions-legales}
+      OPERATOR_NAME: ${OPERATOR_NAME:-}
     volumes:
       - ./client:/app
       # Keeps the image's node_modules, which the bind mount above would shadow.

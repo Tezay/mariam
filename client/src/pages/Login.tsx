@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/Logo';
 import { PasswordInput } from '@/components/PasswordInput';
-import { SUPPORT_EMAIL } from '@/lib/runtime-config';
+import { DOCUMENT_URLS, SUPPORT_EMAIL } from '@/lib/runtime-config';
 import { ArrowUpRight, ChevronDown, Fingerprint, ShieldCheck } from 'lucide-react';
 import {
   platformAuthenticatorIsAvailable,
@@ -422,6 +422,19 @@ export function Login() {
               <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
               <span className="sr-only">(nouvel onglet)</span>
             </a>
+            {DOCUMENT_URLS.legalNotice && (
+              <>
+                {' · '}
+                <a
+                  href={DOCUMENT_URLS.legalNotice}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline-offset-4 hover:text-foreground hover:underline"
+                >
+                  Mentions légales
+                </a>
+              </>
+            )}
           </p>
         )}
       </div>

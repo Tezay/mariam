@@ -177,6 +177,8 @@ before(async () => {
       SENTRY_DSN: 'https://key@errors.example.test/1',
       SUPPORT_EMAIL: 'support@example.test',
       STATUS_PAGE_URL: 'https://status.example.test',
+      LEGAL_NOTICE_URL: 'https://legal.example.test',
+      OPERATOR_NAME: 'Opérateur Test',
     },
   });
   for (let attempt = 0; attempt < 50; attempt += 1) {
@@ -289,14 +291,18 @@ test('/config.js exposes the public settings only', async () => {
       DPA_URL: '',
       API_TERMS_URL: '',
       SOURCE_LICENSE_URL: '',
+      LEGAL_NOTICE_URL: 'https://legal.example.test',
+      OPERATOR_NAME: 'Opérateur Test',
     }
   );
 });
 
-test('the privacy notice names the support address in its first rendering', async () => {
+test('the privacy notice names the operator, its address and its legal notice', async () => {
   const page = await request('/privacy');
   assert.equal(page.status, 200);
   assert.match(page.body, /mailto:support@example\.test/);
+  assert.ok(page.body.includes('Opérateur Test, éditeur de ce service,'));
+  assert.ok(page.body.includes('href="https://legal.example.test"'));
 });
 
 test('a site page installs its own app, named after it', async () => {
@@ -378,6 +384,7 @@ test('a site page is rendered by the server, with its title, its dishes and its 
   assert.ok(page.body.includes('Curry de pois chiches'));
   assert.ok(page.body.includes('450 repas par service'));
   assert.ok(page.body.includes('Nos achats en 2025'));
+  assert.ok(page.body.includes('href="https://legal.example.test"'));
   const jsonld = /<script type="application\/ld\+json">(.*?)<\/script>/.exec(page.body)?.[1];
   assert.ok(jsonld, 'no JSON-LD block');
   const [restaurant] = JSON.parse(jsonld);

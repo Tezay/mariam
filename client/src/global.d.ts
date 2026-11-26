@@ -21,6 +21,8 @@ interface Window {
     DPA_URL?: string;
     API_TERMS_URL?: string;
     SOURCE_LICENSE_URL?: string;
+    LEGAL_NOTICE_URL?: string;
+    OPERATOR_NAME?: string;
   };
   umami?: {
     track: (event: string, data?: Record<string, unknown>) => void;

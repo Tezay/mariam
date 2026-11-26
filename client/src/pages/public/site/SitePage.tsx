@@ -39,6 +39,7 @@ interface SitePageProps {
   quality: Quality | null;
   serverNow: number;
   mapTiles: MapTiles | null;
+  legalNoticeUrl: string;
 }
 
 export function SitePage({
@@ -50,6 +51,7 @@ export function SitePage({
   quality,
   serverNow,
   mapTiles,
+  legalNoticeUrl,
 }: SitePageProps) {
   const now = useNow(serverNow);
   const today = parisToday(new Date(serverNow));
@@ -161,7 +163,7 @@ export function SitePage({
       <footer className="border-t border-site-line">
         <div className="mx-auto flex max-w-[1200px] flex-col items-center gap-3.5 px-4 py-6 lg:flex-row lg:justify-between lg:px-6 lg:py-5">
           <NotificationsButton onClick={openNotifications} className="w-full lg:hidden" />
-          <div className="flex gap-4 text-xs text-site-subtle lg:w-full lg:justify-between lg:text-[13px]">
+          <div className="flex flex-wrap justify-center gap-x-4 whitespace-nowrap text-xs text-site-subtle lg:w-full lg:justify-between lg:text-[13px]">
             <a
               href="https://mariam.app"
               target="_blank"
@@ -170,9 +172,21 @@ export function SitePage({
             >
               Alimenté par mariam.app
             </a>
-            <Link to="/privacy" className="py-3 hover:text-site-text">
-              Confidentialité
-            </Link>
+            <span className="flex gap-4">
+              {legalNoticeUrl && (
+                <a
+                  href={legalNoticeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="py-3 hover:text-site-text"
+                >
+                  Mentions légales
+                </a>
+              )}
+              <Link to="/privacy" className="py-3 hover:text-site-text">
+                Confidentialité
+              </Link>
+            </span>
           </div>
         </div>
       </footer>

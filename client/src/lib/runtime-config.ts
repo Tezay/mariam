@@ -15,9 +15,13 @@ export const APP_ENVIRONMENT = config?.SENTRY_ENVIRONMENT || 'development';
 /** The operator's address; empty, the pages name no contact. */
 export const SUPPORT_EMAIL = config?.SUPPORT_EMAIL || '';
 
+/** Who runs this instance; empty, the pages say « l'éditeur du service ». */
+export const OPERATOR_NAME = config?.OPERATOR_NAME || '';
+
 export const STATUS_PAGE_URL = config?.STATUS_PAGE_URL || '';
 
 export const DOCUMENT_URLS = {
+  legalNotice: config?.LEGAL_NOTICE_URL || '',
   terms: config?.TERMS_URL || '',
   dpa: config?.DPA_URL || '',
   apiTerms: config?.API_TERMS_URL || '',

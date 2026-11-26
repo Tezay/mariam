@@ -1,7 +1,7 @@
 import { data, redirect, type ShouldRevalidateFunctionArgs } from 'react-router';
 import { fetchLiveStatus, fetchQuality, fetchSitePage } from '@/lib/api/public.server';
 import { addDays, parisToday } from '@/lib/date-utils';
-import { mapTiles } from '@/lib/runtime-config.server';
+import { legalNoticeUrl, mapTiles } from '@/lib/runtime-config.server';
 import { publicMenuData } from './public-menu-data';
 import { onlyTheDayChanged } from './site/days';
 import { menuDescription, restaurantJsonLd, siteName } from './seo/jsonld';
@@ -61,6 +61,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     now,
     url: `${tenant.origin}${pagePath}`,
     mapTiles: mapTiles(),
+    legalNoticeUrl: legalNoticeUrl(),
   };
 }
 
@@ -114,6 +115,7 @@ export default function SiteRoute({ loaderData }: Route.ComponentProps) {
       quality={loaderData.quality}
       serverNow={loaderData.now}
       mapTiles={loaderData.mapTiles}
+      legalNoticeUrl={loaderData.legalNoticeUrl}
     />
   );
 }

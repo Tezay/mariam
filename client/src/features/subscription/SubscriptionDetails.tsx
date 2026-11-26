@@ -221,6 +221,7 @@ export function SupportCard({
 }
 
 const DOCUMENTS: [keyof typeof DOCUMENT_URLS, string][] = [
+  ['legalNotice', 'Mentions légales'],
   ['terms', 'Conditions de service'],
   ['dpa', 'Accord de sous-traitance des données'],
   ['apiTerms', "Conditions d'utilisation de l'API"],
