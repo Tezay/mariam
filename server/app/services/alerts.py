@@ -14,14 +14,15 @@ from enum import Enum
 from functools import cached_property
 
 from ..extensions import db
-from ..models import AuditLog, Menu, Restaurant
+from ..models import AuditLog, Menu, Restaurant, User
 from ..models.restaurant import RestaurantServiceHours
 from ..utils.time import format_date_fr, paris_now
 from . import holidays
-from .access import member_site_ids
+from .access import ADMIN, member_site_ids, supervised_site_ids
 from .analytics_stats import uniques_per_site, views_per_site, votes_per_site
 from .anti_abuse import env_cap
 from .service_calendar import closures_by_site, is_open_on
+from .subscriptions import ENDING, EXPIRED, due_reminder, periods_by_site, standing
 
 
 def _threshold(name: str, default: float) -> float:
@@ -34,6 +35,7 @@ def _threshold(name: str, default: float) -> float:
 TOMORROW_MENU_HOUR = 16
 TRAFFIC_BASELINE_WEEKS = 4
 SATISFACTION_DAYS = 7
+RENEWAL_WARNING_DAYS = 30
 
 
 @dataclass(frozen=True)
@@ -50,6 +52,7 @@ class Audience(Enum):
 
 @dataclass
 class Context:
+    user: User
     sites: list
     site_ids: list[int]
     today: date
@@ -275,6 +278,48 @@ def _site_inactive(context: Context) -> list[dict]:
     )
 
 
+def _subscription(context: Context) -> list[dict]:
+    """For those who buy the subscription or oversee it: never a site's editors."""
+    overseen = member_site_ids(context.user, (ADMIN,)) | supervised_site_ids(context.user)
+    sites = [site for site in context.sites if site.id in overseen]
+    periods = periods_by_site([site.id for site in sites])
+    renewal, ending = [], []
+    urgent = trial = False
+    for site in sites:
+        position = standing(periods[site.id], context.today)
+        if position.state == EXPIRED:
+            label = format_date_fr(position.past[0].ends_on)
+            renewal.append(Finding(
+                site.id, site.name, f"L'abonnement de {site.name} est arrivé à échéance le {label}."
+            ))
+            urgent = True
+        elif due_reminder(position) is not None:
+            label = format_date_fr(position.current.ends_on)
+            if position.end == ENDING:
+                ending.append(Finding(
+                    site.id, site.name, f'Le service de {site.name} prend fin le {label}.'
+                ))
+            else:
+                is_trial = position.current.kind == 'trial'
+                what = "L'essai gratuit" if is_trial else "L'abonnement"
+                renewal.append(Finding(
+                    site.id, site.name, f'{what} de {site.name} se termine le {label}.'
+                ))
+                trial |= is_trial
+                urgent |= position.days_left <= RENEWAL_WARNING_DAYS
+    return [
+        *_entry(
+            f'subscription_renewal:{context.today}', 'warning' if urgent else 'info',
+            "Fin de l'essai gratuit" if trial else 'Abonnement à renouveler',
+            '{count} abonnement{s} à renouveler', renewal, context,
+        ),
+        *_entry(
+            f'subscription_ending:{context.today}', 'info',
+            'Fin de service annoncée', '{count} site{s} en fin de service', ending, context,
+        ),
+    ]
+
+
 def _holidays(context: Context) -> list[dict]:
     """Not site-scoped: the calendar is national, so one entry per date."""
     days_before = int(context.prefs.get('holiday_alert_days_before', 5))
@@ -305,9 +350,11 @@ def _holidays(context: Context) -> list[dict]:
 
 @dataclass(frozen=True)
 class Rule:
-    preference: str
+    # None: a rule no switch turns off.
+    preference: str | None
     check: Callable[[Context], list[dict]]
     only: Audience | None = None
+    digest: bool = True
 
 
 # Kept in step with client/src/features/notifications/NotificationPreferences.tsx,
@@ -321,6 +368,8 @@ RULES = [
     Rule('notify_vote_anomaly', _vote_anomaly),
     Rule('notify_site_inactive', _site_inactive, only=Audience.SUPERVISOR),
     Rule('notify_holiday_approaching', _holidays, only=Audience.SITE_TEAM),
+    # Its emails go to the site's admins alone, from their own job.
+    Rule(None, _subscription, digest=False),
 ]
 
 
@@ -337,6 +386,7 @@ def build_context(
         return None
     now = paris_now()
     return Context(
+        user=user,
         sites=sites,
         site_ids=[site.id for site in sites],
         today=now.date(),
@@ -349,9 +399,10 @@ def build_context(
     )
 
 
-def live_alerts(user, site_ids: list[int]) -> list[dict]:
+def live_alerts(user, site_ids: list[int], *, digest: bool = False) -> list[dict]:
     """Active alerts for these sites, worst first: the team's rules on the sites the
-    account belongs to, the supervisor's on those it only supervises.
+    account belongs to, the supervisor's on those it only supervises. `digest` keeps
+    the rules the weekly summary carries.
     """
     team = member_site_ids(user)
     alerts = []
@@ -364,7 +415,9 @@ def live_alerts(user, site_ids: list[int]) -> list[dict]:
         if context is None:
             continue
         for rule in RULES:
-            if rule.only in (None, audience) and context.prefs.get(rule.preference, True):
+            if rule.only not in (None, audience) or (digest and not rule.digest):
+                continue
+            if rule.preference is None or context.prefs.get(rule.preference, True):
                 alerts.extend(rule.check(context))
 
     order = {'error': 0, 'warning': 1, 'info': 2}

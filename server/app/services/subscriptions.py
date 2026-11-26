@@ -18,6 +18,10 @@ COVERED = 'covered'
 UNDECIDED = 'undecided'
 ENDING = 'ending'
 
+# Days before the last day of a period at which its admins hear of it.
+REMINDER_DAYS = {'paid': (90, 30, 7), 'complimentary': (90, 30, 7), 'trial': (14, 3)}
+ENDING_NOTICE_DAYS = (30, 7)
+
 PERIOD_FIELDS = (
     'kind', 'starts_on', 'ends_on', 'renewal', 'tacit_until', 'notice_by',
     'quote_ref', 'order_ref', 'payer_name', 'payer_siret', 'payer_service_code',
@@ -125,6 +129,14 @@ def standing(periods: list[Period], today: date, site_active: bool = True) -> St
         days_left=days_left,
         past=past,
     )
+
+
+def due_reminder(position: Standing) -> int | None:
+    """The tightest threshold the period has crossed: a missed one is never sent late."""
+    if position.state != ACTIVE or position.end == COVERED:
+        return None
+    days = ENDING_NOTICE_DAYS if position.end == ENDING else REMINDER_DAYS[position.current.kind]
+    return min((threshold for threshold in days if position.days_left <= threshold), default=None)
 
 
 def periods_by_site(site_ids: list[int]) -> dict[int, list[Period]]:

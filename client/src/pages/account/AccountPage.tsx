@@ -214,7 +214,8 @@ function PrivacyDialog({ tenant }: { tenant?: string | null }) {
           <Block title="Finalités">
             <p>
               Ces données permettent de vous donner accès à l’outil, d’attribuer les publications à
-              leur auteur et de sécuriser le service.
+              leur auteur, de sécuriser le service et de vous prévenir de l’échéance de l’abonnement
+              des sites que vous administrez.
             </p>
           </Block>
 

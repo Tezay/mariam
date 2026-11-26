@@ -450,7 +450,7 @@ def _start_scheduler(app):
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
 
-        from .services import email_service, retention, telemetry
+        from .services import email_service, retention, subscription_reminders, telemetry
 
         scheduler = BackgroundScheduler(daemon=True, timezone='Europe/Paris')
 
@@ -502,6 +502,13 @@ def _start_scheduler(app):
             id='weekly_digest',
             name='Send the weekly digest emails',
             replace_existing=True, misfire_grace_time=300,
+        )
+        scheduler.add_job(
+            func=subscription_reminders.send_subscription_reminders,
+            trigger='cron', hour=9, minute=0, args=[app],
+            id='subscription_reminders',
+            name='Remind site admins of a subscription ending',
+            replace_existing=True, misfire_grace_time=3600,
         )
 
         scheduler.start()

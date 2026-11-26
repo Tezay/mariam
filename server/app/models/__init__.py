@@ -23,7 +23,7 @@ from .push_subscription import PushSubscription
 from .restaurant import Restaurant, RestaurantPhoto, RestaurantServiceHours
 from .restaurant_calendar import RestaurantCalendarSettings
 from .service_live_status import ServiceLiveStatus
-from .subscription import SubscriptionPeriod
+from .subscription import SubscriptionPeriod, SubscriptionReminder
 from .taxonomy import (
     Certification,
     CertificationCategory,
@@ -49,6 +49,7 @@ __all__ = [
     'RestaurantCalendarSettings',
     'ServiceLiveStatus',
     'SubscriptionPeriod',
+    'SubscriptionReminder',
     'EgalimDeclaration',
     'MenuCategory',
     'Menu',
