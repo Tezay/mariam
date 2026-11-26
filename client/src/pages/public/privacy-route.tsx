@@ -1,9 +1,13 @@
-import { supportEmail } from '@/lib/runtime-config.server';
+import { legalNoticeUrl, operatorName, supportEmail } from '@/lib/runtime-config.server';
 import { PrivacyPage } from './PrivacyPage';
 import type { Route } from './+types/privacy-route';
 
 export function loader() {
-  return { supportEmail: supportEmail() };
+  return {
+    supportEmail: supportEmail(),
+    operatorName: operatorName(),
+    legalNoticeUrl: legalNoticeUrl(),
+  };
 }
 
 export const meta: Route.MetaFunction = () => [
@@ -16,5 +20,5 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export default function PrivacyRoute({ loaderData }: Route.ComponentProps) {
-  return <PrivacyPage supportEmail={loaderData.supportEmail} />;
+  return <PrivacyPage {...loaderData} />;
 }

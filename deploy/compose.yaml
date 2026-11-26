@@ -167,6 +167,8 @@ services:
       DPA_URL: ${DPA_URL:-}
       API_TERMS_URL: ${API_TERMS_URL:-}
       SOURCE_LICENSE_URL: ${SOURCE_LICENSE_URL:-}
+      LEGAL_NOTICE_URL: ${LEGAL_NOTICE_URL:-}
+      OPERATOR_NAME: ${OPERATOR_NAME:-}
     depends_on:
       backend:
         condition: service_healthy

@@ -46,10 +46,18 @@ describe('publicRuntimeConfig', () => {
     const config = publicRuntimeConfig({
       TERMS_URL: 'javascript:alert(1)',
       DPA_URL: ' https://example.org/dpa.pdf ',
+      LEGAL_NOTICE_URL: 'http://example.org/legal',
     });
 
     expect(config.TERMS_URL).toBe('');
     expect(config.DPA_URL).toBe('https://example.org/dpa.pdf');
+    expect(config.LEGAL_NOTICE_URL).toBe('');
+  });
+
+  it('names the operator as set, without its surrounding spaces', () => {
+    expect(publicRuntimeConfig({ OPERATOR_NAME: '  Jane Doe EI ' }).OPERATOR_NAME).toBe(
+      'Jane Doe EI'
+    );
   });
 
   it('names the environment after the build when none is given', () => {

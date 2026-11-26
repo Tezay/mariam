@@ -276,6 +276,10 @@ page, the privacy notice and the subscription page. The digest's unsubscribe lin
 API, at `FRONTEND_URL/v1` unless `API_URL` says otherwise: when the API has a host of its own,
 give the backend and the scheduler the `API_URL` the front end is given.
 
+The frontend names the operator from `OPERATOR_NAME` and links its documents, kept outside the
+code, from `LEGAL_NOTICE_URL`, `DPA_URL` (host and sub-processors), `TERMS_URL`, `API_TERMS_URL`,
+`SOURCE_LICENSE_URL` and `STATUS_PAGE_URL`, https only.
+
 Check it without waiting for the weekly run:
 
 ```bash

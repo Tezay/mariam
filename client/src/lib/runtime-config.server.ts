@@ -25,11 +25,21 @@ export function publicRuntimeConfig(env: Env = process.env) {
     DPA_URL: httpsUrl(env.DPA_URL),
     API_TERMS_URL: httpsUrl(env.API_TERMS_URL),
     SOURCE_LICENSE_URL: httpsUrl(env.SOURCE_LICENSE_URL),
+    LEGAL_NOTICE_URL: legalNoticeUrl(env),
+    OPERATOR_NAME: operatorName(env),
   };
 }
 
 export function supportEmail(env: Env = process.env): string {
   return env.SUPPORT_EMAIL?.trim() ?? '';
+}
+
+export function legalNoticeUrl(env: Env = process.env): string {
+  return httpsUrl(env.LEGAL_NOTICE_URL);
+}
+
+export function operatorName(env: Env = process.env): string {
+  return env.OPERATOR_NAME?.trim() ?? '';
 }
 
 export function runtimeConfigScript(env: Env = process.env): string {
